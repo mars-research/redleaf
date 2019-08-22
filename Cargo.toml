@@ -1,0 +1,13 @@
+[package]
+name = "redleaf"
+version = "0.1.0"
+authors = ["Anton Burtsev <aburtsev@uci.edu>"]
+edition = "2018"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
+[dependencies]
