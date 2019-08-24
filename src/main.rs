@@ -10,11 +10,7 @@ fn panic(_info: &PanicInfo) -> ! {
 }
 
 #[no_mangle]
-pub extern "C" fn _start() -> ! {
-    main();
+pub extern "C" fn main() -> ! {
     loop {}
 }
 
-fn main() {
-    // println!("Hello, world!");
-}
