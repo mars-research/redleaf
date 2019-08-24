@@ -16,7 +16,7 @@ clean:
 	rm -r build
 
 run: $(iso)
-	qemu-system-x86_64 -cdrom $(iso) -boot menu=on -vga std -s -serial file:serial.log
+	qemu-system-x86_64 -cdrom $(iso) -vga std -s -serial file:serial.log
 
 iso: $(iso)
 	@echo "Done"
