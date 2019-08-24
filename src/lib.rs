@@ -1,6 +1,9 @@
 #![no_std]
 #![no_main]
+extern crate x86;
 
+//#[macro_use]
+//mod serial;
 use core::panic::PanicInfo;
 
 // This function is called on panic.
@@ -10,7 +13,8 @@ fn panic(_info: &PanicInfo) -> ! {
 }
 
 #[no_mangle]
-pub extern "C" fn main() -> ! {
+pub extern "C" fn rust_main() -> ! {
+    //printsln!("Hello, World!");
     loop {}
 }
 
