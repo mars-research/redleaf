@@ -4,6 +4,10 @@ extern crate x86;
 
 #[macro_use]
 mod serial;
+#[macro_use]
+extern crate lazy_static;
+extern crate spin;
+
 use core::panic::PanicInfo;
 
 // This function is called on panic.

@@ -23,7 +23,6 @@ impl SerialPort {
             outb(self.base_port+1, 0x00); // Disable Interrupts
         }
     }
-}
 
 pub fn get_lsts(&self) -> u8 {
     unsafe {
@@ -50,9 +49,12 @@ pub fn send(&self, data: u8) {
     }
 }
 
+}
+
 use core::fmt::{Write, Result};
+
 impl Write for SerialPort {
-    fn write_str(&mut self, s: &str) -> fmt::Result {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
         for byte in s.bytes() {
             self.send(byte);
         }
