@@ -1,5 +1,5 @@
 #![no_std]
-#![no_main]
+//#![no_main]
 extern crate x86;
 
 #[macro_use]
@@ -7,6 +7,7 @@ mod serial;
 #[macro_use]
 extern crate lazy_static;
 extern crate spin;
+extern crate core;
 
 use core::panic::PanicInfo;
 

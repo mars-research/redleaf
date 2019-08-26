@@ -9,7 +9,7 @@ assembly_source_files := $(wildcard src/*.asm)
 assembly_object_files := $(patsubst src/%.asm, build/%.o, $(assembly_source_files))
 
 target ?= $(arch)-redleaf
-rust_os := target/$(target)/debug/libredleaf.rlib
+rust_os := target/$(target)/debug/libredleaf.a
 
 .PHONY: all clean run iso kernel doc disk
 
