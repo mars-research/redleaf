@@ -24,3 +24,7 @@ grub-mkrescue: warning: Your xorriso doesn't support `--grub2-boot-info'. Some f
 ```
 make run
 ```
+
+### Notes
+
+The baremetal Rust setup (features, linking, etc. is best describe in https://os.phil-opp.com/set-up-rust/)
