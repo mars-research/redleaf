@@ -27,4 +27,8 @@ make run
 
 ### Notes
 
-The baremetal Rust setup (features, linking, etc. is best describe in https://os.phil-opp.com/set-up-rust/)
+The baremetal Rust setup (features, linking, etc. is best describe in https://os.phil-opp.com/set-up-rust/).
+
+A cleaner baremental setup (multi-boot and no dependencies on external tools): https://kernelstack.net/2019-07-13-rust-os-1/
+
+The two versions of Philipp Opper blog: https://os.phil-opp.com (v2) and https://os.phil-opp.com/first-edition/ (v1)
