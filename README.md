@@ -30,4 +30,6 @@ The baremetal Rust setup (features, linking, etc. is best describe in https://os
 
 A cleaner baremental setup (multi-boot and no dependencies on external tools): https://kernelstack.net/2019-07-13-rust-os-1/
 
-The two versions of Philipp Opper blog: https://os.phil-opp.com (v2) and https://os.phil-opp.com/first-edition/ (v1)
+Two versions of Philipp Opper blog: https://os.phil-opp.com (v2) and https://os.phil-opp.com/first-edition/ (v1)
+
+Naked functions for exceptions: https://os.phil-opp.com/first-edition/extra/naked-exceptions/
