@@ -24,3 +24,7 @@ grub-mkrescue: warning: Your xorriso doesn't support `--grub2-boot-info'. Some f
 ```
 make run
 ```
+
+
+Naked functions for exceptions
+https://os.phil-opp.com/first-edition/extra/naked-exceptions/
