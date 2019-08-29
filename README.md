@@ -8,21 +8,20 @@ cargo xbuild --target x86_64-redleaf.json
 rustup component add rust-src
 cargo xbuild --target x86_64-redleaf.json
 ```
+
 ### Prerequisites
 * qemu
 
-### Run
-```
-make iso
-```
 
-Install `xorriso` package, if `grub-mkrescue` complains
-```
-grub-mkrescue: warning: Your xorriso doesn't support `--grub2-boot-info'. Some features are disabled. Please use xorriso 1.2.9 or later..                                                 
-```
+### Run
 
 ```
 make run
+```
+
+If you see complains from the `grub-mkrescue`, install the `xorriso` package
+```
+grub-mkrescue: warning: Your xorriso doesn't support `--grub2-boot-info'. Some features are disabled. Please use xorriso 1.2.9 or later..                                                 
 ```
 
 ### Notes
