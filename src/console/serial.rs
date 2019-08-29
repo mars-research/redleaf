@@ -24,31 +24,30 @@ impl SerialPort {
         }
     }
 
-pub fn get_lsts(&self) -> u8 {
-    unsafe {
-        inb(self.base_port + 5) // line status register is on port 5.
+    pub fn get_lsts(&self) -> u8 {
+        unsafe {
+            inb(self.base_port + 5) // line status register is on port 5.
+        }
     }
-}
 
-pub fn send(&self, data: u8) {
-    unsafe {
-        match data {
-            8 | 0x7F => {
-                while (!self.get_lsts() & 1) == 0 {}
-                outb(self.base_port, 8);
-                while (!self.get_lsts() & 1) == 0 {}
-                outb(self.base_port, b' ');
-                while (!self.get_lsts() & 1) == 0 {}
-                outb(self.base_port, 8);
-            }
-            _ => {
-                while (!self.get_lsts() & 1) == 0 {}
-                outb(self.base_port, data);
+    pub fn send(&self, data: u8) {
+        unsafe {
+            match data {
+                8 | 0x7F => {
+                    while (!self.get_lsts() & 1) == 0 {}
+                    outb(self.base_port, 8);
+                    while (!self.get_lsts() & 1) == 0 {}
+                    outb(self.base_port, b' '); 
+                    while (!self.get_lsts() & 1) == 0 {}
+                    outb(self.base_port, 8);
+                }
+                _ => {
+                    while (!self.get_lsts() & 1) == 0 {}
+                    outb(self.base_port, data);
+                }
             }
         }
     }
-}
-
 }
 
 use core::fmt::{Write, Result};
@@ -74,6 +73,7 @@ lazy_static! {
     };
 }
 
+/*
 pub fn print(args: ::core::fmt::Arguments) {
     use core::fmt::Write;
     SERIAL1
@@ -82,7 +82,7 @@ pub fn print(args: ::core::fmt::Arguments) {
         .expect("Printing to serial failed");
 }
 
-/// Prints to the host through the serial interface.
+// Prints to the host through the serial interface.
 #[macro_export]
 macro_rules! prints {
     ($($arg:tt)*) => {
@@ -90,10 +90,11 @@ macro_rules! prints {
     };
 }
 
-/// Prints to the host through the serial interface, appending a newline.
+// Prints to the host through the serial interface, appending a newline.
 #[macro_export]
 macro_rules! printsln {
     () => (prints!("\n"));
     ($fmt:expr) => (prints!(concat!($fmt, "\n")));
     ($fmt:expr, $($arg:tt)*) => (prints!(concat!($fmt, "\n"), $($arg)*));
 }
+*/
