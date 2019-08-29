@@ -2,7 +2,7 @@
 mod serial;
 mod vga; 
 
-use core::fmt::{Write, Result};
+use core::fmt::{Write};
 use crate::console::vga::WRITER;
 use crate::console::serial::SERIAL1;
 
@@ -19,7 +19,6 @@ macro_rules! println {
 
 #[doc(hidden)]
 pub fn _print(args: core::fmt::Arguments) {
-    use core::fmt::Write;
     WRITER.lock().write_fmt(args).unwrap();
     SERIAL1.lock().write_fmt(args).unwrap(); 
 }

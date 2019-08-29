@@ -13,7 +13,8 @@ use core::panic::PanicInfo;
 
 // This function is called on panic.
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo) -> ! {
+    println!("{}", info);
     loop {}
 }
 
@@ -21,10 +22,6 @@ fn panic(_info: &PanicInfo) -> ! {
 pub extern "C" fn rust_main() -> ! {
     println!("Hello, World (vga and serial)!");
 
-    //use core::fmt::Write;
-    //vga::WRITER.lock().write_str("Hello again").unwrap();
-    //write!(vga::WRITER.lock(), ", some numbers: {} {}", 42, 1.337).unwrap();
-    
     loop {}
 }
 
