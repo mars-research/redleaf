@@ -8,10 +8,10 @@ extern crate core;
 
 #[macro_use]
 mod console;
-mod interrupts; 
+mod interrupts;
+pub mod gdt;
 
 use core::panic::PanicInfo;
-use crate::interrupts::init_idt;
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
@@ -23,10 +23,11 @@ fn panic(info: &PanicInfo) -> ! {
 pub extern "C" fn rust_main() -> ! {
     println!("Booting RedLeaf...");
 
-    init_idt();
+    gdt::init();
+    interrupts::init_idt();
 
-     // invoke a breakpoint exception
-     x86_64::instructions::interrupts::int3(); 
+    // invoke a breakpoint exception
+    x86_64::instructions::interrupts::int3(); 
      
     println!("boot ok");
     loop {}
