@@ -29,6 +29,7 @@ impl InterruptIndex {
     }
 }
 
+// See https://os.phil-opp.com/hardware-interrupts/ 
 pub static PICS: spin::Mutex<ChainedPics> =
     spin::Mutex::new(unsafe { ChainedPics::new(PIC_1_OFFSET, PIC_2_OFFSET) });
 
@@ -37,6 +38,13 @@ lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
         let mut idt = InterruptDescriptorTable::new();
         idt.breakpoint.set_handler_fn(breakpoint_handler);
+
+		/* NMI fault hanler executes on the IST stack */
+        unsafe {
+            idt.double_fault
+				.set_handler_fn(nmi_handler)
+                .set_stack_index(gdt::NMI_IST_INDEX); 
+        }
 
 		/* Double fault hanler executes on the IST stack -- just in 
  		   case the kernel stack is already full and triggers a pagefault, 
@@ -66,6 +74,13 @@ pub fn init_irqs() {
 
 extern "x86-interrupt" fn breakpoint_handler(stack_frame: &mut InterruptStackFrame) {
     println!("breakpoint:\n{:#?}", stack_frame);
+}
+
+extern "x86-interrupt" fn nmi_handler(
+    stack_frame: &mut InterruptStackFrame,
+    _error_code: u64,
+) {
+    println!("nmi:\n{:#?}", stack_frame); 
 }
 
 extern "x86-interrupt" fn double_fault_handler(
