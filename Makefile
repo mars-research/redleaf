@@ -22,7 +22,7 @@ clean:
 	cargo clean
 
 run: $(iso)
-	qemu-system-x86_64 -cdrom $(iso) -vga std -s -serial file:serial.log
+	qemu-system-x86_64 -cdrom $(iso) -vga std -s -serial file:serial.log -d int,cpu_reset -no-reboot
 
 iso: $(iso)
 	@echo "Done"

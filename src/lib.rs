@@ -1,5 +1,6 @@
 #![no_std]
 #![feature(abi_x86_interrupt)]
+#![feature(asm)]
 extern crate x86;
 #[macro_use]
 extern crate lazy_static;
@@ -9,7 +10,9 @@ extern crate core;
 #[macro_use]
 mod console;
 mod interrupts;
+pub mod banner;
 pub mod gdt;
+pub mod lapic;
 
 use core::panic::PanicInfo;
 
@@ -21,16 +24,16 @@ fn panic(info: &PanicInfo) -> ! {
 
 #[no_mangle]
 pub extern "C" fn rust_main() -> ! {
-    println!("Booting RedLeaf...");
+    banner::boot_banner();
 
     gdt::init();
     interrupts::init_idt();
-    interrupts::init_irqs();
 
+    interrupts::init_irqs();
     x86_64::instructions::interrupts::enable();
 
     // invoke a breakpoint exception
-    x86_64::instructions::interrupts::int3(); 
+    // x86_64::instructions::interrupts::int3(); 
      
     println!("boot ok");
 

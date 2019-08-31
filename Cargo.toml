@@ -20,6 +20,7 @@ volatile = "0.2.3"
 x86_64 = "0.7.0"
 pic8259_simple = "0.1.1"
 pc-keyboard = "0.3.1"
+raw-cpuid = "6.1.0"
 
 [dependencies.lazy_static]
 version = "1.3.0"

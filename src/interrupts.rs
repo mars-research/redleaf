@@ -6,11 +6,19 @@ use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
 use pic8259_simple::ChainedPics;
 use spin;
 
-use crate::{gdt, println};
+use crate::{gdt, lapic, println};
 
 // Map first PIC line to interrupt 32 
 pub const PIC_1_OFFSET: u8 = 32;
 pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
+
+macro_rules! dummy_interrupt_handler {
+    ($name: ident, $interrupt: expr) => {
+        extern "x86-interrupt" fn $name(stack_frame: &mut InterruptStackFrame) {
+            println!("Interrupt {} triggered", $interrupt);
+        }
+    };
+}
 
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
@@ -41,7 +49,7 @@ lazy_static! {
 
 		/* NMI fault hanler executes on the IST stack */
         unsafe {
-            idt.double_fault
+            idt.non_maskable_interrupt
 				.set_handler_fn(nmi_handler)
                 .set_stack_index(gdt::NMI_IST_INDEX); 
         }
@@ -68,17 +76,18 @@ pub fn init_idt() {
 }
 
 pub fn init_irqs() {
-    unsafe { PICS.lock().initialize() };
+    lapic::init();
+    // unsafe { PICS.lock().initialize() };
 }
 
 
 extern "x86-interrupt" fn breakpoint_handler(stack_frame: &mut InterruptStackFrame) {
     println!("breakpoint:\n{:#?}", stack_frame);
+    lapic::end_of_interrupt();
 }
 
 extern "x86-interrupt" fn nmi_handler(
     stack_frame: &mut InterruptStackFrame,
-    _error_code: u64,
 ) {
     println!("nmi:\n{:#?}", stack_frame); 
 }
@@ -92,12 +101,24 @@ extern "x86-interrupt" fn double_fault_handler(
 }
 
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: &mut InterruptStackFrame) {
-    //print!(".");
+    print!(".");
 
+    /*
     unsafe {
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::Timer.as_u8());
-    }
+    }*/
+}
+
+extern "x86-interrupt" fn apic_error_handler(stack_frame: &mut InterruptStackFrame) {
+    println!("apic error:\n{:#?}", stack_frame);
+    lapic::end_of_interrupt();
+
+    /*
+    unsafe {
+        PICS.lock()
+            .notify_end_of_interrupt(InterruptIndex::Timer.as_u8());
+    }*/
 }
 
 extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: &mut InterruptStackFrame) {
