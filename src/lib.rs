@@ -30,7 +30,9 @@ pub extern "C" fn rust_main() -> ! {
     interrupts::init_idt();
 
     interrupts::init_irqs();
+    println!("Enabling interrupts");
     x86_64::instructions::interrupts::enable();
+    println!("Enabled");
 
     // invoke a breakpoint exception
     // x86_64::instructions::interrupts::int3(); 
