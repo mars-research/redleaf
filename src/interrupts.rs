@@ -16,6 +16,12 @@ macro_rules! dummy_interrupt_handler {
     ($name: ident, $interrupt: expr) => {
         extern "x86-interrupt" fn $name(stack_frame: &mut InterruptStackFrame) {
             println!("Interrupt {} triggered", $interrupt);
+            lapic::end_of_interrupt();
+            //unsafe {
+            //   PICS.lock()
+            //        .notify_end_of_interrupt(InterruptIndex::Timer.as_u8());
+            //}
+
         }
     };
 }
@@ -51,6 +57,7 @@ lazy_static! {
         idt.machine_check.set_handler_fn(machine_check_handler);
         idt.general_protection_fault.set_handler_fn(general_protection_fault_handler);
         idt.alignment_check.set_handler_fn(alignment_check_handler);
+        idt.page_fault.set_handler_fn(page_fault_handler);
 
 		/* NMI fault hanler executes on the IST stack */
         unsafe {
@@ -308,7 +315,7 @@ pub fn init_idt() {
 
 pub fn init_irqs() {
     lapic::init();
-    // unsafe { PICS.lock().initialize() };
+      //unsafe { PICS.lock().initialize() };
 }
 
 
@@ -368,6 +375,21 @@ extern "x86-interrupt" fn machine_check_handler(
 ) {
     println!("machine check:\n{:#?}", stack_frame);
 	crate::halt(); 
+}
+
+use x86_64::structures::idt::PageFaultErrorCode;
+
+extern "x86-interrupt" fn page_fault_handler(
+    stack_frame: &mut InterruptStackFrame,
+    error_code: PageFaultErrorCode,
+) {
+    use x86_64::registers::control::Cr2;
+
+    println!("EXCEPTION: PAGE FAULT");
+    println!("Accessed Address: {:?}", Cr2::read());
+    println!("Error Code: {:?}", error_code);
+    println!("{:#?}", stack_frame);
+    crate::halt();
 }
 
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: &mut InterruptStackFrame) {
