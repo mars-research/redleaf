@@ -24,6 +24,8 @@ fn panic(info: &PanicInfo) -> ! {
 
 #[no_mangle]
 pub extern "C" fn rust_main() -> ! {
+    halt();
+
     banner::boot_banner();
 
     gdt::init();

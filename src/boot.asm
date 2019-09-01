@@ -18,6 +18,21 @@ long_mode_start:
     mov rax, 0x2f592f412f4b2f4f
     mov qword [0xb8000], rax
 
+    ; map lapic_p2_table into p3_table
+    ; bin(0xfee00000) = 0b11 111110111 000000000 000000000000
+    ; we use entry 0b11 or 3 
+    mov rax, lapic_p2_table
+    or rax, 0b11 ; present + writable
+    mov rcx, 3
+    mov qword [p3_table + rcx*8], rax
+
+    ; map 0xfee00000 (which is entry b111110111 or 503 into lapic_p2_table) 
+    mov rax, 0xfee00000 ; address
+    or rax, 0b10000011 ; present + writable + huge
+    mov rcx, 503
+    mov qword [lapic_p2_table + rcx * 8], rax ; map ecx-th entry
+
+
     call rust_main
     hlt
 
@@ -129,18 +144,6 @@ set_up_page_tables:
     inc ecx            ; increase counter
     cmp ecx, 512       ; if counter == 512, the whole P2 table is mapped
     jne .map_p2_table  ; else map the next entry
-
-    ; map lapic_p2_table into p3_table
-    ; bin(0xfee00000) = 0b11 111110111 000000000 000000000000
-    ; we use entry 0b11 or 3 
-    mov eax, lapic_p2_table
-    or eax, 0b11 ; present + writable
-    mov [p3_table + 3*8], eax
-
-    ; map 0xfee00000 (which is entry b111110111 or 503 into lapic_p2_table) 
-    mov eax, 0xfee00000 ; address
-    or eax, 0b10000011 ; present + writable + huge
-    mov [lapic_p2_table + 503 * 8], eax ; map ecx-th entry
 
     ret
 
