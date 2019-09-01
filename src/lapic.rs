@@ -5,6 +5,7 @@
 //  - https://github.com/mit-pdos/xv6-public/blob/master/lapic.c
 
 extern crate raw_cpuid;
+use core::ptr;
 use raw_cpuid::CpuId;
 use x86_64::registers::model_specific::Msr;
 
@@ -34,16 +35,22 @@ const IRQ_SPURIOUS: u32 = 31;
 
 #[no_mangle]
 unsafe fn apicr(offset: u32) -> u32 {
+	println!("apic read addr:{:x?}", apic + offset);
+    ptr::read_volatile((apic + offset) as *const u32)
+    /*
     let mut value: u32 = 0;
 	//println!("apic read addr:{:x?}, value:{:x?}", apic + offset, value);
     asm!("mov $0, $1" : "=r"(value) : "r"(apic + offset) :: "intel");
     value
+    */
 }
 
 #[no_mangle]
 unsafe fn apicw(offset: u32, value: u32) {
-
-	//println!("apic write addr:{:x?}, value:{:x?}", apic + offset, value);
+	println!("apic write addr:{:x?}, value:{:x?}", apic + offset, value);
+    ptr::write_volatile((apic + offset) as *mut u32, value);
+    ptr::read_volatile((apic + LAPIC_ID) as *const u32);
+    /*
     asm!("mov $0, $1
           mov eax, $2"
          : // output
@@ -51,6 +58,7 @@ unsafe fn apicw(offset: u32, value: u32) {
          : "eax" // clobber
          : "intel"
     );
+    */
 }
 
 fn probe_apic() {

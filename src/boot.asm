@@ -130,17 +130,16 @@ set_up_page_tables:
     cmp ecx, 512       ; if counter == 512, the whole P2 table is mapped
     jne .map_p2_table  ; else map the next entry
 
-    ; map LAPIC
+    ; map lapic_p2_table into p3_table
+    ; we use entry 0b11 or 3 
     mov eax, lapic_p2_table
     or eax, 0b11 ; present + writable
-    mov [p3_table + 254*8], eax
+    mov [p3_table + 3*8], eax
 
-   
-    mov eax, 0xfe000000 ; address
+    ; map 0xfee00000 (which is entry 503 into lapic_p2_table) 
+    mov eax, 0xfee00000 ; address
     or eax, 0b10000011 ; present + writable + huge
-    mov [lapic_p2_table + 192 * 8], eax ; map ecx-th entry
-
-
+    mov [lapic_p2_table + 503 * 8], eax ; map ecx-th entry
 
     ret
 
@@ -196,6 +195,7 @@ p2_table:
     resb 4096
 lapic_p2_table:
     resb 4096
+
 
 
 stack_bottom:
