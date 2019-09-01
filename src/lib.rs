@@ -9,10 +9,9 @@ extern crate core;
 
 #[macro_use]
 mod console;
-mod interrupts;
+mod interrupt;
 pub mod banner;
 pub mod gdt;
-pub mod lapic;
 
 use core::panic::PanicInfo;
 
@@ -28,13 +27,10 @@ pub extern "C" fn rust_main() -> ! {
 
 
     gdt::init();
-    interrupts::init_idt();
+    interrupt::init_idt();
 
-    interrupts::init_irqs();
-    println!("Enabling interrupts");
-
+    interrupt::init_irqs();
     x86_64::instructions::interrupts::enable();
-    println!("Enabled");
 
     // invoke a breakpoint exception
     // x86_64::instructions::interrupts::int3(); 
