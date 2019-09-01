@@ -24,15 +24,15 @@ fn panic(info: &PanicInfo) -> ! {
 
 #[no_mangle]
 pub extern "C" fn rust_main() -> ! {
-    halt();
-
     banner::boot_banner();
+
 
     gdt::init();
     interrupts::init_idt();
 
     interrupts::init_irqs();
     println!("Enabling interrupts");
+
     x86_64::instructions::interrupts::enable();
     println!("Enabled");
 
