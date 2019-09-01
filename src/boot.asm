@@ -130,6 +130,18 @@ set_up_page_tables:
     cmp ecx, 512       ; if counter == 512, the whole P2 table is mapped
     jne .map_p2_table  ; else map the next entry
 
+    ; map LAPIC
+    mov eax, lapic_p2_table
+    or eax, 0b11 ; present + writable
+    mov [p3_table + 254*8], eax
+
+   
+    mov eax, 0xfe000000 ; address
+    or eax, 0b10000011 ; present + writable + huge
+    mov [lapic_p2_table + 192 * 8], eax ; map ecx-th entry
+
+
+
     ret
 
 enable_paging:
@@ -182,6 +194,9 @@ p3_table:
     resb 4096
 p2_table:
     resb 4096
+lapic_p2_table:
+    resb 4096
+
 
 stack_bottom:
     resb 4096 * 4 ; Reserve this many bytes

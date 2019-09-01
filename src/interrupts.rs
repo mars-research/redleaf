@@ -59,12 +59,14 @@ lazy_static! {
         idt.alignment_check.set_handler_fn(alignment_check_handler);
         idt.page_fault.set_handler_fn(page_fault_handler);
 
+        idt.non_maskable_interrupt.set_handler_fn(nmi_handler);
+
 		/* NMI fault hanler executes on the IST stack */
-        unsafe {
-            idt.non_maskable_interrupt
-				.set_handler_fn(nmi_handler)
-                .set_stack_index(gdt::NMI_IST_INDEX); 
-        }
+        //unsafe {
+        //    idt.non_maskable_interrupt
+		//		.set_handler_fn(nmi_handler)
+        //        .set_stack_index(gdt::NMI_IST_INDEX); 
+        //}
 
 		/* Double fault hanler executes on the IST stack -- just in 
  		   case the kernel stack is already full and triggers a pagefault, 

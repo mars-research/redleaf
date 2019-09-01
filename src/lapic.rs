@@ -32,13 +32,18 @@ const LAPIC_MASKED: u32 = 0x00010000;
 const IRQ_OFFSET: u32 = 32;
 const IRQ_SPURIOUS: u32 = 31;
 
+#[no_mangle]
 unsafe fn apicr(offset: u32) -> u32 {
     let mut value: u32 = 0;
+	//println!("apic read addr:{:x?}, value:{:x?}", apic + offset, value);
     asm!("mov $0, $1" : "=r"(value) : "r"(apic + offset) :: "intel");
     value
 }
 
+#[no_mangle]
 unsafe fn apicw(offset: u32, value: u32) {
+
+	//println!("apic write addr:{:x?}, value:{:x?}", apic + offset, value);
     asm!("mov $0, $1
           mov eax, $2"
          : // output
