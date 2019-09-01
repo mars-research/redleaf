@@ -21,8 +21,13 @@ clean:
 	rm -r build
 	cargo clean
 
+# To trace interrupts add: -d int,cpu_reset
+
 run: $(iso)
-	qemu-system-x86_64 -cdrom $(iso) -vga std -s -serial file:serial.log -d int,cpu_reset -no-reboot
+	qemu-system-x86_64 -cdrom $(iso) -vga std -s -serial file:serial.log -no-reboot
+
+run-nox: $(iso)
+	qemu-system-x86_64 -cdrom $(iso) -vga std -s -serial file:serial.log -no-reboot -nographic
 
 iso: $(iso)
 	@echo "Done"
