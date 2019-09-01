@@ -131,12 +131,13 @@ set_up_page_tables:
     jne .map_p2_table  ; else map the next entry
 
     ; map lapic_p2_table into p3_table
+    ; bin(0xfee00000) = 0b11 111110111 000000000 000000000000
     ; we use entry 0b11 or 3 
     mov eax, lapic_p2_table
     or eax, 0b11 ; present + writable
     mov [p3_table + 3*8], eax
 
-    ; map 0xfee00000 (which is entry 503 into lapic_p2_table) 
+    ; map 0xfee00000 (which is entry b111110111 or 503 into lapic_p2_table) 
     mov eax, 0xfee00000 ; address
     or eax, 0b10000011 ; present + writable + huge
     mov [lapic_p2_table + 503 * 8], eax ; map ecx-th entry
