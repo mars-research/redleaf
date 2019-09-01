@@ -47,10 +47,10 @@ root='hd0,1'
 set timeout=30
 menuentry "RedLeaf" {
     insmod ext2
-    set root='hd0,2'
+    set root='hd0,1'
     set kernel='/boot/kernel.bin'
     echo "Loading ${kernel}..."
-    multiboot ${kernel} ${kernel}
+    multiboot2 ${kernel} ${kernel}
     boot
 }
 ```
