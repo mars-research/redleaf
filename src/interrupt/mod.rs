@@ -5,6 +5,7 @@ use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, Pag
 use crate::{gdt, println};
 
 mod lapic;
+mod ioapic;
 mod pic;
 
 pub const IRQ_OFFSET: u8 = 32;
@@ -80,6 +81,7 @@ pub fn init_irqs() {
         if use_apic {
             println!("Initializing APIC");
             lapic::init();
+            ioapic::init();
         } else {
             println!("Initializing PIC");
             pic::init();
