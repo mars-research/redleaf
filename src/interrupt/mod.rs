@@ -82,6 +82,8 @@ pub fn init_irqs() {
             println!("Initializing APIC");
             lapic::init();
             ioapic::init();
+
+            ioapic::irqen(1, 0);
         } else {
             println!("Initializing PIC");
             pic::init();
