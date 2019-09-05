@@ -14,8 +14,8 @@ impl SerialPort {
     pub fn init(&self) {
         unsafe {
             outb(self.base_port+1, 0x00); // Disable interrupts
-            outb(self.base_port+3, 0x00); // Set baud rate divisor
-            outb(self.base_port+0, 0x00); // Set baud rate to 38400 baud
+            outb(self.base_port+3, 0x01); // Set baud rate divisor
+            outb(self.base_port+0, 0x01); // Set baud rate to 115200 baud
             outb(self.base_port+1, 0x00); // 
             outb(self.base_port+3, 0x00); // 8 bits, no parity, one stop bit
             outb(self.base_port+2, 0x00); // Enable FIFO, clear them, with 14-byte threshold
