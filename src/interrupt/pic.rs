@@ -12,7 +12,6 @@ static PICS: spin::Mutex<ChainedPics> =
     spin::Mutex::new(unsafe { ChainedPics::new(PIC1_OFFSET, PIC2_OFFSET) });
 
 pub fn init() {
-    println!("Initializing PIC");
     unsafe {
         PICS.lock().initialize();
     }
