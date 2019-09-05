@@ -7,6 +7,7 @@
 extern crate raw_cpuid;
 use core::ptr;
 use x86_64::registers::model_specific::Msr;
+use x86::io::outb;
 use super::InterruptIndex;
 
 static mut lapic: u32 = 0;
@@ -17,6 +18,8 @@ const LAPIC_TPR: u32 = 0x0080;
 const LAPIC_EOI: u32 = 0x00b0;
 const LAPIC_SVR: u32 = 0x00f0;
 const LAPIC_ESR: u32 = 0x0280;
+const LAPIC_ICRLO: u32 = 0x0300;
+const LAPIC_ICRHI: u32 = 0x0310;
 const LAPIC_TIMER: u32 = 0x0320;
 const LAPIC_PCINT: u32 = 0x0340;
 const LAPIC_LINT0: u32 = 0x0350;
@@ -25,10 +28,18 @@ const LAPIC_ERROR: u32 = 0x0370;
 const LAPIC_TICR: u32 = 0x0380;
 const LAPIC_TDCR: u32 = 0x03e0;
 
+const LAPIC_ICRLO_INIT: u32 = 0x00000500;
+const LAPIC_ICRLO_STARTUP: u32 = 0x00000600;
+const LAPIC_ICRLO_LEVEL: u32 = 0x00008000;
+const LAPIC_ICRLO_ASSERT: u32 = 0x00004000;
+
 const LAPIC_SVR_ENABLE: u32 = 0x0100;
 const LAPIC_TDCR_X1: u32 = 0x0000000b;
 const LAPIC_TIMER_PERIODIC: u32 = 0x00020000;
 const LAPIC_MASKED: u32 = 0x00010000;
+
+const CMOS_PORT: u16 = 0x70;
+const CMOD_RETURN: u16 = 0x71;
 
 const IRQ_OFFSET: u32 = super::IRQ_OFFSET as u32;
 const IRQ_SPURIOUS: u32 = 31;
@@ -83,6 +94,25 @@ fn init_lapic() {
         // Enable interrupts on APIC
         lapicw(LAPIC_TPR, 0);
     }
+}
+
+pub unsafe fn start_ap(cpu: u32, code: *const ()) {
+    outb(CMOS_PORT, 0xf);
+    outb(CMOS_PORT + 1, 0x0a);
+
+    // FIXME: Set the Warm Reset Vector here
+
+    // "Universal startup algorithm."
+    lapicw(LAPIC_ICRHI, cpu << 24);
+    lapicw(LAPIC_ICRLO, LAPIC_ICRLO_INIT | LAPIC_ICRLO_LEVEL | LAPIC_ICRLO_ASSERT);
+    lapicw(LAPIC_ICRLO, LAPIC_ICRLO_INIT | LAPIC_ICRLO_LEVEL);
+
+    // FIXME: Virtual address conversion
+    let codeaddr: u32 = code as u32;
+    lapicw(LAPIC_ICRHI, cpu << 24);
+    lapicw(LAPIC_ICRLO, LAPIC_ICRLO_STARTUP | (codeaddr >> 12));
+    lapicw(LAPIC_ICRHI, cpu << 24);
+    lapicw(LAPIC_ICRLO, LAPIC_ICRLO_STARTUP | (codeaddr >> 12));
 }
 
 pub fn end_of_interrupt() {
