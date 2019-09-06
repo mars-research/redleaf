@@ -55,5 +55,6 @@ bootblock: src/boot.asm src/multiboot_header.asm
 entryother: src/entry.asm
 	@mkdir -p $(shell dirname build)
 	nasm -felf64 src/entry.asm -o build/entry.o
-	ld -N -e start_others16 -Ttext 0x7C00 -o build/entry.bin build/entry.o --oformat binary
+	ld -N -e start_others16 -Ttext 0x7C00 -o build/entry.out build/entry.o
+	objcopy -S -O binary -j .text build/entry.out build/entry.bin
 
