@@ -1,26 +1,6 @@
 global start
-global long_mode_start
+global start64
 extern rust_main
-
-section .text
-
-bits 64
-long_mode_start:
-    ; load 0 into all data segment registers
-    mov ax, 0
-    mov ss, ax
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
-
-    ; print `OKAY` to screen
-    mov rax, 0x2f592f412f4b2f4f
-    mov qword [0xb8000], rax
-
-    call rust_main
-    hlt
-
 
 bits 32    ; By default, GRUB sets us to 32-bit mode.
 start:
@@ -37,13 +17,28 @@ start:
     lgdt [gdt64.pointer]
 
     ; jump to long mode / replaces OK code.
-    jmp gdt64.code:long_mode_start
+    jmp gdt64.code:start64
 
-    ; Print `OK` to screen
-    mov dword [0xb8000], 0x2f4b2f4f
     hlt ; Halt the processor.
 
+bits 64
+start64:
+    ; load 0 into all data segment registers
+    mov ax, 0
+    mov ss, ax
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
 
+    ; print `OKAY` to screen
+    mov rax, 0x2f592f412f4b2f4f
+    mov qword [0xb8000], rax
+
+    call rust_main
+    hlt
+
+bits 32
 check_multiboot:
     cmp eax, 0x36d76289 ; If multiboot, this value will be in the eax register on boot.
     jne .no_multiboot
@@ -202,8 +197,6 @@ p2_table:
     resb 4096
 apic_p2_table:
     resb 4096
-
-
 
 stack_bottom:
     resb 4096 * 16 ; Reserve this many bytes
