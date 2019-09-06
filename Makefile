@@ -40,7 +40,7 @@ $(iso): $(kernel) $(grub_cfg)
 	@rm -r build/isofiles
 
 $(kernel): kernel $(rust_os) bootblock entryother $(linker_script) 
-	ld -n --gc-sections -T $(linker_script) -o $(kernel) build/boot.o build/multiboot_header.o $(rust_os)
+	ld -n --gc-sections -T $(linker_script) -o $(kernel) build/boot.o build/multiboot_header.o $(rust_os) -b binary build/entry.bin
 
 kernel:
 	@RUST_TARGET_PATH=$(32shell pwd) cargo xbuild --target x86_64-redleaf.json
