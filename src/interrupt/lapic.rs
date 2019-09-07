@@ -96,7 +96,7 @@ fn init_lapic() {
     }
 }
 
-pub unsafe fn start_ap(cpu: u32, code: *const ()) {
+pub unsafe fn start_ap(cpu: u32, code: *const u8) {
     outb(CMOS_PORT, 0xf);
     outb(CMOS_PORT + 1, 0x0a);
 

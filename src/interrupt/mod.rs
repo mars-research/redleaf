@@ -2,7 +2,7 @@ use lazy_static::lazy_static;
 use raw_cpuid::CpuId;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 
-use crate::{gdt, println};
+use crate::{gdt, println, entryother};
 
 mod lapic;
 mod ioapic;
@@ -69,6 +69,22 @@ lazy_static! {
 
         idt
     };
+}
+
+pub unsafe fn init_cpu(cpu: u32, stack: [u8; 4096], code: u64) {
+    let destination: *mut u8 = 0x7000 as *mut u8;
+    let stackp: u32 = (&stack as *const u8) as u32;
+
+    let mut pgdir: u64 = 0;
+    asm!("mov $0, cr3" : "=r"(pgdir) ::: "intel");
+
+    println!("cr3 = {:x?}", pgdir);
+    println!("code = {:x?}", code);
+
+    entryother::copy_binary_to(destination);
+    entryother::init_args(destination, stackp + 4096, pgdir as u32, code);
+
+    lapic::start_ap(cpu, destination);
 }
 
 pub fn init_idt() {

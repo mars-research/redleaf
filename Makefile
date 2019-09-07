@@ -24,10 +24,10 @@ clean:
 # To trace interrupts add: -d int,cpu_reset
 
 run: $(iso)
-	qemu-system-x86_64 -cdrom $(iso) -vga std -s -serial file:serial.log -no-reboot
+	qemu-system-x86_64 -cdrom $(iso) -vga std -s -serial file:serial.log -no-reboot -no-shutdown -d int,cpu_reset -smp 2
 
 run-nox: $(iso)
-	qemu-system-x86_64 -cdrom $(iso) -vga std -s -serial file:serial.log -no-reboot -nographic
+	qemu-system-x86_64 -cdrom $(iso) -vga std -s -serial file:serial.log -no-reboot -nographic -d int,cpu_reset -smp 2
 
 iso: $(iso)
 	@echo "Done"
