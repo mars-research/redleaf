@@ -13,6 +13,7 @@ extern crate core;
 mod console;
 mod interrupt;
 mod entryother;
+mod redsys;
 pub mod banner;
 pub mod gdt;
 mod tls;
@@ -55,6 +56,12 @@ pub extern "C" fn rust_main() -> ! {
     unsafe {
         interrupt::init_cpu(1, cpu1stack, rust_main_others as u64);
     }
+
+    let rmr = unsafe { redsys::resources::RawMemoryRegion::<u32>::new(0xfee00000, 0x34) };
+    println!("Memory region: {:?}", rmr);
+    println!("Valid offset: {:?} -> 0x{:x?}", rmr.offset(0x30), *rmr.offset(0x30).unwrap());
+    println!("Out-of-range: {:?}", rmr.offset(0x200));
+    println!("Zero-copy slice: 0x{:x?}", rmr.as_slice()[12]);
 
     halt();
 }
