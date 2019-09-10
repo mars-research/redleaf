@@ -2,6 +2,7 @@
 #![feature(abi_x86_interrupt)]
 #![feature(asm)]
 #![feature(const_raw_ptr_to_usize_cast)]
+#![feature(thread_local)]
 extern crate x86;
 #[macro_use]
 extern crate lazy_static;
@@ -14,6 +15,7 @@ mod interrupt;
 mod entryother;
 pub mod banner;
 pub mod gdt;
+mod tls;
 
 use core::panic::PanicInfo;
 
@@ -32,8 +34,13 @@ fn panic(info: &PanicInfo) -> ! {
 pub extern "C" fn rust_main() -> ! {
     banner::boot_banner();
 
+    let cpu_id = 0;
+    unsafe {
+        gdt::init_gdt();
+        let tcb_offset = tls::init_tcb(cpu_id);
+        gdt::init_percpu_gdt(tcb_offset);
+    }
 
-    gdt::init();
     interrupt::init_idt();
 
     interrupt::init_irqs();
@@ -55,7 +62,13 @@ pub extern "C" fn rust_main() -> ! {
 #[no_mangle]
 pub extern "C" fn rust_main_others() -> ! {
 
-    gdt::init();
+    let cpu_id = 1;
+    unsafe {
+        gdt::init_gdt();
+        let tcb_offset = tls::init_tcb(cpu_id);
+        gdt::init_percpu_gdt(tcb_offset);
+    }
+
     interrupt::init_idt();
 
     // interrupt::init_irqs();
