@@ -1,5 +1,4 @@
-extern crate raw_cpuid;
-use raw_cpuid::CpuId;
+use x86::cpuid::CpuId;
 
 pub fn boot_banner() {
     let cpuid = CpuId::new();

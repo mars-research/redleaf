@@ -4,7 +4,6 @@
 //  - https://github.com/pdoane/osdev/blob/master/intr/local_apic.c
 //  - https://github.com/mit-pdos/xv6-public/blob/master/lapic.c
 
-extern crate raw_cpuid;
 use core::ptr;
 use x86::msr;
 use x86::io::outb;

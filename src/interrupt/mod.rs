@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use raw_cpuid::CpuId;
+use x86::cpuid::CpuId;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 
 use crate::{gdt, println, entryother};
