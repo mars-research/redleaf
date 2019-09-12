@@ -6,7 +6,7 @@
 
 extern crate raw_cpuid;
 use core::ptr;
-use x86_64::registers::model_specific::Msr;
+use x86::msr;
 use x86::io::outb;
 use super::InterruptIndex;
 
@@ -57,7 +57,7 @@ unsafe fn lapicw(offset: u32, value: u32) {
 
 fn probe_apic() {
     unsafe {
-        let msr27: u32 = Msr::new(27).read() as u32;
+        let msr27: u32 = msr::rdmsr(msr::APIC_BASE) as u32;
         lapic = msr27 & 0xffff0000;
     }
 }
