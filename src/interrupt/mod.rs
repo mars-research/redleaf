@@ -71,15 +71,14 @@ lazy_static! {
     };
 }
 
-pub unsafe fn init_cpu(cpu: u32, stack: [u8; 4096], code: u64) {
+pub unsafe fn init_cpu(cpu: u32, stack: u32, code: u64) {
     let destination: *mut u8 = 0x7000 as *mut u8;
-    let stackp: u32 = (&stack as *const u8) as u32;
 
     let mut pgdir: u64 = 0;
     asm!("mov $0, cr3" : "=r"(pgdir) ::: "intel");
 
     entryother::copy_binary_to(destination);
-    entryother::init_args(destination, stackp + 4096, pgdir as u32, code);
+    entryother::init_args(destination, stack, pgdir as u32, code);
 
     lapic::start_ap(cpu, destination);
 }

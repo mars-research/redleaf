@@ -1,6 +1,7 @@
 global start
 global start64
 extern rust_main
+extern cpu1_stack
 
 bits 32    ; By default, GRUB sets us to 32-bit mode.
 start:
@@ -34,6 +35,8 @@ start64:
     ; print `OKAY` to screen
     mov rax, 0x2f592f412f4b2f4f
     mov qword [0xb8000], rax
+
+    mov dword [cpu1_stack], stack_cpu1_top
 
     call rust_main
     hlt
@@ -202,4 +205,6 @@ stack_bottom:
     resb 4096 * 16 ; Reserve this many bytes
 stack_top:
 
-
+stack_cpu1_bottom:
+    resb 4096 * 16 ; Reserve this many bytes
+stack_cpu1_top:

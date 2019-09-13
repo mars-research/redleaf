@@ -3,8 +3,6 @@ global start_others32
 global start_others64
 ;extern rust_main_others
 
-;extern others_stack
-
 section .text
 
 bits 16   ; Start other CPUs in 16 mode
