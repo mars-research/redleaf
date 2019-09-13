@@ -11,24 +11,36 @@ grub_cfg := boot/grub.cfg
 target ?= $(arch)-redleaf
 rust_os := target/$(target)/debug/libredleaf.a
 
-.PHONY: all clean run iso kernel doc disk
-
+.PHONY: all
 all: $(kernel)
 
+.PHONY: release
 release: $(releaseKernel)
 
+.PHONY: clean
 clean:
 	rm -r build
 	cargo clean
 
-# To trace interrupts add: -d int,cpu_reset
+.PHONY: run
+run: qemu
 
-run: $(iso)
-	qemu-system-x86_64 -cdrom $(iso) -vga std -s -serial file:serial.log -no-reboot -no-shutdown -d int,cpu_reset -smp 2
+.PHONY: run-nox
+run-nox: qemu-nox
 
-run-nox: $(iso)
-	qemu-system-x86_64 -cdrom $(iso) -vga std -s -serial file:serial.log -no-reboot -nographic -d int,cpu_reset -smp 2
+.PHONY: qemu
+qemu: $(iso)
+	qemu-system-x86_64 -m 128m -cdrom $(iso) -vga std -s -serial file:serial.log -no-reboot -no-shutdown -d int,cpu_reset -smp 2
 
+.PHONY: qemu-nox
+qemu-nox: $(iso)
+	qemu-system-x86_64 -m 128m -cdrom $(iso) -vga std -s -no-reboot -nographic -smp 2
+
+.PHONY: qemu-efi-nox
+qemu-efi-nox: $(iso)
+	qemu-system-x86_64 -m 128m -bios OVMF_CODE.fd -cdrom $(iso) -s -no-reboot -nographic -smp 2
+
+.PHONY: iso
 iso: $(iso)
 	@echo "Done"
 
@@ -42,16 +54,19 @@ $(iso): $(kernel) $(grub_cfg)
 $(kernel): kernel $(rust_os) bootblock entryother $(linker_script) 
 	ld -n --gc-sections -T $(linker_script) -o $(kernel) build/boot.o build/multiboot_header.o $(rust_os) -b binary build/entryother.bin
 
+.PHONY: kernel
 kernel:
 	@RUST_TARGET_PATH=$(32shell pwd) cargo xbuild --target x86_64-redleaf.json
 
 # compile assembly files
+.PHONY: bootblock
 bootblock: src/boot.asm src/multiboot_header.asm
 	@mkdir -p build
 	nasm -felf64 src/boot.asm -o build/boot.o
 	nasm -felf64 src/multiboot_header.asm -o build/multiboot_header.o
 
 # compile assembly files
+.PHONY: entryother
 entryother: src/entryother.asm
 	@mkdir -p build
 	nasm -felf64 src/entryother.asm -o build/entryother.o
