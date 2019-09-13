@@ -78,9 +78,6 @@ pub unsafe fn init_cpu(cpu: u32, stack: [u8; 4096], code: u64) {
     let mut pgdir: u64 = 0;
     asm!("mov $0, cr3" : "=r"(pgdir) ::: "intel");
 
-    println!("cr3 = {:x?}", pgdir);
-    println!("code = {:x?}", code);
-
     entryother::copy_binary_to(destination);
     entryother::init_args(destination, stackp + 4096, pgdir as u32, code);
 
@@ -91,19 +88,22 @@ pub fn init_idt() {
     IDT.load();
 }
 
-pub fn init_irqs() {
+pub fn init_irqs_local() {
     unsafe {
         use_apic = detect_apic();
-        if use_apic {
-            println!("Initializing APIC");
-            lapic::init();
-            ioapic::init();
-
-            ioapic::irqen(1, 0);
-        } else {
-            println!("Initializing PIC");
-            pic::init();
+        if !use_apic {
+            panic!("APIC is required to run RedLeaf");
+            // println!("Initializing PIC");
+            // pic::init();
         }
+        lapic::init();
+    }
+}
+
+pub fn init_irqs() {
+    unsafe {
+        ioapic::init();
+        ioapic::irqen(1, 0);
     }
 }
 
