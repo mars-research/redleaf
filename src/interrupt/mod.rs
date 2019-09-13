@@ -10,8 +10,6 @@ mod pic;
 
 pub const IRQ_OFFSET: u8 = 32;
 
-static mut use_apic: bool = true;
-
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
 pub enum InterruptIndex {
@@ -89,12 +87,10 @@ pub fn init_idt() {
 
 pub fn init_irqs_local() {
     unsafe {
-        use_apic = detect_apic();
-        if !use_apic {
+        if !detect_apic() {
             panic!("APIC is required to run RedLeaf");
-            // println!("Initializing PIC");
-            // pic::init();
         }
+        pic::disable();
         lapic::init();
     }
 }
@@ -107,12 +103,7 @@ pub fn init_irqs() {
 }
 
 fn end_of_interrupt(interrupt: u8) {
-    // The unsafe is not too evil, as the variable is only set once
-    if unsafe { use_apic } {
-        lapic::end_of_interrupt();
-    } else {
-        pic::end_of_interrupt(interrupt);
-    }
+    lapic::end_of_interrupt();
 }
 
 fn detect_apic() -> bool {
