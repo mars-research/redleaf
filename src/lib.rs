@@ -16,6 +16,9 @@ mod entryother;
 mod redsys;
 pub mod banner;
 pub mod gdt;
+
+mod multibootv2;
+
 mod tls;
 
 use x86::cpuid::CpuId;
@@ -23,6 +26,11 @@ use core::panic::PanicInfo;
 
 #[no_mangle]
 pub static mut cpu1_stack: u32 = 0;
+
+extern "C" {
+    #[no_mangle]
+    static _bootinfo: usize;
+}
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
@@ -47,6 +55,10 @@ pub extern "C" fn rust_main() -> ! {
     if cpu_id == 0 {
         // Initialize LAPIC as BSP
         banner::boot_banner();
+        unsafe {
+            println!("multibootv2 tag found at {:x}", _bootinfo as usize);
+            println!("Tags: {:?}", multibootv2::load(_bootinfo));
+        }
         interrupt::init_irqs();
     }
 

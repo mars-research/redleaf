@@ -1,4 +1,5 @@
 global start
+global _bootinfo
 global start64
 extern rust_main
 extern cpu1_stack
@@ -44,6 +45,7 @@ start64:
 bits 32
 check_multiboot:
     cmp eax, 0x36d76289 ; If multiboot, this value will be in the eax register on boot.
+    mov [_bootinfo], ebx
     jne .no_multiboot
     ret
 .no_multiboot:
@@ -208,3 +210,6 @@ stack_top:
 stack_cpu1_bottom:
     resb 4096 * 16 ; Reserve this many bytes
 stack_cpu1_top:
+
+_bootinfo:
+    resb 8 ; Place holder to save bootinfo entry
