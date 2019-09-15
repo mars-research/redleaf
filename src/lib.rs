@@ -1,8 +1,12 @@
 #![no_std]
 #![feature(abi_x86_interrupt)]
-#![feature(asm)]
-#![feature(const_raw_ptr_to_usize_cast)]
-#![feature(thread_local)]
+#![feature(
+    asm,
+    const_raw_ptr_to_usize_cast,
+    thread_local,
+    untagged_unions
+)]
+
 extern crate x86;
 #[macro_use]
 extern crate lazy_static;
@@ -18,6 +22,9 @@ pub mod banner;
 pub mod gdt;
 
 mod multibootv2;
+mod memory;
+mod prelude;
+pub mod arch;
 
 mod tls;
 
