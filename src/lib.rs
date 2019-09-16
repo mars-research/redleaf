@@ -30,6 +30,7 @@ mod tls;
 
 use x86::cpuid::CpuId;
 use core::panic::PanicInfo;
+use crate::arch::init_buddy;
 
 #[no_mangle]
 pub static mut cpu1_stack: u32 = 0;
@@ -64,7 +65,9 @@ pub extern "C" fn rust_main() -> ! {
         banner::boot_banner();
         unsafe {
             println!("multibootv2 tag found at {:x}", _bootinfo as usize);
-            println!("Tags: {:?}", multibootv2::load(_bootinfo));
+            let bootinfo = multibootv2::load(_bootinfo);
+            println!("Tags: {:?}", bootinfo);
+            init_buddy(bootinfo);
         }
         interrupt::init_irqs();
     }

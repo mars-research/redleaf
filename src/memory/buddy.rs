@@ -52,7 +52,7 @@ pub struct BuddyFrameAllocator {
 }
 
 impl BuddyFrameAllocator {
-    unsafe fn add_memory(&mut self, region: Frame) -> bool {
+    pub unsafe fn add_memory(&mut self, region: Frame) -> bool {
         if self.region.base.as_u64() == 0 {
             let size = region.size.next_power_of_two() >> 1;
             self.region.size = region.size;
