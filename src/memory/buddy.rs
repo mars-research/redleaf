@@ -13,7 +13,7 @@ use core::ptr;
 
 use crate::prelude::*;
 
-use super::{Frame, PAddr, VAddr};
+use super::{Frame, PAddr, PhysicalAllocator, VAddr};
 use crate::arch::memory::{kernel_vaddr_to_paddr, BASE_PAGE_SIZE};
 
 /// A free block in our heap.
@@ -51,8 +51,10 @@ pub struct BuddyFrameAllocator {
     min_block_size_log2: u8,
 }
 
-impl BuddyFrameAllocator {
-    pub unsafe fn add_memory(&mut self, region: Frame) -> bool {
+unsafe impl Send for BuddyFrameAllocator {}
+
+impl PhysicalAllocator for BuddyFrameAllocator {
+    unsafe fn add_memory(&mut self, region: Frame) -> bool {
         if self.region.base.as_u64() == 0 {
             let size = region.size.next_power_of_two() >> 1;
             self.region.size = region.size;

@@ -1,9 +1,32 @@
 use core::fmt;
 use x86::bits64::paging;
+use core::alloc::Layout;
+use core::mem::transmute;
+
+use slabmalloc::{ObjectPage, PageProvider};
 
 pub mod buddy;
 
+pub use self::buddy::BuddyFrameAllocator as PhysicalMemoryAllocator;
+
+
 pub use crate::arch::memory::{paddr_to_kernel_vaddr, PAddr, VAddr, BASE_PAGE_SIZE};
+
+pub trait PhysicalAllocator {
+    fn init(&mut self) {}
+
+    unsafe fn add_memory(&mut self, _region: Frame) -> bool {
+        false
+    }
+
+    unsafe fn allocate(&mut self, _layout: Layout) -> Option<Frame> {
+        None
+    }
+
+    unsafe fn deallocate(&mut self, _frame: Frame, _layout: Layout) {}
+
+    fn print_info(&self) {}
+}
 
 /// Physical region of memory.
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -90,5 +113,41 @@ impl fmt::Debug for Frame {
             self.size,
             self.base_pages()
         )
+    }
+}
+
+pub struct BespinSlabsProvider;
+
+unsafe impl Send for BespinSlabsProvider {}
+unsafe impl Sync for BespinSlabsProvider {}
+
+impl BespinSlabsProvider {
+    pub const fn new() -> BespinSlabsProvider {
+        BespinSlabsProvider
+    }
+}
+
+impl<'a> PageProvider<'a> for BespinSlabsProvider {
+    fn allocate_page(&mut self) -> Option<&'a mut ObjectPage<'a>> {
+        // FIXME: Replace this with a pre-initialized buddy object from tcb
+        let mut fmanager = crate::memory::buddy::BuddyFrameAllocator::new();
+
+        let mut f = unsafe {
+            fmanager.allocate(
+                Layout::new::<paging::Page>()
+                    .align_to(BASE_PAGE_SIZE)
+                    .unwrap(),
+            )
+        };
+        f.map(|mut frame| unsafe {
+            frame.zero();
+            println!("slabmalloc allocate frame.base = {:x}", frame.base);
+            let sp: &'a mut ObjectPage = transmute(paddr_to_kernel_vaddr(frame.base));
+            sp
+        })
+    }
+
+    fn release_page(&mut self, _p: &'a mut ObjectPage<'a>) {
+        println!("TODO!");
     }
 }

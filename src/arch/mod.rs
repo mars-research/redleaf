@@ -3,6 +3,7 @@ pub mod memory;
 use crate::memory::{Frame};
 use crate::arch::memory::{PAddr, BASE_PAGE_SIZE};
 use crate::multibootv2::BootInformation;
+use crate::memory::PhysicalAllocator;
 
 pub fn init_buddy(bootinfo: BootInformation) {
     // Find the physical memory regions available and add them to the physical memory manager

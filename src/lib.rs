@@ -2,6 +2,8 @@
 #![feature(abi_x86_interrupt)]
 #![feature(
     asm,
+    alloc_layout_extra,
+    const_fn,
     const_raw_ptr_to_usize_cast,
     thread_local,
     untagged_unions
@@ -12,6 +14,7 @@ extern crate x86;
 extern crate lazy_static;
 extern crate spin;
 extern crate core;
+extern crate slabmalloc;
 
 #[macro_use]
 mod console;
@@ -31,6 +34,10 @@ mod tls;
 use x86::cpuid::CpuId;
 use core::panic::PanicInfo;
 use crate::arch::init_buddy;
+use spin::Mutex;
+use core::alloc::{GlobalAlloc, Layout};
+use memory::{BespinSlabsProvider, PhysicalAllocator};
+use slabmalloc::{PageProvider, ZoneAllocator};
 
 #[no_mangle]
 pub static mut cpu1_stack: u32 = 0;
@@ -45,6 +52,63 @@ fn panic(info: &PanicInfo) -> ! {
     println!("{}", info);
     halt();
 }
+
+#[allow(dead_code)]
+static PAGER: Mutex<BespinSlabsProvider> = Mutex::new(BespinSlabsProvider::new());
+
+#[allow(dead_code)]
+pub struct SafeZoneAllocator(Mutex<ZoneAllocator<'static>>);
+
+impl SafeZoneAllocator {
+    pub const fn new(provider: &'static Mutex<PageProvider>) -> SafeZoneAllocator {
+        SafeZoneAllocator(Mutex::new(ZoneAllocator::new(provider)))
+    }
+}
+
+unsafe impl GlobalAlloc for SafeZoneAllocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        println!("alloc layout={:?}", layout);
+        if layout.size() <= ZoneAllocator::MAX_ALLOC_SIZE {
+            let ptr = self.0.lock().allocate(layout);
+            println!("allocated ptr=0x{:x} layout={:?}", ptr as usize, layout);
+            ptr
+        } else {
+            // FIXME: Replace this with a pre-initialized buddy object from tcb
+            let mut fmanager = crate::memory::buddy::BuddyFrameAllocator::new();
+
+            let mut f = fmanager.allocate(layout);
+            let ptr = f.map_or(core::ptr::null_mut(), |mut region| {
+                region.zero();
+                region.kernel_vaddr().as_mut_ptr()
+            });
+            println!("allocated ptr=0x{:x} layout={:?}", ptr as usize, layout);
+            ptr
+        }
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        println!("dealloc ptr = 0x{:x} layout={:?}", ptr as usize, layout);
+        if layout.size() <= ZoneAllocator::MAX_ALLOC_SIZE {
+            //debug!("dealloc ptr = 0x{:x} layout={:?}", ptr as usize, layout);
+            self.0.lock().deallocate(ptr, layout);
+        } else {
+            use arch::memory::{kernel_vaddr_to_paddr, VAddr};
+            // FIXME: Replace this with a pre-initialized buddy object from tcb
+            let mut fmanager = crate::memory::buddy::BuddyFrameAllocator::new();
+
+            fmanager.deallocate(
+                memory::Frame::new(
+                    kernel_vaddr_to_paddr(VAddr::from_u64(ptr as u64)),
+                    layout.size(),
+                ),
+                layout,
+            );
+        }
+    }
+}
+
+#[global_allocator]
+static MEM_PROVIDER: SafeZoneAllocator = SafeZoneAllocator::new(&PAGER);
 
 #[no_mangle]
 pub extern "C" fn rust_main() -> ! {
