@@ -2,15 +2,13 @@ use core::fmt;
 use x86::bits64::paging;
 use core::alloc::Layout;
 use core::mem::transmute;
-
 use slabmalloc::{ObjectPage, PageProvider};
-
-pub mod buddy;
+use crate::memory::buddy::BUDDY;
 
 pub use self::buddy::BuddyFrameAllocator as PhysicalMemoryAllocator;
-
-
 pub use crate::arch::memory::{paddr_to_kernel_vaddr, PAddr, VAddr, BASE_PAGE_SIZE};
+
+pub mod buddy;
 
 pub trait PhysicalAllocator {
     fn init(&mut self) {}
@@ -129,16 +127,19 @@ impl BespinSlabsProvider {
 
 impl<'a> PageProvider<'a> for BespinSlabsProvider {
     fn allocate_page(&mut self) -> Option<&'a mut ObjectPage<'a>> {
-        // FIXME: Replace this with a pre-initialized buddy object from tcb
-        let mut fmanager = crate::memory::buddy::BuddyFrameAllocator::new();
+        let mut f: Option<Frame> = None;
+        if let Some(ref mut fmanager) = *BUDDY.lock() {
+            f = unsafe {
+                fmanager.allocate(
+                    Layout::new::<paging::Page>()
+                        .align_to(BASE_PAGE_SIZE)
+                        .unwrap(),
+                )
+            };
+        } else {
+            panic!("__rust_allocate: buddy not initialized");
+        }
 
-        let mut f = unsafe {
-            fmanager.allocate(
-                Layout::new::<paging::Page>()
-                    .align_to(BASE_PAGE_SIZE)
-                    .unwrap(),
-            )
-        };
         f.map(|mut frame| unsafe {
             frame.zero();
             println!("slabmalloc allocate frame.base = {:x}", frame.base);

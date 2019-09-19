@@ -4,13 +4,13 @@ use crate::memory::{Frame};
 use crate::arch::memory::{PAddr, BASE_PAGE_SIZE};
 use crate::multibootv2::BootInformation;
 use crate::memory::PhysicalAllocator;
+use crate::memory::buddy::BUDDY;
 
 pub fn init_buddy(bootinfo: BootInformation) {
     // Find the physical memory regions available and add them to the physical memory manager
-    let mut fmanager = crate::memory::buddy::BuddyFrameAllocator::new();
+    crate::memory::buddy::BuddyFrameAllocator::init();
     println!("Finding RAM regions");
     if let Some(memory_map_tag) = bootinfo.memory_map_tag() {
-
         for region in memory_map_tag.memory_areas() {
             println!("{:?}", region);
             if region.typ() == 1 {
@@ -23,10 +23,14 @@ pub fn init_buddy(bootinfo: BootInformation) {
                     println!("region.base = {:#x} region.size = {:#x}", base, size);
                     unsafe {
                         let mut f = Frame::new(PAddr::from(base), size);
-                        if fmanager.add_memory(f) {
-                            println!("Added base={:#x} size={:#x}", base, size);
+                        if let Some(ref mut fmanager) = *BUDDY.lock() {
+                            if fmanager.add_memory(f) {
+                                println!("Added base={:#x} size={:#x}", base, size);
+                            } else {
+                                println!("Unable to add base={:#x} size={:#x}", base, size)
+                            }
                         } else {
-                            println!("Unable to add base={:#x} size={:#x}", base, size)
+                            panic!("__rust_allocate: buddy not initialized");
                         }
                     }
                 } else {

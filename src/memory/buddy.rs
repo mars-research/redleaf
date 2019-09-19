@@ -15,6 +15,7 @@ use crate::prelude::*;
 
 use super::{Frame, PAddr, PhysicalAllocator, VAddr};
 use crate::arch::memory::{kernel_vaddr_to_paddr, BASE_PAGE_SIZE};
+use spin::Mutex;
 
 /// A free block in our heap.
 pub struct FreeBlock {
@@ -29,6 +30,8 @@ impl FreeBlock {
         FreeBlock { next: next }
     }
 }
+
+pub static BUDDY: Mutex<Option<BuddyFrameAllocator>> = Mutex::new(None);
 
 /// The interface to a heap.  This data structure is stored _outside_ the
 /// heap somewhere, because every single byte of our heap is potentially
@@ -148,7 +151,11 @@ impl PhysicalAllocator for BuddyFrameAllocator {
 impl BuddyFrameAllocator {
     const MIN_HEAP_ALIGN: usize = BASE_PAGE_SIZE;
 
-    pub fn new() -> BuddyFrameAllocator {
+    pub fn init() {
+        let buddy = BuddyFrameAllocator::new();
+        *BUDDY.lock() = Some(buddy);
+    }
+    fn new() -> BuddyFrameAllocator {
         BuddyFrameAllocator {
             region: Frame {
                 base: PAddr(0),
