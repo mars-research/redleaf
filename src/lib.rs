@@ -3,6 +3,8 @@
 #![feature(asm)]
 #![feature(const_raw_ptr_to_usize_cast)]
 #![feature(thread_local)]
+#![feature(naked_functions)]
+#![feature(const_fn)]
 extern crate x86;
 #[macro_use]
 extern crate lazy_static;
@@ -16,6 +18,8 @@ mod entryother;
 pub mod banner;
 pub mod gdt;
 mod tls;
+mod thread;
+mod common; 
 
 use core::panic::PanicInfo;
 
