@@ -24,7 +24,6 @@ mod console;
 mod interrupt;
 mod entryother;
 mod redsys;
-pub mod banner;
 pub mod gdt;
 
 mod multibootv2;
@@ -125,8 +124,78 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
 #[global_allocator]
 static MEM_PROVIDER: SafeZoneAllocator = SafeZoneAllocator::new(&PAGER);
 
+// Init AP cpus
+pub fn init_ap_cpus() {
+
+    // HACK: We need to get the actual CPU topology
+    unsafe {
+        interrupt::init_cpu(1, cpu1_stack, rust_main_ap as u64);
+    }
+}
+
+pub fn init_allocators() {
+    unsafe {
+        println!("multibootv2 tag found at {:x}", _bootinfo as usize);
+        let bootinfo = multibootv2::load(_bootinfo);
+        println!("Tags: {:?}", bootinfo);
+        init_buddy(bootinfo);
+            
+        unsafe {
+//                let ptr = 0x12b000 as *mut u32;
+//                unsafe { *ptr = 42; }
+
+            let new_region: *mut u8 =
+                alloc::alloc::alloc(Layout::from_size_align_unchecked(256, 256));
+            println!(" === > {:?}", new_region);
+        }
+    }
+
+
+}
+
 #[no_mangle]
 pub extern "C" fn rust_main() -> ! {
+
+    let cpuid = CpuId::new();
+    match cpuid.get_vendor_info() {
+        Some(vendor) => println!("RedLeaf booting (CPU model: {})", vendor.as_string()),
+        None => println!("RedLeaf booting on (CPU model: unknown)"),
+    }
+    
+    let featureInfo = CpuId::new().get_feature_info()
+        .expect("CPUID unavailable");
+
+    let cpu_id: u32 = featureInfo.initial_local_apic_id() as u32;
+
+    unsafe {
+        gdt::init_gdt();
+        let tcb_offset = tls::init_tcb(cpu_id);
+        gdt::init_percpu_gdt(tcb_offset);
+    }
+
+    interrupt::init_idt();
+
+    init_allocators();
+
+    // Initialize LAPIC as BSP
+    interrupt::init_irqs();
+
+    interrupt::init_irqs_local();
+
+    // Microkernel runs with interrupts disabled
+    // we re-enable them on exits
+    //x86_64::instructions::interrupts::enable();
+     
+    println!("cpu{}: Initialized", cpu_id);
+
+    // Spin up other CPUs as BSP
+    init_ap_cpus(); 
+
+    loop {}
+}
+
+#[no_mangle]
+pub extern "C" fn rust_main_ap() -> ! {
     let featureInfo = CpuId::new().get_feature_info()
         .expect("CPUID unavailable");
 
@@ -139,40 +208,10 @@ pub extern "C" fn rust_main() -> ! {
 
     interrupt::init_idt();
 
-    if cpu_id == 0 {
-        // Initialize LAPIC as BSP
-        banner::boot_banner();
-        unsafe {
-            println!("multibootv2 tag found at {:x}", _bootinfo as usize);
-            let bootinfo = multibootv2::load(_bootinfo);
-            println!("Tags: {:?}", bootinfo);
-            init_buddy(bootinfo);
-            unsafe {
-//                let ptr = 0x12b000 as *mut u32;
-//                unsafe { *ptr = 42; }
-
-                let new_region: *mut u8 =
-                    alloc::alloc::alloc(Layout::from_size_align_unchecked(256, 256));
-                println!(" === > {:?}", new_region);
-            }
-        }
-        interrupt::init_irqs();
-    }
-
     interrupt::init_irqs_local();
-    x86_64::instructions::interrupts::enable();
+    //x86_64::instructions::interrupts::enable();
      
     println!("cpu{}: Initialized", cpu_id);
-
-    /*
-    if cpu_id == 0 {
-        // Spin up other CPUs as BSP
-
-        // HACK: We need to get the actual CPU topology
-        unsafe {
-            interrupt::init_cpu(1, cpu1_stack, rust_main as u64);
-        }
-    }*/
 
     loop {}
 }
