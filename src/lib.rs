@@ -127,13 +127,15 @@ static MEM_PROVIDER: SafeZoneAllocator = SafeZoneAllocator::new(&PAGER);
 // Init AP cpus
 pub fn init_ap_cpus() {
 
+    // Allocate CPU stack
+
     // HACK: We need to get the actual CPU topology
     unsafe {
         interrupt::init_cpu(1, cpu1_stack, rust_main_ap as u64);
     }
 }
 
-pub fn init_allocators() {
+pub fn init_allocator() {
     unsafe {
         println!("multibootv2 tag found at {:x}", _bootinfo as usize);
         let bootinfo = multibootv2::load(_bootinfo);
@@ -153,11 +155,12 @@ pub fn init_allocators() {
 
 }
 
+const MAX_CPUS: u32 = 32;
+
 #[no_mangle]
 pub extern "C" fn rust_main() -> ! {
 
-    let cpuid = CpuId::new();
-    match cpuid.get_vendor_info() {
+    match CpuId::new().get_vendor_info() {
         Some(vendor) => println!("RedLeaf booting (CPU model: {})", vendor.as_string()),
         None => println!("RedLeaf booting on (CPU model: unknown)"),
     }
@@ -168,30 +171,33 @@ pub extern "C" fn rust_main() -> ! {
     let cpu_id: u32 = featureInfo.initial_local_apic_id() as u32;
 
     unsafe {
-        gdt::init_gdt();
-        let tcb_offset = tls::init_tcb(cpu_id);
-        gdt::init_percpu_gdt(tcb_offset);
+        // We don't have per-CPU variables yet, init global gdt
+        gdt::init_global_gdt();
     }
 
+    // Init IDT mostly so if we get some exceptions in the allocator 
+    // we can see nice crash reports
     interrupt::init_idt();
 
-    init_allocators();
+    // Init memory allocator (normal allocation should work after this) 
+    init_allocator();
+
+    // Init per-CPU variables
+    unsafe {
+        tls::init_per_cpu_area(MAX_CPUS);
+    }
 
     // Initialize LAPIC as BSP
     interrupt::init_irqs();
-
-    interrupt::init_irqs_local();
 
     // Microkernel runs with interrupts disabled
     // we re-enable them on exits
     //x86_64::instructions::interrupts::enable();
      
-    println!("cpu{}: Initialized", cpu_id);
+    // Spin up other CPUs 
+    //init_ap_cpus(); 
 
-    // Spin up other CPUs as BSP
-    init_ap_cpus(); 
-
-    loop {}
+    rust_main_ap(); 
 }
 
 #[no_mangle]
@@ -201,8 +207,8 @@ pub extern "C" fn rust_main_ap() -> ! {
 
     let cpu_id: u32 = featureInfo.initial_local_apic_id() as u32;
     unsafe {
-        gdt::init_gdt();
-        let tcb_offset = tls::init_tcb(cpu_id);
+        gdt::init_global_gdt();
+        let tcb_offset = tls::init_per_cpu_vars(cpu_id);
         gdt::init_percpu_gdt(tcb_offset);
     }
 

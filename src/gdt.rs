@@ -134,11 +134,13 @@ pub const GDT_F_PAGE_SIZE: u8 = 1 << 7;
 pub const GDT_F_PROTECTED_MODE: u8 = 1 << 6;
 pub const GDT_F_LONG_MODE: u8 = 1 << 5;
 
-static mut INIT_GDTR: DescriptorTablePointer<Descriptor> = DescriptorTablePointer {
+/// Init-time GDT descriptor loaded into GDTR
+static mut INIT_GDT_DESC: DescriptorTablePointer<Descriptor> = DescriptorTablePointer {
     limit: 0,
     base: 0 as *const Descriptor
 };
 
+/// Init-time GDT table (we need it before we set up per-CPU variables)
 static mut INIT_GDT: [GdtEntry; 4] = [
     // Null
     GdtEntry::new(0, 0, 0, 0),
@@ -150,12 +152,14 @@ static mut INIT_GDT: [GdtEntry; 4] = [
     GdtEntry::new(0, 0, GDT_A_PRESENT | GDT_A_RING_3 | GDT_A_SYSTEM | GDT_A_PRIVILEGE, GDT_F_LONG_MODE)
 ];
 
+/// Per-CPU GDT descriptor
 #[thread_local]
-pub static mut GDTR: DescriptorTablePointer<Descriptor> = DescriptorTablePointer {
+pub static mut GDT_DESC: DescriptorTablePointer<Descriptor> = DescriptorTablePointer {
     limit: 0,
     base: 0 as *const Descriptor
 };
 
+/// Per-CPU GDT that has a private per-CPU fs segment for per-CPU variables
 #[thread_local]
 pub static mut GDT: [GdtEntry; 9] = [
     // Null
@@ -178,6 +182,7 @@ pub static mut GDT: [GdtEntry; 9] = [
     GdtEntry::new(0, 0, 0, 0),
 ];
 
+/// Per-CPU TSS (keeps per-CPU interrupt stacks, IST and simple kernel stacks)
 #[thread_local]
 pub static mut TSS: TaskStateSegment = TaskStateSegment {
     reserved: 0,
@@ -199,15 +204,16 @@ pub unsafe fn set_tss_stack(stack: usize) {
     TSS.rsp[0] = stack as u64;
 }
 
-// Initialize GDT
-pub unsafe fn init_gdt() {
+/// Setup init-time GDT
+pub unsafe fn init_global_gdt() {
     // Setup the initial GDT with TLS, so we can setup the TLS GDT (a little confusing)
     // This means that each CPU will have its own GDT, but we only need to define it once as a thread local
-    INIT_GDTR.limit = (INIT_GDT.len() * mem::size_of::<GdtEntry>() - 1) as u16;
-    INIT_GDTR.base = INIT_GDT.as_ptr() as *const Descriptor;
+    // Configure initial GDT descriptor
+    INIT_GDT_DESC.limit = (INIT_GDT.len() * mem::size_of::<GdtEntry>() - 1) as u16;
+    INIT_GDT_DESC.base = INIT_GDT.as_ptr() as *const Descriptor;
 
     // Load the initial GDT, before we have access to thread locals
-    x86::dtables::lgdt(&INIT_GDTR);
+    x86::dtables::lgdt(&INIT_GDT_DESC);
 
     // Load the segment descriptors
     set_cs(SegmentSelector::new(GDT_KERNEL_CODE as u16, Ring0));
@@ -225,14 +231,14 @@ pub unsafe fn init_percpu_gdt(tcb_offset: usize) {
     INIT_GDT[GDT_KERNEL_TLS].set_offset(tcb_offset as u32);
 
     // Load the initial GDT, before we have access to thread locals
-    x86::dtables::lgdt(&INIT_GDTR);
+    x86::dtables::lgdt(&INIT_GDT_DESC);
 
     // Load the segment descriptors
     load_fs(SegmentSelector::new(GDT_KERNEL_TLS as u16, Ring0));
 
     // Now that we have access to thread locals, setup the AP's individual GDT
-    GDTR.limit = (GDT.len() * mem::size_of::<GdtEntry>() - 1) as u16;
-    GDTR.base = GDT.as_ptr() as *const Descriptor;
+    GDT_DESC.limit = (GDT.len() * mem::size_of::<GdtEntry>() - 1) as u16;
+    GDT_DESC.base = GDT.as_ptr() as *const Descriptor;
 
     // Set the TLS segment to the offset of the Thread Control Block
     GDT[GDT_KERNEL_TLS].set_offset(tcb_offset as u32);
@@ -248,7 +254,7 @@ pub unsafe fn init_percpu_gdt(tcb_offset: usize) {
     // set_tss_stack(stack_offset);
 
     // Load the new GDT, which is correctly located in thread local storage
-    x86::dtables::lgdt(&GDTR);
+    x86::dtables::lgdt(&GDT_DESC);
 
     // Reload the segment descriptors
     set_cs(SegmentSelector::new(GDT_KERNEL_CODE as u16, Ring0));
