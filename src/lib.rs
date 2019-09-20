@@ -178,8 +178,6 @@ pub extern "C" fn rust_main() -> ! {
     // we can see nice crash reports
     interrupt::init_idt();
 
-    x86_64::instructions::interrupts::int3();
-
     // Init memory allocator (normal allocation should work after this) 
     init_allocator();
 
@@ -207,6 +205,8 @@ pub extern "C" fn rust_main_ap() -> ! {
         .expect("CPUID unavailable");
 
     let cpu_id: u32 = featureInfo.initial_local_apic_id() as u32;
+    println!("Initializing CPU#{}", cpu_id); 
+
     unsafe {
         gdt::init_global_gdt();
         let tcb_offset = tls::init_per_cpu_vars(cpu_id);
@@ -220,7 +220,7 @@ pub extern "C" fn rust_main_ap() -> ! {
      
     println!("cpu{}: Initialized", cpu_id);
 
-    loop {}
+    halt(); 
 }
 
 
