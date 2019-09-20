@@ -41,8 +41,11 @@ qemu-nox: $(iso)
 	qemu-system-x86_64 -m 128m -cdrom $(iso) -vga std -s -no-reboot -nographic -smp 2
 
 .PHONY: qemu-efi-nox
-qemu-efi-nox: $(iso)
+qemu-efi-nox: $(iso) ovmf-code
 	qemu-system-x86_64 -m 128m -bios OVMF_CODE.fd -cdrom $(iso) -s -no-reboot -nographic -smp 2
+
+ovmf-code:
+	echo "Getting OVMF_CODE.fd is not implemented..."
 
 .PHONY: iso
 iso: $(iso)
