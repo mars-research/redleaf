@@ -86,21 +86,29 @@ impl PhysicalAllocator for BuddyFrameAllocator {
         if let Some(order_needed) = self.layout_to_order(layout) {
             // Start with the smallest acceptable block size, and search
             // upwards until we reach blocks the size of the entire heap.
+            println!("Order needed {}", order_needed);
             for order in order_needed..self.free_lists.len() {
                 // Do we have a block of this size?
                 if let Some(block) = self.free_list_pop(order) {
                     // If the block is too big, break it up.  This leaves
                     // the address unchanged, because we always allocate at
                     // the head of a block.
+                    println!("Found block {:?} in order {} orderneeded {}", block, order, order_needed);
                     if order > order_needed {
                         self.split_free_block(block, order, order_needed);
                     }
 
+                    println!("get vaddr for block {:?}", block);
+                    let vaddr = VAddr::from(block as usize);
+
+                    println!("{}", vaddr);
                     return Some(Frame::new(
-                        PAddr::from(kernel_vaddr_to_paddr(VAddr::from(block as usize))),
+                        //PAddr::from(kernel_vaddr_to_paddr(VAddr::from(block as usize))),
+                        PAddr::from(kernel_vaddr_to_paddr(vaddr)),
                         self.order_to_size(order_needed),
                     ));
                 }
+                println!("Not found in order {}", order);
             }
             None
         } else {
@@ -249,7 +257,9 @@ impl BuddyFrameAllocator {
     unsafe fn free_list_insert(&mut self, order: usize, free_block_ptr: *mut FreeBlock) {
         assert!(!free_block_ptr.is_null());
         *free_block_ptr = FreeBlock::new(self.free_lists[order]);
+        println!("Inserting free_block_ptr {:?} into free_lists order : {:?}", free_block_ptr, order);
         self.free_lists[order] = free_block_ptr;
+        println!("insert done!");
     }
 
     /// Attempt to remove a block from our free list, returning true
@@ -282,6 +292,7 @@ impl BuddyFrameAllocator {
         order_needed: usize,
     ) {
         let mut size_to_split = self.order_to_size(order);
+        println!("size_to_split {:x}", size_to_split);
 
         // Progressively cut our block down to size.
         while order > order_needed {
@@ -291,6 +302,7 @@ impl BuddyFrameAllocator {
 
             // Insert the "upper half" of the block into the free list.
             let split = (block as *mut u8).offset(size_to_split as isize);
+            println!("order: {} size_to_split {:x} split: {:?}", order, size_to_split, split);
             self.free_list_insert(order, split as *mut FreeBlock);
         }
     }

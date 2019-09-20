@@ -2,7 +2,9 @@
 #![feature(abi_x86_interrupt)]
 #![feature(
     asm,
+    allocator_api,
     alloc_layout_extra,
+    alloc_error_handler,
     const_fn,
     const_raw_ptr_to_usize_cast,
     thread_local,
@@ -15,6 +17,7 @@ extern crate lazy_static;
 extern crate spin;
 extern crate core;
 extern crate slabmalloc;
+extern crate alloc;
 
 #[macro_use]
 mod console;
@@ -65,6 +68,11 @@ impl SafeZoneAllocator {
     pub const fn new(provider: &'static Mutex<PageProvider>) -> SafeZoneAllocator {
         SafeZoneAllocator(Mutex::new(ZoneAllocator::new(provider)))
     }
+}
+
+#[alloc_error_handler]
+fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
+    panic!("allocation error: {:?}", layout)
 }
 
 unsafe impl GlobalAlloc for SafeZoneAllocator {
@@ -139,6 +147,14 @@ pub extern "C" fn rust_main() -> ! {
             let bootinfo = multibootv2::load(_bootinfo);
             println!("Tags: {:?}", bootinfo);
             init_buddy(bootinfo);
+            unsafe {
+//                let ptr = 0x12b000 as *mut u32;
+//                unsafe { *ptr = 42; }
+
+                let new_region: *mut u8 =
+                    alloc::alloc::alloc(Layout::from_size_align_unchecked(256, 256));
+                println!(" === > {:?}", new_region);
+            }
         }
         interrupt::init_irqs();
     }

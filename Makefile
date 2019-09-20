@@ -32,6 +32,10 @@ run-nox: qemu-nox
 qemu: $(iso)
 	qemu-system-x86_64 -m 128m -cdrom $(iso) -vga std -s -serial file:serial.log -no-reboot -no-shutdown -d int,cpu_reset -smp 2
 
+.PHONY: qemu-gdb
+qemu-gdb: $(iso)
+	qemu-system-x86_64 -S -m 128m -cdrom $(iso) -vga std -s -serial file:serial.log -no-reboot -no-shutdown -d int,cpu_reset -smp 2
+
 .PHONY: qemu-nox
 qemu-nox: $(iso)
 	qemu-system-x86_64 -m 128m -cdrom $(iso) -vga std -s -no-reboot -nographic -smp 2
