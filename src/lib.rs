@@ -142,16 +142,15 @@ pub fn init_allocator() {
         println!("Tags: {:?}", bootinfo);
         init_buddy(bootinfo);
             
-        unsafe {
+/*        unsafe {
 //                let ptr = 0x12b000 as *mut u32;
 //                unsafe { *ptr = 42; }
 
             let new_region: *mut u8 =
                 alloc::alloc::alloc(Layout::from_size_align_unchecked(256, 256));
             println!(" === > {:?}", new_region);
-        }
+        } */
     }
-
 
 }
 
@@ -179,6 +178,8 @@ pub extern "C" fn rust_main() -> ! {
     // we can see nice crash reports
     interrupt::init_idt();
 
+    x86_64::instructions::interrupts::int3();
+
     // Init memory allocator (normal allocation should work after this) 
     init_allocator();
 
@@ -195,7 +196,7 @@ pub extern "C" fn rust_main() -> ! {
     //x86_64::instructions::interrupts::enable();
      
     // Spin up other CPUs 
-    //init_ap_cpus(); 
+    init_ap_cpus(); 
 
     rust_main_ap(); 
 }

@@ -6,16 +6,33 @@ use crate::multibootv2::BootInformation;
 use crate::memory::PhysicalAllocator;
 use crate::memory::buddy::BUDDY;
 
+fn kernel_end() -> u64 {
+    extern {
+        /// The starting byte of the thread data segment
+        static __end: u8;
+    }
+ 
+    unsafe{
+        & __end as *const _ as u64
+    }
+}
+
 pub fn init_buddy(bootinfo: BootInformation) {
-    // Find the physical memory regions available and add them to the physical memory manager
+   // Find the physical memory regions available and add them to the physical memory manager
     crate::memory::buddy::BuddyFrameAllocator::init();
     println!("Finding RAM regions");
     if let Some(memory_map_tag) = bootinfo.memory_map_tag() {
         for region in memory_map_tag.memory_areas() {
             println!("{:?}", region);
             if region.typ() == 1 {
-                let base = region.start_address();
+                let mut base = region.start_address();
                 let size: usize = region.size() as usize;
+                let kernel_end = kernel_end();
+
+                if base>=0x100000 && base < kernel_end {
+                    base = kernel_end;
+                } 
+
 
                 // TODO BAD: We can only add one region to the buddy allocator, so we need
                 // to pick a big one weee

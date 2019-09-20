@@ -13,8 +13,6 @@ pub const IRQ_OFFSET: u8 = 32;
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
 pub enum InterruptIndex {
-    NMI = 2,
-    Breakpoint = 3,
     Timer = IRQ_OFFSET,
     Keyboard,
     ApicError = 19,
@@ -39,6 +37,7 @@ lazy_static! {
         let mut idt = InterruptDescriptorTable::new();
         idt.breakpoint.set_handler_fn(breakpoint_handler);
         idt.segment_not_present.set_handler_fn(segment_not_present_handler);
+        idt.invalid_opcode.set_handler_fn(invalid_opcode_handler); 
         idt.stack_segment_fault.set_handler_fn(stack_segment_fault_handler);
         idt.machine_check.set_handler_fn(machine_check_handler);
         idt.general_protection_fault.set_handler_fn(general_protection_fault_handler);
@@ -118,13 +117,19 @@ fn detect_apic() -> bool {
 // 2: NMI
 extern "x86-interrupt" fn nmi_handler(stack_frame: &mut InterruptStackFrame) {
     println!("nmi:\n{:#?}", stack_frame); 
-    end_of_interrupt(InterruptIndex::NMI.as_u8());
+    //end_of_interrupt(InterruptIndex::NMI.as_u8());
 }
 
 // 3: #BP
 extern "x86-interrupt" fn breakpoint_handler(stack_frame: &mut InterruptStackFrame) {
     println!("breakpoint:\n{:#?}", stack_frame);
-    end_of_interrupt(InterruptIndex::Breakpoint.as_u8());
+    //end_of_interrupt(InterruptIndex::Breakpoint.as_u8());
+}
+
+// 6: #UD
+extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: &mut InterruptStackFrame) {
+    println!("invalide_opcode:\n{:#?}", stack_frame);
+    crate::halt();
 }
 
 // 8: #DF
