@@ -15,13 +15,14 @@ extern crate core;
 mod console;
 mod interrupt;
 mod entryother;
-pub mod banner;
-pub mod gdt;
+mod banner;
+mod gdt;
 mod tls;
+//mod common; 
 mod thread;
-mod common; 
 
 use core::panic::PanicInfo;
+use thread::{Scheduler, Thread};
 
 #[no_mangle]
 pub static mut others_stack: u64 = 0;
@@ -54,6 +55,17 @@ pub extern "C" fn rust_main() -> ! {
     // x86_64::instructions::interrupts::int3(); 
 
     println!("boot ok");
+
+    let mut s = Scheduler::new();
+    let mut idle = Thread::new("idle");
+    let mut t1 = Thread::new("hello 1");
+    let mut t2 = Thread::new("hello 2");
+
+    let mut idle = Thread::new("idle");
+
+    s.put_thread(&mut t1);
+    s.put_thread(&mut t2);
+
 
     // HACK: We need to get the actual CPU topology
     unsafe {

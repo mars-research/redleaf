@@ -3,7 +3,7 @@
 
 const MAX_PRIO: usize = 10;
 
-pub enum State {
+enum ThreadState {
     Running = 0,
     Runnable = 1,
     Paused = 2, 
@@ -32,7 +32,7 @@ type Link<'a> = Option<&'a mut Thread<'a>>;
 
 pub struct Thread<'a> {
     name: &'a str,
-    state: State, 
+    state: ThreadState, 
     priority: Priority, 
     context: Context,
     //stack: * mut Stack,
@@ -50,6 +50,26 @@ pub struct Scheduler<'a> {
     active: bool,
     active_queue: SchedulerQueue<'a>,
     passive_queue: SchedulerQueue<'a>,
+}
+
+impl Context {
+
+    pub fn new() -> Context {
+        Context{ r15: 0, r14: 0, r13:0, r12:0, r11:0, rbx:0, rbp:0, rsp:0, rflags:0 }
+    }
+}
+
+impl <'a> Thread<'a> {
+    pub fn new(name: &'a str) -> Thread <'a> {
+        Thread {
+            name: name,
+            state: ThreadState::Runnable, 
+            priority: 0,
+            context: Context::new(),
+            next: None, 
+        }
+    }
+    
 }
 
 impl <'a> SchedulerQueue<'a> {
@@ -121,7 +141,7 @@ impl <'a> Scheduler<'a> {
         }
     }
 
-    pub fn put_in_passive(&mut self, thread: &'a mut Thread<'a>) {
+    pub fn put_thread(&mut self, thread: &'a mut Thread<'a>) {
         /* put thread in the currently passive queue */
         if !self.active {
             self.active_queue.put_thread(thread)
@@ -130,7 +150,7 @@ impl <'a> Scheduler<'a> {
         }
     }
 
-    pub fn get_next_active(&mut self) -> Option<&mut Thread<'a>> {
+    fn get_next_active(&mut self) -> Option<&mut Thread<'a>> {
         if self.active {
             self.active_queue.get_highest()
         } else {
@@ -140,28 +160,7 @@ impl <'a> Scheduler<'a> {
 
     
     pub fn get_next(&mut self) -> Option<&mut Thread<'a>> {
-        //loop{
-
-            match self.get_next_active() {
-                Some(t) => return Some(t),
-                None => None,
-            }
-
-            //self.flip_queues();
-        //}
-        // t t1 = self.get_next();
-        //        t1
-        //    },
-
-        //loop {
-        /*
-                if let Some(t) = self.get_next_active() {
-                    return t; 
-                } else { 
-                     self.flip_queues();
-                     return self.get_next();
-                }
-        */
+        return self.get_next_active();
     }   
 
     // Flip active and passive queue making active queue passive
@@ -190,21 +189,7 @@ pub fn schedule(s: &mut Scheduler, current_thread: &mut Thread) {
 }
 
 impl Context {
-    pub fn new() -> Context {
-        Context {
-            rflags: 0,
-            rbx: 0,
-            r11: 0,
-            r12: 0,
-            r13: 0,
-            r14: 0,
-            r15: 0,
-            rbp: 0,
-            rsp: 0
-        }
-    }
-
-    /// Switch to the next context by restoring its stack and registers
+       /// Switch to the next context by restoring its stack and registers
     #[cold]
     #[inline(never)]
     #[naked]
