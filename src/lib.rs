@@ -164,6 +164,7 @@ pub extern "C" fn rust_main() -> ! {
      
     println!("cpu{}: Initialized", cpu_id);
 
+    /*
     if cpu_id == 0 {
         // Spin up other CPUs as BSP
 
@@ -171,7 +172,7 @@ pub extern "C" fn rust_main() -> ! {
         unsafe {
             interrupt::init_cpu(1, cpu1_stack, rust_main as u64);
         }
-    }
+    }*/
 
     loop {}
 }
