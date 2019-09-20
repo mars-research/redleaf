@@ -1,6 +1,3 @@
-use crate::common::list::{List, ListLink, ListNode};
-
-//use alloc::boxed::Box;
 // AB: for now lets use a global lock, we'll get rid of it later
 //pub static CONTEXT_SWITCH_LOCK: AtomicBool = AtomicBool::new(false);
 
@@ -17,7 +14,6 @@ struct Stack {
     chars: [u8; STACK_SIZE],
 }
 
-#[derive(Clone, Debug)]
 pub struct Context {
   r15: usize,
   r14: usize,
@@ -32,22 +28,22 @@ pub struct Context {
 
 type Priority = usize;
 
-//type Link = Option<Box<Thread>>;
+type Link<'a> = Option<&'a mut Thread<'a>>;
 
-struct Thread<'a> {
+pub struct Thread<'a> {
+    name: &'a str,
     state: State, 
     priority: Priority, 
     context: Context,
     //stack: * mut Stack,
     // Next thread in the scheduling queue
-    next: ListLink<'a, Thread<'a>>,
+    next: Link<'a>,
 }
 
 
 struct SchedulerQueue<'a> {
     highest: Priority,
-    //next: List<'a, Thread<'a>>,
-    queues: [List<'a, Thread<'a>>; 1 /*MAX_PRIO*/],
+    prio_queues: [Link<'a>; MAX_PRIO],
 }
 
 pub struct Scheduler<'a> {
@@ -56,28 +52,40 @@ pub struct Scheduler<'a> {
     passive_queue: SchedulerQueue<'a>,
 }
 
-impl <'a> ListNode<'a, Thread<'a>> for Thread<'a> {
-    fn next(&'a self) -> &'a ListLink<'a, Thread<'a>> {
-        &self.next
-    }
-}
-
-
 impl <'a> SchedulerQueue<'a> {
 
     pub fn new() -> SchedulerQueue<'a> {
         SchedulerQueue {
             highest: 0,
-            queues: {[List::new()]},
+            prio_queues: Default::default(),
         }
     }
 
+    fn push_thread(&mut self, queue: usize, thread: &'a mut Thread<'a>) {
+        let previous_head = core::mem::replace(&mut self.prio_queues[queue], None);
+
+        if let Some(node) = previous_head {
+            thread.next = Some(node);
+        }
+        self.prio_queues[queue] = Some(thread);
+    }
+
+    pub fn pop_thread(&mut self, queue: usize) -> Option<&'a mut Thread<'a>> {
+        let previous_head = core::mem::replace(&mut self.prio_queues[queue], None);
+
+        if let Some(node) = previous_head {
+            self.prio_queues[queue] = core::mem::replace(&mut node.next, None);
+            Some(node)
+        } else {
+            None
+        }
+    }
 
     // Add thread to the queue that matches thread's priority
     pub fn put_thread(&mut self, thread: &'a mut Thread<'a>) {
         let prio = thread.priority;
-    
-        self.queues[prio].push_head(thread);
+   
+        self.push_thread(prio, thread); 
 
         if self.highest < prio {
             self.highest = prio
@@ -88,7 +96,7 @@ impl <'a> SchedulerQueue<'a> {
     // Try to get the thread with the highest priority
     pub fn get_highest(&mut self) -> Option<&mut Thread<'a>> {
         loop {
-            match self.queues[self.highest].pop_head() {
+            match self.pop_thread(self.highest) {
                 None => {
                     if self.highest == 0 {
                         return None;
@@ -176,7 +184,9 @@ pub fn schedule(s: &mut Scheduler, current_thread: &mut Thread) {
         s.flip_queues();
     };
 
-    current_thread.context.switch_to(&mut (*next_thread).context);
+    unsafe {
+        current_thread.context.switch_to(&mut (*next_thread).context);
+    }
 }
 
 impl Context {
