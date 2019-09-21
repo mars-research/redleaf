@@ -50,6 +50,11 @@ extern "C" {
     static _bootinfo: usize;
 }
 
+static mut AP_INIT_STACK: *mut usize = 0x0 as *mut usize;
+const KERNEL_STACK_SIZE: usize = 4096 * 16;
+
+
+
 #[panic_handler]
 #[no_mangle]
 fn panic(info: &PanicInfo) -> ! {
@@ -127,11 +132,18 @@ static MEM_PROVIDER: SafeZoneAllocator = SafeZoneAllocator::new(&PAGER);
 // Init AP cpus
 pub fn init_ap_cpus() {
 
-    // Allocate CPU stack
+    // Allocate CPU stack, write it into a global variable 
+    // until the CPU is woken up
+    unsafe{
+        AP_INIT_STACK = alloc::alloc::alloc(
+                    Layout::from_size_align_unchecked(KERNEL_STACK_SIZE, 4096)) as *mut usize;
+        
+        //println!("Allocated stack for the CPU: {:?}", AP_INIT_STACK); 
 
-    // HACK: We need to get the actual CPU topology
-    unsafe {
-        interrupt::init_cpu(1, cpu1_stack, rust_main_ap as u64);
+        let ap_cpu_stack = AP_INIT_STACK as u32; 
+    
+        //println!("Waking up CPU with stack: {}", ap_cpu_stack);
+        interrupt::init_cpu(1, ap_cpu_stack, rust_main_ap as u64);
     }
 }
 
