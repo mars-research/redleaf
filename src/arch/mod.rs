@@ -1,4 +1,5 @@
 pub mod memory;
+pub mod vspace;
 
 use crate::memory::{Frame};
 use crate::arch::memory::{PAddr, BASE_PAGE_SIZE};

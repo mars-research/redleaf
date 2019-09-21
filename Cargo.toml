@@ -19,6 +19,8 @@ spin = "0.5.2"
 volatile = "0.2.3"
 x86_64 = "0.7.5"
 pc-keyboard = "0.3.1"
+log = "0.4"
+custom_error = { git = "https://github.com/gz/custom_error.git" }
 slabmalloc = { git = "https://github.com/gz/rust-slabmalloc.git" }
 
 [dependencies.lazy_static]
