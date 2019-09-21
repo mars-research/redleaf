@@ -1,8 +1,9 @@
 use core::fmt;
 use x86::bits64::paging;
-use core::alloc::Layout;
 use core::mem::transmute;
-use slabmalloc::{ObjectPage, PageProvider};
+use core::alloc::{GlobalAlloc, Layout};
+use spin::Mutex;
+use slabmalloc::{ObjectPage, PageProvider, ZoneAllocator};
 use crate::memory::buddy::BUDDY;
 
 pub use self::buddy::BuddyFrameAllocator as PhysicalMemoryAllocator;
@@ -152,3 +153,70 @@ impl<'a> PageProvider<'a> for BespinSlabsProvider {
         println!("TODO!");
     }
 }
+
+#[allow(dead_code)]
+static PAGER: Mutex<BespinSlabsProvider> = Mutex::new(BespinSlabsProvider::new());
+
+#[allow(dead_code)]
+pub struct SafeZoneAllocator(Mutex<ZoneAllocator<'static>>);
+
+impl SafeZoneAllocator {
+    pub const fn new(provider: &'static Mutex<PageProvider>) -> SafeZoneAllocator {
+        SafeZoneAllocator(Mutex::new(ZoneAllocator::new(provider)))
+    }
+}
+
+#[alloc_error_handler]
+fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
+    panic!("allocation error: {:?}", layout)
+}
+
+unsafe impl GlobalAlloc for SafeZoneAllocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        println!("alloc layout={:?}", layout);
+        if layout.size() <= ZoneAllocator::MAX_ALLOC_SIZE {
+            let ptr = self.0.lock().allocate(layout);
+            println!("allocated ptr=0x{:x} layout={:?}", ptr as usize, layout);
+            ptr
+        } else {
+            let mut ptr = core::ptr::null_mut();
+
+            if let Some(ref mut fmanager) = *BUDDY.lock() {
+                let mut f = fmanager.allocate(layout);
+                ptr = f.map_or(core::ptr::null_mut(), |mut region| {
+                    region.zero();
+                    region.kernel_vaddr().as_mut_ptr()
+                });
+                println!("allocated ptr=0x{:x} layout={:?}", ptr as usize, layout);
+                drop(fmanager);
+            } else {
+                panic!("__rust_allocate: buddy not initialized");
+            }
+            ptr
+        }
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        println!("dealloc ptr = 0x{:x} layout={:?}", ptr as usize, layout);
+        if layout.size() <= ZoneAllocator::MAX_ALLOC_SIZE {
+            //debug!("dealloc ptr = 0x{:x} layout={:?}", ptr as usize, layout);
+            self.0.lock().deallocate(ptr, layout);
+        } else {
+            use crate::arch::memory::{kernel_vaddr_to_paddr, VAddr};
+            if let Some(ref mut fmanager) = *BUDDY.lock() {
+                fmanager.deallocate(
+                    Frame::new(
+                        kernel_vaddr_to_paddr(VAddr::from_u64(ptr as u64)),
+                        layout.size(),
+                    ),
+                    layout,
+                );
+            } else {
+                panic!("__rust_allocate: buddy not initialized");
+            }
+        }
+    }
+}
+
+#[global_allocator]
+static MEM_PROVIDER: SafeZoneAllocator = SafeZoneAllocator::new(&PAGER);
