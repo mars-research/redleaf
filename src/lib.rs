@@ -36,6 +36,7 @@ mod tls;
 use x86::cpuid::CpuId;
 use core::panic::PanicInfo;
 use crate::arch::init_buddy;
+use crate::memory::construct_pt;
 
 #[no_mangle]
 pub static mut cpu1_stack: u32 = 0;
@@ -98,6 +99,9 @@ pub extern "C" fn rust_main() -> ! {
 
     // Init memory allocator (normal allocation should work after this) 
     init_allocator();
+
+    // Init page table (code runs on a new page table after this call)
+    construct_pt();
 
     // Init per-CPU variables
     unsafe {

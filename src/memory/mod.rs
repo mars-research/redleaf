@@ -5,6 +5,7 @@ use core::alloc::{GlobalAlloc, Layout};
 use spin::Mutex;
 use slabmalloc::{ObjectPage, PageProvider, ZoneAllocator};
 use crate::memory::buddy::BUDDY;
+use log::{debug, warn, trace, info};
 
 pub use self::buddy::BuddyFrameAllocator as PhysicalMemoryAllocator;
 pub use crate::arch::memory::{paddr_to_kernel_vaddr, PAddr, VAddr, BASE_PAGE_SIZE};
@@ -298,10 +299,10 @@ fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
 
 unsafe impl GlobalAlloc for SafeZoneAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        println!("alloc layout={:?}", layout);
+        trace!("alloc layout={:?}", layout);
         if layout.size() <= ZoneAllocator::MAX_ALLOC_SIZE {
             let ptr = self.0.lock().allocate(layout);
-            println!("allocated ptr=0x{:x} layout={:?}", ptr as usize, layout);
+            trace!("allocated ptr=0x{:x} layout={:?}", ptr as usize, layout);
             ptr
         } else {
             let mut ptr = core::ptr::null_mut();
@@ -312,8 +313,7 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
                     region.zero();
                     region.kernel_vaddr().as_mut_ptr()
                 });
-                println!("allocated ptr=0x{:x} layout={:?}", ptr as usize, layout);
-                drop(fmanager);
+                trace!("allocated ptr=0x{:x} layout={:?}", ptr as usize, layout);
             } else {
                 panic!("__rust_allocate: buddy not initialized");
             }
@@ -345,3 +345,184 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
 
 #[global_allocator]
 static MEM_PROVIDER: SafeZoneAllocator = SafeZoneAllocator::new(&PAGER);
+
+use crate::arch::vspace::{VSpace, MapAction};
+use x86::controlregs;
+
+fn text_start() -> u64 {
+    extern {
+        static __text_start: u8;
+    }
+    unsafe {
+        & __text_start as *const _ as u64
+    }
+}
+
+fn text_end() -> u64 {
+    extern {
+        static __text_end: u8;
+    }
+    unsafe {
+        & __text_end as *const _ as u64
+    }
+}
+
+fn rodata_start() -> u64 {
+    extern {
+        static __rodata_start: u8;
+    }
+    unsafe {
+        & __rodata_start as *const _ as u64
+    }
+}
+
+fn rodata_end() -> u64 {
+    extern {
+        static __rodata_end: u8;
+    }
+    unsafe {
+        & __rodata_end as *const _ as u64
+    }
+}
+
+fn data_start() -> u64 {
+    extern {
+        static __data_start: u8;
+    }
+    unsafe {
+        & __data_start as *const _ as u64
+    }
+}
+
+fn data_end() -> u64 {
+    extern {
+        static __data_end: u8;
+    }
+    unsafe {
+        & __data_end as *const _ as u64
+    }
+}
+
+fn bss_start() -> u64 {
+    extern {
+        static __bss_start: u8;
+    }
+    unsafe {
+        & __bss_start as *const _ as u64
+    }
+}
+
+fn bss_end() -> u64 {
+    extern {
+        static __bss_end: u8;
+    }
+    unsafe {
+        & __bss_end as *const _ as u64
+    }
+}
+
+fn tdata_start() -> u64 {
+    extern {
+        static __tdata_start: u8;
+    }
+    unsafe {
+        & __tdata_start as *const _ as u64
+    }
+}
+
+fn tdata_end() -> u64 {
+    extern {
+        static __tdata_end: u8;
+    }
+    unsafe {
+        & __tdata_end as *const _ as u64
+    }
+}
+
+fn kernel_end() -> u64 {
+    extern {
+        /// The starting byte of the thread data segment
+        static __end: u8;
+    }
+
+    unsafe{
+        & __end as *const _ as u64
+    }
+}
+const KERNEL_BASE: u64 = 0x100000;
+const MAP_BASE: u64 = 0x0;
+
+pub fn construct_pt() {
+    let mut vspace = VSpace::new();
+
+    // Map RWX as some code is copied to 0x7000 for ap start
+    vspace.map_generic(VAddr::from(MAP_BASE),
+                (PAddr::from(MAP_BASE),
+                KERNEL_BASE as usize - MAP_BASE as usize),
+                MapAction::ReadWriteExecuteKernel);
+
+    // Map kernel sections with appropriate permission bits
+    vspace.map_generic(VAddr::from(KERNEL_BASE),
+                (PAddr::from(KERNEL_BASE),
+                text_end() as usize - KERNEL_BASE as usize),
+                MapAction::ReadWriteExecuteKernel);
+
+    vspace.map_generic(VAddr::from(rodata_start()),
+                (PAddr::from(rodata_start()),
+                rodata_end() as usize - rodata_start() as usize),
+                MapAction::ReadKernel);
+
+    vspace.map_generic(VAddr::from(data_start()),
+                (PAddr::from(data_start()),
+                data_end() as usize - data_start() as usize),
+                MapAction::ReadWriteExecuteKernel);
+
+    vspace.map_generic(VAddr::from(bss_start()),
+                (PAddr::from(bss_start()),
+                bss_end() as usize - bss_start() as usize),
+                MapAction::ReadWriteExecuteKernel);
+
+    vspace.map_generic(VAddr::from(tdata_start()),
+                (PAddr::from(tdata_start()),
+                kernel_end() as usize - tdata_start() as usize),
+                MapAction::ReadWriteExecuteKernel);
+
+    let mut frame = {
+        if let Some(ref mut fmanager) = *BUDDY.lock() {
+            fmanager.get_region()
+        } else {
+            panic!("__rust_allocate: buddy not initialized");
+        }
+    };
+
+    // Map the regions held by buddy allocator
+    vspace.map_identity(
+        frame.base,
+        frame.base + frame.size as u64,
+        MapAction::ReadWriteExecuteKernel,
+    );
+
+    // Map LAPIC regions
+    vspace.map_identity(
+        PAddr(0xfec00000u64),
+        PAddr(0xfec00000u64 + BASE_PAGE_SIZE as u64),
+        MapAction::ReadWriteExecuteKernel,
+    );
+
+    vspace.map_identity(
+        PAddr(0xfee00000u64),
+        PAddr(0xfee00000u64 + BASE_PAGE_SIZE as u64),
+        MapAction::ReadWriteExecuteKernel,
+    );
+
+    println!("pml4_vaddr {:x}", vspace.pml4_address());
+    unsafe {
+        println!("=> Switching to new PageTable!");
+        controlregs::cr3_write(vspace.pml4_address().into());
+        println!("Flushing TLB");
+        x86::tlb::flush_all();
+    }
+
+    // We need the memory pointed to by vspace after exiting the scope
+    core::mem::forget(vspace);
+}

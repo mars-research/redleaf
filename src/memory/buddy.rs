@@ -196,6 +196,9 @@ impl BuddyFrameAllocator {
         }
     }
 
+    pub fn get_region(&self) -> Frame {
+        self.region
+    }
 
     /// Get block size for allocation request.
     fn allocation_size(&self, layout: Layout) -> Option<usize> {
