@@ -266,7 +266,7 @@ impl<'a> PageProvider<'a> for BespinSlabsProvider {
             };
             f.map(|mut frame| unsafe {
                 frame.zero();
-                println!("slabmalloc allocate frame.base = {:x}", frame.base);
+                trace!("slabmalloc allocate frame.base = {:x}", frame.base);
                 let sp: &'a mut ObjectPage = transmute(paddr_to_kernel_vaddr(frame.base));
                 sp
             })
@@ -322,7 +322,7 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        println!("dealloc ptr = 0x{:x} layout={:?}", ptr as usize, layout);
+        trace!("dealloc ptr = 0x{:x} layout={:?}", ptr as usize, layout);
         if layout.size() <= ZoneAllocator::MAX_ALLOC_SIZE {
             //debug!("dealloc ptr = 0x{:x} layout={:?}", ptr as usize, layout);
             self.0.lock().deallocate(ptr, layout);
