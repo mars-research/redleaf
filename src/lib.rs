@@ -8,7 +8,8 @@
     const_fn,
     const_raw_ptr_to_usize_cast,
     thread_local,
-    untagged_unions
+    untagged_unions,
+    naked_functions
 )]
 
 extern crate x86;
@@ -32,6 +33,8 @@ mod prelude;
 pub mod arch;
 
 mod tls;
+//mod common; 
+mod thread;
 
 use x86::cpuid::CpuId;
 use core::panic::PanicInfo;
@@ -41,6 +44,7 @@ use core::alloc::{GlobalAlloc, Layout};
 use memory::{BespinSlabsProvider, PhysicalAllocator};
 use slabmalloc::{PageProvider, ZoneAllocator};
 use crate::memory::buddy::BUDDY;
+use thread::{Scheduler, Thread};
 
 #[no_mangle]
 pub static mut cpu1_stack: u32 = 0;
@@ -164,6 +168,19 @@ pub fn init_allocator() {
         } */
     }
 
+}
+
+fn init_threads() {
+
+    let mut s = Scheduler::new();
+    let mut idle = Thread::new("idle");
+    let mut t1 = Thread::new("hello 1");
+    let mut t2 = Thread::new("hello 2");
+
+    let mut idle = Thread::new("idle");
+
+    s.put_thread(&mut t1);
+    s.put_thread(&mut t2);
 }
 
 const MAX_CPUS: u32 = 32;
