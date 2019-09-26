@@ -29,8 +29,8 @@ run: qemu
 run-nox: qemu-nox
 
 .PHONY: qemu
-qemu: $(iso)
-	qemu-system-x86_64 -m 128m -cdrom $(iso) -vga std -s -serial file:serial.log -no-reboot -no-shutdown -d int,cpu_reset -smp 2
+qemu: $(iso) disk.img
+	qemu-system-x86_64 -m 128m -cdrom $(iso) -vga std -s -serial file:serial.log -no-reboot -no-shutdown -d int,cpu_reset -drive file=disk.img,index=0,media=disk,format=raw -smp 2
 
 .PHONY: qemu-gdb
 qemu-gdb: $(iso)
@@ -43,6 +43,9 @@ qemu-nox: $(iso)
 .PHONY: qemu-efi-nox
 qemu-efi-nox: $(iso) ovmf-code
 	qemu-system-x86_64 -m 128m -bios OVMF_CODE.fd -cdrom $(iso) -s -no-reboot -nographic -smp 2
+
+disk.img:
+	fallocate -l 512M disk.img
 
 ovmf-code:
 	echo "Getting OVMF_CODE.fd is not implemented..."
