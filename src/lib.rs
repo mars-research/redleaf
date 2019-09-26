@@ -222,6 +222,8 @@ pub extern "C" fn rust_main() -> ! {
     // we re-enable them on exits
     //x86_64::instructions::interrupts::enable();
      
+    interrupt::init_irqs_local();
+    
     // Spin up other CPUs 
     init_ap_cpus(); 
 
