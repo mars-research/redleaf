@@ -25,6 +25,7 @@ mod console;
 mod interrupt;
 mod entryother;
 mod redsys;
+mod drivers;
 pub mod gdt;
 
 mod multibootv2;
@@ -216,6 +217,7 @@ pub extern "C" fn rust_main() -> ! {
     }
 
     // Initialize LAPIC as BSP
+    interrupt::init_irqs_local();
     interrupt::init_irqs();
 
     // Microkernel runs with interrupts disabled
@@ -244,10 +246,29 @@ pub extern "C" fn rust_main_ap() -> ! {
 
     interrupt::init_idt();
 
-    interrupt::init_irqs_local();
+    if cpu_id != 0 {
+        interrupt::init_irqs_local();
+    }
     //x86_64::instructions::interrupts::enable();
      
     println!("cpu{}: Initialized", cpu_id);
+
+    if cpu_id == 0 {
+        let ide = drivers::ide::IDE::new();
+        println!("Initializing IDE");
+        ide.init();
+        println!("IDE Initialized!");
+
+        // Write a block of 5s
+        let data: [u32; 512] = [5u32; 512];
+        ide.write(20, &data);
+        println!("Data written");
+
+        // Read the block back
+        let mut rdata: [u32; 512] = [0u32; 512];
+        ide.read(20, &mut rdata);
+        println!("Data read");
+    }
 
     halt(); 
 }
