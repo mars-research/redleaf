@@ -33,7 +33,25 @@ If you see complains from the `grub-mkrescue`, install the `xorriso` package
 grub-mkrescue: warning: Your xorriso doesn't support `--grub2-boot-info'. Some features are disabled. Please use xorriso 1.2.9 or later..                                                 
 ```
 
-### Boot on baremetal 
+### Boot on baremetal from a USB drive
+
+Copy the ISO disk image to the USB stick (make sure to use correct device for the 
+USB drive, otherwise you can overwrite your hard disk). You can use lsblk on Ubuntu
+to list block devices
+
+```
+lsblk
+```
+
+For me it's /dev/sda or /dev/sdb but my laptop runs off an NVMe device, so for you 
+/dev/sda may very well be your root device, not a USB!
+
+```
+sudo dd if=build/os.iso of=/dev/<your_usb_drive> bs=1MB
+sync
+```
+
+### Boot on baremetal from a Linux partition
 
 ``` 
 sudo cp build/kernel.bin /boot/
@@ -61,7 +79,7 @@ Update grub
   sudo sudo update-grub2
 ```
 
-Reboot and choose the xv6 entry. Make sure that you can see the grub menu
+Reboot and choose the "RedLeaf" entry. Make sure that you can see the grub menu
 list by editing /etc/default/grub making sure that GRUB_HIDDEN_TIMEOUT_QUIET is
 set to "false". 
 

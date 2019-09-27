@@ -1,7 +1,7 @@
 // AB: for now lets use a global lock, we'll get rid of it later
 //pub static CONTEXT_SWITCH_LOCK: AtomicBool = AtomicBool::new(false);
 
-const MAX_PRIO: usize = 10;
+const MAX_PRIO: usize = 15;
 
 enum ThreadState {
     Running = 0,
@@ -43,7 +43,7 @@ pub struct Thread<'a> {
 
 struct SchedulerQueue<'a> {
     highest: Priority,
-    prio_queues: [Link<'a>; MAX_PRIO],
+    prio_queues: [Link<'a>; MAX_PRIO + 1],
 }
 
 pub struct Scheduler<'a> {
@@ -74,10 +74,11 @@ impl <'a> Thread<'a> {
 
 impl <'a> SchedulerQueue<'a> {
 
-    pub fn new() -> SchedulerQueue<'a> {
+    pub const fn new() -> SchedulerQueue<'a> {
         SchedulerQueue {
             highest: 0,
-            prio_queues: Default::default(),
+            prio_queues: [None, None, None, None, None, None, None, None,
+                          None, None, None, None, None, None, None, None],
         }
     }
 
@@ -133,7 +134,7 @@ impl <'a> SchedulerQueue<'a> {
 }
 impl <'a> Scheduler<'a> {
 
-    pub fn new() -> Scheduler<'a> {
+    pub const fn new() -> Scheduler<'a> {
         Scheduler {
             active: true,
             active_queue: SchedulerQueue::new(),

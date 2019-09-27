@@ -55,10 +55,16 @@ extern "C" {
     static _bootinfo: usize;
 }
 
+/// We use this static variable to temporarely save the stack of the 
+/// boot function (rust_main_ap()) 
 static mut AP_INIT_STACK: *mut usize = 0x0 as *mut usize;
+
+/// Stack size for the kernel main thread
 const KERNEL_STACK_SIZE: usize = 4096 * 16;
 
-
+/// Per-CPU scheduler
+#[thread_local]
+pub static mut PER_CPU_SCHEDULER: Scheduler = Scheduler::new(); 
 
 #[panic_handler]
 #[no_mangle]
@@ -173,15 +179,16 @@ pub fn init_allocator() {
 
 fn init_threads() {
 
-    let mut s = Scheduler::new();
     let mut idle = Thread::new("idle");
     let mut t1 = Thread::new("hello 1");
     let mut t2 = Thread::new("hello 2");
 
     let mut idle = Thread::new("idle");
 
-    s.put_thread(&mut t1);
-    s.put_thread(&mut t2);
+    //unsafe {
+    //    PER_CPU_SCHEDULER.put_thread(&mut t1);
+    //    PER_CPU_SCHEDULER.put_thread(&mut t2);
+    //}
 }
 
 const MAX_CPUS: u32 = 32;
@@ -224,8 +231,6 @@ pub extern "C" fn rust_main() -> ! {
     // we re-enable them on exits
     //x86_64::instructions::interrupts::enable();
      
-    interrupt::init_irqs_local();
-    
     // Spin up other CPUs 
     init_ap_cpus(); 
 
