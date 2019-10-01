@@ -1,6 +1,10 @@
 // AB: for now lets use a global lock, we'll get rid of it later
 //pub static CONTEXT_SWITCH_LOCK: AtomicBool = AtomicBool::new(false);
 
+use alloc::boxed::Box;
+use alloc::string::String;
+use alloc::string::ToString;
+
 const MAX_PRIO: usize = 15;
 
 enum ThreadState {
@@ -28,28 +32,28 @@ pub struct Context {
 
 type Priority = usize;
 
-type Link<'a> = Option<&'a mut Thread<'a>>;
+type Link = Option<Box<Thread>>;
 
-pub struct Thread<'a> {
-    name: &'a str,
+pub struct Thread {
+    name: String,
     state: ThreadState, 
     priority: Priority, 
     context: Context,
     //stack: * mut Stack,
     // Next thread in the scheduling queue
-    next: Link<'a>,
+    next: Link,
 }
 
 
-struct SchedulerQueue<'a> {
+struct SchedulerQueue {
     highest: Priority,
-    prio_queues: [Link<'a>; MAX_PRIO + 1],
+    prio_queues: [Link; MAX_PRIO + 1],
 }
 
-pub struct Scheduler<'a> {
+pub struct Scheduler {
     active: bool,
-    active_queue: SchedulerQueue<'a>,
-    passive_queue: SchedulerQueue<'a>,
+    active_queue: SchedulerQueue,
+    passive_queue: SchedulerQueue,
 }
 
 impl Context {
@@ -59,10 +63,10 @@ impl Context {
     }
 }
 
-impl <'a> Thread<'a> {
-    pub fn new(name: &'a str) -> Thread <'a> {
+impl  Thread {
+    pub fn new(name: &str) -> Thread  {
         Thread {
-            name: name,
+            name: name.to_string(),
             state: ThreadState::Runnable, 
             priority: 0,
             context: Context::new(),
@@ -72,9 +76,9 @@ impl <'a> Thread<'a> {
     
 }
 
-impl <'a> SchedulerQueue<'a> {
+impl  SchedulerQueue {
 
-    pub const fn new() -> SchedulerQueue<'a> {
+    pub const fn new() -> SchedulerQueue {
         SchedulerQueue {
             highest: 0,
             prio_queues: [None, None, None, None, None, None, None, None,
@@ -82,8 +86,8 @@ impl <'a> SchedulerQueue<'a> {
         }
     }
 
-    fn push_thread(&mut self, queue: usize, thread: &'a mut Thread<'a>) {
-        let previous_head = core::mem::replace(&mut self.prio_queues[queue], None);
+    fn push_thread(&mut self, queue: usize, mut thread: Box<Thread>) {
+        let previous_head = self.prio_queues[queue].take();
 
         if let Some(node) = previous_head {
             thread.next = Some(node);
@@ -91,11 +95,11 @@ impl <'a> SchedulerQueue<'a> {
         self.prio_queues[queue] = Some(thread);
     }
 
-    pub fn pop_thread(&mut self, queue: usize) -> Option<&'a mut Thread<'a>> {
-        let previous_head = core::mem::replace(&mut self.prio_queues[queue], None);
+    pub fn pop_thread(&mut self, queue: usize) -> Option<Box<Thread>> {
+        let previous_head = self.prio_queues[queue].take();
 
-        if let Some(node) = previous_head {
-            self.prio_queues[queue] = core::mem::replace(&mut node.next, None);
+        if let Some(mut node) = previous_head {
+            self.prio_queues[queue] = node.next.take();
             Some(node)
         } else {
             None
@@ -103,7 +107,7 @@ impl <'a> SchedulerQueue<'a> {
     }
 
     // Add thread to the queue that matches thread's priority
-    pub fn put_thread(&mut self, thread: &'a mut Thread<'a>) {
+    pub fn put_thread(&mut self, mut thread: Box<Thread>) {
         let prio = thread.priority;
    
         self.push_thread(prio, thread); 
@@ -115,7 +119,7 @@ impl <'a> SchedulerQueue<'a> {
 
     
     // Try to get the thread with the highest priority
-    pub fn get_highest(&mut self) -> Option<&mut Thread<'a>> {
+    pub fn get_highest(&mut self) -> Option<Box<Thread>> {
         loop {
             match self.pop_thread(self.highest) {
                 None => {
@@ -132,9 +136,9 @@ impl <'a> SchedulerQueue<'a> {
     }
 
 }
-impl <'a> Scheduler<'a> {
+impl  Scheduler {
 
-    pub const fn new() -> Scheduler<'a> {
+    pub const fn new() -> Scheduler {
         Scheduler {
             active: true,
             active_queue: SchedulerQueue::new(),
@@ -142,7 +146,7 @@ impl <'a> Scheduler<'a> {
         }
     }
 
-    pub fn put_thread(&mut self, thread: &'a mut Thread<'a>) {
+    pub fn put_thread(&mut self, mut thread: Box<Thread>) {
         /* put thread in the currently passive queue */
         if !self.active {
             self.active_queue.put_thread(thread)
@@ -151,7 +155,7 @@ impl <'a> Scheduler<'a> {
         }
     }
 
-    fn get_next_active(&mut self) -> Option<&mut Thread<'a>> {
+    fn get_next_active(&mut self) -> Option<Box<Thread>> {
         if self.active {
             self.active_queue.get_highest()
         } else {
@@ -160,7 +164,7 @@ impl <'a> Scheduler<'a> {
     }
 
     
-    pub fn get_next(&mut self) -> Option<&mut Thread<'a>> {
+    pub fn get_next(&mut self) -> Option<Box<Thread>> {
         return self.get_next_active();
     }   
 
@@ -177,7 +181,7 @@ impl <'a> Scheduler<'a> {
 
 pub fn schedule(s: &mut Scheduler, current_thread: &mut Thread) {
 
-    let next_thread: &mut Thread = loop {
+    let mut next_thread = loop {
         if let Some(t) = s.get_next() {
             break t;
         }
@@ -185,7 +189,7 @@ pub fn schedule(s: &mut Scheduler, current_thread: &mut Thread) {
     };
 
     unsafe {
-        current_thread.context.switch_to(&mut (*next_thread).context);
+        current_thread.context.switch_to(&mut next_thread.context);
     }
 }
 

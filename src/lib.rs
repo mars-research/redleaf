@@ -46,6 +46,8 @@ use memory::{BespinSlabsProvider, PhysicalAllocator};
 use slabmalloc::{PageProvider, ZoneAllocator};
 use crate::memory::buddy::BUDDY;
 use thread::{Scheduler, Thread};
+use core::cell::RefCell;
+use alloc::boxed::Box;
 
 #[no_mangle]
 pub static mut cpu1_stack: u32 = 0;
@@ -64,7 +66,8 @@ const KERNEL_STACK_SIZE: usize = 4096 * 16;
 
 /// Per-CPU scheduler
 #[thread_local]
-pub static mut PER_CPU_SCHEDULER: Scheduler = Scheduler::new(); 
+static SCHED: RefCell<Scheduler> = RefCell::new(Scheduler::new()); 
+//pub static mut PER_CPU_SCHEDULER: Scheduler = Scheduler::new(); 
 
 #[panic_handler]
 #[no_mangle]
@@ -179,16 +182,17 @@ pub fn init_allocator() {
 
 fn init_threads() {
 
-    let mut idle = Thread::new("idle");
-    let mut t1 = Thread::new("hello 1");
-    let mut t2 = Thread::new("hello 2");
+    let mut s = SCHED.borrow_mut();
+    
 
-    let mut idle = Thread::new("idle");
+    let mut idle = Box::new(Thread::new("idle"));
+    let mut t1 = Box::new(Thread::new("hello 1"));
+    let mut t2 = Box::new(Thread::new("hello 2"));
 
-    //unsafe {
-    //    PER_CPU_SCHEDULER.put_thread(&mut t1);
-    //    PER_CPU_SCHEDULER.put_thread(&mut t2);
-    //}
+    s.put_thread(idle); 
+    s.put_thread(t1);
+    s.put_thread(t2);
+    
 }
 
 const MAX_CPUS: u32 = 32;
