@@ -4,6 +4,7 @@
 use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::string::ToString;
+use core::cell::RefCell;
 
 const MAX_PRIO: usize = 15;
 
@@ -13,9 +14,10 @@ enum ThreadState {
     Paused = 2, 
 }
 
-const STACK_SIZE: usize = 4096 * 64;
+const STACK_SIZE_IN_LINES: usize = 4096 * 2;
+
 struct Stack {
-    chars: [u8; STACK_SIZE],
+    chars: [usize; STACK_SIZE_IN_LINES],
 }
 
 pub struct Context {
@@ -39,7 +41,7 @@ pub struct Thread {
     state: ThreadState, 
     priority: Priority, 
     context: Context,
-    //stack: * mut Stack,
+    stack: RefCell<Box<Stack>>,
     // Next thread in the scheduling queue
     next: Link,
 }
@@ -56,6 +58,14 @@ pub struct Scheduler {
     passive_queue: SchedulerQueue,
 }
 
+impl Stack {
+
+    pub fn new() -> Stack {
+        Stack{chars: [0; STACK_SIZE_IN_LINES]}
+    }
+
+}
+
 impl Context {
 
     pub fn new() -> Context {
@@ -70,6 +80,7 @@ impl  Thread {
             state: ThreadState::Runnable, 
             priority: 0,
             context: Context::new(),
+            stack: RefCell::new(Box::new(Stack::new())),
             next: None, 
         }
     }
