@@ -46,8 +46,9 @@ use memory::{BespinSlabsProvider, PhysicalAllocator};
 use slabmalloc::{PageProvider, ZoneAllocator};
 use crate::memory::buddy::BUDDY;
 use thread::{Scheduler, Thread};
-use core::cell::RefCell;
+use core::cell::{UnsafeCell, RefCell};
 use alloc::boxed::Box;
+use crate::thread::switch;
 
 #[no_mangle]
 pub static mut cpu1_stack: u32 = 0;
@@ -67,7 +68,13 @@ const KERNEL_STACK_SIZE: usize = 4096 * 16;
 /// Per-CPU scheduler
 #[thread_local]
 static SCHED: RefCell<Scheduler> = RefCell::new(Scheduler::new()); 
-//pub static mut PER_CPU_SCHEDULER: Scheduler = Scheduler::new(); 
+
+/// Per-CPU current thread
+#[thread_local]
+static CURRENT: RefCell<Option<Box<Thread>>> = RefCell::new(None); 
+//static mut CURRENT: *mut Box<Thread> = 0x0 as *mut Box<Thread>; 
+//static mut CURRENT: *mut Thread = 0x0 as *mut Thread; 
+//static mut CURRENT: *mut Box<Thread> = 0x0 as *mut Box<Thread>; 
 
 #[panic_handler]
 #[no_mangle]
@@ -180,20 +187,92 @@ pub fn init_allocator() {
 
 }
 
+pub extern fn idle() {
+    halt(); 
+}
+
+pub extern fn hello1() {
+    loop {
+        println!("hello 1"); 
+    }
+}
+
+pub extern fn hello2() {
+    loop {
+        println!("hello 2"); 
+    }
+}
+
+fn set_current(mut t: Box<Thread>) {
+    CURRENT.replace(Some(t)); 
+}
+
+//fn get_current_ref() -> &'static mut Option<Box<Thread>> {
+//    unsafe{&mut *CURRENT.get()}
+//}
+
+fn get_current() -> Option<Box<Thread>> {
+    CURRENT.replace(None)
+}
+
+
 fn init_threads() {
 
     let mut s = SCHED.borrow_mut();
     
 
-    let mut idle = Box::new(Thread::new("idle"));
-    let mut t1 = Box::new(Thread::new("hello 1"));
-    let mut t2 = Box::new(Thread::new("hello 2"));
+    let mut idle = Box::new(Thread::new("idle", idle));
+    let mut t1 = Box::new(Thread::new("hello 1", hello1));
+    let mut t2 = Box::new(Thread::new("hello 2", hello2));
 
-    s.put_thread(idle); 
+    //s.put_thread(idle); 
     s.put_thread(t1);
     s.put_thread(t2);
+
+    // Make idle the current thread
+    set_current(idle);
     
 }
+
+// Kicked from the timer IRQ
+pub fn schedule() {
+
+    println!("Schedule"); 
+
+    let mut s = SCHED.borrow_mut();
+    let mut next_thread = match s.next() {
+        Some(t) => t,
+        None => {
+            // Nothing again, current is the only runnable thread, no need to
+            // context switch
+            return; 
+        }
+
+    };
+
+    let mut c = match get_current() {
+        Some(t) => t,
+        None => { return; } 
+    };
+
+    let prev = &mut *c as *mut Thread; 
+    let next = &mut *next_thread as *mut Thread; 
+
+
+    // Make next thread current
+    set_current(next_thread); 
+
+    // put the old thread back in the scheduling queue
+    s.put_thread(c);
+
+    drop(s); 
+
+    unsafe {
+        switch(prev, next);
+    }
+
+}
+
 
 const MAX_CPUS: u32 = 32;
 
@@ -280,6 +359,7 @@ pub extern "C" fn rust_main_ap() -> ! {
         ide.read(20, &mut rdata);
         println!("Data read");
     }
+
 
     halt(); 
 }

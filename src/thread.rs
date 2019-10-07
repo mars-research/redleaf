@@ -17,7 +17,7 @@ enum ThreadState {
 const STACK_SIZE_IN_LINES: usize = 4096 * 2;
 
 struct Stack {
-    chars: [usize; STACK_SIZE_IN_LINES],
+    mem: [usize; STACK_SIZE_IN_LINES],
 }
 
 pub struct Context {
@@ -61,7 +61,7 @@ pub struct Scheduler {
 impl Stack {
 
     pub fn new() -> Stack {
-        Stack{chars: [0; STACK_SIZE_IN_LINES]}
+        Stack{mem: [0; STACK_SIZE_IN_LINES]}
     }
 
 }
@@ -74,17 +74,66 @@ impl Context {
 }
 
 impl  Thread {
-    pub fn new(name: &str) -> Thread  {
-        Thread {
+/*
+    /// Spawn a context from a function.
+    pub fn spawn(&mut self, func: extern fn()) -> Result<&Arc<RwLock<Context>>> {
+        let context_lock = self.new_context()?;
+        {
+            let mut context = context_lock.write();
+            let mut fx = unsafe { Box::from_raw(crate::ALLOCATOR.alloc(Layout::from_size_align_unchecked(512, 16)) as *mut [u8; 512]) };
+            for b in fx.iter_mut() {
+                *b = 0;
+            }
+            let mut stack = vec![0; 65_536].into_boxed_slice();
+            let offset = stack.len() - mem::size_of::<usize>();
+            unsafe {
+                let offset = stack.len() - mem::size_of::<usize>();
+                let func_ptr = stack.as_mut_ptr().offset(offset as isize);
+                *(func_ptr as *mut usize) = func as usize;
+            }
+            context.arch.set_page_table(unsafe { paging::ActivePageTable::new().address() });
+            context.arch.set_fx(fx.as_ptr() as usize);
+            context.arch.set_stack(stack.as_ptr() as usize + offset);
+            context.kfx = Some(fx);
+            context.kstack = Some(stack);
+        }
+        Ok(context_lock)
+    }
+
+*/
+    
+    fn init_stack(&mut self, func: extern fn()) {
+       
+        /* die() takes one argument lets pass it via r15 and prey */
+        self.context.r15 = func as usize;
+
+        /* push die() on the stack where the switch will pick 
+         * it up with the ret instruction */
+        let mut s = &mut **self.stack.borrow_mut(); 
+        s.mem[s.mem.len() - 1] = die as usize;
+
+        /* set the stack pointer to point to die() */
+        //self.context.rsp = s.mem[s.mem.len() - 1].as_ptr(); 
+        self.context.rsp = &(s.mem[s.mem.len() - 1]) as *const usize as usize;
+    }
+
+    pub fn new(name: &str, func: extern fn()) -> Thread  {
+        let mut t = Thread {
             name: name.to_string(),
             state: ThreadState::Runnable, 
             priority: 0,
             context: Context::new(),
             stack: RefCell::new(Box::new(Stack::new())),
             next: None, 
-        }
+        };
+
+        t.init_stack(func);
+
+        return t; 
     }
-    
+
+
+
 }
 
 impl  SchedulerQueue {
@@ -147,6 +196,7 @@ impl  SchedulerQueue {
     }
 
 }
+
 impl  Scheduler {
 
     pub const fn new() -> Scheduler {
@@ -188,66 +238,86 @@ impl  Scheduler {
         }
     }
     
+    pub fn next(&mut self) -> Option<Box<Thread>> {
+        if let Some(t) = self.get_next() {
+            return Some(t);
+        }
+        
+        // No luck finding a thread in the active queue
+        // flip active and passive queues and try again
+        self.flip_queues();
+        
+        if let Some(t) = self.get_next() {
+            return Some(t);
+        }
+       
+        return None;
+    }
 }
 
-pub fn schedule(s: &mut Scheduler, current_thread: &mut Thread) {
 
-    let mut next_thread = loop {
-        if let Some(t) = s.get_next() {
-            break t;
-        }
-        s.flip_queues();
+/// Just make sure die follows C calling convention
+/// We don't really need it now as we pass the function pointer via r15
+#[no_mangle] 
+extern "C" fn die(/*func: extern fn()*/) {
+    let func: extern fn();
+
+    /* For now prey its still in r15 */
+    unsafe{
+        asm!("mov $0, r15" : "=r"(func) : : "memory" : "intel", "volatile");
     };
 
-    unsafe {
-        current_thread.context.switch_to(&mut next_thread.context);
-    }
+    println!("Starting new thread"); 
+
+    func();
+    
+    loop {
+        println!("waiting to be cleaned up"); 
+    };
 }
 
-impl Context {
-       /// Switch to the next context by restoring its stack and registers
-    #[cold]
-    #[inline(never)]
-    #[naked]
-    pub unsafe fn switch_to(&mut self, next: &mut Context) {
-        //asm!("fxsave64 [$0]" : : "r"(self.fx) : "memory" : "intel", "volatile");
-        //self.loadable = true;
-        //if next.loadable {
-        //    asm!("fxrstor64 [$0]" : : "r"(next.fx) : "memory" : "intel", "volatile");
-        //}else{
-        //    asm!("fninit" : : : "memory" : "intel", "volatile");
-        //}
 
-        //asm!("mov $0, cr3" : "=r"(self.cr3) : : "memory" : "intel", "volatile");
-        //if next.cr3 != self.cr3 {
-        //    asm!("mov cr3, $0" : : "r"(next.cr3) : "memory" : "intel", "volatile");
-        //}
+/// Switch to the next context by restoring its stack and registers
+#[cold]
+#[inline(never)]
+#[naked]
+pub unsafe fn switch(prev: *mut Thread, next: *mut Thread) {
+    //asm!("fxsave64 [$0]" : : "r"(self.fx) : "memory" : "intel", "volatile");
+    //self.loadable = true;
+    //if next.loadable {
+    //    asm!("fxrstor64 [$0]" : : "r"(next.fx) : "memory" : "intel", "volatile");
+    //}else{
+    //    asm!("fninit" : : : "memory" : "intel", "volatile");
+    //}
 
-        asm!("pushfq ; pop $0" : "=r"(self.rflags) : : "memory" : "intel", "volatile");
-        asm!("push $0 ; popfq" : : "r"(next.rflags) : "memory" : "intel", "volatile");
+    //asm!("mov $0, cr3" : "=r"(self.cr3) : : "memory" : "intel", "volatile");
+    //if next.cr3 != self.cr3 {
+    //    asm!("mov cr3, $0" : : "r"(next.cr3) : "memory" : "intel", "volatile");
+    //}
 
-        asm!("mov $0, rbx" : "=r"(self.rbx) : : "memory" : "intel", "volatile");
-        asm!("mov rbx, $0" : : "r"(next.rbx) : "memory" : "intel", "volatile");
+    asm!("pushfq ; pop $0" : "=r"((*prev).context.rflags) : : "memory" : "intel", "volatile");
+    asm!("push $0 ; popfq" : : "r"((*next).context.rflags) : "memory" : "intel", "volatile");
 
-        asm!("mov $0, r12" : "=r"(self.r12) : : "memory" : "intel", "volatile");
-        asm!("mov r12, $0" : : "r"(next.r12) : "memory" : "intel", "volatile");
+    asm!("mov $0, rbx" : "=r"((*prev).context.rbx) : : "memory" : "intel", "volatile");
+    asm!("mov rbx, $0" : : "r"((*next).context.rbx) : "memory" : "intel", "volatile");
 
-        asm!("mov $0, r13" : "=r"(self.r13) : : "memory" : "intel", "volatile");
-        asm!("mov r13, $0" : : "r"(next.r13) : "memory" : "intel", "volatile");
+    asm!("mov $0, r12" : "=r"((*prev).context.r12) : : "memory" : "intel", "volatile");
+    asm!("mov r12, $0" : : "r"((*next).context.r12) : "memory" : "intel", "volatile");
 
-        asm!("mov $0, r14" : "=r"(self.r14) : : "memory" : "intel", "volatile");
-        asm!("mov r14, $0" : : "r"(next.r14) : "memory" : "intel", "volatile");
+    asm!("mov $0, r13" : "=r"((*prev).context.r13) : : "memory" : "intel", "volatile");
+    asm!("mov r13, $0" : : "r"((*next).context.r13) : "memory" : "intel", "volatile");
 
-        asm!("mov $0, r15" : "=r"(self.r15) : : "memory" : "intel", "volatile");
-        asm!("mov r15, $0" : : "r"(next.r15) : "memory" : "intel", "volatile");
+    asm!("mov $0, r14" : "=r"((*prev).context.r14) : : "memory" : "intel", "volatile");
+    asm!("mov r14, $0" : : "r"((*next).context.r14) : "memory" : "intel", "volatile");
 
-        asm!("mov $0, rsp" : "=r"(self.rsp) : : "memory" : "intel", "volatile");
-        asm!("mov rsp, $0" : : "r"(next.rsp) : "memory" : "intel", "volatile");
+    asm!("mov $0, r15" : "=r"((*prev).context.r15) : : "memory" : "intel", "volatile");
+    asm!("mov r15, $0" : : "r"((*next).context.r15) : "memory" : "intel", "volatile");
 
-        asm!("mov $0, rbp" : "=r"(self.rbp) : : "memory" : "intel", "volatile");
-        asm!("mov rbp, $0" : : "r"(next.rbp) : "memory" : "intel", "volatile");
-    }
+    asm!("mov $0, rsp" : "=r"((*prev).context.rsp) : : "memory" : "intel", "volatile");
+    asm!("mov rsp, $0" : : "r"((*next).context.rsp) : "memory" : "intel", "volatile");
 
+    asm!("mov $0, rbp" : "=r"((*prev).context.rbp) : : "memory" : "intel", "volatile");
+    asm!("mov rbp, $0" : : "r"((*next).context.rbp) : "memory" : "intel", "volatile");
 }
 
 /* 
@@ -333,4 +403,7 @@ pub unsafe fn switch() -> bool {
         true
     }
 }
+
+
+
 */
