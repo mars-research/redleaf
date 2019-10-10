@@ -9,7 +9,8 @@
     const_raw_ptr_to_usize_cast,
     thread_local,
     untagged_unions,
-    naked_functions
+    naked_functions,
+    panic_info_message
 )]
 
 extern crate x86;
@@ -19,6 +20,9 @@ extern crate spin;
 extern crate core;
 extern crate slabmalloc;
 extern crate alloc;
+
+extern crate backtracer;
+
 
 #[macro_use]
 mod console;
@@ -36,9 +40,9 @@ pub mod arch;
 mod tls;
 //mod common; 
 mod thread;
+mod panic; 
 
 use x86::cpuid::CpuId;
-use core::panic::PanicInfo;
 use crate::arch::init_buddy;
 use spin::Mutex;
 use core::alloc::{GlobalAlloc, Layout};
@@ -72,16 +76,6 @@ static SCHED: RefCell<Scheduler> = RefCell::new(Scheduler::new());
 /// Per-CPU current thread
 #[thread_local]
 static CURRENT: RefCell<Option<Box<Thread>>> = RefCell::new(None); 
-//static mut CURRENT: *mut Box<Thread> = 0x0 as *mut Box<Thread>; 
-//static mut CURRENT: *mut Thread = 0x0 as *mut Thread; 
-//static mut CURRENT: *mut Box<Thread> = 0x0 as *mut Box<Thread>; 
-
-#[panic_handler]
-#[no_mangle]
-fn panic(info: &PanicInfo) -> ! {
-    println!("{}", info);
-    halt();
-}
 
 #[allow(dead_code)]
 static PAGER: Mutex<BespinSlabsProvider> = Mutex::new(BespinSlabsProvider::new());
@@ -219,7 +213,6 @@ fn get_current() -> Option<Box<Thread>> {
 fn init_threads() {
 
     let mut s = SCHED.borrow_mut();
-    
 
     let mut idle = Box::new(Thread::new("idle", idle));
     let mut t1 = Box::new(Thread::new("hello 1", hello1));
@@ -245,6 +238,7 @@ pub fn schedule() {
         None => {
             // Nothing again, current is the only runnable thread, no need to
             // context switch
+            println!("No runnable threads");
             return; 
         }
 
@@ -315,7 +309,7 @@ pub extern "C" fn rust_main() -> ! {
     //x86_64::instructions::interrupts::enable();
      
     // Spin up other CPUs 
-    init_ap_cpus(); 
+    //init_ap_cpus(); 
 
     rust_main_ap(); 
 }
@@ -339,7 +333,6 @@ pub extern "C" fn rust_main_ap() -> ! {
     if cpu_id != 0 {
         interrupt::init_irqs_local();
     }
-    //x86_64::instructions::interrupts::enable();
      
     println!("cpu{}: Initialized", cpu_id);
 
@@ -360,6 +353,12 @@ pub extern "C" fn rust_main_ap() -> ! {
         println!("Data read");
     }
 
+    init_threads(); 
+    
+    println!("Ready to enable interrupts");
+
+    // Enable interrupts and the timer will schedule the next thread
+    x86_64::instructions::interrupts::enable();
 
     halt(); 
 }

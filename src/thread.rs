@@ -173,6 +173,7 @@ impl  SchedulerQueue {
         self.push_thread(prio, thread); 
 
         if self.highest < prio {
+            println!("set highest priority to {}", prio);
             self.highest = prio
         }
     }
@@ -218,8 +219,10 @@ impl  Scheduler {
 
     fn get_next_active(&mut self) -> Option<Box<Thread>> {
         if self.active {
+            println!("get highest from active");
             self.active_queue.get_highest()
         } else {
+            println!("get highest from passive");
             self.passive_queue.get_highest()
         }
     }
@@ -231,6 +234,7 @@ impl  Scheduler {
 
     // Flip active and passive queue making active queue passive
     pub fn flip_queues(&mut self) {
+        println!("flip queues");
         if self.active {
             self.active = false
         } else {
@@ -269,6 +273,8 @@ extern "C" fn die(/*func: extern fn()*/) {
 
     println!("Starting new thread"); 
 
+    // Enable interrupts so we get next scheduling tick
+    x86_64::instructions::interrupts::enable();
     func();
     
     loop {

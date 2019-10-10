@@ -20,6 +20,8 @@ volatile = "0.2.3"
 x86_64 = "0.7.5"
 pc-keyboard = "0.3.1"
 slabmalloc = { git = "https://github.com/gz/rust-slabmalloc.git" }
+backtracer = { git = "https://github.com/gz/backtracer.git" }
+addr2line = { git = "https://github.com/gz/addr2line.git", branch = "patch-1", default-features = false, features = ["alloc", "rustc-demangle"] }
 
 [dependencies.lazy_static]
 version = "1.3.0"
