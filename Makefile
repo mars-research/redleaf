@@ -61,12 +61,19 @@ $(iso): $(kernel) $(grub_cfg)
 	grub-mkrescue -o $(iso) build/isofiles #2> /dev/null
 	@rm -r build/isofiles
 
-$(kernel): kernel $(rust_os) bootblock entryother $(linker_script) 
+$(kernel): kernel $(rust_os) bootblock entryother entry $(linker_script) 
 	ld -n --gc-sections -T $(linker_script) -o $(kernel) build/boot.o build/multiboot_header.o $(rust_os) -b binary build/entryother.bin
 
 .PHONY: kernel
 kernel:
 	@RUST_TARGET_PATH=$(32shell pwd) cargo xbuild --target x86_64-redleaf.json
+
+# compile assembly files for the exception entry code
+.PHONY: entry
+entry: src/arch/entry_64.S 
+	@mkdir -p build
+	gcc -fno-builtin -fno-strict-aliasing -Wall -MD -ggdb -fno-pic -nostdinc -I. -o build/entry.o -c src/arch/entry_64.S
+
 
 # compile assembly files
 .PHONY: bootblock
