@@ -62,7 +62,7 @@ $(iso): $(kernel) $(grub_cfg)
 	@rm -r build/isofiles
 
 $(kernel): kernel $(rust_os) bootblock entryother entry $(linker_script) 
-	ld -n --gc-sections -T $(linker_script) -o $(kernel) build/boot.o build/multiboot_header.o $(rust_os) -b binary build/entryother.bin
+	ld -n --gc-sections -T $(linker_script) -o $(kernel) build/entry.o build/boot.o build/multiboot_header.o $(rust_os) -b binary build/entryother.bin
 
 .PHONY: kernel
 kernel:

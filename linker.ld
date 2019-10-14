@@ -13,6 +13,15 @@ SECTIONS {
     . = ALIGN(4K);
   }
 
+  .entry.text :
+  {
+    __entry_text_start = .;
+    KEEP(*(.entry.text))
+    *(.entry.text .entry.text.*)
+    . = ALIGN(4K);
+    __entry_text_end = .;
+  }
+
   .text :
   {
     __text_start = .;

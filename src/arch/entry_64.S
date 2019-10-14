@@ -27,7 +27,7 @@
 #include "processor-flags.h"
 
 .code64
-//.section .entry.text, "ax"
+.section .entry.text, "ax"
 
 /*
  * Build the entry stubs with some assembler magic.
@@ -159,6 +159,16 @@ restore_c_regs_and_iret:
 	REMOVE_PT_GPREGS_FROM_STACK 8
 	INTERRUPT_RETURN
 
+.global native_irq_return_iret
+native_irq_return_iret:
+        /*
+         * This may fault.  Non-paranoid faults on return to userspace are
+         * handled by fixup_bad_iret.  These include #SS, #GP, and #NP.
+         * Double-faults due to espfix64 are handled in do_double_fault.
+         * Other faults here are fatal.
+         */
+        iretq
+
 END(common_interrupt)
 
 /*
@@ -279,7 +289,7 @@ idtentry double_fault			do_double_fault			has_error_code=1 paranoid=2
 idtentry coprocessor_segment_overrun	do_coprocessor_segment_overrun	has_error_code=0
 idtentry invalid_TSS			do_invalid_TSS			has_error_code=1
 idtentry segment_not_present		do_segment_not_present		has_error_code=1
-idtentry spurious_interrupt_bug		do_spurious_interrupt_bug	has_error_code=0
+//idtentry spurious_interrupt_bug		do_spurious_interrupt_bug	has_error_code=0
 idtentry coprocessor_error		do_coprocessor_error		has_error_code=0
 idtentry alignment_check		do_alignment_check		has_error_code=1
 idtentry simd_coprocessor_error		do_simd_coprocessor_error	has_error_code=0
@@ -293,10 +303,14 @@ idtentry stack_segment		do_stack_segment	has_error_code=1
 idtentry general_protection	do_general_protection	has_error_code=1
 trace_idtentry page_fault	do_page_fault		has_error_code=1
 
+idtentry machine_check		do_machine_check	has_error_code=0	paranoid=1 
+
 #ifdef CONFIG_X86_MCE
 idtentry machine_check					has_error_code=0	paranoid=1 do_sym=*machine_check_vector(%rip)
 #endif
 
+// Linux didn't have this one
+idtentry virtualization		do_virtualization	has_error_code=0
 /*
  * Save all registers in pt_regs, and switch gs if needed.
  * Use slow, but surefire "are we in kernel?" check.

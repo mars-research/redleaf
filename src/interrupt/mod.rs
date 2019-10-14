@@ -10,6 +10,44 @@ mod pic;
 
 pub const IRQ_OFFSET: u8 = 32;
 
+#[derive(Debug)]
+#[repr(C)]
+struct PtRegs {
+/*
+ * C ABI says these regs are callee-preserved. They aren't saved on kernel entry
+ * unless syscall needs a complete, fully filled "struct pt_regs".
+ */
+	r15: u64, 
+	r14: u64,
+	r13: u64, 
+	r12: u64,
+	rbp: u64,
+	rbx: u64, 
+/* These regs are callee-clobbered. Always saved on kernel entry. */
+	r11: u64, 
+	r10: u64,
+	r9: u64,
+	r8: u64, 
+	rax: u64, 
+	rcx: u64, 
+	rdx: u64, 
+	rsi: u64,
+	rdi: u64, 
+/*
+ * On syscall entry, this is syscall#. On CPU exception, this is error code.
+ * On hw interrupt, it's IRQ number:
+ */
+	orig_ax: u64,
+/* Return frame for iretq */
+	rip: u64,
+	rcs: u64, 
+	rflags: u64, 
+	rsp: u64,
+	ss: u64, 
+/* top of stack page */
+}
+
+
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
 pub enum InterruptIndex {
@@ -137,15 +175,35 @@ extern "x86-interrupt" fn divide_by_zero_handler(stack_frame: &mut InterruptStac
     println!("Divide by zero exception:\n{:#?}", stack_frame); 
 }
 
+#[no_mangle]
+extern fn do_divide_error(pt_regs: &mut PtRegs) {
+    println!("Debug exception:\n{:#?}", pt_regs); 
+}
+
 // 1: Debug
 extern "x86-interrupt" fn debug_handler(stack_frame: &mut InterruptStackFrame) {
     println!("Debug exception:\n{:#?}", stack_frame); 
 }
 
+#[no_mangle]
+extern fn do_debug(pt_regs: &mut PtRegs) {
+    println!("Debug exception:\n{:#?}", pt_regs); 
+}
 
 // 2: NMI
 extern "x86-interrupt" fn nmi_handler(stack_frame: &mut InterruptStackFrame) {
     println!("NMI exception:\n{:#?}", stack_frame); 
+}
+
+#[no_mangle]
+extern fn do_nmi(pt_regs: &mut PtRegs) {
+    println!("NMI exception:\n{:#?}", pt_regs); 
+}
+
+// 3: Breakpoint
+#[no_mangle]
+extern fn do_int3(pt_regs: &mut PtRegs) {
+    println!("Breakpoint exception:\n{:#?}", pt_regs);
 }
 
 // 3: Breakpoint
@@ -158,9 +216,21 @@ extern "x86-interrupt" fn overflow_handler(stack_frame: &mut InterruptStackFrame
     println!("Overflow exception:\n{:#?}", stack_frame);
 }
 
+#[no_mangle]
+extern fn do_overflow(pt_regs: &mut PtRegs) {
+    println!("Overflow exception:\n{:#?}", pt_regs);
+}
+
+
 // 5: Bound range 
 extern "x86-interrupt" fn bound_range_handler(stack_frame: &mut InterruptStackFrame) {
     println!("Bound range exception:\n{:#?}", stack_frame);
+    crate::halt();
+}
+
+#[no_mangle]
+extern fn do_bounds(pt_regs: &mut PtRegs) {
+    println!("Bound range exception:\n{:#?}", pt_regs);
     crate::halt();
 }
 
@@ -170,12 +240,24 @@ extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: &mut InterruptStac
     crate::halt();
 }
 
+#[no_mangle]
+extern fn do_invalid_op(pt_regs: &mut PtRegs) {
+    println!("Invalide opcode exception:\n{:#?}", pt_regs);
+    crate::halt();
+}
+
+
 // 7: Device not available
 extern "x86-interrupt" fn device_not_avail_handler(stack_frame: &mut InterruptStackFrame) {
     println!("Device not available exception:\n{:#?}", stack_frame);
     crate::halt();
 }
 
+#[no_mangle]
+extern fn do_device_not_available(pt_regs: &mut PtRegs) {
+    println!("Device not available exception:\n{:#?}", pt_regs);
+    crate::halt();
+}
 
 // 8: Double fault
 extern "x86-interrupt" fn double_fault_handler(
@@ -183,6 +265,19 @@ extern "x86-interrupt" fn double_fault_handler(
     _error_code: u64,
 ) {
     println!("double fault:\n{:#?}", stack_frame);
+    crate::halt(); 
+}
+
+#[no_mangle]
+extern fn do_double_fault(pt_regs: &mut PtRegs) {
+    println!("double fault:\n{:#?}", pt_regs);
+    crate::halt(); 
+}
+
+// 9: Old coprocessor error
+#[no_mangle]
+extern fn do_coprocessor_segment_overrun(pt_regs: &mut PtRegs) {
+    println!("old coprocessor segment overrun fault:\n{:#?}", pt_regs);
     crate::halt(); 
 }
 
@@ -195,12 +290,24 @@ extern "x86-interrupt" fn invalid_tss_handler(
     crate::halt();
 }
 
+#[no_mangle]
+extern fn do_invalid_TSS(pt_regs: &mut PtRegs) {
+    println!("Invalid TSS exception:\n{:#?}", pt_regs);
+    crate::halt();
+}
+
 // 11: Segment not present
 extern "x86-interrupt" fn segment_not_present_handler(
     stack_frame: &mut InterruptStackFrame,
     _error_code: u64,
 ) {
     println!("segment not present:\n{:#?}", stack_frame);
+    crate::halt(); 
+}
+
+#[no_mangle]
+extern fn do_segment_not_present(pt_regs: &mut PtRegs) {
+    println!("segment not present:\n{:#?}", pt_regs);
     crate::halt(); 
 }
 
@@ -213,12 +320,24 @@ extern "x86-interrupt" fn stack_segment_fault_handler(
     crate::halt(); 
 }
 
+#[no_mangle]
+extern fn do_stack_segment(pt_regs: &mut PtRegs) {
+    println!("stack segment fault:\n{:#?}", pt_regs);
+    crate::halt(); 
+}
+
 // 13: General protection
 extern "x86-interrupt" fn general_protection_fault_handler(
     stack_frame: &mut InterruptStackFrame,
     _error_code: u64,
 ) {
     println!("general protection fault:\n{:#?}", stack_frame);
+    crate::halt(); 
+}
+
+#[no_mangle]
+extern fn do_general_protection(pt_regs: &mut PtRegs) {
+    println!("general protection fault:\n{:#?}", pt_regs);
     crate::halt(); 
 }
 
@@ -236,11 +355,28 @@ extern "x86-interrupt" fn page_fault_handler(
     crate::halt();
 }
 
+#[no_mangle]
+extern fn do_page_fault(pt_regs: &mut PtRegs) {
+    use x86_64::registers::control::Cr2;
+
+    println!("EXCEPTION: PAGE FAULT");
+    println!("Accessed Address: {:?}", Cr2::read());
+    println!("Error Code: {:?}", pt_regs.orig_ax);
+    println!("{:#?}", pt_regs);
+    crate::halt();
+}
+
 // 16: x87 Floating-Point Exception
 extern "x86-interrupt" fn x87_floating_point_handler(
     stack_frame: &mut InterruptStackFrame,
 ) {
     println!("x87 floating point exception:\n{:#?}", stack_frame);
+    crate::halt(); 
+}
+
+#[no_mangle]
+extern fn do_coprocessor_error(pt_regs: &mut PtRegs) {
+    println!("x87 floating point exception:\n{:#?}", pt_regs);
     crate::halt(); 
 }
 
@@ -253,9 +389,23 @@ extern "x86-interrupt" fn alignment_check_handler(
     crate::halt(); 
 }
 
+#[no_mangle]
+extern fn do_alignment_check(pt_regs: &mut PtRegs) {
+    println!("Alignment check exception:\n{:#?}", pt_regs);
+    crate::halt(); 
+}
+
 // 18: Machine check
 extern "x86-interrupt" fn machine_check_handler(stack_frame: &mut InterruptStackFrame) {
     println!("Machine check exception:\n{:#?}", stack_frame);
+    crate::halt(); 
+}
+
+// Note, in entry_64.S Linux redefines the function to machine_check_vector(%rip)
+// We need to check what this means
+#[no_mangle]
+extern fn do_machine_check(pt_regs: &mut PtRegs) {
+    println!("Machine check exception:\n{:#?}", pt_regs);
     crate::halt(); 
 }
 
@@ -265,11 +415,24 @@ extern "x86-interrupt" fn simd_floating_point_handler(stack_frame: &mut Interrup
     crate::halt(); 
 }
 
+#[no_mangle]
+extern fn do_simd_coprocessor_error(pt_regs: &mut PtRegs) {
+    println!("SIMD Floating-Point Exception:\n{:#?}", pt_regs);
+    crate::halt(); 
+}
+
 // 20: Virtualization
 extern "x86-interrupt" fn virtualization_handler(stack_frame: &mut InterruptStackFrame) {
     println!("Virtualization exception:\n{:#?}", stack_frame);
     crate::halt(); 
 }
+
+#[no_mangle]
+extern fn do_virtualization(pt_regs: &mut PtRegs) {
+    println!("Virtualization exception:\n{:#?}", pt_regs);
+    crate::halt(); 
+}
+
 
 // 30: Security 
 extern "x86-interrupt" fn security_exception_handler(
@@ -279,7 +442,18 @@ extern "x86-interrupt" fn security_exception_handler(
     crate::halt(); 
 }
 
+#[no_mangle]
+extern fn do_security(pt_regs: &mut PtRegs) {
+    println!("Security exception:\n{:#?}", pt_regs);
+    crate::halt(); 
+}
 
+#[no_mangle]
+extern fn do_IRQ(pt_regs: &mut PtRegs) -> u64 {
+    println!("do_IRQ:\n{:#?}", pt_regs);
+    // Jump to the handler here
+    return 1; 
+}
 
 // IRQ 0: Timer
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: &mut InterruptStackFrame) {
@@ -313,3 +487,22 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: &mut Interrup
 
     end_of_interrupt(InterruptIndex::Keyboard.as_u8());
 }
+
+
+#[no_mangle]
+extern fn enter_from_user_mode() {
+    panic!("enter from user mode not supported");
+    crate::halt(); 
+}
+
+#[no_mangle]
+extern fn prepare_exit_to_usermode() {
+    panic!("prepare exit to user mode not supported");
+    crate::halt(); 
+}
+
+#[no_mangle]
+extern fn fixup_bad_iret(pt_regs: &mut PtRegs) -> u64 {
+    panic!("fixup_bad_iret");
+}
+
