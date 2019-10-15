@@ -502,7 +502,26 @@ extern fn prepare_exit_to_usermode() {
 }
 
 #[no_mangle]
+extern fn panic_irq() {
+    panic!("we don't support error_kernelspace in entry_64.S");
+    crate::halt(); 
+}
+
+#[no_mangle]
+extern fn swapfs() {
+    panic!("swapfs unsupported");
+    crate::halt(); 
+}
+
+#[no_mangle]
 extern fn fixup_bad_iret(pt_regs: &mut PtRegs) -> u64 {
     panic!("fixup_bad_iret");
+}
+
+#[no_mangle]
+extern fn sync_regs(pt_regs: &mut PtRegs) -> u64 {
+    panic!("sync_regs:\n{:#?}", pt_regs);
+    // Jump to the handler here
+    return 0
 }
 
