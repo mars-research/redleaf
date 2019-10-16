@@ -61,7 +61,7 @@ $(iso): $(kernel) $(grub_cfg)
 	grub-mkrescue -o $(iso) build/isofiles #2> /dev/null
 	@rm -r build/isofiles
 
-$(kernel): kernel $(rust_os) bootblock entryother entry $(linker_script) 
+$(kernel): kernel $(rust_os) bootblock entryother $(linker_script) 
 	ld -n --gc-sections -T $(linker_script) -o $(kernel) build/boot.o build/multiboot_header.o $(rust_os) -b binary build/entryother.bin
 
 .PHONY: kernel
