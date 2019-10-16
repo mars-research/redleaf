@@ -1,20 +1,15 @@
-//! Double-linked-list buffer cache, adopted heavily from xv6
-//!
-//! https://github.com/mit-pdos/xv6-riscv
-
 use alloc::boxed::Box;
 use alloc::collections::LinkedList;
 use alloc::sync::Arc;
 use spin::{Mutex, MutexGuard};
 
-const BUFFER_SIZE: usize = 1024;
-const MAX_OP_BLOCKS: u32 = 10; // max number of blocks any fs op writes
-const NUM_BUFFERS: u32 = MAX_OP_BLOCKS * 3; // size of the disk block cache
-
+const BUFFER_SIZE: usize = 4096;
+const NUM_BUFFERS: u32 = 256;
 const B_DIRTY: u32 = 1 << 0;
+const B_VALID: u32 = 1 << 1;
 
-fn sync_with_disk(buffer: &mut [u8; BUFFER_SIZE]) {
-    buffer[0] = 2;
+fn iderw(buffer: &mut BufferData) {
+    buffer.data[0] = 2;
 }
 
 struct BufferData {
@@ -72,13 +67,13 @@ impl BufferCache {
     // look through buffer cache, return the buffer
     // If the block does not exist, we preempt a not-in-use one
     // We let the caller to lock the buffer when they need to use it
-    fn get<F>(&mut self, device: u32, block_number: u32) -> MutexGuard<BufferData> {
+    fn get(&mut self, device: u32, block_number: u32) -> Arc<Mutex<BufferData>> {
         // we probably don't need a lock here since there's a outer lock for
         // the shared `BCACHE` object.
-        for buffer in self.list.lock().iter() {
+        for buffer in self.list.lock().iter_mut() {
             if buffer.device == device && buffer.block_number == block_number {
                 buffer.reference_count += 1;
-                return buffer.data.lock();
+                return buffer.data.clone();
             }
         }
 
@@ -86,32 +81,42 @@ impl BufferCache {
         // In xv6, the bcache is kinda like a LRU cache so it looks backward when looking
         // for an unused buffer. Since we don't have that in rust, so we just simply
         // iterate it forward for now
-        for buffer in self.list.lock().iter() {
+        for buffer in self.list.lock().iter_mut() {
             if buffer.reference_count == 0 && (buffer.flags & B_DIRTY) == 0 {
                 buffer.device = device;
                 buffer.block_number = block_number;
                 buffer.flags = 0;
                 buffer.reference_count = 1;
-                return buffer.data.lock();
+                return buffer.data.clone();
             }
         }
         panic!("Not reusable block in bcache");
     }
 
-    // Return a locked buf with the contents of the indicated block.
-    pub fn read(&mut self, device: u32, block_number: u32) -> MutexGuard<BufferData> {
-        let mut buffer = self.get(device, block_number);
-        if (buffer.flags & B_VALID) == 0 {
-            sync_with_disk(buffer.data);
+    // Return a unlocked buffer with the contents of the indicated block.
+    // In xv6, we get a locked buffer from `bget` and it stays locked
+    // after it's returned from this function.
+    // Since it's hard to pass a locked buffer around in Rust, we choose to
+    // get an unlocked buffer from `bget`, lock the buffer and sync it with the disk,
+    // then unlock it and return it to the caller.
+    // This is okay because the buffer will become valid only if it is a reused buffer.
+    // We can also merge `bread` with `bget` since `bget` is only a helper for `bread`
+    pub fn read(&mut self, device: u32, block_number: u32) -> Arc<Mutex<BufferData>> {
+        let buffer = self.get(device, block_number);
+        let mut guard = buffer.lock();
+        if (guard.flags & B_VALID) == 0 {
+            // iderw will set the buffer to valid
+            // Note that this is different from xv6-risvc 
+            iderw(&mut guard);
         }
-        return buffer;
+        return buffer.clone();
     }
 
     // Write b's contents to disk 
     // Return a locked buf with the contents of the indicated block.
     pub fn write(&mut self, buffer_data: &mut BufferData) {
         buffer_data.flags |= B_DIRTY;
-        sync_with_disk(buffer_data);
+        iderw(buffer_data);
     }
 
 }

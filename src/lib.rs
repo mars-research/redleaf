@@ -30,6 +30,7 @@ mod interrupt;
 mod entryother;
 mod redsys;
 mod drivers;
+mod filesystem;
 pub mod gdt;
 
 mod multibootv2;
