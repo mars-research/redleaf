@@ -1,10 +1,8 @@
-use alloc::boxed::Box;
+use crate::filesystem::params::{NBUF, BSIZE};
 use alloc::collections::LinkedList;
 use alloc::sync::Arc;
-use spin::{Mutex, MutexGuard};
+use spin::{Mutex};
 
-const BUFFER_SIZE: usize = 4096;
-const NUM_BUFFERS: u32 = 256;
 const B_DIRTY: u32 = 1 << 0;
 const B_VALID: u32 = 1 << 1;
 
@@ -14,14 +12,14 @@ fn iderw(buffer: &mut BufferData) {
 
 struct BufferData {
     flags: u32,
-    data: [u8; BUFFER_SIZE],
+    data: [u8; BSIZE],
 }
 
 impl BufferData {
     fn new() -> Self {
         Self {
             flags: 0,
-            data: [0; BUFFER_SIZE],
+            data: [0; BSIZE],
         }
     }
 }
@@ -56,7 +54,7 @@ pub struct BufferCache {
 impl BufferCache {
     fn new() -> BufferCache {
         let mut list = LinkedList::<Buffer>::new();
-        for i in 0..NUM_BUFFERS {
+        for i in 0..NBUF {
             list.push_back(Buffer::new());
         }
         BufferCache {
