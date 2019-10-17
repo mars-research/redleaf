@@ -127,7 +127,7 @@ ret_from_intr:
 	/* Interrupt came from user space */
 GLOBAL(retint_user)
 	mov	%rsp,%rdi
-	call	prepare_exit_to_usermode
+	//call	prepare_exit_to_usermode
 	//TRACE_IRQS_IRETQ
 	SWAPFS
 	jmp	restore_regs_and_iret
@@ -297,15 +297,16 @@ idtentry alignment_check		do_alignment_check		has_error_code=1
 idtentry simd_coprocessor_error		do_simd_coprocessor_error	has_error_code=0
 
 //idtentry debug			do_debug		has_error_code=0	paranoid=1 shift_ist=DEBUG_STACK
-idtentry debug			do_debug		has_error_code=0	paranoid=1
+idtentry debug			do_debug		has_error_code=0
 //idtentry int3			do_int3			has_error_code=0	paranoid=1 shift_ist=DEBUG_STACK
-idtentry int3			do_int3			has_error_code=0	paranoid=1
+idtentry int3			do_int3			has_error_code=0
 idtentry stack_segment		do_stack_segment	has_error_code=1
 
 idtentry general_protection	do_general_protection	has_error_code=1
 trace_idtentry page_fault	do_page_fault		has_error_code=1
 
-idtentry machine_check		do_machine_check	has_error_code=0	paranoid=1 
+//idtentry machine_check		do_machine_check	has_error_code=0	paranoid=1 
+idtentry machine_check		do_machine_check	has_error_code=0
 
 #ifdef CONFIG_X86_MCE
 idtentry machine_check					has_error_code=0	paranoid=1 do_sym=*machine_check_vector(%rip)
@@ -430,10 +431,8 @@ ENTRY(error_entry)
 	 * gsbase and proceed.  We'll fix up the exception and land in
 	 * .Lgs_change's error handler with kernel gsbase.
 	 */
-	SWAPFS					/* Rust uses FS instead of GS */
-#else
-	call panic_irq
 #endif
+	SWAPFS					/* Rust uses FS instead of GS */
 	jmp .Lerror_entry_done
 
 .Lbstep_iret:

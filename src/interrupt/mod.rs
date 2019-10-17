@@ -1,51 +1,17 @@
 use lazy_static::lazy_static;
 use x86::cpuid::CpuId;
-use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
+
 
 use crate::{gdt, println, entryother};
 
 mod lapic;
 mod ioapic;
 mod pic;
+mod idt; 
+
+use idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode, PtRegs};
 
 pub const IRQ_OFFSET: u8 = 32;
-
-#[derive(Debug)]
-#[repr(C)]
-struct PtRegs {
-/*
- * C ABI says these regs are callee-preserved. They aren't saved on kernel entry
- * unless syscall needs a complete, fully filled "struct pt_regs".
- */
-	r15: u64, 
-	r14: u64,
-	r13: u64, 
-	r12: u64,
-	rbp: u64,
-	rbx: u64, 
-/* These regs are callee-clobbered. Always saved on kernel entry. */
-	r11: u64, 
-	r10: u64,
-	r9: u64,
-	r8: u64, 
-	rax: u64, 
-	rcx: u64, 
-	rdx: u64, 
-	rsi: u64,
-	rdi: u64, 
-/*
- * On syscall entry, this is syscall#. On CPU exception, this is error code.
- * On hw interrupt, it's IRQ number:
- */
-	orig_ax: u64,
-/* Return frame for iretq */
-	rip: u64,
-	rcs: u64, 
-	rflags: u64, 
-	rsp: u64,
-	ss: u64, 
-/* top of stack page */
-}
 
 
 #[derive(Debug, Clone, Copy)]
@@ -76,7 +42,9 @@ lazy_static! {
         idt.divide_by_zero.set_handler_fn(divide_by_zero_handler);
         idt.debug.set_handler_fn(debug_handler);
 
-        idt.breakpoint.set_handler_fn(breakpoint_handler);
+        //idt.breakpoint.set_handler_fn(breakpoint_handler);
+        idt.breakpoint.set_handler_fn(int3);
+
         idt.overflow.set_handler_fn(overflow_handler);
         idt.bound_range_exceeded.set_handler_fn(bound_range_handler);
         idt.invalid_opcode.set_handler_fn(invalid_opcode_handler); 
@@ -137,7 +105,7 @@ pub fn init_idt() {
     IDT.load();
 
     // Trigger breakpoint interrupt to see that IDT is ok
-    //x86_64::instructions::interrupts::int3();
+    x86_64::instructions::interrupts::int3();
 }
 
 pub fn init_irqs_local() {
@@ -198,6 +166,10 @@ extern "x86-interrupt" fn nmi_handler(stack_frame: &mut InterruptStackFrame) {
 #[no_mangle]
 extern fn do_nmi(pt_regs: &mut PtRegs) {
     println!("NMI exception:\n{:#?}", pt_regs); 
+}
+
+extern {
+    fn int3(pt_regs: &mut PtRegs);
 }
 
 // 3: Breakpoint

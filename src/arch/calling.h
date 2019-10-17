@@ -199,8 +199,11 @@ For 32-bit we have the following conventions - kernel is built with
 	.byte 0xf1
 	.endm
 
-#define SWAPGS	swapgs
-#define SWAPFS	call swapfs
+//#define SWAPGS	swapgs
+//#define SWAPFS	call swapfs
+	
+#define SWAPGS	
+#define SWAPFS	
 	
 /*
  * Currently paravirt can't handle swapgs nicely when we
