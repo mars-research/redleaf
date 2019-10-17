@@ -9,7 +9,7 @@ mod ioapic;
 mod pic;
 mod idt; 
 
-use idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode, PtRegs};
+use idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode, PtRegs, HandlerFunc};
 
 pub const IRQ_OFFSET: u8 = 32;
 
@@ -110,7 +110,16 @@ lazy_static! {
                 .set_stack_index(gdt::DOUBLE_FAULT_IST_INDEX); 
         }
 
-        //idt[InterruptIndex::Timer.as_usize()].set_handler_fn(timer_interrupt_handler);
+        extern {
+            // The starting byte of the IRQ vectors
+            static irq_entries_start: usize;
+        }
+
+        unsafe {
+            let ptr = (irq_entries_start+ 8 * (InterruptIndex::Timer.as_usize() - IRQ_OFFSET as usize)) as *const ();
+            let handler: HandlerFunc = unsafe { core::mem::transmute(ptr) };
+            idt[InterruptIndex::Timer.as_usize()].set_handler_fn(handler);
+        }
         //idt[InterruptIndex::Keyboard.as_usize()].set_handler_fn(keyboard_interrupt_handler);
 
         idt

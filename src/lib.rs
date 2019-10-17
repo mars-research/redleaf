@@ -353,7 +353,7 @@ pub extern "C" fn rust_main_ap() -> ! {
         println!("Data read");
     }
 
-    init_threads(); 
+    //init_threads(); 
     
     println!("Ready to enable interrupts");
 
