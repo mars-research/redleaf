@@ -16,7 +16,6 @@ use core::fmt;
 use core::marker::PhantomData;
 use core::ops::{Deref, Index, IndexMut};
 
-#[derive(Debug)]
 #[repr(C)]
 pub struct PtRegs {
 /*
@@ -53,6 +52,43 @@ pub struct PtRegs {
 /* top of stack page */
 }
 
+impl fmt::Debug for PtRegs {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        struct Hex(u64);
+        impl fmt::Debug for Hex {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                write!(f, "{:#x}", self.0)
+            }
+        }
+
+        let mut s = f.debug_struct("PtRegs");
+        s.field("r15", &Hex(self.r15));
+        s.field("r14", &Hex(self.r14));
+        s.field("r13", &Hex(self.r13));
+        s.field("r12", &Hex(self.r12));
+        s.field("rbp", &Hex(self.rbp));
+        s.field("rbx", &Hex(self.rbx));
+
+        s.field("r11", &Hex(self.r11));
+        s.field("r10", &Hex(self.r10));
+        s.field("r9", &Hex(self.r9));
+        s.field("r8", &Hex(self.r8));
+        s.field("rax", &Hex(self.rax));
+        s.field("rcx", &Hex(self.rcx));
+        s.field("rdx", &Hex(self.rdx));
+        s.field("rsi", &Hex(self.rsi));
+        s.field("rdi", &Hex(self.rdi));
+
+        s.field("orig_ax", &Hex(self.orig_ax));
+        s.field("rip", &Hex(self.rip));
+        s.field("rcs", &Hex(self.rcs));
+        s.field("rflags", &Hex(self.rflags));
+        s.field("rsp", &Hex(self.rsp));
+        s.field("ss", &Hex(self.ss));
+
+        s.finish()
+    }
+}
 
 /// An Interrupt Descriptor Table with 256 entries.
 ///
