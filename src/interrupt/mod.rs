@@ -116,9 +116,12 @@ lazy_static! {
         }
 
         unsafe {
-            let ptr = (irq_entries_start+ 8 * (InterruptIndex::Timer.as_usize() - IRQ_OFFSET as usize)) as *const ();
-            let handler: HandlerFunc = unsafe { core::mem::transmute(ptr) };
-            idt[InterruptIndex::Timer.as_usize()].set_handler_fn(handler);
+            for i in IRQ_OFFSET..255 {
+                let ptr = (irq_entries_start+ 8*(i - IRQ_OFFSET) as usize) as *const ();
+                let handler: HandlerFunc = unsafe { core::mem::transmute(ptr) };
+                //idt[InterruptIndex::Timer.as_usize()].set_handler_fn(handler);
+                idt[i as usize].set_handler_fn(handler);
+            }
         }
         //idt[InterruptIndex::Keyboard.as_usize()].set_handler_fn(keyboard_interrupt_handler);
 
