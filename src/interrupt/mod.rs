@@ -36,39 +36,67 @@ impl InterruptIndex {
     }
 }
 
+// Prototypes of ASM entry functions 
+// (well, pt_regs as an argument is really a stretch)
+extern {
+    fn divide_error(pt_regs: &mut PtRegs);	  	 
+    fn debug(pt_regs: &mut PtRegs);
+    fn int3(pt_regs: &mut PtRegs);
+    fn overflow(pt_regs: &mut PtRegs);		    
+    fn bounds(pt_regs: &mut PtRegs);			
+    fn invalid_op(pt_regs: &mut PtRegs);			
+    fn device_not_available(pt_regs: &mut PtRegs);		
+    fn double_fault(pt_regs: &mut PtRegs);			
+    fn coprocessor_segment_overrun(pt_regs: &mut PtRegs);	
+    fn invalid_TSS(pt_regs: &mut PtRegs);			
+    fn segment_not_present(pt_regs: &mut PtRegs);		
+    fn spurious_interrupt_bug(pt_regs: &mut PtRegs);	
+    fn coprocessor_error(pt_regs: &mut PtRegs);		
+    fn alignment_check(pt_regs: &mut PtRegs);		
+    fn simd_coprocessor_error(pt_regs: &mut PtRegs);		
+
+    fn stack_segment(pt_regs: &mut PtRegs);
+    fn general_protection(pt_regs: &mut PtRegs);
+    fn page_fault(pt_regs: &mut PtRegs);
+    fn machine_check(pt_regs: &mut PtRegs);
+    fn virtualization(pt_regs: &mut PtRegs);
+    fn nmi_simple(pt_regs: &mut PtRegs);
+
+}
+
 lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
         let mut idt = InterruptDescriptorTable::new();
-        idt.divide_by_zero.set_handler_fn(divide_by_zero_handler);
-        idt.debug.set_handler_fn(debug_handler);
-
+        idt.divide_by_zero.set_handler_fn(divide_error);
+        idt.debug.set_handler_fn(debug);
         //idt.breakpoint.set_handler_fn(breakpoint_handler);
         idt.breakpoint.set_handler_fn(int3);
 
-        idt.overflow.set_handler_fn(overflow_handler);
-        idt.bound_range_exceeded.set_handler_fn(bound_range_handler);
-        idt.invalid_opcode.set_handler_fn(invalid_opcode_handler); 
-        idt.device_not_available.set_handler_fn(device_not_avail_handler);
+        idt.overflow.set_handler_fn(overflow);
+        idt.bound_range_exceeded.set_handler_fn(bounds);
+        idt.invalid_opcode.set_handler_fn(invalid_op); 
+        idt.device_not_available.set_handler_fn(device_not_available);
 
-        idt.invalid_tss.set_handler_fn(invalid_tss_handler); 
-        idt.segment_not_present.set_handler_fn(segment_not_present_handler);
-        idt.stack_segment_fault.set_handler_fn(stack_segment_fault_handler);
+        idt.invalid_tss.set_handler_fn(invalid_TSS); 
+        idt.segment_not_present.set_handler_fn(segment_not_present);
+        idt.stack_segment_fault.set_handler_fn(stack_segment);
 
-        idt.general_protection_fault.set_handler_fn(general_protection_fault_handler);
+        idt.general_protection_fault.set_handler_fn(general_protection);
         
-        idt.page_fault.set_handler_fn(page_fault_handler);
+        idt.page_fault.set_handler_fn(page_fault);
         
-        idt.x87_floating_point.set_handler_fn(x87_floating_point_handler);
-        idt.alignment_check.set_handler_fn(alignment_check_handler);
-        idt.machine_check.set_handler_fn(machine_check_handler);
+        idt.x87_floating_point.set_handler_fn(coprocessor_error);
+        idt.alignment_check.set_handler_fn(alignment_check);
+        idt.machine_check.set_handler_fn(machine_check);
 
-        idt.simd_floating_point.set_handler_fn(simd_floating_point_handler);
-        idt.virtualization.set_handler_fn(virtualization_handler);
-        idt.security_exception.set_handler_fn(security_exception_handler);
+        idt.simd_floating_point.set_handler_fn(simd_coprocessor_error);
+        idt.virtualization.set_handler_fn(virtualization);
+        //idt.security_exception.set_handler_fn(security_exception_handler);
+
         /* NMI fault hanler executes on the IST stack */
         unsafe {
             idt.non_maskable_interrupt
-               .set_handler_fn(nmi_handler)
+               .set_handler_fn(nmi_simple)
                .set_stack_index(gdt::NMI_IST_INDEX); 
         }
 
@@ -78,12 +106,12 @@ lazy_static! {
               exception fault on the stack will trigger a tripple fault */
         unsafe {
             idt.double_fault
-                .set_handler_fn(double_fault_handler)
+                .set_handler_fn(double_fault)
                 .set_stack_index(gdt::DOUBLE_FAULT_IST_INDEX); 
         }
 
-        idt[InterruptIndex::Timer.as_usize()].set_handler_fn(timer_interrupt_handler);
-        idt[InterruptIndex::Keyboard.as_usize()].set_handler_fn(keyboard_interrupt_handler);
+        //idt[InterruptIndex::Timer.as_usize()].set_handler_fn(timer_interrupt_handler);
+        //idt[InterruptIndex::Keyboard.as_usize()].set_handler_fn(keyboard_interrupt_handler);
 
         idt
     };
@@ -138,6 +166,8 @@ fn detect_apic() -> bool {
     }
 }
 
+
+
 // 0: Divide by zero
 extern "x86-interrupt" fn divide_by_zero_handler(stack_frame: &mut InterruptStackFrame) {
     println!("Divide by zero exception:\n{:#?}", stack_frame); 
@@ -166,10 +196,6 @@ extern "x86-interrupt" fn nmi_handler(stack_frame: &mut InterruptStackFrame) {
 #[no_mangle]
 extern fn do_nmi(pt_regs: &mut PtRegs) {
     println!("NMI exception:\n{:#?}", pt_regs); 
-}
-
-extern {
-    fn int3(pt_regs: &mut PtRegs);
 }
 
 // 3: Breakpoint

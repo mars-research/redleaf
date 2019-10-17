@@ -131,7 +131,7 @@ pub struct InterruptDescriptorTable {
     /// The saved instruction pointer points to the byte after the `INT3` instruction.
     ///
     /// The vector number of the `#BP` exception is 3.
-    pub breakpoint: Entry<HandlerFuncPtRegs>,
+    pub breakpoint: Entry<HandlerFunc>,
 
     /// An overflow exception (`#OF`) occurs as a result of executing an `INTO` instruction
     /// while the overflow bit in `RFLAGS` is set to 1.
@@ -235,7 +235,7 @@ pub struct InterruptDescriptorTable {
     /// and the program cannot be restarted.
     ///
     /// The vector number of the `#DF` exception is 8.
-    pub double_fault: Entry<HandlerFuncWithErrCode>,
+    pub double_fault: Entry<HandlerFunc>,
 
     /// This interrupt vector is reserved. It is for a discontinued exception originally used
     /// by processors that supported external x87-instruction coprocessors. On those processors,
@@ -252,7 +252,7 @@ pub struct InterruptDescriptorTable {
     /// points to the control-transfer instruction that caused the `#TS`.
     ///
     /// The vector number of the `#TS` exception is 10.
-    pub invalid_tss: Entry<HandlerFuncWithErrCode>,
+    pub invalid_tss: Entry<HandlerFunc>,
 
     /// An segment-not-present exception (`#NP`) occurs when an attempt is made to load a
     /// segment or gate with a clear present bit.
@@ -262,7 +262,7 @@ pub struct InterruptDescriptorTable {
     /// that loaded the segment selector resulting in the `#NP`.
     ///
     /// The vector number of the `#NP` exception is 11.
-    pub segment_not_present: Entry<HandlerFuncWithErrCode>,
+    pub segment_not_present: Entry<HandlerFunc>,
 
     /// An stack segment exception (`#SS`) can occur in the following situations:
     ///
@@ -279,7 +279,7 @@ pub struct InterruptDescriptorTable {
     /// caused the `#SS`.
     ///
     /// The vector number of the `#NP` exception is 12.
-    pub stack_segment_fault: Entry<HandlerFuncWithErrCode>,
+    pub stack_segment_fault: Entry<HandlerFunc>,
 
     /// A general protection fault (`#GP`) can occur in various situations. Common causes include:
     ///
@@ -295,7 +295,7 @@ pub struct InterruptDescriptorTable {
     /// the instruction that caused the `#GP`.
     ///
     /// The vector number of the `#GP` exception is 13.
-    pub general_protection_fault: Entry<HandlerFuncWithErrCode>,
+    pub general_protection_fault: Entry<HandlerFunc>,
 
     /// A page fault (`#PF`) can occur during a memory access in any of the following situations:
     ///
@@ -316,7 +316,7 @@ pub struct InterruptDescriptorTable {
     /// [`PageFaultErrorCode`](struct.PageFaultErrorCode.html) struct.
     ///
     /// The vector number of the `#PF` exception is 14.
-    pub page_fault: Entry<PageFaultHandlerFunc>,
+    pub page_fault: Entry<HandlerFunc>,
 
     /// vector nr. 15
     reserved_1: Entry<HandlerFunc>,
@@ -336,7 +336,7 @@ pub struct InterruptDescriptorTable {
     /// instruction that caused the `#AC`.
     ///
     /// The vector number of the `#AC` exception is 17.
-    pub alignment_check: Entry<HandlerFuncWithErrCode>,
+    pub alignment_check: Entry<HandlerFunc>,
 
     /// The machine check exception (`#MC`) is model specific. Processor implementations
     /// are not required to support the `#MC` exception, and those implementations that do
@@ -378,7 +378,7 @@ pub struct InterruptDescriptorTable {
     /// The only error code currently defined is 1, and indicates redirection of INIT has occurred.
     ///
     /// The vector number of the ``#SX`` exception is 30.
-    pub security_exception: Entry<HandlerFuncWithErrCode>,
+    pub security_exception: Entry<HandlerFunc>,
 
     /// vector nr. 31
     reserved_3: Entry<HandlerFunc>,
@@ -561,10 +561,10 @@ pub struct Entry<F> {
 }
 
 /// A handler function for an interrupt or an exception without error code.
-pub type HandlerFunc = extern "x86-interrupt" fn(&mut InterruptStackFrame);
+pub type HandlerFunc = unsafe extern fn(&mut PtRegs);
 
 /// A handler function for an interrupt or an exception without error code.
-pub type HandlerFuncPtRegs = unsafe extern fn(&mut PtRegs);
+//pub type HandlerFuncPtRegs = unsafe extern fn(&mut PtRegs);
 
 /// A handler function for an exception that pushes an error code.
 pub type HandlerFuncWithErrCode =
@@ -630,7 +630,7 @@ macro_rules! impl_set_handler_fn {
 impl_set_handler_fn!(HandlerFunc);
 impl_set_handler_fn!(HandlerFuncWithErrCode);
 impl_set_handler_fn!(PageFaultHandlerFunc);
-impl_set_handler_fn!(HandlerFuncPtRegs);
+//impl_set_handler_fn!(HandlerFuncPtRegs);
 
 /// Represents the options field of an IDT entry.
 #[repr(transparent)]
