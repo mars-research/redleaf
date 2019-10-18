@@ -114,7 +114,6 @@ lazy_static! {
             // The starting byte of the IRQ vectors
             static irq_entries_start: usize;
         }
-
         unsafe {
             for i in IRQ_OFFSET..255 {
                 let ptr = (irq_entries_start+ 8*(i - IRQ_OFFSET) as usize) as *const ();
@@ -124,6 +123,10 @@ lazy_static! {
             }
         }
         //idt[InterruptIndex::Keyboard.as_usize()].set_handler_fn(keyboard_interrupt_handler);
+
+
+//        idt[InterruptIndex::Timer.as_usize()].set_handler_fn(timer_interrupt_handler);
+//        idt[InterruptIndex::Keyboard.as_usize()].set_handler_fn(keyboard_interrupt_handler);
 
         idt
     };
@@ -143,6 +146,8 @@ pub unsafe fn init_cpu(cpu: u32, stack: u32, code: u64) {
 
 pub fn init_idt() {
     IDT.load();
+
+    IDT.dump(); 
 
     // Trigger breakpoint interrupt to see that IDT is ok
     x86_64::instructions::interrupts::int3();
@@ -341,7 +346,7 @@ extern "x86-interrupt" fn general_protection_fault_handler(
     stack_frame: &mut InterruptStackFrame,
     _error_code: u64,
 ) {
-    println!("general protection fault:\n{:#?}", stack_frame);
+    println!("general protection fault:\n{:#x?}", stack_frame);
     crate::halt(); 
 }
 

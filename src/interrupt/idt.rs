@@ -503,6 +503,14 @@ impl InterruptDescriptorTable {
         self.interrupts = [Entry::missing(); 256 - 32];
     }
 
+    /// Dumps all entries of the IDT
+    pub fn dump(&self) {
+        for i in 0..255 {
+            let entry = self[i]; 
+            println!("entry[{}]:{:#?}", i, entry); 
+        };
+    }
+     
     /// Loads the IDT in the CPU using the `lidt` command.
     #[cfg(target_arch = "x86_64")]
     pub fn load(&'static self) {
@@ -530,21 +538,36 @@ impl Index<usize> for InterruptDescriptorTable {
             0 => &self.divide_by_zero,
             1 => &self.debug,
             2 => &self.non_maskable_interrupt,
-            3 => { panic!("entry 3 is an exception with PtRegs") },
+            3 => &self.breakpoint,
             4 => &self.overflow,
             5 => &self.bound_range_exceeded,
             6 => &self.invalid_opcode,
             7 => &self.device_not_available,
+            8 => &self.double_fault,
             9 => &self.coprocessor_segment_overrun,
+            10 => &self.invalid_tss,
+            11 => &self.segment_not_present,
+            12 => &self.stack_segment_fault,
+            13 => &self.general_protection_fault,
+            14 => &self.page_fault, 
+            15 => &self.reserved_1,
             16 => &self.x87_floating_point,
+            17 => &self.alignment_check,
             18 => &self.machine_check,
             19 => &self.simd_floating_point,
             20 => &self.virtualization,
+            21 => &self.reserved_2[0],
+            22 => &self.reserved_2[1],
+            23 => &self.reserved_2[2],
+            24 => &self.reserved_2[3],
+            25 => &self.reserved_2[4],
+            26 => &self.reserved_2[5],
+            27 => &self.reserved_2[6],
+            28 => &self.reserved_2[7],
+            29 => &self.reserved_2[8],
+            30 => &self.security_exception,
+            31 => &self.reserved_3,
             i @ 32..=255 => &self.interrupts[i - 32],
-            i @ 15 | i @ 31 | i @ 21..=29 => panic!("entry {} is reserved", i),
-            i @ 8 | i @ 10..=14 | i @ 17 | i @ 30 => {
-                panic!("entry {} is an exception with error code", i)
-            }
             i => panic!("no entry with index {}", i),
         }
     }
@@ -560,21 +583,36 @@ impl IndexMut<usize> for InterruptDescriptorTable {
             0 => &mut self.divide_by_zero,
             1 => &mut self.debug,
             2 => &mut self.non_maskable_interrupt,
-            3 => { panic!("entry 3 is en exception with PtRegs")},
+            3 => &mut self.breakpoint,
             4 => &mut self.overflow,
             5 => &mut self.bound_range_exceeded,
             6 => &mut self.invalid_opcode,
             7 => &mut self.device_not_available,
+            8 => &mut self.double_fault,
             9 => &mut self.coprocessor_segment_overrun,
+            10 => &mut self.invalid_tss,
+            11 => &mut self.segment_not_present,
+            12 => &mut self.stack_segment_fault,
+            13 => &mut self.general_protection_fault,
+            14 => &mut self.page_fault, 
+            15 => &mut self.reserved_1,
             16 => &mut self.x87_floating_point,
+            17 => &mut self.alignment_check,
             18 => &mut self.machine_check,
             19 => &mut self.simd_floating_point,
             20 => &mut self.virtualization,
+            21 => &mut self.reserved_2[0],
+            22 => &mut self.reserved_2[1],
+            23 => &mut self.reserved_2[2],
+            24 => &mut self.reserved_2[3],
+            25 => &mut self.reserved_2[4],
+            26 => &mut self.reserved_2[5],
+            27 => &mut self.reserved_2[6],
+            28 => &mut self.reserved_2[7],
+            29 => &mut self.reserved_2[8],
+            30 => &mut self.security_exception,
+            31 => &mut self.reserved_3,
             i @ 32..=255 => &mut self.interrupts[i - 32],
-            i @ 15 | i @ 31 | i @ 21..=29 => panic!("entry {} is reserved", i),
-            i @ 8 | i @ 10..=14 | i @ 17 | i @ 30 => {
-                panic!("entry {} is an exception with error code", i)
-            }
             i => panic!("no entry with index {}", i),
         }
     }
@@ -584,7 +622,7 @@ impl IndexMut<usize> for InterruptDescriptorTable {
 ///
 /// The generic parameter can either be `HandlerFunc` or `HandlerFuncWithErrCode`, depending
 /// on the interrupt vector.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 #[repr(C)]
 pub struct Entry<F> {
     pointer_low: u16,
@@ -594,6 +632,24 @@ pub struct Entry<F> {
     pointer_high: u32,
     reserved: u32,
     phantom: PhantomData<F>,
+}
+
+impl fmt::Debug for Entry<HandlerFunc> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        struct Hex(u64);
+        impl fmt::Debug for Hex {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                write!(f, "{:#x}", self.0)
+            }
+        }
+
+        let mut s = f.debug_struct("Entry");
+        s.field("gdt_selector", &Hex(self.gdt_selector as u64));
+        s.field("options", &self.options);
+        s.field("handler", &Hex(((self.pointer_high as u64) << 32) | ((self.pointer_middle as u64) << 16) | self.pointer_low as u64));
+
+        s.finish()
+    }
 }
 
 /// A handler function for an interrupt or an exception without error code.
