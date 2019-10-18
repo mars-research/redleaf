@@ -112,11 +112,15 @@ lazy_static! {
 
         extern {
             // The starting byte of the IRQ vectors
-            static irq_entries_start: usize;
+            static mut irq_entries_start: u64;
         }
+
         unsafe {
+
+            let irq_handlers = & irq_entries_start as *const _ as u64; 
+            println!("irq_entries_start:{:#x?}, irq_handlers:{:#x?}", irq_entries_start, irq_handlers); 
             for i in IRQ_OFFSET..255 {
-                let ptr = (irq_entries_start+ 8*(i - IRQ_OFFSET) as usize) as *const ();
+                let ptr = (irq_handlers + 8*(i - IRQ_OFFSET) as u64) as *const ();
                 let handler: HandlerFunc = unsafe { core::mem::transmute(ptr) };
                 //idt[InterruptIndex::Timer.as_usize()].set_handler_fn(handler);
                 idt[i as usize].set_handler_fn(handler);
