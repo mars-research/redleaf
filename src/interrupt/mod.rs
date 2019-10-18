@@ -1,18 +1,22 @@
+use alloc::sync::Arc;
+use spin::Mutex;
 use lazy_static::lazy_static;
 use x86::cpuid::CpuId;
 
-
 use crate::{gdt, println, entryother};
+use crate::drivers::Driver;
+use crate::redsys::IRQRegistrar;
 
 mod lapic;
 mod ioapic;
 mod pic;
 mod idt; 
+mod irq_manager;
 
+pub use irq_manager::IRQManager;
 use idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode, PtRegs, HandlerFunc};
 
 pub const IRQ_OFFSET: u8 = 32;
-
 
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
@@ -61,7 +65,20 @@ extern {
     fn machine_check(pt_regs: &mut PtRegs);
     fn virtualization(pt_regs: &mut PtRegs);
     fn nmi_simple(pt_regs: &mut PtRegs);
+}
 
+
+lazy_static! {
+    static ref irqManager: Arc<Mutex<IRQManager>> = {
+        let arc = Arc::new(Mutex::new(IRQManager::new()));
+
+        {
+            let mut guard = arc.lock();
+            guard.set_manager_handle(arc.clone());
+        }
+
+        arc
+    };
 }
 
 lazy_static! {
@@ -126,11 +143,6 @@ lazy_static! {
                 idt[i as usize].set_handler_fn(handler);
             }
         }
-        //idt[InterruptIndex::Keyboard.as_usize()].set_handler_fn(keyboard_interrupt_handler);
-
-
-//        idt[InterruptIndex::Timer.as_usize()].set_handler_fn(timer_interrupt_handler);
-//        idt[InterruptIndex::Keyboard.as_usize()].set_handler_fn(keyboard_interrupt_handler);
 
         idt
     };
@@ -172,6 +184,14 @@ pub fn init_irqs() {
         ioapic::init();
         ioapic::irqen(1, 0);
     }
+}
+
+pub fn get_irq_manager() -> Arc<Mutex<IRQManager>> {
+    irqManager.clone()
+}
+
+pub unsafe fn get_irq_registrar<T: Driver + Send>(driver: Arc<Mutex<T>>) -> IRQRegistrar<T> {
+    IRQRegistrar::new(driver, irqManager.clone())
 }
 
 fn end_of_interrupt(interrupt: u8) {
@@ -469,12 +489,20 @@ extern fn do_security(pt_regs: &mut PtRegs) {
 
 #[no_mangle]
 extern fn do_IRQ(pt_regs: &mut PtRegs) -> u64 {
-    println!("do_IRQ:\n{:#?}", pt_regs);
+    let vector = pt_regs.orig_ax;
+
     // Jump to the handler here
-    if pt_regs.orig_ax == (InterruptIndex::Timer as u64) {
+    if vector == (InterruptIndex::Timer as u64) {
+        // Timer (IRQ 0)
         timer_interrupt_handler(pt_regs);
+    } else if vector >= (IRQ_OFFSET as u64) && vector <= 255 {
+        // IRQs
+        let irq: u8 = (vector - (IRQ_OFFSET as u64)) as u8;
+        irqManager.lock().handle_irq(irq);
+        end_of_interrupt(vector as u8);
     } else {
-        println!("Unknown interrupt:{}",  pt_regs.orig_ax); 
+        // ???
+        println!("Unknown interrupt: {}", vector); 
     }
     return 1; 
 }
@@ -484,34 +512,6 @@ fn timer_interrupt_handler(pt_regs: &mut PtRegs) {
     end_of_interrupt(InterruptIndex::Timer.as_u8());
 //    crate::schedule();
 }
-
-// IRQ 1: Keyboard
-fn keyboard_interrupt_handler(pt_regs: &mut PtRegs) {
-    use pc_keyboard::{layouts, DecodedKey, Keyboard, ScancodeSet1};
-    use spin::Mutex;
-    use x86_64::instructions::port::Port;
-
-    lazy_static! {
-        static ref KEYBOARD: Mutex<Keyboard<layouts::Us104Key, ScancodeSet1>> =
-            Mutex::new(Keyboard::new(layouts::Us104Key, ScancodeSet1));
-    }
-
-    let mut keyboard = KEYBOARD.lock();
-    let mut port = Port::new(0x60);
-
-    let scancode: u8 = unsafe { port.read() };
-    if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
-        if let Some(key) = keyboard.process_keyevent(key_event) {
-            match key {
-                DecodedKey::Unicode(character) => print!("{}", character),
-                DecodedKey::RawKey(key) => print!("{:?}", key),
-            }
-        }
-    }
-
-    end_of_interrupt(InterruptIndex::Keyboard.as_u8());
-}
-
 
 #[no_mangle]
 extern fn enter_from_user_mode() {

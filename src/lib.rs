@@ -52,7 +52,9 @@ use crate::memory::buddy::BUDDY;
 use thread::{Scheduler, Thread};
 use core::cell::{UnsafeCell, RefCell};
 use alloc::boxed::Box;
+use alloc::sync::Arc;
 use crate::thread::switch;
+use crate::drivers::Driver;
 
 #[no_mangle]
 pub static mut cpu1_stack: u32 = 0;
@@ -323,14 +325,16 @@ pub extern "C" fn rust_main_ap() -> ! {
     println!("Initializing CPU#{}", cpu_id); 
 
     unsafe {
-        gdt::init_global_gdt();
+        if cpu_id != 0 {
+            gdt::init_global_gdt();
+        }
         let tcb_offset = tls::init_per_cpu_vars(cpu_id);
         gdt::init_percpu_gdt(tcb_offset);
     }
 
-    interrupt::init_idt();
 
     if cpu_id != 0 {
+        interrupt::init_idt();
         interrupt::init_irqs_local();
     }
      
@@ -359,6 +363,19 @@ pub extern "C" fn rust_main_ap() -> ! {
 
     // Enable interrupts and the timer will schedule the next thread
     x86_64::instructions::interrupts::enable();
+
+    // Initialize hello driver
+    if cpu_id == 0 {
+        use drivers::hello::Hello;
+
+        println!("Initializing hello driver");
+        let driver = Arc::new(Mutex::new(Hello::new()));
+
+        {
+            let registrar = unsafe { interrupt::get_irq_registrar(driver.clone()) };
+            driver.lock().set_irq_registrar(registrar);
+        }
+    }
 
     halt(); 
 }
