@@ -339,24 +339,6 @@ pub extern "C" fn rust_main_ap() -> ! {
     }
      
     println!("cpu{}: Initialized", cpu_id);
-/*
-    if cpu_id == 0 {
-        let ide = drivers::ide::IDE::new();
-        println!("Initializing IDE");
-        ide.init();
-        println!("IDE Initialized!");
-
-        // Write a block of 5s
-        let data: [u32; 512] = [5u32; 512];
-        ide.write(20, &data);
-        println!("Data written");
-
-        // Read the block back
-        let mut rdata: [u32; 512] = [0u32; 512];
-        ide.read(20, &mut rdata);
-        println!("Data read");
-    }
-*/
     //init_threads(); 
     
     println!("Ready to enable interrupts");
@@ -375,6 +357,27 @@ pub extern "C" fn rust_main_ap() -> ! {
             let registrar = unsafe { interrupt::get_irq_registrar(driver.clone()) };
             driver.lock().set_irq_registrar(registrar);
         }
+    }
+
+    // Initialize IDE driver
+    if cpu_id == 0 {
+        let ataPioDevice = unsafe { Arc::new(Mutex::new(redsys::devices::ATAPIODevice::new(0x1f0, 0x3f6))) };
+        let ide = drivers::ide::IDE::new(ataPioDevice);
+
+        println!("Initializing IDE");
+        ide.init();
+        println!("IDE Initialized!");
+
+        println!("Writing");
+        // Write a block of 5s
+        let data: [u32; 512] = [5u32; 512];
+        ide.write(20, &data);
+        println!("Data written");
+
+        // Read the block back
+        let mut rdata: [u32; 512] = [0u32; 512];
+        ide.read(20, &mut rdata);
+        println!("Data read");
     }
 
     halt(); 

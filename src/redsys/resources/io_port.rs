@@ -31,7 +31,7 @@ impl IOPort {
     }
 
     /// Write 8 bits to port
-    pub fn outb(&self, val: u8) -> Result<u8, &'static str> {
+    pub fn outb(&mut self, val: u8) -> Result<u8, &'static str> {
         if !self._can_write {
             Err("Policy forbids writing to port")
         } else {
@@ -71,7 +71,7 @@ impl IOPort {
         }
     }
 
-    /// Read dword string to port
+    /// Read dword string from port
     pub fn insl(&self, val: &mut [u32]) -> Result<(), &'static str> {
         if !self._can_read {
             Err("Policy forbids reading from port")
