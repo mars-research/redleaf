@@ -40,7 +40,7 @@ ENTRY(irq_entries_start)
     .rept (FIRST_SYSTEM_VECTOR - FIRST_EXTERNAL_VECTOR)
 	//pushq	$(~vector+0x80)			/* Note: always in signed byte range */
 	pushq $(vector)
-    vector=vector+1
+	vector=vector+1
 	jmp	common_interrupt
 	.align	8
     .endr

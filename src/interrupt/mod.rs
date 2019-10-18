@@ -151,7 +151,7 @@ pub unsafe fn init_cpu(cpu: u32, stack: u32, code: u64) {
 pub fn init_idt() {
     IDT.load();
 
-    IDT.dump(); 
+    //IDT.dump(); 
 
     // Trigger breakpoint interrupt to see that IDT is ok
     x86_64::instructions::interrupts::int3();
@@ -471,17 +471,22 @@ extern fn do_security(pt_regs: &mut PtRegs) {
 extern fn do_IRQ(pt_regs: &mut PtRegs) -> u64 {
     println!("do_IRQ:\n{:#?}", pt_regs);
     // Jump to the handler here
+    if pt_regs.orig_ax == (InterruptIndex::Timer as u64) {
+        timer_interrupt_handler(pt_regs);
+    } else {
+        println!("Unknown interrupt:{}",  pt_regs.orig_ax); 
+    }
     return 1; 
 }
 
 // IRQ 0: Timer
-extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: &mut InterruptStackFrame) {
+fn timer_interrupt_handler(pt_regs: &mut PtRegs) {
     end_of_interrupt(InterruptIndex::Timer.as_u8());
-    crate::schedule();
+//    crate::schedule();
 }
 
 // IRQ 1: Keyboard
-extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: &mut InterruptStackFrame) {
+fn keyboard_interrupt_handler(pt_regs: &mut PtRegs) {
     use pc_keyboard::{layouts, DecodedKey, Keyboard, ScancodeSet1};
     use spin::Mutex;
     use x86_64::instructions::port::Port;

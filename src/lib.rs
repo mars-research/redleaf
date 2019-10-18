@@ -335,7 +335,7 @@ pub extern "C" fn rust_main_ap() -> ! {
     }
      
     println!("cpu{}: Initialized", cpu_id);
-
+/*
     if cpu_id == 0 {
         let ide = drivers::ide::IDE::new();
         println!("Initializing IDE");
@@ -352,7 +352,7 @@ pub extern "C" fn rust_main_ap() -> ! {
         ide.read(20, &mut rdata);
         println!("Data read");
     }
-
+*/
     //init_threads(); 
     
     println!("Ready to enable interrupts");
@@ -366,6 +366,8 @@ pub extern "C" fn rust_main_ap() -> ! {
 
 pub fn halt() -> ! {
     loop {
+        //x86_64::instructions::interrupts::enable();
+        //println!(".");
         x86_64::instructions::hlt();
     }
 }
