@@ -361,7 +361,7 @@ pub extern "C" fn rust_main_ap() -> ! {
 
     // Initialize IDE driver
     if cpu_id == 0 {
-        let ataPioDevice = unsafe { Arc::new(Mutex::new(redsys::devices::ATAPIODevice::new(0x1f0, 0x3f6))) };
+        let ataPioDevice = unsafe { Arc::new(Mutex::new(redsys::devices::ATAPIODevice::primary())) };
         let ide = drivers::ide::IDE::new(ataPioDevice);
 
         println!("Initializing IDE");
