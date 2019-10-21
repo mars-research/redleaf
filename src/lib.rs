@@ -313,6 +313,7 @@ pub extern "C" fn rust_main() -> ! {
     // Spin up other CPUs 
     //init_ap_cpus(); 
 
+    //panic!("Test panic in main()"); 
     rust_main_ap(); 
 }
 
@@ -339,7 +340,7 @@ pub extern "C" fn rust_main_ap() -> ! {
     }
      
     println!("cpu{}: Initialized", cpu_id);
-    //init_threads(); 
+    init_threads(); 
     
     println!("Ready to enable interrupts");
 
