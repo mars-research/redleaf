@@ -70,4 +70,12 @@ impl ATAPIODevice {
             driveAddress: IOPort::new(controlBase + 1, true, false),
         }
     }
+
+    pub unsafe fn primary() -> ATAPIODevice {
+        Self::new(0x1f0, 0x3f6)
+    }
+
+    pub unsafe fn secondary() -> ATAPIODevice {
+        Self::new(0x170, 0x376)
+    }
 }
