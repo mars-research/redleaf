@@ -10,7 +10,7 @@ use crate::redsys::IRQRegistrar;
 mod lapic;
 mod ioapic;
 mod pic;
-mod idt; 
+pub mod idt; 
 mod irq_manager;
 
 pub use irq_manager::IRQManager;
@@ -402,6 +402,9 @@ extern fn do_page_fault(pt_regs: &mut PtRegs) {
     println!("Accessed Address: {:?}", Cr2::read());
     println!("Error Code: {:?}", pt_regs.orig_ax);
     println!("{:#?}", pt_regs);
+
+    crate::panic::backtrace_exception(pt_regs);
+
     crate::halt();
 }
 
