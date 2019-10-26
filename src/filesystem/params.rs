@@ -14,3 +14,7 @@ pub const LOGSIZE: usize =      (MAXOPBLOCKS*3);  // max data blocks in on-disk 
 pub const NBUF: usize =         (MAXOPBLOCKS*3);  // size of disk block cache
 pub const BSIZE: usize =        1024;   // block size
 pub const FSSIZE: usize =       1000;   // size of file system in blocks
+
+// Inodes per block.
+// TODO: fix this, it should be (BSIZE / sizeof(struct dinode))
+pub const IPB: usize =           BSIZE / 64;

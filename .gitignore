@@ -3,3 +3,11 @@
 *.swp
 Cargo.lock
 serial.log
+
+# Generated files
+build/
+*.o
+*.bin
+*.iso
+*.img
+

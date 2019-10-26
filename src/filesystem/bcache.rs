@@ -26,7 +26,7 @@ impl BufferData {
 
 struct Buffer {
     // Metadata about this block
-    device: u32,
+    dev: u32,
     block_number: u32,
     reference_count: u32,
     flags: u32,
@@ -38,7 +38,7 @@ struct Buffer {
 impl Buffer {
     pub fn new() -> Self {
         Self {
-            device: 0,
+            dev: 0,
             block_number: 0,
             reference_count: 0,
             flags: 0,
@@ -65,11 +65,11 @@ impl BufferCache {
     // look through buffer cache, return the buffer
     // If the block does not exist, we preempt a not-in-use one
     // We let the caller to lock the buffer when they need to use it
-    fn get(&mut self, device: u32, block_number: u32) -> Arc<Mutex<BufferData>> {
+    fn get(&mut self, dev: u32, block_number: u32) -> Arc<Mutex<BufferData>> {
         // we probably don't need a lock here since there's a outer lock for
         // the shared `BCACHE` object.
         for buffer in self.list.lock().iter_mut() {
-            if buffer.device == device && buffer.block_number == block_number {
+            if buffer.dev == dev && buffer.block_number == block_number {
                 buffer.reference_count += 1;
                 return buffer.data.clone();
             }
@@ -81,7 +81,7 @@ impl BufferCache {
         // iterate it forward for now
         for buffer in self.list.lock().iter_mut() {
             if buffer.reference_count == 0 && (buffer.flags & B_DIRTY) == 0 {
-                buffer.device = device;
+                buffer.dev = dev;
                 buffer.block_number = block_number;
                 buffer.flags = 0;
                 buffer.reference_count = 1;
