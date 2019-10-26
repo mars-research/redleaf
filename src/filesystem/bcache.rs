@@ -10,9 +10,11 @@ fn iderw(buffer: &mut BufferData) {
     buffer.data[0] = 2;
 }
 
+pub type BufferBlock = [u8; BSIZE];
+
 struct BufferData {
     flags: u32,
-    data: [u8; BSIZE],
+    pub data: BufferBlock,
 }
 
 impl BufferData {
