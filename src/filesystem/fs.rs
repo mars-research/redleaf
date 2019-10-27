@@ -24,12 +24,12 @@ pub fn getSuperBlock() -> Arc<SuperBlock> {
     let nblocks = params::FSSIZE - nmeta;
     // TODO: ensure the encoding is intel's encoding
     Arc::new(SuperBlock {
-        size: params::FSSIZE,
-        nblocks,
-        ninodes: NINODES,
-        nlog, 
+        size: params::FSSIZE as u32,
+        nblocks: nlog as u32,
+        ninodes: NINODES as u32,
+        nlog: nlog as u32, 
         logstart: 2,
-        inodestart: 2 + nlog,
-        bmapstart: 2 + nlog + ninodeblocks,
+        inodestart: 2 + nlog as u32,
+        bmapstart: (2 + nlog + ninodeblocks) as u32,
     })
 } 

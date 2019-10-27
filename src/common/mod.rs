@@ -1,2 +1,2 @@
 pub mod list;
-pub mode bytearray;
+pub mod bytearray;

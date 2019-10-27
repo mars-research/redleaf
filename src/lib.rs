@@ -39,7 +39,7 @@ mod prelude;
 pub mod arch;
 
 mod tls;
-//mod common; 
+mod common; 
 mod thread;
 mod panic; 
 

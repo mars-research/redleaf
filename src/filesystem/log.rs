@@ -16,10 +16,23 @@ struct LogHeader {
 
 impl LogHeader {
     fn from_buffer_block(&mut self, buffer: &BufferBlock) {
-        self.n = bytearray::to_u32(&buffer[0..3]);
-        let offset = 4;
+        let mut offset = 0;
+        self.n = bytearray::to_u32(&buffer[offset..offset+4]);
+        offset += 4;
+
         for block_num in &mut self.block_nums {
-            block_num = bytearray::to_u32(&buffer[offset..offset+3]);
+            *block_num = bytearray::to_u32(&buffer[offset..offset+4]);
+            offset += 4;
+        }
+    }
+
+    fn to_buffer_block(&self, buffer: &mut BufferBlock) {
+        let mut offset = 0;
+        bytearray::from_u32(&mut buffer[offset..offset+4], self.n);
+        offset += 4;
+
+        for block_num in &self.block_nums {
+            bytearray::from_u32(&mut buffer[offset..offset+4], *block_num);
             offset += 4;
         }
     }
@@ -40,7 +53,7 @@ impl Log {
             size_of::<LogHeader>() < params::BSIZE,
             "initlog: too big logheader"
         );
-        let log = Self {
+        let mut log = Self {
             start: superblock.logstart,
             size: superblock.nlog,
             outstanding: 0,
@@ -60,10 +73,11 @@ impl Log {
         for tail in 0..self.logheader.n {
             let lbuf = BCACHE.lock().read(self.dev, self.start + tail + 1);
             let dbuf = BCACHE.lock().read(self.dev, self.logheader.block_nums[tail as usize]);
-            let locked_dbuf = dbuf.lock();
+            let mut locked_dbuf = dbuf.lock();
             locked_dbuf.data = lbuf.lock().data;
             BCACHE.lock().write(&mut locked_dbuf);  // write dst to disk
             // TODO: implement brelse and finish this function up
+            // Pin this buffer if using the riscv one
             // brelse(lbuf);
             // brelse(dbuf);
         }
@@ -80,7 +94,7 @@ impl Log {
     // This is the true point at which the
     // current transaction commits.
     fn write_head(&mut self) {
-
+        
     }
 
     fn recover_from_log(&mut self) {
