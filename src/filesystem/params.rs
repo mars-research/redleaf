@@ -1,4 +1,6 @@
 // https://github.com/mit-pdos/xv6-public/blob/master/param.h
+use core::mem;
+use crate::filesystem::fs;
 
 pub const NPROC: usize =        64;     // maximum number of processes
 pub const KSTACKSIZE: usize = 4096;     // size of per-process kernel stack
@@ -15,6 +17,12 @@ pub const NBUF: usize =         (MAXOPBLOCKS*3);  // size of disk block cache
 pub const BSIZE: usize =        1024;   // block size
 pub const FSSIZE: usize =       1000;   // size of file system in blocks
 
+// https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/fs.h
+pub const ROOTINO: usize =      1;      // root i-number
+pub const FSMAGIC: usize =      0x10203040;
+pub const NDIRECT: usize =      12;
+pub const NINDIRECT: usize =    BSIZE / mem::size_of::<u32>();
+pub const MAXFILE: usize =      NDIRECT + NINDIRECT;
+
 // Inodes per block.
-// TODO: fix this, it should be (BSIZE / sizeof(struct dinode))
-pub const IPB: usize =           BSIZE / 64;
+pub const IPB: usize =           BSIZE / mem::size_of::<fs::DINode>();
