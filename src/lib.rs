@@ -362,22 +362,31 @@ pub extern "C" fn rust_main_ap() -> ! {
 
     // Initialize IDE driver
     if cpu_id == 0 {
-        let ataPioDevice = unsafe { Arc::new(Mutex::new(redsys::devices::ATAPIODevice::primary())) };
-        let ide = drivers::ide::IDE::new(ataPioDevice);
+        use drivers::ide::IDE;
 
         println!("Initializing IDE");
-        ide.init();
+
+        let ataPioDevice = unsafe { Arc::new(Mutex::new(redsys::devices::ATAPIODevice::primary())) };
+        let driver = Arc::new(Mutex::new(IDE::new(ataPioDevice, false)));
+
+        {
+            let registrar = unsafe { interrupt::get_irq_registrar(driver.clone()) };
+            driver.lock().set_irq_registrar(registrar);
+            driver.lock().init();
+        }
+
         println!("IDE Initialized!");
 
         println!("Writing");
         // Write a block of 5s
         let data: [u32; 512] = [5u32; 512];
-        ide.write(20, &data);
+        driver.lock().write(20, &data);
         println!("Data written");
 
         // Read the block back
         let mut rdata: [u32; 512] = [0u32; 512];
-        ide.read(20, &mut rdata);
+        driver.lock().read(20, &mut rdata);
+        println!("First byte read is {}", data[0]);
         println!("Data read");
     }
 
