@@ -2,7 +2,6 @@
 // Based on https://rust-unofficial.github.io/too-many-lists/fourth-final.html
 // A doubly-linked-list with the ability to remove a node from the list in O(1)
 use alloc::sync::Arc;
-use alloc::rc::Rc;
 use core::cell::{Ref, RefMut, RefCell};
 
 
@@ -11,7 +10,7 @@ pub struct List<T> {
     pub tail: Link<T>,
 }
 
-pub type Link<T> = Option<Rc<RefCell<Node<T>>>>;
+pub type Link<T> = Option<Arc<RefCell<Node<T>>>>;
 
 struct Node<T> {
     pub elem: T,
@@ -21,8 +20,8 @@ struct Node<T> {
 
 
 impl<T> Node<T> {
-    fn new(elem: T) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(Node {
+    fn new(elem: T) -> Arc<RefCell<Self>> {
+        Arc::new(RefCell::new(Node {
             elem: elem,
             prev: None,
             next: None,
@@ -35,8 +34,13 @@ impl<T> List<T> {
         List { head: None, tail: None }
     }
 
+    // Allocate a new node and push it to the front
     pub fn push_front(&mut self, elem: T) {
-        let new_head = Node::new(elem);
+        self.push_node_front(Node::new(elem));
+    }
+
+    // Push an existing node to the front
+    fn push_node_front(&mut self, new_head: Arc<RefCell<Node<T>>>) {
         match self.head.take() {
             Some(old_head) => {
                 old_head.borrow_mut().prev = Some(new_head.clone());
@@ -76,7 +80,7 @@ impl<T> List<T> {
                     self.head.take();
                 }
             }
-            Rc::try_unwrap(old_tail).ok().unwrap().into_inner().elem
+            Arc::try_unwrap(old_tail).ok().unwrap().into_inner().elem
         })
     }
 
@@ -91,7 +95,7 @@ impl<T> List<T> {
                     self.tail.take();
                 }
             }
-            Rc::try_unwrap(old_head).ok().unwrap().into_inner().elem
+            Arc::try_unwrap(old_head).ok().unwrap().into_inner().elem
         })
     }
 
@@ -120,7 +124,6 @@ impl<T> List<T> {
     }
 
     // Helper method for move_front.
-    // Even though 
     fn pop_node(&mut self, node: RefMut<Node<T>>) {
         match &node.prev {
             Some(prev) => {
@@ -138,6 +141,14 @@ impl<T> List<T> {
 
         node.prev.take();
         node.next.take();
+    }
+
+    // Move an existing node to the front
+    // Kinda
+    // Behavior is undefined if the node is not in the list
+    pub fn move_front(&mut self, node: Arc<RefCell<Node<T>>>) {
+        self.pop_node(node.borrow_mut());
+        self.push_node_front(node);
     }
 }
 
