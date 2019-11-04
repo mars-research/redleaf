@@ -2,7 +2,8 @@
 // Based on https://rust-unofficial.github.io/too-many-lists/fourth-final.html
 // A doubly-linked-list with the ability to remove a node from the list in O(1)
 use alloc::sync::Arc;
-use core::cell::{Ref, RefMut, RefCell};
+use core::cell::{Ref, RefMut};
+use spin::Mutex;
 
 
 pub struct List<T> {
@@ -10,7 +11,7 @@ pub struct List<T> {
     pub tail: Link<T>,
 }
 
-pub type Link<T> = Option<Arc<RefCell<Node<T>>>>;
+pub type Link<T> = Option<Arc<Mutex<Node<T>>>>;
 
 struct Node<T> {
     pub elem: T,
@@ -20,8 +21,8 @@ struct Node<T> {
 
 
 impl<T> Node<T> {
-    fn new(elem: T) -> Arc<RefCell<Self>> {
-        Arc::new(RefCell::new(Node {
+    fn new(elem: T) -> Arc<Mutex<Self>> {
+        Arc::new(Mutex::new(Node {
             elem: elem,
             prev: None,
             next: None,
@@ -40,11 +41,11 @@ impl<T> List<T> {
     }
 
     // Push an existing node to the front
-    fn push_node_front(&mut self, new_head: Arc<RefCell<Node<T>>>) {
+    fn push_node_front(&mut self, new_head: Arc<Mutex<Node<T>>>) {
         match self.head.take() {
             Some(old_head) => {
-                old_head.borrow_mut().prev = Some(new_head.clone());
-                new_head.borrow_mut().next = Some(old_head);
+                old_head.lock().prev = Some(new_head.clone());
+                new_head.lock().next = Some(old_head);
                 self.head = Some(new_head);
             }
             None => {
@@ -58,8 +59,8 @@ impl<T> List<T> {
         let new_tail = Node::new(elem);
         match self.tail.take() {
             Some(old_tail) => {
-                old_tail.borrow_mut().next = Some(new_tail.clone());
-                new_tail.borrow_mut().prev = Some(old_tail);
+                old_tail.lock().next = Some(new_tail.clone());
+                new_tail.lock().prev = Some(old_tail);
                 self.tail = Some(new_tail);
             }
             None => {
@@ -71,9 +72,9 @@ impl<T> List<T> {
 
     pub fn pop_back(&mut self) -> Option<T> {
         self.tail.take().map(|old_tail| {
-            match old_tail.borrow_mut().prev.take() {
+            match old_tail.lock().prev.take() {
                 Some(new_tail) => {
-                    new_tail.borrow_mut().next.take();
+                    new_tail.lock().next.take();
                     self.tail = Some(new_tail);
                 }
                 None => {
@@ -86,9 +87,9 @@ impl<T> List<T> {
 
     pub fn pop_front(&mut self) -> Option<T> {
         self.head.take().map(|old_head| {
-            match old_head.borrow_mut().next.take() {
+            match old_head.lock().next.take() {
                 Some(new_head) => {
-                    new_head.borrow_mut().prev.take();
+                    new_head.lock().prev.take();
                     self.head = Some(new_head);
                 }
                 None => {
@@ -99,42 +100,18 @@ impl<T> List<T> {
         })
     }
 
-    pub fn peek_front(&self) -> Option<Ref<T>> {
-        self.head.as_ref().map(|node| {
-            Ref::map(node.borrow(), |node| &node.elem)
-        })
-    }
-
-    pub fn peek_back(&self) -> Option<Ref<T>> {
-        self.tail.as_ref().map(|node| {
-            Ref::map(node.borrow(), |node| &node.elem)
-        })
-    }
-
-    pub fn peek_back_mut(&mut self) -> Option<RefMut<T>> {
-        self.tail.as_ref().map(|node| {
-            RefMut::map(node.borrow_mut(), |node| &mut node.elem)
-        })
-    }
-
-    pub fn peek_front_mut(&mut self) -> Option<RefMut<T>> {
-        self.head.as_ref().map(|node| {
-            RefMut::map(node.borrow_mut(), |node| &mut node.elem)
-        })
-    }
-
     // Helper method for move_front.
-    fn pop_node(&mut self, node: RefMut<Node<T>>) {
+    fn pop_node(&mut self, node: &mut Node<T>) {
         match &node.prev {
             Some(prev) => {
-                prev.borrow_mut().next = node.next.clone();
+                prev.lock().next = node.next.clone();
             }
             None => {/*noop*/}
         }
 
         match &node.next {
             Some(next) => {
-                next.borrow_mut().prev = node.prev.clone();
+                next.lock().prev = node.prev.clone();
             }
             None => {/*noop*/}
         }
@@ -146,8 +123,8 @@ impl<T> List<T> {
     // Move an existing node to the front
     // Kinda
     // Behavior is undefined if the node is not in the list
-    pub fn move_front(&mut self, node: Arc<RefCell<Node<T>>>) {
-        self.pop_node(node.borrow_mut());
+    pub fn move_front(&mut self, node: Arc<Mutex<Node<T>>>) {
+        self.pop_node(&mut *node.lock());
         self.push_node_front(node);
     }
 }
@@ -158,81 +135,3 @@ impl<T> Drop for List<T> {
     }
 }
 
-
-
-
-#[cfg(test)]
-mod test {
-    use super::List;
-
-    #[test]
-    fn basics() {
-        let mut list = List::new();
-
-        // Check empty list behaves right
-        assert_eq!(list.pop_front(), None);
-
-        // Populate list
-        list.push_front(1);
-        list.push_front(2);
-        list.push_front(3);
-
-        // Check normal removal
-        assert_eq!(list.pop_front(), Some(3));
-        assert_eq!(list.pop_front(), Some(2));
-
-        // Push some more just to make sure nothing's corrupted
-        list.push_front(4);
-        list.push_front(5);
-
-        // Check normal removal
-        assert_eq!(list.pop_front(), Some(5));
-        assert_eq!(list.pop_front(), Some(4));
-
-        // Check exhaustion
-        assert_eq!(list.pop_front(), Some(1));
-        assert_eq!(list.pop_front(), None);
-
-        // ---- back -----
-
-        // Check empty list behaves right
-        assert_eq!(list.pop_back(), None);
-
-        // Populate list
-        list.push_back(1);
-        list.push_back(2);
-        list.push_back(3);
-
-        // Check normal removal
-        assert_eq!(list.pop_back(), Some(3));
-        assert_eq!(list.pop_back(), Some(2));
-
-        // Push some more just to make sure nothing's corrupted
-        list.push_back(4);
-        list.push_back(5);
-
-        // Check normal removal
-        assert_eq!(list.pop_back(), Some(5));
-        assert_eq!(list.pop_back(), Some(4));
-
-        // Check exhaustion
-        assert_eq!(list.pop_back(), Some(1));
-        assert_eq!(list.pop_back(), None);
-    }
-
-    #[test]
-    fn peek() {
-        let mut list = List::new();
-        assert!(list.peek_front().is_none());
-        assert!(list.peek_back().is_none());
-        assert!(list.peek_front_mut().is_none());
-        assert!(list.peek_back_mut().is_none());
-
-        list.push_front(1); list.push_front(2); list.push_front(3);
-
-        assert_eq!(&*list.peek_front().unwrap(), &3);
-        assert_eq!(&mut *list.peek_front_mut().unwrap(), &mut 3);
-        assert_eq!(&*list.peek_back().unwrap(), &1);
-        assert_eq!(&mut *list.peek_back_mut().unwrap(), &mut 1);
-    }
-}
