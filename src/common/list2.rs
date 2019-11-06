@@ -1,8 +1,8 @@
 
 // Based on https://rust-unofficial.github.io/too-many-lists/fourth-final.html
-// A doubly-linked-list with the ability to remove a node from the list in O(1)
+// A doubly-linked-list with the ability to remove a node from the list in O(1).
+// And it is Sync
 use alloc::sync::Arc;
-use core::cell::{Ref, RefMut};
 use spin::Mutex;
 
 
@@ -135,3 +135,26 @@ impl<T> Drop for List<T> {
     }
 }
 
+// Well this is ugly since it exposes the implementation, but we can't figure out how to do it nicely.
+pub struct Iter<T> {
+    curr: Link<T>
+}
+
+impl<T> Iterator for Iter<T> {
+    type Item = Arc<Mutex<Node<T>>>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.curr.take().map(|node| {
+            self.curr = node.lock().next;
+            node.clone()
+        })
+    }
+}
+
+impl<T> DoubleEndedIterator for Iter<T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.curr.take().map(|node| {
+            self.curr = node.lock().prev;
+            node.clone()
+        })
+    }
+}
