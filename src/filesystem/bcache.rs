@@ -1,3 +1,7 @@
+// Based on bio.c from xv6.
+// The entire ownership system is a mess and error-prone(no one is the owner).
+// Need to revisit this and fix it one day.
+
 use crate::filesystem::params::{NBUF, BSIZE};
 use crate::common::list2;
 use alloc::sync::Arc;
@@ -36,6 +40,8 @@ pub struct BufferGuard {
     data: Arc<Mutex<BufferData>>,
 }
 
+// I could've get a reference to the bcache and do a brelse explicitly when the guard is dropped.
+// But I don't want to deal with the lifetime for now. Might do it later
 impl Drop for BufferGuard {
     fn drop(&mut self) {
         assert!(self.node.is_none(), "You forgot to release the buffer back to the bcache");
@@ -91,7 +97,7 @@ impl BufferCache {
     // look through buffer cache, return the buffer
     // If the block does not exist, we preempt a not-in-use one
     // We let the caller to lock the buffer when they need to use it
-    fn get(&self, dev: u32, block_number: u32) -> Arc<Mutex<BufferData>> {
+    fn get(&self, dev: u32, block_number: u32) -> BufferGuard {
         // we probably don't need a lock here since there's a outer lock for
         // the shared `BCACHE` object.
         for mutex in self.list.lock().iter() {
@@ -99,7 +105,10 @@ impl BufferCache {
             let mut buffer = &mut node.elem;
             if buffer.dev == dev && buffer.block_number == block_number {
                 buffer.reference_count += 1;
-                return buffer.data.clone();
+                return BufferGuard {
+                    node: Some(mutex.clone()),
+                    data: buffer.data.clone(),
+                };
             }
         }
 
@@ -112,7 +121,10 @@ impl BufferCache {
                 buffer.block_number = block_number;
                 buffer.flags = 0;
                 buffer.reference_count = 1;
-                return buffer.data.clone();
+                return BufferGuard {
+                    node: Some(mutex.clone()),
+                    data: buffer.data.clone(),
+                };
             }
         }
         panic!("Not reusable block in bcache");
@@ -126,15 +138,17 @@ impl BufferCache {
     // then unlock it and return it to the caller.
     // This is okay because the buffer will become valid only if it is a reused buffer.
     // We can also merge `bread` with `bget` since `bget` is only a helper for `bread`
-    pub fn read(&self, device: u32, block_number: u32) -> Arc<Mutex<BufferData>> {
+    pub fn read(&self, device: u32, block_number: u32) -> BufferGuard {
         let buffer = self.get(device, block_number);
-        let mut guard = buffer.lock();
-        if (guard.flags & B_VALID) == 0 {
-            // iderw will set the buffer to valid
-            // Note that this is different from xv6-risvc 
-            iderw(&mut guard, false);
+        {
+            let mut guard = buffer.lock();
+            if (guard.flags & B_VALID) == 0 {
+                // iderw will set the buffer to valid
+                // Note that this is different from xv6-risvc 
+                iderw(&mut guard, false);
+            }
         }
-        return buffer.clone();
+        return buffer;
     }
 
     // Write b's contents to disk 

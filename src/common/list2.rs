@@ -122,7 +122,6 @@ impl<T> List<T> {
     }
 
     // Move an existing node to the front
-    // Kinda
     // Behavior is undefined if the node is not in the list
     pub fn move_front(&mut self, node: Arc<Mutex<Node<T>>>) {
         self.pop_node(&mut *node.lock());

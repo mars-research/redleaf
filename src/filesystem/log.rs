@@ -71,23 +71,24 @@ impl Log {
     // Copy committed blocks from log to their home location
     fn install_trans(&mut self) {
         for tail in 0..self.logheader.n {
-            let lbuf = BCACHE.read(self.dev, self.start + tail + 1);
-            let dbuf = BCACHE.read(self.dev, self.logheader.block_nums[tail as usize]);
-            let mut locked_dbuf = dbuf.lock();
-            locked_dbuf.data = lbuf.lock().data;
-            BCACHE.write(&mut locked_dbuf);  // write dst to disk
-            // TODO: implement brelse and finish this function up
+            let mut lbuf = BCACHE.read(self.dev, self.start + tail + 1);
+            let mut dbuf = BCACHE.read(self.dev, self.logheader.block_nums[tail as usize]);
+            {
+                let mut locked_dbuf = dbuf.lock();
+                locked_dbuf.data = lbuf.lock().data;
+                BCACHE.write(&mut locked_dbuf);  // write dst to disk
+            }
             // Pin this buffer if using the riscv one
-            // brelse(lbuf);
-            // brelse(dbuf);
+            BCACHE.release(&mut lbuf);
+            BCACHE.release(&mut dbuf);
         }
     }
 
     // Read the log header from disk into the in-memory log header
     fn read_head(&mut self) {
-        let buf = BCACHE.read(self.dev, self.start);
+        let mut buf = BCACHE.read(self.dev, self.start);
         self.logheader.from_buffer_block(&buf.lock().data);
-        // brelse(buf);
+        BCACHE.release(&mut buf);
     }
 
     // Write in-memory log header to disk.
@@ -96,7 +97,6 @@ impl Log {
     fn write_head(&self) {
         let buf = BCACHE.read(self.dev, self.start);
         self.logheader.to_buffer_block(&mut buf.lock().data);
-        // brelse(buf);
     }
 
     fn recover_from_log(&mut self) {
@@ -120,14 +120,15 @@ impl Log {
     // Copy modified blocks from cache to log.
     fn write_log(&mut self) {
         for tail in 0..self.logheader.n {
-            let to = BCACHE.read(self.dev, self.start + tail + 1); // log block
-            let from = BCACHE.read(self.dev, self.logheader.block_nums[tail as usize]); // cache block
-            let mut locked_to = to.lock();
-            locked_to.data = from.lock().data;
-            BCACHE.write(&mut locked_to);  // write the log
-            // TODO: implement brelse and finish this function up
-            // brelse(lbuf);
-            // brelse(dbuf);
+            let mut to = BCACHE.read(self.dev, self.start + tail + 1); // log block
+            let mut from = BCACHE.read(self.dev, self.logheader.block_nums[tail as usize]); // cache block
+            {
+                let mut locked_to = to.lock();
+                locked_to.data = from.lock().data;
+                BCACHE.write(&mut locked_to);  // write the log
+            }
+            BCACHE.release(&mut from);
+            BCACHE.release(&mut to);
         }
     }
 
