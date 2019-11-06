@@ -14,7 +14,7 @@ pub struct SuperBlock {
 }
 
 // Hardcoded superblock
-pub fn getSuperBlock() -> Arc<SuperBlock> {
+pub fn get_supre_block() -> Arc<SuperBlock> {
     let nbitmap = params::FSSIZE / (params::BSIZE*8) + 1;
     let ninodeblocks = NINODES / params::IPB + 1;
     let nlog = params::LOGSIZE;

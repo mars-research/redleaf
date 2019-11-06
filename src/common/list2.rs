@@ -13,7 +13,7 @@ pub struct List<T> {
 
 pub type Link<T> = Option<Arc<Mutex<Node<T>>>>;
 
-struct Node<T> {
+pub struct Node<T> {
     pub elem: T,
     pub next: Link<T>,
     pub prev: Link<T>,
@@ -127,6 +127,10 @@ impl<T> List<T> {
         self.pop_node(&mut *node.lock());
         self.push_node_front(node);
     }
+
+    pub fn iter(&self) -> Iter<T> {
+        Iter{ curr: self.head.clone() }
+    }
 }
 
 impl<T> Drop for List<T> {
@@ -144,7 +148,7 @@ impl<T> Iterator for Iter<T> {
     type Item = Arc<Mutex<Node<T>>>;
     fn next(&mut self) -> Option<Self::Item> {
         self.curr.take().map(|node| {
-            self.curr = node.lock().next;
+            self.curr = node.lock().next.clone();
             node.clone()
         })
     }
@@ -153,7 +157,7 @@ impl<T> Iterator for Iter<T> {
 impl<T> DoubleEndedIterator for Iter<T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.curr.take().map(|node| {
-            self.curr = node.lock().prev;
+            self.curr = node.lock().prev.clone();
             node.clone()
         })
     }

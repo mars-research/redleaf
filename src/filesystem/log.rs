@@ -71,11 +71,11 @@ impl Log {
     // Copy committed blocks from log to their home location
     fn install_trans(&mut self) {
         for tail in 0..self.logheader.n {
-            let lbuf = BCACHE.lock().read(self.dev, self.start + tail + 1);
-            let dbuf = BCACHE.lock().read(self.dev, self.logheader.block_nums[tail as usize]);
+            let lbuf = BCACHE.read(self.dev, self.start + tail + 1);
+            let dbuf = BCACHE.read(self.dev, self.logheader.block_nums[tail as usize]);
             let mut locked_dbuf = dbuf.lock();
             locked_dbuf.data = lbuf.lock().data;
-            BCACHE.lock().write(&mut locked_dbuf);  // write dst to disk
+            BCACHE.write(&mut locked_dbuf);  // write dst to disk
             // TODO: implement brelse and finish this function up
             // Pin this buffer if using the riscv one
             // brelse(lbuf);
@@ -85,7 +85,7 @@ impl Log {
 
     // Read the log header from disk into the in-memory log header
     fn read_head(&mut self) {
-        let buf = BCACHE.lock().read(self.dev, self.start);
+        let buf = BCACHE.read(self.dev, self.start);
         self.logheader.from_buffer_block(&buf.lock().data);
         // brelse(buf);
     }
@@ -93,32 +93,52 @@ impl Log {
     // Write in-memory log header to disk.
     // This is the true point at which the
     // current transaction commits.
-    fn write_head(&mut self) {
-        
+    fn write_head(&self) {
+        let buf = BCACHE.read(self.dev, self.start);
+        self.logheader.to_buffer_block(&mut buf.lock().data);
+        // brelse(buf);
     }
 
     fn recover_from_log(&mut self) {
-
+        self.read_head();
+        self.install_trans();
+        self.logheader.n = 0;
+        self.write_head();
     }
 
     // called at the start of each FS system call.
     fn begin_op(&mut self) {
-
+        panic!();
     }
 
     // called at the end of each FS system call.
     // commits if this was the last outstanding operation.
     fn end_op(&mut self) {
-
+        panic!();
     }
 
     // Copy modified blocks from cache to log.
     fn write_log(&mut self) {
-
+        for tail in 0..self.logheader.n {
+            let to = BCACHE.read(self.dev, self.start + tail + 1); // log block
+            let from = BCACHE.read(self.dev, self.logheader.block_nums[tail as usize]); // cache block
+            let mut locked_to = to.lock();
+            locked_to.data = from.lock().data;
+            BCACHE.write(&mut locked_to);  // write the log
+            // TODO: implement brelse and finish this function up
+            // brelse(lbuf);
+            // brelse(dbuf);
+        }
     }
 
     fn commit(&mut self) {
-
+        if self.logheader.n > 0 {
+            self.write_log();       // Write modified blocks from cache to log
+            self.write_head();      // Write header to disk -- the real commit
+            self.install_trans();   // Now install writes to home locations
+            self.logheader.n = 0;
+            self.write_head();      // Erase the transaction from the log
+        }
     }
 
     // Caller has modified b->data and is done with the buffer.
