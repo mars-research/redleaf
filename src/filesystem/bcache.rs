@@ -104,10 +104,7 @@ impl BufferCache {
         }
 
         // Not cached; recycle an unused buffer.
-        // In xv6, the bcache is kinda like a LRU cache so it looks backward when looking
-        // for an unused buffer. Since we don't have that in rust, so we just simply
-        // iterate it forward for now
-        for mutex in self.list.lock().iter() {
+        for mutex in self.list.lock().iter().rev() {
             let mut node = mutex.lock();
             let mut buffer = &mut node.elem;
             if buffer.reference_count == 0 && (buffer.flags & B_DIRTY) == 0 {
