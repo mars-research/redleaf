@@ -11,7 +11,8 @@ pub struct List<T> {
     pub tail: Link<T>,
 }
 
-pub type Link<T> = Option<Arc<Mutex<Node<T>>>>;
+pub type Pointer<T> = Arc<Mutex<Node<T>>>;
+pub type Link<T> = Option<Pointer<T>>;
 
 pub struct Node<T> {
     pub elem: T,

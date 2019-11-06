@@ -3,6 +3,7 @@ use crate::common::list2;
 use alloc::sync::Arc;
 use alloc::rc::Rc;
 use core::cell::{Ref, RefMut, RefCell};
+use core::ops::Deref;
 use spin::{Mutex};
 
 const B_DIRTY: u32 = 1 << 0;
@@ -31,14 +32,21 @@ impl BufferData {
 }
 
 pub struct BufferGuard {
-    data: BufferData,
     node: list2::Link<Buffer>,
+    data: Arc<Mutex<BufferData>>,
 }
 
 impl Drop for BufferGuard {
     fn drop(&mut self) {
-        let node = self.node.take().expect("Buffer is already released.");
+        assert!(self.node.is_none(), "You forgot to release the buffer back to the bcache");
+    }
+}
 
+impl Deref for BufferGuard {
+    type Target = Arc<Mutex<BufferData>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
     }
 }
 
@@ -138,11 +146,14 @@ impl BufferCache {
         iderw(buffer_data, true);
     }
 
-    // I don't think this will function correctly since the buffer is not locked
+    // This is confusing since it doesn't match xv6's brelse exactly so there could be a bug.
     // Check xv6 for details
     // TODO(tianjiao): fix this
-    fn release(&self) {
-        
+    pub fn release(&self, guard: &mut BufferGuard) {
+        let node = guard.node.take().expect("Buffer is not initialized or already released.");
+        let mut list = self.list.lock();
+        node.lock().elem.reference_count -= 1;
+        list.move_front(node);
     }
 
 }
