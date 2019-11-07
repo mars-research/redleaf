@@ -11,5 +11,6 @@
   "linker": "rust-lld",
   "panic-strategy": "abort",
   "disable-redzone": true,
+  "eliminate-frame-pointer": false,
   "features": "-mmx,-sse,+soft-float"
 }

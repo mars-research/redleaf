@@ -199,7 +199,12 @@ For 32-bit we have the following conventions - kernel is built with
 	.byte 0xf1
 	.endm
 
-#define SWAPGS	swapgs
+//#define SWAPGS	swapgs
+//#define SWAPFS	call swapfs
+	
+#define SWAPGS	
+#define SWAPFS	
+	
 /*
  * Currently paravirt can't handle swapgs nicely when we
  * don't have a stack we can rely on (such as a user space
@@ -210,6 +215,7 @@ For 32-bit we have the following conventions - kernel is built with
  * have a reliable stack. x86_64 only.
  */
 #define SWAPGS_UNSAFE_STACK	swapgs
+#define SWAPFS_UNSAFE_STACK	call swapfs
 
 #define INTERRUPT_RETURN	iretq
 #define USERGS_SYSRET64				\

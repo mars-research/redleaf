@@ -1,9 +1,22 @@
+//mod interrupt;
+
 use backtracer;
+use crate::interrupt::idt::PtRegs;
 use core::panic::PanicInfo;
 
+
 #[inline(always)]
-pub fn backtrace() {
+pub fn backtrace_exception(pt_regs:&mut PtRegs) {
     println!("Backtrace:");
+
+    backtracer::trace_from(backtracer::EntryPoint::new(pt_regs.rbp, pt_regs.rsp, pt_regs.rip), |frame| {
+        let ip = frame.ip();
+        println!("ip:{:?}", ip);
+        true        // xxx
+    });
+}
+
+pub fn backtrace() {
 
     backtracer::trace(|frame| {
         let ip = frame.ip();

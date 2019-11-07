@@ -25,9 +25,10 @@
 #include "percpu.h"
 #include "irq_vectors.h"
 #include "processor-flags.h"
+#include "msr-index.h"
 
 .code64
-//.section .entry.text, "ax"
+.section .entry.text, "ax"
 
 /*
  * Build the entry stubs with some assembler magic.
@@ -37,8 +38,9 @@
 ENTRY(irq_entries_start)
     vector=FIRST_EXTERNAL_VECTOR
     .rept (FIRST_SYSTEM_VECTOR - FIRST_EXTERNAL_VECTOR)
-	pushq	$(~vector+0x80)			/* Note: always in signed byte range */
-    vector=vector+1
+	//pushq	$(~vector+0x80)			/* Note: always in signed byte range */
+	pushq $(vector)
+	vector=vector+1
 	jmp	common_interrupt
 	.align	8
     .endr
@@ -66,7 +68,7 @@ END(irq_entries_start)
 	 * IRQ from user mode.  Switch to kernel gsbase and inform context
 	 * tracking that we're in kernel mode.
 	 */
-	SWAPGS
+	SWAPFS				
 
 	/*
 	 * We need to tell lockdep that IRQs are off.  We can't do this until
@@ -89,8 +91,9 @@ END(irq_entries_start)
 	 * moving irq_enter into assembly, which would be too much work)
 	 */
 	movq	%rsp, %rdi
-	incl	PER_CPU_VAR(irq_count)
-	cmovzq	PER_CPU_VAR(irq_stack_ptr), %rsp
+	// AB: in Redleaf disable irq_stacks for now
+	//incl	PER_CPU_VAR(irq_count)
+	//cmovzq	PER_CPU_VAR(irq_stack_ptr), %rsp
 	pushq	%rdi
 	/* We entered an interrupt context - irqs are off: */
 	//TRACE_IRQS_OFF
@@ -106,15 +109,15 @@ END(irq_entries_start)
 common_interrupt:
 	// Supervisor Mode Access Prevention (Redleaf doesn't support it for now)
 	//ASM_CLAC
-	addq	$-0x80, (%rsp)			/* Adjust vector to [-256, -1] range */
+	//addq	$-0x80, (%rsp)			/* Adjust vector to [-256, -1] range */
 	interrupt do_IRQ
 	/* 0(%rsp): old RSP */
 ret_from_intr:
 	// In paravirt mode, Linux asks to explicitly define globbered registers 
 	// while performing sti/cli
-	DISABLE_INTERRUPTS(CLBR_NONE)
+	//DISABLE_INTERRUPTS(CLBR_NONE)
 	//TRACE_IRQS_OFF
-	decl	PER_CPU_VAR(irq_count)
+	//decl	PER_CPU_VAR(irq_count)
 
 	/* Restore saved previous stack */
 	popq	%rsp
@@ -125,9 +128,9 @@ ret_from_intr:
 	/* Interrupt came from user space */
 GLOBAL(retint_user)
 	mov	%rsp,%rdi
-	call	prepare_exit_to_usermode
+	//call	prepare_exit_to_usermode
 	//TRACE_IRQS_IRETQ
-	SWAPGS
+	SWAPFS
 	jmp	restore_regs_and_iret
 
 /* Returning to kernel space */
@@ -158,6 +161,16 @@ restore_c_regs_and_iret:
 	RESTORE_C_REGS
 	REMOVE_PT_GPREGS_FROM_STACK 8
 	INTERRUPT_RETURN
+
+.global native_irq_return_iret
+native_irq_return_iret:
+        /*
+         * This may fault.  Non-paranoid faults on return to userspace are
+         * handled by fixup_bad_iret.  These include #SS, #GP, and #NP.
+         * Double-faults due to espfix64 are handled in do_double_fault.
+         * Other faults here are fatal.
+         */
+        iretq
 
 END(common_interrupt)
 
@@ -279,24 +292,29 @@ idtentry double_fault			do_double_fault			has_error_code=1 paranoid=2
 idtentry coprocessor_segment_overrun	do_coprocessor_segment_overrun	has_error_code=0
 idtentry invalid_TSS			do_invalid_TSS			has_error_code=1
 idtentry segment_not_present		do_segment_not_present		has_error_code=1
-idtentry spurious_interrupt_bug		do_spurious_interrupt_bug	has_error_code=0
+//idtentry spurious_interrupt_bug		do_spurious_interrupt_bug	has_error_code=0
 idtentry coprocessor_error		do_coprocessor_error		has_error_code=0
 idtentry alignment_check		do_alignment_check		has_error_code=1
 idtentry simd_coprocessor_error		do_simd_coprocessor_error	has_error_code=0
 
 //idtentry debug			do_debug		has_error_code=0	paranoid=1 shift_ist=DEBUG_STACK
-idtentry debug			do_debug		has_error_code=0	paranoid=1
+idtentry debug			do_debug		has_error_code=0
 //idtentry int3			do_int3			has_error_code=0	paranoid=1 shift_ist=DEBUG_STACK
-idtentry int3			do_int3			has_error_code=0	paranoid=1
+idtentry int3			do_int3			has_error_code=0
 idtentry stack_segment		do_stack_segment	has_error_code=1
 
 idtentry general_protection	do_general_protection	has_error_code=1
 trace_idtentry page_fault	do_page_fault		has_error_code=1
 
+//idtentry machine_check		do_machine_check	has_error_code=0	paranoid=1 
+idtentry machine_check		do_machine_check	has_error_code=0
+
 #ifdef CONFIG_X86_MCE
 idtentry machine_check					has_error_code=0	paranoid=1 do_sym=*machine_check_vector(%rip)
 #endif
 
+// Linux didn't have this one
+idtentry virtualization		do_virtualization	has_error_code=0
 /*
  * Save all registers in pt_regs, and switch gs if needed.
  * Use slow, but surefire "are we in kernel?" check.
@@ -307,6 +325,22 @@ ENTRY(paranoid_entry)
 	SAVE_C_REGS 8
 	SAVE_EXTRA_REGS 8
 	movl	$1, %ebx
+	movl	$MSR_FS_BASE, %ecx		/* Rust uses FS instead of GS */
+	rdmsr
+	testl	%edx, %edx
+	js	1f				/* negative -> in kernel */
+	SWAPFS					/* Rust uses FS instead of GS */
+	xorl	%ebx, %ebx
+1:	ret
+END(paranoid_entry)
+
+/*
+ * Save all registers in pt_regs, and switch gs if needed.
+ * Use slow, but surefire "are we in kernel?" check.
+ * Return: ebx=0: need swapgs on exit, ebx=1: otherwise
+ */
+ENTRY(paranoid_entry_simple_nmi)
+	movl	$1, %ebx
 	movl	$MSR_GS_BASE, %ecx
 	rdmsr
 	testl	%edx, %edx
@@ -314,7 +348,8 @@ ENTRY(paranoid_entry)
 	SWAPGS
 	xorl	%ebx, %ebx
 1:	ret
-END(paranoid_entry)
+END(paranoid_entry_simple_nmi)
+
 
 /*
  * "Paranoid" exit path from exception stack.  This is invoked
@@ -332,7 +367,7 @@ ENTRY(paranoid_exit)
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	testl	%ebx, %ebx			/* swapgs needed? */
 	jnz	paranoid_exit_no_swapgs
-	SWAPGS_UNSAFE_STACK
+	SWAPFS_UNSAFE_STACK			/* Rust uses FS instead of GS */
 	jmp	paranoid_exit_restore
 paranoid_exit_no_swapgs:
 paranoid_exit_restore:
@@ -358,7 +393,7 @@ ENTRY(error_entry)
 	 * We entered from user mode or we're pretending to have entered
 	 * from user mode due to an IRET fault.
 	 */
-	SWAPGS
+	SWAPFS					/* Rust uses FS instead of GS */
 
 .Lerror_entry_from_usermode_after_swapgs:
 	/*
@@ -381,6 +416,7 @@ ENTRY(error_entry)
 	 * for these here too.
 	 */
 .Lerror_kernelspace:
+#ifdef CONFIG_SUPPORT_ERROR_KERNELSPACE
 	incl	%ebx
 	leaq	native_irq_return_iret(%rip), %rcx
 	cmpq	%rcx, RIP+8(%rsp)
@@ -396,7 +432,8 @@ ENTRY(error_entry)
 	 * gsbase and proceed.  We'll fix up the exception and land in
 	 * .Lgs_change's error handler with kernel gsbase.
 	 */
-	SWAPGS
+#endif
+	SWAPFS					/* Rust uses FS instead of GS */
 	jmp .Lerror_entry_done
 
 .Lbstep_iret:
@@ -409,7 +446,7 @@ ENTRY(error_entry)
 	 * We came from an IRET to user mode, so we have user gsbase.
 	 * Switch to kernel gsbase:
 	 */
-	SWAPGS
+	SWAPFS					/* Rust uses FS instead of GS */
 
 	/*
 	 * Pretend that the exception came from user mode: set up pt_regs
@@ -426,8 +463,8 @@ END(error_entry)
 
 /*
  * On entry, EBS is a "return to kernel mode" flag:
- *   1: already in kernel mode, don't need SWAPGS
- *   0: user gsbase is loaded, we need SWAPGS and standard preparation for return to usermode
+ *   1: already in kernel mode, don't need SWAPFS
+ *   0: user gsbase is loaded, we need SWAPFS and standard preparation for return to usermode
  */
 ENTRY(error_exit)
 	movl	%ebx, %eax
@@ -438,6 +475,7 @@ ENTRY(error_exit)
 	jmp	retint_user
 END(error_exit)
 
+#ifdef CONFIG_REENTRANT_NMI
 /* Runs on exception stack */
 ENTRY(nmi)
 	/*
@@ -495,7 +533,7 @@ ENTRY(nmi)
 	 * stacks lest we corrupt the "NMI executing" variable.
 	 */
 
-	SWAPGS_UNSAFE_STACK
+	SWAPFS_UNSAFE_STACK
 	cld
 	movq	%rsp, %rdx
 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
@@ -536,7 +574,7 @@ ENTRY(nmi)
 	 * work, because we don't want to enable interrupts.  Fortunately,
 	 * do_nmi doesn't modify pt_regs.
 	 */
-	SWAPGS
+	SWAPFS					/* Rust uses FS instead of GS */
 	jmp	restore_c_regs_and_iret
 
 .Lnmi_from_kernel:
@@ -747,7 +785,7 @@ end_repeat_nmi:
 	testl	%ebx, %ebx			/* swapgs needed? */
 	jnz	nmi_restore
 nmi_swapgs:
-	SWAPGS_UNSAFE_STACK
+	SWAPFS_UNSAFE_STACK
 nmi_restore:
 	RESTORE_EXTRA_REGS
 	RESTORE_C_REGS
@@ -773,5 +811,144 @@ nmi_restore:
 	 */
 	INTERRUPT_RETURN
 END(nmi)
+#endif
+
+/* Runs on exception stack 
+ */
+ENTRY(nmi_simple)
+
+	testb	$3, CS-RIP+0(%rsp)
+	jz	.Lnmi_from_kernel_simple
+
+	/*
+	 * NMI from user mode.  We need to run on the thread stack, but we
+	 * can't go through the normal entry paths: NMIs are masked, and
+	 * we don't want to enable interrupts, because then we'll end
+	 * up in an awkward situation in which IRQs are on but NMIs
+	 * are off.
+	 *
+	 * We also must not push anything to the stack before switching
+	 * stacks lest we corrupt the "NMI executing" variable.
+	 */
+
+	SWAPFS_UNSAFE_STACK
+	cld
+	pushq   $-1		/* pt_regs->orig_ax */
+	pushq   %rdi		/* pt_regs->di */
+	pushq   %rsi		/* pt_regs->si */
+	pushq   %rdx		/* pt_regs->dx */
+	pushq   %rcx		/* pt_regs->cx */
+	pushq   %rax		/* pt_regs->ax */
+	pushq   %r8		/* pt_regs->r8 */
+	pushq   %r9		/* pt_regs->r9 */
+	pushq   %r10		/* pt_regs->r10 */
+	pushq   %r11		/* pt_regs->r11 */
+	pushq	%rbx		/* pt_regs->rbx */
+	pushq	%rbp		/* pt_regs->rbp */
+	pushq	%r12		/* pt_regs->r12 */
+	pushq	%r13		/* pt_regs->r13 */
+	pushq	%r14		/* pt_regs->r14 */
+	pushq	%r15		/* pt_regs->r15 */
+
+	/*
+	 * At this point we no longer need to worry about stack damage
+	 * due to nesting -- we're on the normal thread stack and we're
+	 * done with the NMI stack.
+	 */
+
+#ifdef CONFIG_LCD_TRACE_BUFFER
+	/* Trace IRQ into LCDs buffer, rdi = trap frame, rsi = event type */
+	movq    %rsp, %rdi
+	movq    $EVENT_NMI, %rsi
+	call    add_trace_entry_tf
+#endif
+
+	movq	%rsp, %rdi
+	movq	$-1, %rsi
+	call	do_nmi
+
+	/*
+	 * Return back to user mode.  We must *not* do the normal exit
+	 * work, because we don't want to enable interrupts.  Fortunately,
+	 * do_nmi doesn't modify pt_regs.
+	 */
+	SWAPGS
+	jmp restore_regs_and_iret
+
+.Lnmi_from_kernel_simple:
+
+	/*
+	 * Everything below this point can be preempted by a nested NMI.
+	 * If this happens, then the inner NMI will change the "iret"
+	 * frame to point back to repeat_nmi.
+	 */
+	pushq	$-1				/* ORIG_RAX: no syscall to restart */
+	ALLOC_PT_GPREGS_ON_STACK
+
+	cld
+	SAVE_C_REGS 
+	SAVE_EXTRA_REGS 
+
+	/* Restore GS base */
+	/* Read saved gs base */
+//	rdgsbase %eax
+//	/* Exchange the current gs base (eax) with saved in vmfunc_state page */
+//	movl	 %eax, vmfunc_state_page + VMFUNC_lcd_gs_base
+//	movl	 vmfunc_state_page + VMFUNC_kernel_gs_base, %eax
+//	wrgsbase %eax
+	
+
+	/*
+	 * Use paranoid_entry to handle SWAPGS, but no need to use paranoid_exit
+	 * as we should not be calling schedule in NMI context.
+	 * Even with normal interrupts enabled. An NMI should not be
+	 * setting NEED_RESCHED or anything that normal interrupts and
+	 * exceptions might do.
+	 */
+	call	paranoid_entry_simple_nmi
+//	call    paranoid_entry
+
+#ifdef CONFIG_LCD_TRACE_BUFFER
+	/* Trace IRQ into LCDs buffer, rdi = trap frame, rsi = event type */
+	movq    %rsp, %rdi
+	movq    $EVENT_NMI, %rsi
+	call    add_trace_entry_tf
+#endif
+
+	/* paranoidentry do_nmi, 0; without TRACE_IRQS_OFF */
+	movq	%rsp, %rdi
+	movq	$-1, %rsi
+	call	do_nmi
+
+	testl	%ebx, %ebx			/* swapgs needed? */
+	jnz	nmi_restore_simple
+//nmi_swapgs:
+	SWAPGS_UNSAFE_STACK
+nmi_restore_simple:
+
+#ifdef CONFIG_LCD_TRACE_BUFFER
+	/* Trace IRQ into LCDs buffer, rdi = trap frame, rsi = event type */
+	movq    %rsp, %rdi
+	movq    $EVENT_NMI_LEAVE, %rsi
+	call    add_trace_entry_tf
+#endif
+
+
+	RESTORE_EXTRA_REGS
+	RESTORE_C_REGS
+
+	/* Point RSP at the "iret" frame. */
+	REMOVE_PT_GPREGS_FROM_STACK 8
+
+	std
+
+	/*
+	 * INTERRUPT_RETURN reads the "iret" frame and exits the NMI
+	 * stack in a single instruction.  We are returning to kernel
+	 * mode, so this cannot result in a fault.
+	 */
+	INTERRUPT_RETURN
+END(nmi_simple)
+
 
 

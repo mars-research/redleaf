@@ -53,7 +53,9 @@ use crate::memory::buddy::BUDDY;
 use thread::{Scheduler, Thread};
 use core::cell::{UnsafeCell, RefCell};
 use alloc::boxed::Box;
+use alloc::sync::Arc;
 use crate::thread::switch;
+use crate::drivers::Driver;
 
 #[no_mangle]
 pub static mut cpu1_stack: u32 = 0;
@@ -312,6 +314,7 @@ pub extern "C" fn rust_main() -> ! {
     // Spin up other CPUs 
     //init_ap_cpus(); 
 
+    //panic!("Test panic in main()"); 
     rust_main_ap(); 
 }
 
@@ -324,36 +327,20 @@ pub extern "C" fn rust_main_ap() -> ! {
     println!("Initializing CPU#{}", cpu_id); 
 
     unsafe {
-        gdt::init_global_gdt();
+        if cpu_id != 0 {
+            gdt::init_global_gdt();
+        }
         let tcb_offset = tls::init_per_cpu_vars(cpu_id);
         gdt::init_percpu_gdt(tcb_offset);
     }
 
-    interrupt::init_idt();
 
     if cpu_id != 0 {
+        interrupt::init_idt();
         interrupt::init_irqs_local();
     }
      
     println!("cpu{}: Initialized", cpu_id);
-
-    if cpu_id == 0 {
-        let ide = drivers::ide::IDE::new();
-        println!("Initializing IDE");
-        ide.init();
-        println!("IDE Initialized!");
-
-        // Write a block of 5s
-        let data: [u32; 512] = [5u32; 512];
-        ide.write(20, &data);
-        println!("Data written");
-
-        // Read the block back
-        let mut rdata: [u32; 512] = [0u32; 512];
-        ide.read(20, &mut rdata);
-        println!("Data read");
-    }
-
     init_threads(); 
     
     println!("Ready to enable interrupts");
@@ -361,12 +348,57 @@ pub extern "C" fn rust_main_ap() -> ! {
     // Enable interrupts and the timer will schedule the next thread
     x86_64::instructions::interrupts::enable();
 
+    // Initialize hello driver
+    if cpu_id == 0 {
+        use drivers::hello::Hello;
+
+        println!("Initializing hello driver");
+        let driver = Arc::new(Mutex::new(Hello::new()));
+
+        {
+            let registrar = unsafe { interrupt::get_irq_registrar(driver.clone()) };
+            driver.lock().set_irq_registrar(registrar);
+        }
+    }
+
+    // Initialize IDE driver
+    if cpu_id == 0 {
+        use drivers::ide::IDE;
+
+        println!("Initializing IDE");
+
+        let ataPioDevice = unsafe { Arc::new(Mutex::new(redsys::devices::ATAPIODevice::primary())) };
+        let driver = Arc::new(Mutex::new(IDE::new(ataPioDevice, false)));
+
+        {
+            let registrar = unsafe { interrupt::get_irq_registrar(driver.clone()) };
+            driver.lock().set_irq_registrar(registrar);
+            driver.lock().init();
+        }
+
+        println!("IDE Initialized!");
+
+        println!("Writing");
+        // Write a block of 5s
+        let data: [u32; 512] = [5u32; 512];
+        driver.lock().write(20, &data);
+        println!("Data written");
+
+        // Read the block back
+        let mut rdata: [u32; 512] = [0u32; 512];
+        driver.lock().read(20, &mut rdata);
+        println!("First byte read is {}", data[0]);
+        println!("Data read");
+    }
+
     halt(); 
 }
 
 
 pub fn halt() -> ! {
     loop {
+        //x86_64::instructions::interrupts::enable();
+        //println!(".");
         x86_64::instructions::hlt();
     }
 }
