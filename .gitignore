@@ -3,3 +3,4 @@
 *.swp
 Cargo.lock
 serial.log
+build/*
