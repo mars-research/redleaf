@@ -89,6 +89,35 @@ impl INodeDataGuard<'_> {
         drop(buffer);
         BCACHE.release(&mut bguard);
     }
+
+    // Discard contents of node
+    // Only called when node has no links and no other in-memory references to it
+    // xv6 equivalent: itrunc
+    fn truncate(&self) {
+        for i in 0..params::NDIRECT {
+            if self.data.addresses[i] != 0 {
+                ICache::free_block(self.node.meta.device, self.data.addresses[i]);
+                self.data.addresses[i] = 0;
+            }
+        }
+
+        if self.data.addresses[params::NDIRECT] != 0 {
+            let mut bguard = BCACHE.read(self.node.meta.device, self.data.addresses[params::NDIRECT]);
+            let mut buffer = bguard.lock();
+            for j in 0..NINDIRECT {
+                if buffer.data[j] != 0 {
+                    ICache::free_block(self.node.meta.device, buffer.data[j]);
+                }
+            }
+            drop(buffer);
+            BCACHE.release(&mut bguard);
+
+            self.data.addresses[NDIRECT] = 0;
+        }
+
+        self.data.size = 0;
+        self.update();
+    }
 }
 
 pub struct INode {
@@ -235,12 +264,12 @@ impl ICache {
 
     // Frees a disk block
     // xv6 equivalent: bfree
-    pub fn free_block(device: u32, block: usize) {
+    pub fn free_block(device: u32, block: u32) {
         let super_block = get_super_block();
 
-        let mut bguard = BCACHE.read(device, block_num_for_node(block as u32, &super_block));
+        let mut bguard = BCACHE.read(device, block_num_for_node(block, &super_block));
         let mut buffer = bguard.lock();
-        let bi = block % params::BPB;
+        let bi = (block as usize) % params::BPB;
         let m = 1 << (bi % 8);
         if buffer.data[bi / 8] & m == 0 {
             panic!("freeing freed block");
