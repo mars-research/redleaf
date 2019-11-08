@@ -1,7 +1,8 @@
 use alloc::sync::Arc;
-use spin::Mutex;
+use spin::{Mutex, MutexGuard};
 use core::mem::MaybeUninit;
 use core::sync::atomic::{AtomicBool, Ordering};
+use core::ops::{Drop, Deref, DerefMut};
 use crate::filesystem::params;
 use crate::filesystem::bcache::{BCACHE, BufferBlock};
 
@@ -48,74 +49,45 @@ pub struct INodeData {
 
 pub type DINode = INodeData;
 
-impl INode {
+pub struct INodeDataGuard<'a> {
+    node: &'a INode,
+    data: MutexGuard<'a, INodeData>,
+}
+
+impl<'a> Drop for INodeDataGuard<'a> {
+    fn drop<'b>(&'b mut self) {
+        // TODO: any cleanup needed?
+    }
+}
+
+impl INodeDataGuard<'_> {
     // Copy a modified in-memory inode to disk (ie flush)
     // Call after every modification to Inode.data
     // xv6 equivalent: iupdate()
-    fn flush(&self) {
+    fn update(&self) {
+        // TODO: global superblock
         let super_block = get_super_block();
 
-        let data = self.data.lock();
-
-        let mut bguard = BCACHE.read(self.meta.device, block_num_for_node(self.meta.inum, &super_block));
+        let mut bguard = BCACHE.read(self.node.meta.device, block_num_for_node(self.node.meta.inum, &super_block));
         let buffer = bguard.lock();
 
         // TODO: work around unsafe
         let mut dinode = unsafe {
             &mut *(&buffer.data as *const BufferBlock as *mut BufferBlock as *mut DINode)
-                .offset((self.meta.inum % params::IPB as u32) as isize)
+                .offset((self.node.meta.inum % params::IPB as u32) as isize)
         };
 
-        dinode.file_type = data.file_type;
-        dinode.major = data.major;
-        dinode.minor = data.minor;
-        dinode.nlink = data.nlink;
-        dinode.size = data.size;
-        dinode.addresses.copy_from_slice(&data.addresses);
+        dinode.file_type = self.data.file_type;
+        dinode.major = self.data.major;
+        dinode.minor = self.data.minor;
+        dinode.nlink = self.data.nlink;
+        dinode.size = self.data.size;
+        dinode.addresses.copy_from_slice(&self.data.addresses);
 
         // TODO: log_write
 
         drop(buffer);
         BCACHE.release(&mut bguard);
-    }
-
-    // Reads from disk if necessary
-    // xv6 equivalent: ilock(...)
-    fn update(&self) {
-        let super_block = get_super_block();
-
-        if self.meta.valid.load(Ordering::Relaxed) {
-            return;
-        }
-
-        // if not valid, load from disk
-        let mut data = self.data.lock();
-
-        let mut bguard = BCACHE.read(self.meta.device, block_num_for_node(self.meta.inum, &super_block));
-        let buffer = bguard.lock();
-
-        // TODO: work around unsafe
-        let dinode = unsafe {
-            & *(&buffer.data as *const BufferBlock as *mut BufferBlock as *mut DINode)
-                .offset((self.meta.inum % params::IPB as u32) as isize)
-        };
-
-        data.file_type = dinode.file_type;
-        data.major = dinode.major;
-        data.minor = dinode.minor;
-        data.nlink = dinode.nlink;
-        data.size = dinode.size;
-        data.addresses.copy_from_slice(&dinode.addresses);
-
-        drop(buffer);
-        BCACHE.release(&mut bguard);
-
-        self.meta.valid.store(true, Ordering::Relaxed);
-
-        if dinode.file_type == 0 {
-            // TODO: better error handling here
-            panic!("ilock: no type");
-        }
     }
 }
 
@@ -140,6 +112,48 @@ impl INode {
                 size: 0,
                 addresses: [0; params::NDIRECT+1]
             })
+        }
+    }
+
+    // Locks node, reads from disk if necessary
+    // xv6 equivalent: ilock(...)
+    fn lock(&self) -> INodeDataGuard {
+        let super_block = get_super_block();
+
+        let mut data = self.data.lock();
+
+        if !self.meta.valid.load(Ordering::Relaxed) {
+            // if not valid, load from disk
+            let mut bguard = BCACHE.read(self.meta.device, block_num_for_node(self.meta.inum, &super_block));
+            let buffer = bguard.lock();
+
+            // TODO: work around unsafe
+            let dinode = unsafe {
+                & *(&buffer.data as *const BufferBlock as *mut BufferBlock as *mut DINode)
+                    .offset((self.meta.inum % params::IPB as u32) as isize)
+            };
+
+            data.file_type = dinode.file_type;
+            data.major = dinode.major;
+            data.minor = dinode.minor;
+            data.nlink = dinode.nlink;
+            data.size = dinode.size;
+            data.addresses.copy_from_slice(&dinode.addresses);
+
+            drop(buffer);
+            BCACHE.release(&mut bguard);
+
+            self.meta.valid.store(true, Ordering::Relaxed);
+
+            if dinode.file_type == 0 {
+                // TODO: better error handling here
+                panic!("ilock: no type");
+            }
+        }
+
+        INodeDataGuard {
+            node: &self,
+            data: data
         }
     }
 }
@@ -217,6 +231,11 @@ impl ICache {
             }
         }
     }
+
+    // Corresponds to iput
+    pub fn put(&mut self, inode: Arc<INode>) {
+        // TODO: implement
+    }
 }
 
 lazy_static! {
@@ -240,9 +259,16 @@ pub fn get_super_block() -> Arc<SuperBlock> {
         size: params::FSSIZE as u32,
         nblocks: nlog as u32,
         ninodes: NINODES as u32,
-        nlog: nlog as u32, 
+        nlog: nlog as u32,
         logstart: 2,
         inodestart: 2 + nlog as u32,
         bmapstart: (2 + nlog + ninodeblocks) as u32,
     })
+}
+
+fn test() {
+    let mut icache = ICACHE.lock();
+    let inode = icache.alloc(0, 1).unwrap();
+    let mut inode_guard = inode.lock();
+    inode_guard.data.addresses[0] = 10;
 }
