@@ -219,10 +219,10 @@ impl  Scheduler {
 
     fn get_next_active(&mut self) -> Option<Box<Thread>> {
         if self.active {
-            println!("get highest from active");
+            //println!("get highest from active");
             self.active_queue.get_highest()
         } else {
-            println!("get highest from passive");
+            //println!("get highest from passive");
             self.passive_queue.get_highest()
         }
     }
