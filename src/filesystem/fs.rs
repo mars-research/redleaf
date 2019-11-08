@@ -287,8 +287,25 @@ impl ICache {
     }
 
     // Corresponds to iput
-    pub fn put(&mut self, inode: Arc<INode>) {
-        // TODO: implement
+    pub fn put(inode: Arc<INode>) {
+        // TODO: race condition?
+        if Arc::strong_count(&inode) == 2 && inode.meta.valid.load(Ordering::Relaxed) {
+            // if this is the only reference (other than ICache), and it has no links,
+            // then truncate and free
+
+            // we already know inode is valid, so this is a cheap operation
+            // TODO: ...right?
+            let mut inode_guard = inode.lock();
+
+            if inode_guard.data.nlink == 0 {
+                inode_guard.truncate();
+                inode_guard.data.file_type = 0;
+                inode_guard.update();
+                inode.meta.valid.store(false, Ordering::Relaxed);
+            }
+        }
+        // make sure this reference is not used afterwards
+        drop(inode);
     }
 }
 
