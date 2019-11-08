@@ -218,11 +218,11 @@ apic_p2_table:
     resb 4096
 
 stack_bottom:
-    resb 4096 * 32 ; Reserve this many bytes
+    resb 4096 * 64 ; Reserve this many bytes
 stack_top:
 
 stack_cpu1_bottom:
-    resb 4096 * 16 ; Reserve this many bytes
+    resb 4096 * 64 ; Reserve this many bytes
 stack_cpu1_top:
 
 _bootinfo:
