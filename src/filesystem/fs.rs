@@ -47,6 +47,34 @@ pub struct INodeData {
 
 pub type DINode = INodeData;
 
+impl INode {
+    fn update(&self) {
+        let super_block = get_super_block();
+
+        let data = self.data.lock();
+
+        let mut bguard = BCACHE.read(self.meta.device, block_num_for_node(self.meta.inum, &super_block));
+        let buffer = bguard.lock();
+
+        // TODO: work around unsafe
+        let mut dinode = unsafe {
+            &mut *(&buffer.data as *const BufferBlock as *mut BufferBlock as *mut DINode)
+                .offset((self.meta.inum % params::IPB as u32) as isize)
+        };
+
+        dinode.file_type = data.file_type;
+        dinode.major = data.major;
+        dinode.minor = data.minor;
+        dinode.nlink = data.nlink;
+        dinode.size = data.size;
+        dinode.addresses.copy_from_slice(&data.addresses);
+
+        // TODO: log_write
+        drop(buffer);
+        BCACHE.release(&mut bguard);
+    }
+}
+
 pub struct INode {
     pub meta: INodeMeta,
     pub data: Mutex<INodeData>,
@@ -94,14 +122,12 @@ impl ICache {
     }
 
     pub fn alloc(&mut self, device: u32, file_type: i16) -> Arc<INode> {
-        let super_block = getSuperBlock();
+        let super_block = get_super_block();
         for inum in 1..super_block.ninodes {
-            let buffer_lock = {
-                let buffer_lock = BCACHE.lock().read(device, block_num_for_node(inum, &super_block));
-                buffer_lock.clone()
-            };
-            let buffer = buffer_lock.lock();
+            let mut bguard = BCACHE.read(device, block_num_for_node(inum, &super_block));
+            let buffer = bguard.lock();
 
+            // TODO: work around unsafe
             let mut dinode = unsafe {
                 &mut *(&buffer.data as *const BufferBlock as *mut BufferBlock as *mut DINode).offset((inum % params::IPB as u32) as isize)
             };
@@ -110,10 +136,12 @@ impl ICache {
                 unsafe { core::ptr::write_bytes(dinode as *const DINode as *mut DINode, 0, 1); }
                 dinode.file_type = file_type;
                 // TODO: log_write here
-                // TODO: brelse here
+                drop(buffer);
+                BCACHE.release(&mut bguard);
                 return self.get(device, inum);
             }
-            // TODO: brelse here
+            drop(buffer);
+            BCACHE.release(&mut bguard);
         }
         panic!("ialloc: no inodes");
     }
@@ -148,7 +176,7 @@ lazy_static! {
 }
 
 // Hardcoded superblock
-pub fn getSuperBlock() -> Arc<SuperBlock> {
+pub fn get_super_block() -> Arc<SuperBlock> {
 
     const NINODES: usize = 200;
 
