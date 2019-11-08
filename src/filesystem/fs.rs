@@ -3,6 +3,7 @@ use spin::{Mutex, MutexGuard};
 use core::mem::MaybeUninit;
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::ops::{Drop, Deref, DerefMut};
+use core::convert::TryInto;
 use crate::filesystem::params;
 use crate::filesystem::bcache::{BCACHE, BufferBlock};
 
@@ -93,7 +94,7 @@ impl INodeDataGuard<'_> {
     // Discard contents of node
     // Only called when node has no links and no other in-memory references to it
     // xv6 equivalent: itrunc
-    fn truncate(&self) {
+    fn truncate(&mut self) {
         for i in 0..params::NDIRECT {
             if self.data.addresses[i] != 0 {
                 ICache::free_block(self.node.meta.device, self.data.addresses[i]);
@@ -103,16 +104,21 @@ impl INodeDataGuard<'_> {
 
         if self.data.addresses[params::NDIRECT] != 0 {
             let mut bguard = BCACHE.read(self.node.meta.device, self.data.addresses[params::NDIRECT]);
-            let mut buffer = bguard.lock();
-            for j in 0..NINDIRECT {
-                if buffer.data[j] != 0 {
-                    ICache::free_block(self.node.meta.device, buffer.data[j]);
+            let buffer = bguard.lock();
+
+            let mut chunks_iter = buffer.data.chunks_exact(core::mem::size_of::<u32>());
+            for j in 0..params::NINDIRECT {
+                if let chunk = chunks_iter.next().unwrap() {
+                    let block = u32::from_ne_bytes(chunk.try_into().unwrap());
+                    if block != 0 {
+                        ICache::free_block(self.node.meta.device, block);
+                    }
                 }
             }
             drop(buffer);
             BCACHE.release(&mut bguard);
 
-            self.data.addresses[NDIRECT] = 0;
+            self.data.addresses[params::NDIRECT] = 0;
         }
 
         self.data.size = 0;
