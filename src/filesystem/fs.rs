@@ -162,6 +162,7 @@ pub struct ICache {
     pub inodes: [Arc<INode>; params::NINODE],
 }
 
+// TODO: better name
 fn block_num_for_node(inum: u32, super_block: &Arc<SuperBlock>) -> u32 {
     return inum / params::IPB as u32 + super_block.inodestart;
 }
@@ -230,6 +231,24 @@ impl ICache {
                 return Some(node.clone());
             }
         }
+    }
+
+    // Frees a disk block
+    // xv6 equivalent: bfree
+    pub fn free_block(device: u32, block: usize) {
+        let super_block = get_super_block();
+
+        let mut bguard = BCACHE.read(device, block_num_for_node(block as u32, &super_block));
+        let mut buffer = bguard.lock();
+        let bi = block % params::BPB;
+        let m = 1 << (bi % 8);
+        if buffer.data[bi / 8] & m == 0 {
+            panic!("freeing freed block");
+        }
+        buffer.data[bi / 8] &= !m;
+        // TODO: log_write here
+        drop(buffer);
+        BCACHE.release(&mut bguard);
     }
 
     // Corresponds to iput
