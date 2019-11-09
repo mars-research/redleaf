@@ -59,7 +59,7 @@ pub struct Stat {
     pub device: u32,
     pub inum: u32,
     pub file_type: i16,
-    pub nlink: i6,
+    pub nlink: i16,
     pub size: u64,
 }
 
