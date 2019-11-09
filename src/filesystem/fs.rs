@@ -55,6 +55,14 @@ pub struct INodeDataGuard<'a> {
     data: MutexGuard<'a, INodeData>,
 }
 
+pub struct Stat {
+    pub device: u32,
+    pub inum: u32,
+    pub file_type: i16,
+    pub nlink: i6,
+    pub size: u64,
+}
+
 impl<'a> Drop for INodeDataGuard<'a> {
     fn drop<'b>(&'b mut self) {
         // TODO: any cleanup needed?
@@ -123,6 +131,17 @@ impl INodeDataGuard<'_> {
 
         self.data.size = 0;
         self.update();
+    }
+
+    // xv6 equivalent: stati
+    fn stat(&self) -> Stat {
+        Stat {
+            device: self.node.meta.device,
+            inum: self.node.meta.inum,
+            file_type: self.data.file_type,
+            nlink: self.data.nlink,
+            size: self.data.size as u64
+        }
     }
 }
 
