@@ -144,6 +144,60 @@ impl INodeDataGuard<'_> {
             size: self.data.size as u64
         }
     }
+
+    // The content (data) associated with each inode is stored
+    // in blocks on the disk. The first NDIRECT block numbers
+    // are listed in self.data.addresses. The next NINDIRECT blocks are
+    // listed in block self.data.addresses[NDIRECT].
+    // Return the disk block address of the nth block in self,
+    // if there is no such block, block_map allocates one.
+    // xv6 equivalent: bmap
+    fn block_map(&mut self, block_number: u32) -> u32 {
+        let block_number = block_number as usize;
+
+        if block_number < params::NDIRECT {
+            let mut address = self.data.addresses[block_number];
+            if address == 0 {
+                address = Block::alloc(self.node.meta.device).expect("Block::alloc out of blocks");
+                self.data.addresses[block_number] = address;
+            }
+            return address;
+        }
+
+        let block_number = block_number - params::NDIRECT;
+
+        if block_number < params::NINDIRECT {
+            // Load indirect block, allocating if necessary.
+            let mut address = self.data.addresses[params::NDIRECT];
+            if address == 0 {
+                address = Block::alloc(self.node.meta.device).expect("Block::alloc out of blocks");
+                self.data.addresses[params::NDIRECT] = address;
+            }
+
+            let mut bguard = BCACHE.read(self.node.meta.device, address);
+            let mut buffer = bguard.lock();
+
+            // get 4-byte slice from offset block_number * 4
+            let mut address = {
+                let start_index = block_number * core::mem::size_of::<u32>();
+                let end_index = (block_number + 1) * core::mem::size_of::<u32>();
+                let chunk = &buffer.data[start_index..end_index];
+                u32::from_ne_bytes(chunk.try_into().unwrap())
+            };
+
+            if address == 0 {
+                address = Block::alloc(self.node.meta.device).expect("Block::alloc out of blocks");
+                // TODO: log_write here
+            }
+
+            drop(buffer);
+            BCACHE.release(&mut bguard);
+
+            return address;
+        }
+
+        panic!("bmap: out of range");
+    }
 }
 
 pub struct INode {
