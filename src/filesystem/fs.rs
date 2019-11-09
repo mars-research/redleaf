@@ -6,6 +6,7 @@ use core::ops::{Drop, Deref, DerefMut};
 use core::convert::TryInto;
 use crate::filesystem::params;
 use crate::filesystem::bcache::{BCACHE, BufferBlock};
+use crate::filesystem::block::Block;
 
 pub struct SuperBlock {
     pub size: u32,
@@ -105,7 +106,7 @@ impl INodeDataGuard<'_> {
     fn truncate(&mut self) {
         for i in 0..params::NDIRECT {
             if self.data.addresses[i] != 0 {
-                ICache::free_block(self.node.meta.device, self.data.addresses[i]);
+                Block::free(self.node.meta.device, self.data.addresses[i]);
                 self.data.addresses[i] = 0;
             }
         }
@@ -119,7 +120,7 @@ impl INodeDataGuard<'_> {
                 if let chunk = chunks_iter.next().unwrap() {
                     let block = u32::from_ne_bytes(chunk.try_into().unwrap());
                     if block != 0 {
-                        ICache::free_block(self.node.meta.device, block);
+                        Block::free(self.node.meta.device, block);
                     }
                 }
             }
@@ -216,11 +217,6 @@ pub struct ICache {
     pub inodes: [Arc<INode>; params::NINODE],
 }
 
-// TODO: better name
-fn block_num_for_node(inum: u32, super_block: &Arc<SuperBlock>) -> u32 {
-    return inum / params::IPB as u32 + super_block.inodestart;
-}
-
 impl ICache {
     fn new() -> ICache {
         ICache {
@@ -287,24 +283,6 @@ impl ICache {
         }
     }
 
-    // Frees a disk block
-    // xv6 equivalent: bfree
-    pub fn free_block(device: u32, block: u32) {
-        let super_block = get_super_block();
-
-        let mut bguard = BCACHE.read(device, block_num_for_node(block, &super_block));
-        let mut buffer = bguard.lock();
-        let bi = (block as usize) % params::BPB;
-        let m = 1 << (bi % 8);
-        if buffer.data[bi / 8] & m == 0 {
-            panic!("freeing freed block");
-        }
-        buffer.data[bi / 8] &= !m;
-        // TODO: log_write here
-        drop(buffer);
-        BCACHE.release(&mut bguard);
-    }
-
     // Corresponds to iput
     pub fn put(inode: Arc<INode>) {
         // TODO: race condition?
@@ -332,7 +310,12 @@ lazy_static! {
     pub static ref ICACHE: Mutex<ICache> = { Mutex::new(ICache::new()) };
 }
 
-// Hardcoded superblock
+// TODO: better name and place
+pub fn block_num_for_node(inum: u32, super_block: &Arc<SuperBlock>) -> u32 {
+    return inum / params::IPB as u32 + super_block.inodestart;
+}
+
+// TODO: static global
 pub fn get_super_block() -> Arc<SuperBlock> {
 
     const NINODES: usize = 200;
