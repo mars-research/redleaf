@@ -5,7 +5,7 @@ use core::mem::size_of;
 use crate::common::bytearray;
 use crate::filesystem::fs::SuperBlock;
 use crate::filesystem::params;
-use crate::filesystem::bcache::{BCACHE, BufferBlock};
+use crate::filesystem::bcache::{BCACHE, BufferBlock, BufferGuard};
 
 // Contents of the header block, used for both the on-disk header block
 // and to keep track in memory of logged block# before commit.
@@ -107,14 +107,19 @@ impl Log {
     }
 
     // called at the start of each FS system call.
-    fn begin_op(&mut self) {
-        panic!();
+    // Caller should repeatly call this function until this function returns true.
+    // A better implementation of this function would be that
+    // this functions returns a guard that can be used to write_log.
+    // And end_op will be called when the guard is dropped.
+    fn try_begin_op(&mut self) {
+        unimplemented!();
     }
 
     // called at the end of each FS system call.
     // commits if this was the last outstanding operation.
-    fn end_op(&mut self) {
-        panic!();
+    // Caller should repeatly call this function until this function returns true.
+    fn try_end_op(&mut self) {
+        unimplemented!();
     }
 
     // Copy modified blocks from cache to log.
@@ -151,8 +156,20 @@ impl Log {
     //   modify bp->data[]
     //   log_write(bp)
     //   brelse(bp)
-    fn log_write(&mut self) {
+    fn log_write(&mut self, buffer: BufferGuard) {
+        assert!(self.logheader.n < params::LOGSIZE as u32 || self.logheader.n < self.size - 1,
+            "too big a transaction");
+        assert!(self.outstanding >= 1, "log_write outside of trans");
 
+        // Find the index that the block should belong to.
+        // Log absorbtion: if the block is already in the log, don't need to do anything.
+        //  Else, add the new block to the log
+        let current_blocks = &self.logheader.block_nums[0..self.logheader.n as usize];
+        let i = current_blocks.iter().position(|&x| x == buffer.block_number());
+        i.map(|i| {
+            buffer.pin();
+            self.logheader.n += 1;
+        });
     }
 
 

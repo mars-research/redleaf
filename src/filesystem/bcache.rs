@@ -5,8 +5,6 @@
 use crate::filesystem::params::{NBUF, BSIZE};
 use crate::common::list2;
 use alloc::sync::Arc;
-use alloc::rc::Rc;
-use core::cell::{Ref, RefMut, RefCell};
 use core::ops::Deref;
 use spin::{Mutex};
 
@@ -36,8 +34,29 @@ impl BufferData {
 }
 
 pub struct BufferGuard {
+    dev: u32,
+    block_number: u32,
     node: list2::Link<Buffer>,
     data: Arc<Mutex<BufferData>>,
+}
+
+impl BufferGuard {
+    pub fn dev(&self) -> u32{
+        self.dev
+    }
+
+    pub fn block_number(&self) -> u32 {
+        self.block_number
+    }
+
+    // This is nasty. Fix this
+    pub fn pin(&self) {
+        self.node.as_ref().take().unwrap().lock().elem.reference_count += 1;
+    }
+
+    pub fn unpin(&self) {
+        self.node.as_ref().take().unwrap().lock().elem.reference_count -= 1;
+    }
 }
 
 // I could've get a reference to the bcache and do a brelse explicitly when the guard is dropped.
@@ -106,6 +125,8 @@ impl BufferCache {
             if buffer.dev == dev && buffer.block_number == block_number {
                 buffer.reference_count += 1;
                 return BufferGuard {
+                    dev: buffer.dev,
+                    block_number: buffer.block_number,
                     node: Some(mutex.clone()),
                     data: buffer.data.clone(),
                 };
@@ -122,6 +143,8 @@ impl BufferCache {
                 buffer.flags = 0;
                 buffer.reference_count = 1;
                 return BufferGuard {
+                    dev: buffer.dev,
+                    block_number: buffer.block_number,
                     node: Some(mutex.clone()),
                     data: buffer.data.clone(),
                 };
