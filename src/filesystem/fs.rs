@@ -9,7 +9,7 @@ use crate::filesystem::bcache::{BCACHE, BufferBlock};
 use crate::filesystem::block::Block;
 
 pub struct SuperBlock {
-    pub size: u32,
+    pub size: usize,
     // Size of file system image (blocks)
     pub nblocks: u32,
     // Number of data blocks
@@ -329,7 +329,7 @@ pub fn get_super_block() -> Arc<SuperBlock> {
     let nblocks = params::FSSIZE - nmeta;
     // TODO: ensure the encoding is intel's encoding
     Arc::new(SuperBlock {
-        size: params::FSSIZE as u32,
+        size: params::FSSIZE as usize,
         nblocks: nlog as u32,
         ninodes: NINODES as u32,
         nlog: nlog as u32,
