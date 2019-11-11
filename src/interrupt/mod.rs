@@ -513,7 +513,7 @@ extern fn do_IRQ(pt_regs: &mut PtRegs) -> u64 {
 // IRQ 0: Timer
 fn timer_interrupt_handler(pt_regs: &mut PtRegs) {
     end_of_interrupt(InterruptIndex::Timer.as_u8());
-    crate::schedule();
+    crate::thread::schedule();
 }
 
 #[no_mangle]
@@ -550,5 +550,15 @@ extern fn sync_regs(pt_regs: &mut PtRegs) -> u64 {
     panic!("sync_regs:\n{:#?}", pt_regs);
     // Jump to the handler here
     return 0
+}
+
+#[inline(always)]
+pub fn disable_irq() {
+    x86_64::instructions::interrupts::disable();
+}
+
+#[inline(always)]
+pub fn enable_irq() {
+    x86_64::instructions::interrupts::enable();
 }
 

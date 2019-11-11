@@ -5,8 +5,19 @@ use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::string::ToString;
 use core::cell::RefCell;
+use crate::halt;
+use crate::syscalls::sys_yield;
 
 const MAX_PRIO: usize = 15;
+
+/// Per-CPU scheduler
+#[thread_local]
+static SCHED: RefCell<Scheduler> = RefCell::new(Scheduler::new()); 
+
+/// Per-CPU current thread
+#[thread_local]
+static CURRENT: RefCell<Option<Box<Thread>>> = RefCell::new(None); 
+
 
 enum ThreadState {
     Running = 0,
@@ -325,6 +336,102 @@ pub unsafe fn switch(prev: *mut Thread, next: *mut Thread) {
     asm!("mov $0, rbp" : "=r"((*prev).context.rbp) : : "memory" : "intel", "volatile");
     asm!("mov rbp, $0" : : "r"((*next).context.rbp) : "memory" : "intel", "volatile");
 }
+
+fn set_current(mut t: Box<Thread>) {
+    CURRENT.replace(Some(t)); 
+}
+
+//fn get_current_ref() -> &'static mut Option<Box<Thread>> {
+//    unsafe{&mut *CURRENT.get()}
+//}
+
+fn get_current() -> Option<Box<Thread>> {
+    CURRENT.replace(None)
+}
+
+
+// Kicked from the timer IRQ
+pub fn schedule() {
+
+    println!("Schedule"); 
+
+    let mut s = SCHED.borrow_mut();
+    let mut next_thread = match s.next() {
+        Some(t) => t,
+        None => {
+            // Nothing again, current is the only runnable thread, no need to
+            // context switch
+            println!("No runnable threads");
+            return; 
+        }
+
+    };
+
+    let mut c = match get_current() {
+        Some(t) => t,
+        None => { return; } 
+    };
+
+    let prev = &mut *c as *mut Thread; 
+    let next = &mut *next_thread as *mut Thread; 
+
+
+    // Make next thread current
+    set_current(next_thread); 
+
+    // put the old thread back in the scheduling queue
+    s.put_thread(c);
+
+    drop(s); 
+
+    unsafe {
+        switch(prev, next);
+    }
+
+}
+
+
+// yield is a reserved keyword
+pub fn do_yield() {
+    println!("Yield"); 
+    schedule();
+}
+
+pub extern fn idle() {
+    halt(); 
+}
+
+pub extern fn hello1() {
+    loop {
+        println!("hello 1"); 
+        sys_yield();
+    }
+}
+
+pub extern fn hello2() {
+    loop {
+        println!("hello 2"); 
+    }
+}
+
+
+pub fn init_threads() {
+
+    let mut s = SCHED.borrow_mut();
+
+    let mut idle = Box::new(Thread::new("idle", idle));
+    let mut t1 = Box::new(Thread::new("hello 1", hello1));
+    let mut t2 = Box::new(Thread::new("hello 2", hello2));
+
+    //s.put_thread(idle); 
+    s.put_thread(t1);
+    s.put_thread(t2);
+
+    // Make idle the current thread
+    set_current(idle);
+    
+}
+
 
 /* 
 unsafe fn runnable(thread: &Thread) -> bool {
