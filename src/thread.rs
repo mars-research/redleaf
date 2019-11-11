@@ -6,7 +6,8 @@ use alloc::string::String;
 use alloc::string::ToString;
 use core::cell::RefCell;
 use crate::halt;
-use crate::syscalls::sys_yield;
+use crate::syscalls::{sys_yield, sys_create_thread};
+use crate::capabilities::Capability; 
 
 const MAX_PRIO: usize = 15;
 
@@ -85,34 +86,7 @@ impl Context {
 }
 
 impl  Thread {
-/*
-    /// Spawn a context from a function.
-    pub fn spawn(&mut self, func: extern fn()) -> Result<&Arc<RwLock<Context>>> {
-        let context_lock = self.new_context()?;
-        {
-            let mut context = context_lock.write();
-            let mut fx = unsafe { Box::from_raw(crate::ALLOCATOR.alloc(Layout::from_size_align_unchecked(512, 16)) as *mut [u8; 512]) };
-            for b in fx.iter_mut() {
-                *b = 0;
-            }
-            let mut stack = vec![0; 65_536].into_boxed_slice();
-            let offset = stack.len() - mem::size_of::<usize>();
-            unsafe {
-                let offset = stack.len() - mem::size_of::<usize>();
-                let func_ptr = stack.as_mut_ptr().offset(offset as isize);
-                *(func_ptr as *mut usize) = func as usize;
-            }
-            context.arch.set_page_table(unsafe { paging::ActivePageTable::new().address() });
-            context.arch.set_fx(fx.as_ptr() as usize);
-            context.arch.set_stack(stack.as_ptr() as usize + offset);
-            context.kfx = Some(fx);
-            context.kstack = Some(stack);
-        }
-        Ok(context_lock)
-    }
-
-*/
-    
+  
     fn init_stack(&mut self, func: extern fn()) {
        
         /* die() takes one argument lets pass it via r15 and prey */
@@ -401,6 +375,12 @@ pub extern fn idle() {
     halt(); 
 }
 
+pub extern fn init() {
+    sys_create_thread("hello1", hello1); 
+    sys_create_thread("hello2", hello2); 
+}
+
+
 pub extern fn hello1() {
     loop {
         println!("hello 1"); 
@@ -414,109 +394,20 @@ pub extern fn hello2() {
     }
 }
 
-
-pub fn init_threads() {
-
+pub fn create_thread (name: &str, func: extern fn()) -> Capability {
     let mut s = SCHED.borrow_mut();
 
-    let mut idle = Box::new(Thread::new("idle", idle));
-    let mut t1 = Box::new(Thread::new("hello 1", hello1));
-    let mut t2 = Box::new(Thread::new("hello 2", hello2));
-
-    //s.put_thread(idle); 
+    let mut t1 = Box::new(Thread::new(name, func));
+    
     s.put_thread(t1);
-    s.put_thread(t2);
+    return 0; 
+}
+
+pub fn init_threads() {
+    let mut idle = Box::new(Thread::new("idle", idle));
 
     // Make idle the current thread
-    set_current(idle);
-    
+    set_current(idle);   
+    create_thread("init", init); 
 }
 
-
-/* 
-unsafe fn runnable(thread: &Thread) -> bool {
-    thread.status == Status::Runnable
-}
-
-/// Do not call this while holding locks!
-pub unsafe fn switch() -> bool {
-    use core::ops::DerefMut;
-
-    // Set the global lock to avoid the unsafe operations below from causing issues
-    while arch::CONTEXT_SWITCH_LOCK.compare_and_swap(false, true, Ordering::SeqCst) {
-        interrupt::pause();
-    }
-
-    let cpu_id = crate::cpu_id();
-
-    let from_ptr;
-    let mut to_ptr = 0 as *mut Context;
-    {
-        let contexts = contexts();
-        {
-            let context_lock = contexts
-                .current()
-                .expect("context::switch: not inside of context");
-            let mut context = context_lock.write();
-            from_ptr = context.deref_mut() as *mut Context;
-        }
-
-        for (_pid, context_lock) in contexts.iter() {
-            let mut context = context_lock.write();
-            update(&mut context, cpu_id);
-        }
-
-        for (pid, context_lock) in contexts.iter() {
-            if *pid > (*from_ptr).id {
-                let mut context = context_lock.write();
-                if runnable(&mut context, cpu_id) {
-                    to_ptr = context.deref_mut() as *mut Context;
-                    break;
-                }
-            }
-        }
-
-        if to_ptr as usize == 0 {
-            for (pid, context_lock) in contexts.iter() {
-                if *pid < (*from_ptr).id {
-                    let mut context = context_lock.write();
-                    if runnable(&mut context, cpu_id) {
-                        to_ptr = context.deref_mut() as *mut Context;
-                        if (&mut *to_ptr).ksig.is_none() {
-                            to_sig = context.pending.pop_front();
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-    };
-
-    // Switch process states, TSS stack pointer, and store new context ID
-    if to_ptr as usize != 0 {
-        (&mut *from_ptr).state = Runnable;
-        (&mut *to_ptr).state = Running;
-        //if let Some(ref stack) = (*to_ptr).kstack {
-        //    gdt::set_tss_stack(stack.as_ptr() as usize + stack.len());
-        //}
-        gdt::set_tcb((&mut *to_ptr).id.into());
-        CONTEXT_ID.store((&mut *to_ptr).id, Ordering::SeqCst);
-    }
-
-    // Unset global lock before switch, as arch is only usable by the current CPU at this time
-    arch::CONTEXT_SWITCH_LOCK.store(false, Ordering::SeqCst);
-
-    if to_ptr as usize == 0 {
-        // No target was found, return
-
-        false
-    } else {
-
-        (&mut *from_ptr).arch.switch_to(&mut (&mut *to_ptr).arch);
-        true
-    }
-}
-
-
-
-*/

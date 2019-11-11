@@ -42,6 +42,7 @@ mod tls;
 mod thread;
 mod panic; 
 mod syscalls;
+pub mod capabilities; 
 
 use x86::cpuid::CpuId;
 use crate::arch::init_buddy;
