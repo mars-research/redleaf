@@ -369,7 +369,7 @@ pub fn block_num_for_node(inum: u32, super_block: &Arc<SuperBlock>) -> u32 {
     return inum / params::IPB as u32 + super_block.inodestart;
 }
 
-// TODO: static global
+// TODO: load super block from disk
 pub fn get_super_block() -> Arc<SuperBlock> {
 
     const NINODES: usize = 200;

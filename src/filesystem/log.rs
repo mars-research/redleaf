@@ -127,7 +127,7 @@ impl Log {
     // commits if this was the last outstanding operation.
     // Caller should repeatly call this function until this function returns true.
     fn try_end_op(&mut self) {
-        let do_commit: bool = false;
+        let mut do_commit: bool = false;
 
         self.outstanding -= 1;
         assert!(!self.committing, "log.commiting");
