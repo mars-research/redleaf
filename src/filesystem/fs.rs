@@ -59,9 +59,13 @@ pub struct INodeDataGuard<'a> {
 #[repr(u16)]
 #[derive(PartialEq, Copy, Clone)]
 pub enum FileType {
-    Unitialized,    // Not a type; used when the inode is not initialized
+    // This is not a file type; it indicates that the inode is not initialized 
+    Unitialized,    
+    // Correspond to T_DIR in xv6
     Directory,
+    // Correspond to T_FILE in xv6
     File,
+    // Correspond to 
     Device,
 }
 
