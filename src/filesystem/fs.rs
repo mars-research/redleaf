@@ -36,7 +36,7 @@ pub struct INodeMeta {
 #[repr(C)]
 pub struct INodeData {
     // File type
-    pub file_type: i16,
+    pub file_type: FileType,
     // Major device number (T_DEVICE only)
     pub major: i16,
     // Minor device number (T_DEVICE only)
@@ -56,10 +56,19 @@ pub struct INodeDataGuard<'a> {
     data: MutexGuard<'a, INodeData>,
 }
 
+#[repr(u16)]
+#[derive(PartialEq, Copy, Clone)]
+pub enum FileType {
+    Unitialized,    // Not a type; used when the inode is not initialized
+    Directory,
+    File,
+    Device,
+}
+
 pub struct Stat {
     pub device: u32,
     pub inum: u32,
-    pub file_type: i16,
+    pub file_type: FileType,
     pub nlink: i16,
     pub size: u64,
 }
@@ -198,6 +207,16 @@ impl INodeDataGuard<'_> {
 
         panic!("bmap: out of range");
     }
+
+    // Look for a directory entry in a directory.
+    // If found, set *poff to byte offset of entry.
+    pub fn dirlookup(&self, name :&str) -> Option<Arc<INode>> {
+        if self.data.file_type != FileType::Directory {
+            panic!("dirlookup not DIR");
+        }
+
+        return None; 
+    }
 }
 
 pub struct INode {
@@ -214,7 +233,7 @@ impl INode {
                 valid: AtomicBool::new(false)
             },
             data: Mutex::new(INodeData {
-                file_type: 0,
+                file_type: FileType::Unitialized,
                 major: 0,
                 minor: 0,
                 nlink: 0,
@@ -254,7 +273,7 @@ impl INode {
 
             self.meta.valid.store(true, Ordering::Relaxed);
 
-            if dinode.file_type == 0 {
+            if dinode.file_type == FileType::Unitialized {
                 // TODO: better error handling here
                 panic!("ilock: no type");
             }
@@ -286,7 +305,7 @@ impl ICache {
 
     // Allocate a node on device.
     // Looks for a free inode on disk, marks it as used
-    pub fn alloc(&mut self, device: u32, file_type: i16) -> Option<Arc<INode>> {
+    pub fn alloc(&mut self, device: u32, file_type: FileType) -> Option<Arc<INode>> {
         let super_block = get_super_block();
         for inum in 1..super_block.ninodes {
             let mut bguard = BCACHE.read(device, block_num_for_node(inum, &super_block));
@@ -296,7 +315,7 @@ impl ICache {
             let mut dinode = unsafe {
                 &mut *(&buffer.data as *const BufferBlock as *mut BufferBlock as *mut DINode).offset((inum % params::IPB as u32) as isize)
             };
-            if dinode.file_type == 0 { // free inode
+            if dinode.file_type == FileType::Unitialized { // free inode
                 // memset to 0
                 unsafe { core::ptr::write_bytes(dinode as *const DINode as *mut DINode, 0, 1); }
                 // setting file_type marks it as used
@@ -350,7 +369,7 @@ impl ICache {
 
             if inode_guard.data.nlink == 0 {
                 inode_guard.truncate();
-                inode_guard.data.file_type = 0;
+                inode_guard.data.file_type = FileType::Unitialized;
                 inode_guard.update();
                 inode.meta.valid.store(false, Ordering::Relaxed);
             }
@@ -395,7 +414,7 @@ pub fn get_super_block() -> Arc<SuperBlock> {
 
 fn test() {
     let mut icache = ICACHE.lock();
-    let inode = icache.alloc(0, 1).unwrap();
+    let inode = icache.alloc(0, FileType::Directory).unwrap();
     let mut inode_guard = inode.lock();
     inode_guard.data.addresses[0] = 10;
 }
