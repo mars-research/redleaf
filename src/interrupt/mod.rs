@@ -513,7 +513,7 @@ extern fn do_IRQ(pt_regs: &mut PtRegs) -> u64 {
 // IRQ 0: Timer
 fn timer_interrupt_handler(pt_regs: &mut PtRegs) {
     end_of_interrupt(InterruptIndex::Timer.as_u8());
-//    crate::schedule();
+    crate::schedule();
 }
 
 #[no_mangle]
