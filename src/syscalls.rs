@@ -1,7 +1,8 @@
 use crate::interrupt::{disable_irq, enable_irq};
 use crate::thread::{do_yield};
 
-// yield is a reserved keyword
+
+// Yield system call
 pub fn sys_yield() {
 
     disable_irq();

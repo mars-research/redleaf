@@ -248,12 +248,8 @@ pub extern "C" fn rust_main_ap() -> ! {
      
     println!("cpu{}: Initialized", cpu_id);
     thread::init_threads(); 
-    
-    println!("Ready to enable interrupts");
-
-    // Enable interrupts and the timer will schedule the next thread
-    enable_irq();
-
+   
+    /*
     // Initialize hello driver
     if cpu_id == 0 {
         use drivers::hello::Hello;
@@ -296,6 +292,13 @@ pub extern "C" fn rust_main_ap() -> ! {
         println!("First byte read is {}", data[0]);
         println!("Data read");
     }
+
+    */
+    println!("Ready to enable interrupts");
+
+    // Enable interrupts and the timer will schedule the next thread
+    enable_irq();
+
 
     halt(); 
 }
