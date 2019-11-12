@@ -3,6 +3,15 @@ use crate::thread::{do_yield, create_thread};
 use crate::capabilities::Capability;
 
 // Yield system call
+pub fn sys_print(s: &str)
+
+    disable_irq();
+    println!(s);
+    enable_irq(); 
+}
+
+
+// Yield system call
 pub fn sys_yield() {
 
     disable_irq();

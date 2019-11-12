@@ -375,24 +375,6 @@ pub extern fn idle() {
     halt(); 
 }
 
-pub extern fn init() {
-    sys_create_thread("hello1", hello1); 
-    sys_create_thread("hello2", hello2); 
-}
-
-
-pub extern fn hello1() {
-    loop {
-        println!("hello 1"); 
-        sys_yield();
-    }
-}
-
-pub extern fn hello2() {
-    loop {
-        println!("hello 2"); 
-    }
-}
 
 pub fn create_thread (name: &str, func: extern fn()) -> Capability {
     let mut s = SCHED.borrow_mut();

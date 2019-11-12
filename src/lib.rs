@@ -20,9 +20,8 @@ extern crate spin;
 extern crate core;
 extern crate slabmalloc;
 extern crate alloc;
-
 extern crate backtracer;
-
+extern crate usr;
 
 #[macro_use]
 mod console;
