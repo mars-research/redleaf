@@ -233,7 +233,55 @@ impl INodeDataGuard<'_> {
             user_offset += bytes_read;
         }
 
-        Some(bytes_read)
+        Some(bytes_to_read)
+    }
+
+    // Write data to inode
+    // Returns number of bytes written, or None upon overflow
+    // xv6 equivalent: writei
+    pub fn write(&mut self, user_buffer: &mut [u8], mut offset: usize) -> Option<usize> {
+
+        let bytes_to_write = user_buffer.len();
+
+        if offset > self.data.size || offset.checked_add(bytes_to_write).is_none() {
+            return None;
+        }
+
+        if offset + bytes_to_write > params::MAXFILE * params::BSIZE {
+            return None;
+        }
+
+        let mut total = 0usize;
+        let mut user_offset = 0usize;
+
+        while total < bytes_to_write {
+            let mut bguard = BCACHE.read(self.node.meta.device, self.block_map((offset / params::BSIZE) as u32));
+            let mut buffer = bguard.lock();
+
+            let start = offset % params::BSIZE;
+            let bytes_written = core::cmp::min(bytes_to_write - total, params::BSIZE - start);
+
+            buffer.data[start..].copy_from_slice(&user_buffer[user_offset..(user_offset+bytes_written)]);
+
+            // TODO: log_write here
+            drop(buffer);
+            BCACHE.release(&mut bguard);
+
+            total += bytes_written;
+            offset += bytes_written;
+            user_offset += bytes_written;
+        }
+
+        if bytes_to_write > 0 {
+            if offset > self.data.size {
+                self.data.size = offset;
+            }
+            // write the node back to disk even if size didn't change, because block_map
+            // could have added a new block to self.addresses
+            self.update()
+        }
+
+        Some(bytes_to_write)
     }
 }
 
@@ -435,4 +483,6 @@ fn test() {
     let inode = icache.alloc(0, 1).unwrap();
     let mut inode_guard = inode.lock();
     inode_guard.data.addresses[0] = 10;
+    drop(inode_guard);
+    ICache::put(inode);
 }
