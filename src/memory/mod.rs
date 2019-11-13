@@ -125,7 +125,7 @@ impl BespinSlabsProvider {
     }
 }
 
-impl<'a>  BespinSlabsProvider {
+impl<'a> BespinSlabsProvider {
     fn allocate_page(&mut self) -> Option<&'a mut ObjectPage<'a>> {
         let mut f: Option<Frame> = None;
         if let Some(ref mut fmanager) = *BUDDY.lock() {
