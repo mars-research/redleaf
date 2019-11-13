@@ -27,3 +27,6 @@ pub const MAXFILE: usize =      NDIRECT + NINDIRECT;
 
 // Inodes per block.
 pub const IPB: usize =           BSIZE / mem::size_of::<fs::DINode>();
+
+// Directory is a file containing a sequence of dirent structures.
+pub const DIRSIZ: usize =       14;

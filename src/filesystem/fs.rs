@@ -212,6 +212,12 @@ impl INodeDataGuard<'_> {
         panic!("bmap: out of range");
     }
 
+    // Read data from inode to the `dest` which is in the kernel address space
+    // Read from the `offset` and up to the size of `dest`
+    pub fn readi(&mut self, dest: &mut [u8], offset: usize) {
+        unimplemented!();
+    }
+
     // Look for a directory entry in a directory.
     // If found, set *poff to byte offset of entry.
     pub fn dirlookup(&self, name :&str) -> Option<Arc<INode>> {
@@ -219,7 +225,9 @@ impl INodeDataGuard<'_> {
             panic!("dirlookup not DIR");
         }
 
-        return None; 
+        
+
+        unimplemented!();
     }
 }
 
