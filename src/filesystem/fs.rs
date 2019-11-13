@@ -7,6 +7,7 @@ use core::convert::TryInto;
 use crate::filesystem::params;
 use crate::filesystem::bcache::{BCACHE, BufferBlock};
 use crate::filesystem::block::Block;
+use crate::filesystem::directory::DirectoryEntry;
 
 pub struct SuperBlock {
     pub size: usize,
@@ -219,13 +220,24 @@ impl INodeDataGuard<'_> {
     }
 
     // Look for a directory entry in a directory.
-    // If found, set *poff to byte offset of entry.
+    // If found, set *poff to byte offset of entry(currently not supported).
     pub fn dirlookup(&self, name :&str) -> Option<Arc<INode>> {
         if self.data.file_type != FileType::Directory {
             panic!("dirlookup not DIR");
         }
 
-        
+        const size_of_dirent: usize = core::mem::size_of::<DirectoryEntry>();
+        for offset in (0usize..self.data.size as usize).step_by(size_of_dirent) {
+            let buffer = [0; size_of_dirent];
+            self.readi(&mut buffer[..], offset);
+            let dirent = DirectoryEntry::from_byte_array(&buffer[..]);
+            if dirent.inum == 0 {
+                continue;
+            }
+            if dirent.name == name.as_bytes() {
+                // return ICACHE.lock().get(self.data.dev, dirent.inum);
+            }
+        }
 
         unimplemented!();
     }
