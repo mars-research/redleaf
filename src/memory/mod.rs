@@ -2,7 +2,7 @@ use core::fmt;
 use x86::bits64::paging;
 use core::alloc::Layout;
 use core::mem::transmute;
-use slabmalloc::{ObjectPage, PageProvider};
+use slabmalloc::{ObjectPage};
 use crate::memory::buddy::BUDDY;
 
 pub use self::buddy::BuddyFrameAllocator as PhysicalMemoryAllocator;
@@ -125,7 +125,7 @@ impl BespinSlabsProvider {
     }
 }
 
-impl<'a> PageProvider<'a> for BespinSlabsProvider {
+impl<'a>  BespinSlabsProvider {
     fn allocate_page(&mut self) -> Option<&'a mut ObjectPage<'a>> {
         let mut f: Option<Frame> = None;
         if let Some(ref mut fmanager) = *BUDDY.lock() {

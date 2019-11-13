@@ -48,8 +48,9 @@ use x86::cpuid::CpuId;
 use crate::arch::init_buddy;
 use spin::Mutex;
 use core::alloc::{GlobalAlloc, Layout};
+use core::ptr::NonNull;
 use memory::{BespinSlabsProvider, PhysicalAllocator};
-use slabmalloc::{PageProvider, ZoneAllocator};
+use slabmalloc::ZoneAllocator;
 use crate::memory::buddy::BUDDY;
 use thread::{Scheduler, Thread};
 use core::cell::{UnsafeCell, RefCell};
@@ -81,8 +82,8 @@ static PAGER: Mutex<BespinSlabsProvider> = Mutex::new(BespinSlabsProvider::new()
 pub struct SafeZoneAllocator(Mutex<ZoneAllocator<'static>>);
 
 impl SafeZoneAllocator {
-    pub const fn new(provider: &'static Mutex<PageProvider>) -> SafeZoneAllocator {
-        SafeZoneAllocator(Mutex::new(ZoneAllocator::new(provider)))
+    pub const fn new() -> SafeZoneAllocator {
+        SafeZoneAllocator(Mutex::new(ZoneAllocator::new()))
     }
 }
 
@@ -95,9 +96,17 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         println!("alloc layout={:?}", layout);
         if layout.size() <= ZoneAllocator::MAX_ALLOC_SIZE {
-            let ptr = self.0.lock().allocate(layout);
-            println!("allocated ptr=0x{:x} layout={:?}", ptr as usize, layout);
-            ptr
+            match self.0.lock().allocate(layout) {
+                Ok(ptr) =>  {
+                    println!("allocated ptr={:?} layout={:?}", ptr, layout);
+                    ptr.as_ptr()
+                }
+                Err(err) => {
+                    println!("allocation failed: error={:?}, layout={:?}", err, layout);
+                    core::ptr::null_mut()
+                }
+            }
+            
         } else {
             let mut ptr = core::ptr::null_mut();
 
@@ -118,28 +127,33 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         println!("dealloc ptr = 0x{:x} layout={:?}", ptr as usize, layout);
-        if layout.size() <= ZoneAllocator::MAX_ALLOC_SIZE {
-            //debug!("dealloc ptr = 0x{:x} layout={:?}", ptr as usize, layout);
-            self.0.lock().deallocate(ptr, layout);
-        } else {
-            use arch::memory::{kernel_vaddr_to_paddr, VAddr};
-            if let Some(ref mut fmanager) = *BUDDY.lock() {
-                fmanager.deallocate(
-                    memory::Frame::new(
-                        kernel_vaddr_to_paddr(VAddr::from_u64(ptr as u64)),
-                        layout.size(),
-                    ),
-                    layout,
-                );
+        if let Some(ptr) = NonNull::new(ptr) {
+            if layout.size() <= ZoneAllocator::MAX_ALLOC_SIZE {
+                //debug!("dealloc ptr = 0x{:x} layout={:?}", ptr as usize, layout);
+                self.0.lock().deallocate(ptr, layout);
             } else {
-                panic!("__rust_allocate: buddy not initialized");
+                use arch::memory::{kernel_vaddr_to_paddr, VAddr};
+                if let Some(ref mut fmanager) = *BUDDY.lock() {
+                    fmanager.deallocate(
+                        memory::Frame::new(
+                            kernel_vaddr_to_paddr(VAddr::from_u64(ptr.as_ptr() as u64)),
+                            layout.size(),
+                        ),
+                        layout,
+                    );
+                } else {
+                    panic!("__rust_allocate: buddy not initialized");
+                }
             }
+        } else {
+            // Nothing to do (don't dealloc null pointers).
         }
+        
     }
 }
 
 #[global_allocator]
-static MEM_PROVIDER: SafeZoneAllocator = SafeZoneAllocator::new(&PAGER);
+static MEM_PROVIDER: SafeZoneAllocator = SafeZoneAllocator::new();
 
 // Init AP cpus
 pub fn init_ap_cpus() {
