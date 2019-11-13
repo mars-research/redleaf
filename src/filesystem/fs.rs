@@ -44,7 +44,7 @@ pub struct INodeData {
     // Number of links to inode in file system
     pub nlink: i16,
     // Size of file (bytes)
-    pub size: u32,
+    pub size: usize,
     // Data block addresses
     pub addresses: [u32; params::NDIRECT+1],
 }
@@ -197,6 +197,43 @@ impl INodeDataGuard<'_> {
         }
 
         panic!("bmap: out of range");
+    }
+
+    // Read data from inode
+    // Returns number of bytes read, or None upon overflow
+    // xv6 equivalent: readi
+    pub fn read(&mut self, user_buffer: &mut [u8], mut offset: usize) -> Option<usize> {
+        let mut bytes_to_read = user_buffer.len();
+
+        if offset > self.data.size || offset.checked_add(bytes_to_read).is_none() {
+            return None;
+        }
+
+        if offset + bytes_to_read > self.data.size {
+            bytes_to_read = self.data.size - offset;
+        }
+
+        let mut total = 0usize;
+        let mut user_offset = 0usize;
+
+        while total < bytes_to_read {
+            let mut bguard = BCACHE.read(self.node.meta.device, self.block_map((offset / params::BSIZE) as u32));
+            let buffer = bguard.lock();
+
+            let start = offset % params::BSIZE;
+            let bytes_read = core::cmp::min(bytes_to_read - total, params::BSIZE - start);
+
+            user_buffer[user_offset..].copy_from_slice(&buffer.data[start..(start+bytes_read)]);
+
+            drop(buffer);
+            BCACHE.release(&mut bguard);
+
+            total += bytes_read;
+            offset += bytes_read;
+            user_offset += bytes_read;
+        }
+
+        Some(bytes_read)
     }
 }
 
