@@ -1,17 +1,23 @@
 use crate::interrupt::{disable_irq, enable_irq};
 use crate::thread::{do_yield, create_thread};
-use crate::capabilities::Capability;
+use usr::capabilities::Capability;
+use usr::syscalls::Syscall;
 
-// Yield system call
-pub fn sys_print(s: &str)
+#[derive(Clone, Copy, PartialEq)]
+pub struct UKern {
+
+}
+
+// Print a string 
+pub fn sys_print(s: &str) {
 
     disable_irq();
-    println!(s);
+    println!("{}", s);
     enable_irq(); 
 }
 
 
-// Yield system call
+// Yield to any thread
 pub fn sys_yield() {
 
     disable_irq();
@@ -20,6 +26,7 @@ pub fn sys_yield() {
     enable_irq(); 
 }
 
+// Create a new thread
 pub fn sys_create_thread(name: &str, func: extern fn()) -> Capability  {
 
     disable_irq();
@@ -29,4 +36,20 @@ pub fn sys_create_thread(name: &str, func: extern fn()) -> Capability  {
     return cap;
 }
 
+
+
+impl Syscall for UKern {
+    fn sys_print(&self, s: &str) {
+        sys_print(s);   
+    }
+
+    fn sys_yield(&self) {
+        sys_yield();
+    }
+
+    fn sys_create_thread(&self, name: &str, func: extern fn()) -> Capability {
+        return sys_create_thread(name, func); 
+    }
+
+}
 

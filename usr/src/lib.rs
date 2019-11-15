@@ -1,5 +1,7 @@
 #![no_std]
 pub mod init;
+pub mod capabilities;
+pub mod syscalls; 
 
 #[cfg(test)]
 mod tests {

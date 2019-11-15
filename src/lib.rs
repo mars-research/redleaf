@@ -41,7 +41,6 @@ mod tls;
 mod thread;
 mod panic; 
 mod syscalls;
-pub mod capabilities; 
 
 use x86::cpuid::CpuId;
 use crate::arch::init_buddy;
@@ -57,6 +56,7 @@ use alloc::sync::Arc;
 use crate::thread::switch;
 use crate::drivers::Driver;
 use crate::interrupt::{enable_irq};
+use crate::syscalls::UKern;
 
 #[no_mangle]
 pub static mut cpu1_stack: u32 = 0;
@@ -72,6 +72,8 @@ static mut AP_INIT_STACK: *mut usize = 0x0 as *mut usize;
 
 /// Stack size for the kernel main thread
 const KERNEL_STACK_SIZE: usize = 4096 * 16;
+
+static ukern : UKern = UKern {};
 
 #[allow(dead_code)]
 static PAGER: Mutex<BespinSlabsProvider> = Mutex::new(BespinSlabsProvider::new());
@@ -175,6 +177,11 @@ pub fn init_allocator() {
         } */
     }
 
+}
+
+fn init_user() {
+    //crate::thread::create_thread("init", usr::init::init); 
+    usr::init::init(ukern); 
 }
 
 const MAX_CPUS: u32 = 32;
@@ -294,6 +301,9 @@ pub extern "C" fn rust_main_ap() -> ! {
     }
 
     */
+
+    init_user(); 
+
     println!("Ready to enable interrupts");
 
     // Enable interrupts and the timer will schedule the next thread

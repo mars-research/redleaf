@@ -7,7 +7,7 @@ use alloc::string::ToString;
 use core::cell::RefCell;
 use crate::halt;
 use crate::syscalls::{sys_yield, sys_create_thread};
-use crate::capabilities::Capability; 
+use usr::capabilities::Capability; 
 
 const MAX_PRIO: usize = 15;
 
@@ -390,6 +390,5 @@ pub fn init_threads() {
 
     // Make idle the current thread
     set_current(idle);   
-    create_thread("init", init); 
 }
 
