@@ -53,8 +53,8 @@ pub struct INodeData {
 pub type DINode = INodeData;
 
 pub struct INodeDataGuard<'a> {
-    node: &'a INode,
-    data: MutexGuard<'a, INodeData>,
+    pub node: &'a INode,
+    pub data: MutexGuard<'a, INodeData>,
 }
 
 #[repr(u16)]
@@ -88,7 +88,7 @@ impl INodeDataGuard<'_> {
     // Copy a modified in-memory inode to disk (ie flush)
     // Call after every modification to Inode.data
     // xv6 equivalent: iupdate()
-    fn update(&self) {
+    pub fn update(&self) {
         // TODO: global superblock
         let super_block = get_super_block();
 
@@ -117,7 +117,7 @@ impl INodeDataGuard<'_> {
     // Discard contents of node
     // Only called when node has no links and no other in-memory references to it
     // xv6 equivalent: itrunc
-    fn truncate(&mut self) {
+    pub fn truncate(&mut self) {
         for i in 0..params::NDIRECT {
             if self.data.addresses[i] != 0 {
                 Block::free(self.node.meta.device, self.data.addresses[i]);
@@ -149,7 +149,7 @@ impl INodeDataGuard<'_> {
     }
 
     // xv6 equivalent: stati
-    fn stat(&self) -> Stat {
+    pub fn stat(&self) -> Stat {
         Stat {
             device: self.node.meta.device,
             inum: self.node.meta.inum,
@@ -166,7 +166,7 @@ impl INodeDataGuard<'_> {
     // Return the disk block address of the nth block in self,
     // if there is no such block, block_map allocates one.
     // xv6 equivalent: bmap
-    fn block_map(&mut self, block_number: u32) -> u32 {
+    pub fn block_map(&mut self, block_number: u32) -> u32 {
         let block_number = block_number as usize;
 
         if block_number < params::NDIRECT {
@@ -348,7 +348,7 @@ impl INode {
 
     // Locks node, reads from disk if necessary
     // xv6 equivalent: ilock(...)
-    fn lock(&self) -> INodeDataGuard {
+    pub fn lock(&self) -> INodeDataGuard {
         let super_block = get_super_block();
 
         let mut data = self.data.lock();
