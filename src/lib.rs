@@ -56,7 +56,7 @@ use alloc::sync::Arc;
 use crate::thread::switch;
 use crate::drivers::Driver;
 use crate::interrupt::{enable_irq};
-use crate::syscalls::UKern;
+use crate::syscalls::UKERN;
 
 #[no_mangle]
 pub static mut cpu1_stack: u32 = 0;
@@ -72,8 +72,6 @@ static mut AP_INIT_STACK: *mut usize = 0x0 as *mut usize;
 
 /// Stack size for the kernel main thread
 const KERNEL_STACK_SIZE: usize = 4096 * 16;
-
-static ukern : UKern = UKern {};
 
 #[allow(dead_code)]
 static PAGER: Mutex<BespinSlabsProvider> = Mutex::new(BespinSlabsProvider::new());
@@ -181,7 +179,7 @@ pub fn init_allocator() {
 
 fn init_user() {
     //crate::thread::create_thread("init", usr::init::init); 
-    usr::init::init(ukern); 
+    usr::init::init(UKERN); 
 }
 
 const MAX_CPUS: u32 = 32;
