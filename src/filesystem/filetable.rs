@@ -111,6 +111,44 @@ impl FileTable {
             _ => unimplemented!()
         }
     }
+
+    // Write bytes to file.
+    // Returns number of bytes written, or None if lacking write permissions or upon overflow.
+    // xv6 equivalent: filewrite
+    pub fn write(&self, file: FileHandle, user_buffer: &mut [u8]) -> Option<usize> {
+        let mut fguard = file.lock();
+
+        if !fguard.writable {
+            return None;
+        }
+
+        match &mut fguard.file_type {
+            Some(FileType::INode { inode, offset }) => {
+                let max = (params::MAXOPBLOCKS-1-1-2 / 2) * params::BSIZE;
+                let mut i = 0;
+                while i < user_buffer.len() {
+                    let bytes_to_write = core::cmp::min(user_buffer.len() - i, max);
+
+                    {
+                        // TODO: log begin_op
+                        let mut iguard = inode.lock();
+                        if let Some(bytes) = iguard.write(&mut user_buffer[i..i+bytes_to_write], *offset) {
+                            *offset += bytes;
+                            i += bytes;
+                        }
+                        // TODO: log end_op
+                    }
+                }
+                if i == user_buffer.len() {
+                    Some(i)
+                } else {
+                    None
+                }
+            },
+            // TODO: device, pipe
+            _ => unimplemented!()
+        }
+    }
 }
 
 lazy_static! {
