@@ -40,10 +40,14 @@ qemu-gdb: $(iso)
 qemu-gdb-nox: $(iso)
 	qemu-system-x86_64 -S -m 128m -cdrom $(iso) -vga std -s -serial file:serial.log -no-reboot -no-shutdown -d int,cpu_reset -smp 2 -nographic
 
-
 .PHONY: qemu-nox
 qemu-nox: $(iso)
 	qemu-system-x86_64 -m 128m -cdrom $(iso) -vga std -s -no-reboot -nographic -smp 2
+
+.PHONY: qemu-nox-cloudlab
+qemu-nox-cloudlab: $(iso)
+	$(eval PCIFLAG := $(shell sudo ./rebind-82599es.sh))
+	sudo qemu-system-x86_64 -m 128m -cdrom $(iso) -vga std -s -no-reboot -nographic -smp 2 -net none -chardev stdio,id=char0,mux=on,logfile=serial.log,signal=off -serial chardev:char0 -mon chardev=char0 ${PCIFLAG}
 
 .PHONY: qemu-efi-nox
 qemu-efi-nox: $(iso) ovmf-code
