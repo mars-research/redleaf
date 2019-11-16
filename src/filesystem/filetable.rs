@@ -1,9 +1,8 @@
 use crate::filesystem::fs::{ICache, INode, Stat};
 use crate::filesystem::params;
 use alloc::sync::Arc;
-use core::cell::RefCell;
 use core::mem::{MaybeUninit, swap};
-use spin::Mutex;
+use spin::{Mutex, RwLock};
 
 pub enum FileType {
     None,
@@ -18,7 +17,7 @@ pub struct File {
     pub writable: bool,
 }
 
-pub type FileHandle = Arc<RefCell<File>>;
+pub type FileHandle = Arc<RwLock<File>>;
 
 pub struct FileTable {
     files: Mutex<[FileHandle; params::NFILE]>,
@@ -38,9 +37,9 @@ impl FileTable {
     pub fn new() -> FileTable {
         FileTable {
             files: Mutex::new(unsafe {
-                let mut arr = MaybeUninit::<[Arc<RefCell<File>>; params::NFILE]>::uninit();
+                let mut arr = MaybeUninit::<[Arc<RwLock<File>>; params::NFILE]>::uninit();
                 for i in 0..params::NFILE {
-                    (arr.as_mut_ptr() as *mut Arc<RefCell<File>>).add(i).write(Arc::new(RefCell::new(File::new())));
+                    (arr.as_mut_ptr() as *mut Arc<RwLock<File>>).add(i).write(Arc::new(RwLock::new(File::new())));
                 }
                 arr.assume_init()
             })
@@ -59,32 +58,23 @@ impl FileTable {
 
     // xv6 equivalent: fileclose
     pub fn close(&self, file: FileHandle) {
-        // files lock should be acquired so we can safely manipulate RefCell<File>
-        let lock = self.files.lock();
-
         if Arc::strong_count(&file) > 2 {
             drop(file);
             return
         }
 
-        // <=2 references, ie this pointer and the ftable's pointer, so actually close the file
-        // this borrow will never panic because we hold the self.files lock, so borrow is exclusive
-        let mut file_ref = file.borrow_mut();
         let mut file_type = FileType::None;
 
-        // set file's type to None (since we are closing it), pull out file_type
-        swap(&mut file_ref.file_type, &mut file_type);
+        {
+            // <=2 references, ie this pointer and the ftable's pointer, so actually close the file
+            let mut fguard = file.write();
 
-        drop(file_ref);
-        drop(lock);
+            // set file's type to None (since we are closing it), pull out file_type
+            swap(&mut fguard.file_type, &mut file_type);
+        }
 
         match file_type {
-            FileType::INode { inode, .. } => {
-                // TODO: log begin_op here
-                ICache::put(inode);
-                // TODO: log end_op here
-            },
-            FileType::Device { inode, .. } => {
+            FileType::INode { inode, .. } | FileType::Device { inode, .. } => {
                 // TODO: log begin_op here
                 ICache::put(inode);
                 // TODO: log end_op here
@@ -96,12 +86,13 @@ impl FileTable {
 
     // xv6 equivalent: filestat
     pub fn stat(&self, file: FileHandle) -> Option<Stat> {
-        let lock = self.files.lock();
-
-        let file_ref = file.borrow();
-        match &file_ref.file_type {
+        match &file.read().file_type {
             FileType::INode { inode, .. } | FileType::Device { inode, .. } => Some(inode.lock().stat()),
             _ => None
         }
     }
+}
+
+lazy_static! {
+    pub static ref FTABLE: FileTable = FileTable::new();
 }
