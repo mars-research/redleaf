@@ -4,4 +4,4 @@ pub mod params;
 pub mod fs;
 pub mod block;
 pub mod directory;
-pub mod filetable;
+pub mod file;
