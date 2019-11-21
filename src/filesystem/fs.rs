@@ -37,7 +37,7 @@ pub struct INodeMeta {
 #[repr(C)]
 pub struct INodeData {
     // File type
-    pub file_type: FileType,
+    pub file_type: INodeFileType,
     // Major device number (T_DEVICE only)
     pub major: i16,
     // Minor device number (T_DEVICE only)
@@ -45,7 +45,7 @@ pub struct INodeData {
     // Number of links to inode in file system
     pub nlink: i16,
     // Size of file (bytes)
-    pub size: u32,
+    pub size: usize,
     // Data block addresses
     pub addresses: [u32; params::NDIRECT+1],
 }
@@ -53,13 +53,13 @@ pub struct INodeData {
 pub type DINode = INodeData;
 
 pub struct INodeDataGuard<'a> {
-    node: &'a INode,
-    data: MutexGuard<'a, INodeData>,
+    pub node: &'a INode,
+    pub data: MutexGuard<'a, INodeData>,
 }
 
 #[repr(u16)]
 #[derive(PartialEq, Copy, Clone)]
-pub enum FileType {
+pub enum INodeFileType {
     // This is not a file type; it indicates that the inode is not initialized 
     Unitialized,    
     // Correspond to T_DIR in xv6
@@ -73,7 +73,7 @@ pub enum FileType {
 pub struct Stat {
     pub device: u32,
     pub inum: u32,
-    pub file_type: FileType,
+    pub file_type: INodeFileType,
     pub nlink: i16,
     pub size: u64,
 }
@@ -88,7 +88,7 @@ impl INodeDataGuard<'_> {
     // Copy a modified in-memory inode to disk (ie flush)
     // Call after every modification to Inode.data
     // xv6 equivalent: iupdate()
-    fn update(&self) {
+    pub fn update(&self) {
         // TODO: global superblock
         let super_block = get_super_block();
 
@@ -117,7 +117,7 @@ impl INodeDataGuard<'_> {
     // Discard contents of node
     // Only called when node has no links and no other in-memory references to it
     // xv6 equivalent: itrunc
-    fn truncate(&mut self) {
+    pub fn truncate(&mut self) {
         for i in 0..params::NDIRECT {
             if self.data.addresses[i] != 0 {
                 Block::free(self.node.meta.device, self.data.addresses[i]);
@@ -149,7 +149,7 @@ impl INodeDataGuard<'_> {
     }
 
     // xv6 equivalent: stati
-    fn stat(&self) -> Stat {
+    pub fn stat(&self) -> Stat {
         Stat {
             device: self.node.meta.device,
             inum: self.node.meta.inum,
@@ -166,7 +166,7 @@ impl INodeDataGuard<'_> {
     // Return the disk block address of the nth block in self,
     // if there is no such block, block_map allocates one.
     // xv6 equivalent: bmap
-    fn block_map(&mut self, block_number: u32) -> u32 {
+    pub fn block_map(&mut self, block_number: u32) -> u32 {
         let block_number = block_number as usize;
 
         if block_number < params::NDIRECT {
@@ -213,33 +213,145 @@ impl INodeDataGuard<'_> {
         panic!("bmap: out of range");
     }
 
-    // Read data from inode to the `dest` which is in the kernel address space
-    // Read from the `offset` and up to the size of `dest`
-    pub fn readi(&mut self, dest: &mut [u8], offset: usize) {
-        unimplemented!();
-    }
-
     // Look for a directory entry in a directory.
     // If found, set *poff to byte offset of entry(currently not supported).
-    pub fn dirlookup(&self, name :&str) -> Option<Arc<INode>> {
-        if self.data.file_type != FileType::Directory {
+    pub fn dirlookup(&mut self, name: &str) -> Option<Arc<INode>> {
+        if self.data.file_type != INodeFileType::Directory {
             panic!("dirlookup not DIR");
         }
 
         const size_of_dirent: usize = core::mem::size_of::<DirectoryEntry>();
         for offset in (0usize..self.data.size as usize).step_by(size_of_dirent) {
-            let buffer = [0; size_of_dirent];
-            self.readi(&mut buffer[..], offset);
+            let mut buffer = [0; size_of_dirent];
+            if self.read(&mut buffer[..], offset).is_none() {
+                panic!("dirlookup read");
+            }
             let dirent = DirectoryEntry::from_byte_array(&buffer[..]);
             if dirent.inum == 0 {
                 continue;
             }
             if dirent.name == name.as_bytes() {
-                return ICACHE.lock().get(self.node.meta.device, dirent.inum as u32);
+                return ICACHE.lock().get(self.node.meta.device, dirent.inum);
             }
         }
 
-        unimplemented!();
+        None
+    }
+
+    pub fn dirlink(&mut self, name: &str, inum: u32) -> Result<(), &'static str> {
+        // check that the name is not present
+        if let Some(inode) = self.dirlookup(name) {
+            ICache::put(inode);
+            return Err("directory name already present");
+        }
+
+        // look for empty dirent
+        const size_of_dirent: usize = core::mem::size_of::<DirectoryEntry>();
+        let mut buffer = [0; size_of_dirent];
+
+        for offset in (0usize..self.data.size as usize).step_by(size_of_dirent) {
+            if self.read(&mut buffer[..], offset).is_none() {
+                return Err("dirlink read");
+            }
+            let mut dirent = DirectoryEntry::from_byte_array(&buffer[..]);
+            if dirent.inum == 0 {
+                dirent.name = name.as_bytes().clone();
+                dirent.inum = inum;
+
+                buffer = dirent.as_bytes();
+                if self.write(&mut buffer[..], offset).is_none() {
+                    return Err("dirlink write");
+                }
+                return Ok(());
+            }
+        }
+
+        Err("no empty directory entries")
+    }
+
+    // Read data from inode
+    // Returns number of bytes read, or None upon overflow
+    // xv6 equivalent: readi
+    pub fn read(&mut self, user_buffer: &mut [u8], mut offset: usize) -> Option<usize> {
+        let mut bytes_to_read = user_buffer.len();
+
+        if offset > self.data.size || offset.checked_add(bytes_to_read).is_none() {
+            return None;
+        }
+
+        if offset + bytes_to_read > self.data.size {
+            bytes_to_read = self.data.size - offset;
+        }
+
+        let mut total = 0usize;
+        let mut user_offset = 0usize;
+
+        while total < bytes_to_read {
+            let mut bguard = BCACHE.read(self.node.meta.device, self.block_map((offset / params::BSIZE) as u32));
+            let buffer = bguard.lock();
+
+            let start = offset % params::BSIZE;
+            let bytes_read = core::cmp::min(bytes_to_read - total, params::BSIZE - start);
+
+            user_buffer[user_offset..].copy_from_slice(&buffer.data[start..(start+bytes_read)]);
+
+            drop(buffer);
+            BCACHE.release(&mut bguard);
+
+            total += bytes_read;
+            offset += bytes_read;
+            user_offset += bytes_read;
+        }
+
+        Some(bytes_to_read)
+    }
+
+    // Write data to inode
+    // Returns number of bytes written, or None upon overflow
+    // xv6 equivalent: writei
+    pub fn write(&mut self, user_buffer: &mut [u8], mut offset: usize) -> Option<usize> {
+
+        let bytes_to_write = user_buffer.len();
+
+        if offset > self.data.size || offset.checked_add(bytes_to_write).is_none() {
+            return None;
+        }
+
+        if offset + bytes_to_write > params::MAXFILE * params::BSIZE {
+            return None;
+        }
+
+        let mut total = 0usize;
+        let mut user_offset = 0usize;
+
+        while total < bytes_to_write {
+            let mut bguard = BCACHE.read(self.node.meta.device, self.block_map((offset / params::BSIZE) as u32));
+            let mut buffer = bguard.lock();
+
+            let start = offset % params::BSIZE;
+            let bytes_written = core::cmp::min(bytes_to_write - total, params::BSIZE - start);
+
+            buffer.data[start..].copy_from_slice(&user_buffer[user_offset..(user_offset+bytes_written)]);
+
+            // TODO: log_write here
+            drop(buffer);
+            BCACHE.release(&mut bguard);
+
+            total += bytes_written;
+            offset += bytes_written;
+            user_offset += bytes_written;
+        }
+
+        if bytes_to_write > 0 {
+            if offset > self.data.size {
+                self.data.size = offset;
+            }
+            // write the node back to disk even if size didn't change, because block_map
+            // could have added a new block to self.addresses
+            self.update()
+        }
+
+        Some(bytes_to_write)
     }
 }
 
@@ -257,7 +369,7 @@ impl INode {
                 valid: AtomicBool::new(false)
             },
             data: Mutex::new(INodeData {
-                file_type: FileType::Unitialized,
+                file_type: INodeFileType::Unitialized,
                 major: 0,
                 minor: 0,
                 nlink: 0,
@@ -269,7 +381,7 @@ impl INode {
 
     // Locks node, reads from disk if necessary
     // xv6 equivalent: ilock(...)
-    fn lock(&self) -> INodeDataGuard {
+    pub fn lock(&self) -> INodeDataGuard {
         let super_block = get_super_block();
 
         let mut data = self.data.lock();
@@ -297,7 +409,7 @@ impl INode {
 
             self.meta.valid.store(true, Ordering::Relaxed);
 
-            if dinode.file_type == FileType::Unitialized {
+            if dinode.file_type == INodeFileType::Unitialized {
                 // TODO: better error handling here
                 panic!("ilock: no type");
             }
@@ -329,7 +441,7 @@ impl ICache {
 
     // Allocate a node on device.
     // Looks for a free inode on disk, marks it as used
-    pub fn alloc(&mut self, device: u32, file_type: FileType) -> Option<Arc<INode>> {
+    pub fn alloc(&mut self, device: u32, file_type: INodeFileType) -> Option<Arc<INode>> {
         let super_block = get_super_block();
         for inum in 1..super_block.ninodes {
             let mut bguard = BCACHE.read(device, block_num_for_node(inum, &super_block));
@@ -339,7 +451,7 @@ impl ICache {
             let mut dinode = unsafe {
                 &mut *(&buffer.data as *const BufferBlock as *mut BufferBlock as *mut DINode).offset((inum % params::IPB as u32) as isize)
             };
-            if dinode.file_type == FileType::Unitialized { // free inode
+            if dinode.file_type == INodeFileType::Unitialized { // free inode
                 // memset to 0
                 unsafe { core::ptr::write_bytes(dinode as *const DINode as *mut DINode, 0, 1); }
                 // setting file_type marks it as used
@@ -393,7 +505,7 @@ impl ICache {
 
             if inode_guard.data.nlink == 0 {
                 inode_guard.truncate();
-                inode_guard.data.file_type = FileType::Unitialized;
+                inode_guard.data.file_type = INodeFileType::Unitialized;
                 inode_guard.update();
                 inode.meta.valid.store(false, Ordering::Relaxed);
             }
@@ -438,7 +550,9 @@ pub fn get_super_block() -> Arc<SuperBlock> {
 
 fn test() {
     let mut icache = ICACHE.lock();
-    let inode = icache.alloc(0, FileType::Directory).unwrap();
+    let inode = icache.alloc(0, INodeFileType::Directory).unwrap();
     let mut inode_guard = inode.lock();
     inode_guard.data.addresses[0] = 10;
+    drop(inode_guard);
+    ICache::put(inode);
 }
