@@ -1,8 +1,9 @@
 use crate::capabilities::Capability; 
 
-pub trait Syscall {
-    fn sys_print(&self, s: &str);
-    fn sys_yield(&self);
-    fn sys_create_thread(&self, name: &str, func: extern fn()) -> Capability;
+#[derive(Copy, Clone)]
+pub struct Syscall {
+    pub sys_print: fn(s: &str),
+    pub sys_yield: fn(),
+    pub sys_create_thread: fn(name: &str, func: extern fn()) -> Capability,
 }
 
