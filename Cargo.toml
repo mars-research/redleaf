@@ -24,6 +24,7 @@ backtracer = { git = "https://github.com/gz/backtracer.git" }
 addr2line = { git = "https://github.com/gz/addr2line.git", branch = "patch-1", default-features = false, features = ["alloc", "rustc-demangle"] }
 bit_field = "0.9.0"
 bitflags = "1.0.4"
+usr = { path = "usr", version = "0.1.0" }
 
 [dependencies.lazy_static]
 version = "1.3.0"

@@ -20,9 +20,8 @@ extern crate spin;
 extern crate core;
 extern crate slabmalloc;
 extern crate alloc;
-
 extern crate backtracer;
-
+extern crate usr;
 
 #[macro_use]
 mod console;
@@ -58,6 +57,7 @@ use alloc::sync::Arc;
 use crate::thread::switch;
 use crate::drivers::Driver;
 use crate::interrupt::{enable_irq};
+use crate::syscalls::UKERN;
 
 #[no_mangle]
 pub static mut cpu1_stack: u32 = 0;
@@ -178,6 +178,11 @@ pub fn init_allocator() {
 
 }
 
+fn init_user() {
+    //crate::thread::create_thread("init", usr::init::init); 
+    usr::init::init(UKERN); 
+}
+
 const MAX_CPUS: u32 = 32;
 
 #[no_mangle]
@@ -249,12 +254,8 @@ pub extern "C" fn rust_main_ap() -> ! {
      
     println!("cpu{}: Initialized", cpu_id);
     thread::init_threads(); 
-    
-    println!("Ready to enable interrupts");
-
-    // Enable interrupts and the timer will schedule the next thread
-    enable_irq();
-
+   
+    /*
     // Initialize hello driver
     if cpu_id == 0 {
         use drivers::hello::Hello;
@@ -297,6 +298,16 @@ pub extern "C" fn rust_main_ap() -> ! {
         println!("First byte read is {}", data[0]);
         println!("Data read");
     }
+
+    */
+
+    init_user(); 
+
+    println!("Ready to enable interrupts");
+
+    // Enable interrupts and the timer will schedule the next thread
+    enable_irq();
+
 
     halt(); 
 }
