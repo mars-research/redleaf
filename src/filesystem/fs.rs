@@ -215,7 +215,7 @@ impl INodeDataGuard<'_> {
 
     // Look for a directory entry in a directory.
     // If found, set *poff to byte offset of entry(currently not supported).
-    pub fn dirlookup(&mut self, name :&str) -> Option<Arc<INode>> {
+    pub fn dirlookup(&mut self, name: &str) -> Option<Arc<INode>> {
         if self.data.file_type != INodeFileType::Directory {
             panic!("dirlookup not DIR");
         }
@@ -223,7 +223,9 @@ impl INodeDataGuard<'_> {
         const size_of_dirent: usize = core::mem::size_of::<DirectoryEntry>();
         for offset in (0usize..self.data.size as usize).step_by(size_of_dirent) {
             let mut buffer = [0; size_of_dirent];
-            self.read(&mut buffer[..], offset);
+            if self.read(&mut buffer[..], offset).is_none() {
+                panic!("dirlookup read");
+            }
             let dirent = DirectoryEntry::from_byte_array(&buffer[..]);
             if dirent.inum == 0 {
                 continue;
@@ -234,6 +236,37 @@ impl INodeDataGuard<'_> {
         }
 
         None
+    }
+
+    pub fn dirlink(&mut self, name: &str, inum: u32) -> Result<(), &'static str> {
+        // check that the name is not present
+        if let Some(inode) = self.dirlookup(name) {
+            ICache::put(inode);
+            return Err("directory name already present");
+        }
+
+        // look for empty dirent
+        const size_of_dirent: usize = core::mem::size_of::<DirectoryEntry>();
+        let mut buffer = [0; size_of_dirent];
+
+        for offset in (0usize..self.data.size as usize).step_by(size_of_dirent) {
+            if self.read(&mut buffer[..], offset).is_none() {
+                return Err("dirlink read");
+            }
+            let mut dirent = DirectoryEntry::from_byte_array(&buffer[..]);
+            if dirent.inum == 0 {
+                dirent.name = name.as_bytes().clone();
+                dirent.inum = inum;
+
+                buffer = dirent.as_bytes();
+                if self.write(&mut buffer[..], offset).is_none() {
+                    return Err("dirlink write");
+                }
+                return Ok(());
+            }
+        }
+
+        Err("no empty directory entries")
     }
 
     // Read data from inode

@@ -31,5 +31,11 @@ impl<'a> DirectoryEntry<'a> {
             name: &arr[4..4+params::DIRSIZ],
         }
     }
-}
 
+    pub fn as_bytes(&self) -> [u8; core::mem::size_of::<DirectoryEntry>()] {
+        let mut arr = [0u8; core::mem::size_of::<DirectoryEntry>()];
+        bytearray::from_u32(&mut arr[0..4], self.inum);
+        arr[4..].copy_from_slice(self.name);
+        arr
+    }
+}
