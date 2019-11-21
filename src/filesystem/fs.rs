@@ -229,11 +229,11 @@ impl INodeDataGuard<'_> {
                 continue;
             }
             if dirent.name == name.as_bytes() {
-                // return ICACHE.lock().get(self.data.dev, dirent.inum);
+                return ICACHE.lock().get(self.node.meta.device, dirent.inum);
             }
         }
 
-        unimplemented!();
+        None
     }
 
     // Read data from inode
