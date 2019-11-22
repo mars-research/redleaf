@@ -5,6 +5,8 @@ use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::string::ToString;
 use core::cell::RefCell;
+use crate::filesystem;
+use crate::filesystem::file::File;
 use crate::halt;
 use crate::syscalls::{sys_yield, sys_create_thread};
 use usr::capabilities::Capability; 
@@ -17,7 +19,7 @@ static SCHED: RefCell<Scheduler> = RefCell::new(Scheduler::new());
 
 /// Per-CPU current thread
 #[thread_local]
-static CURRENT: RefCell<Option<Box<Thread>>> = RefCell::new(None); 
+pub static CURRENT: RefCell<Option<Box<Thread>>> = RefCell::new(None); 
 
 
 enum ThreadState {
@@ -54,6 +56,10 @@ pub struct Thread {
     priority: Priority, 
     context: Context,
     stack: RefCell<Box<Stack>>,
+    // Opened files. Use file descriptors to index into this array.
+    // This will create issues when splitting the usr and kern.
+    // Maybe we could move `struct Thread` into usr?
+    pub files: [Option<Box<File>>; filesystem::params::NOFILE],
     // Next thread in the scheduling queue
     next: Link,
 }
@@ -109,6 +115,7 @@ impl  Thread {
             priority: 0,
             context: Context::new(),
             stack: RefCell::new(Box::new(Stack::new())),
+            files: Default::default(),
             next: None, 
         };
 
