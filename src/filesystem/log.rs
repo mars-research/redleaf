@@ -2,10 +2,15 @@
 
 use core::mem::size_of;
 
+use spin::Mutex;
+
 use crate::common::bytearray;
 use crate::filesystem::fs::SuperBlock;
 use crate::filesystem::params;
 use crate::filesystem::bcache::{BCACHE, BufferBlock, BufferGuard};
+
+// We only have one device per 
+// pub static LOG: Mutex<Log> = Mutex::new(Log::new());
 
 // Contents of the header block, used for both the on-disk header block
 // and to keep track in memory of logged block# before commit.
@@ -95,8 +100,13 @@ impl Log {
     // This is the true point at which the
     // current transaction commits.
     fn write_head(&self) {
-        let buf = BCACHE.read(self.dev, self.start);
-        self.logheader.to_buffer_block(&mut buf.lock().data);
+        let mut buf = BCACHE.read(self.dev, self.start); 
+        {
+            let mut locked_buf = buf.lock();
+            self.logheader.to_buffer_block(&mut buf.lock().data);
+            BCACHE.write(&mut locked_buf);
+        }
+        BCACHE.release(&mut buf);
     }
 
     fn recover_from_log(&mut self) {
@@ -112,7 +122,7 @@ impl Log {
     // this functions returns a guard that can be used to write_log.
     // And end_op will be called when the guard is dropped.
     // TODO(tianjiao): fix this
-    fn try_begin_op(&mut self) -> bool {
+    pub fn try_begin_op(&mut self) -> bool {
         if self.committing {
             return false;
         }
@@ -126,7 +136,7 @@ impl Log {
     // called at the end of each FS system call.
     // commits if this was the last outstanding operation.
     // Caller should repeatly call this function until this function returns true.
-    fn try_end_op(&mut self) {
+    fn end_op(&mut self) {
         let mut do_commit: bool = false;
 
         self.outstanding -= 1;
@@ -135,6 +145,7 @@ impl Log {
             do_commit = true;
             self.committing = true;
         } else {
+            // We dont need this wake up because currently we spin instead of sleep.
             // begin_op() may be waiting for log space,
             // and decrementing log.outstanding has decreased
             // the amount of reserved space.
