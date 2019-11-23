@@ -1,9 +1,11 @@
 use alloc::sync::Arc;
-use spin::{Mutex, MutexGuard};
 use core::mem::MaybeUninit;
 use core::sync::atomic::{AtomicBool, Ordering};
-use core::ops::{Drop, Deref, DerefMut};
+use core::ops::Drop;
 use core::convert::TryInto;
+
+use spin::{Mutex, MutexGuard};
+
 use crate::filesystem::params;
 use crate::filesystem::bcache::{BCACHE, BufferBlock};
 use crate::filesystem::block::Block;
