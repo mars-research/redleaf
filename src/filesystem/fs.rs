@@ -4,6 +4,7 @@ use core::mem::MaybeUninit;
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::ops::{Drop, Deref, DerefMut};
 use core::convert::TryInto;
+use alloc::vec::Vec;
 use crate::filesystem::params;
 use crate::filesystem::bcache::{BCACHE, BufferBlock};
 use crate::filesystem::block::Block;
@@ -512,6 +513,71 @@ impl ICache {
         }
         // make sure this reference is not used afterwards
         drop(inode);
+    }
+
+    // Look up and return the inode for a path.
+    // If parent is true, return the inode for the parent and the final path element.
+    // Must be called inside a transaction since it calls iput().
+    fn namex(path: &str, parent: bool) -> Option<(Arc<INode>, &str)> {
+
+        let mut inode: Arc<INode>;
+        if path.starts_with("/") {
+            if let Some(root) = ICACHE.lock().get(params::ROOTDEV, params::ROOTINO) {
+                inode = root;
+            } else {
+                return None;
+            }
+        } else {
+            unimplemented!("idup(myproc()->cwd)")
+        }
+
+        let components: Vec<&str> = path
+            .split('/')
+            .filter(|n| !n.is_empty())
+            .collect();
+
+        let mut components_iter = components.iter().peekable();
+        while let Some(component) = components_iter.next() {
+            let mut iguard = inode.lock();
+
+            // only the last path component can be a file
+            if iguard.data.file_type != INodeFileType::Directory {
+                drop(iguard);
+                Self::put(inode);
+                return None;
+            }
+
+            // return the parent of the last path component
+            if parent && components_iter.peek().is_none() {
+                drop(iguard);
+                return Some((inode, component));
+            }
+
+            let next = iguard.dirlookup(component);
+            drop(iguard);
+            Self::put(inode);
+
+            match next {
+                Some(next) => inode = next,
+                None => return None
+            }
+        }
+
+        if parent {
+            Self::put(inode);
+            return None;
+        }
+
+        // if we have a last component, return it along with the last inode
+        components.last().map(|component| (inode, *component))
+    }
+
+    pub fn namei(path: &str) -> Option<Arc<INode>> {
+        Self::namex(path, false).map(|(inode, name)| inode)
+    }
+
+    pub fn nameiparent(path: &str) -> Option<(Arc<INode>, &str)> {
+        Self::namex(path, true)
     }
 }
 
