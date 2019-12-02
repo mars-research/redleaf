@@ -2,15 +2,15 @@
 
 use core::mem::size_of;
 
-use spin::Mutex;
+use spin::Once;
 
 use crate::common::bytearray;
 use crate::filesystem::fs::SuperBlock;
 use crate::filesystem::params;
 use crate::filesystem::bcache::{BCACHE, BufferBlock, BufferGuard};
 
-// We only have one device per 
-// pub static LOG: Mutex<Log> = Mutex::new(Log::new());
+// We only have one device 
+pub static LOG: Once<Log> = Once::new();
 
 // Contents of the header block, used for both the on-disk header block
 // and to keep track in memory of logged block# before commit.
@@ -53,7 +53,7 @@ pub struct Log {
 }
 
 impl Log {
-    fn new(dev: u32, superblock: SuperBlock) -> Self {
+    pub fn new(dev: u32, superblock: SuperBlock) -> Self {
         assert!(
             size_of::<LogHeader>() < params::BSIZE,
             "initlog: too big logheader"

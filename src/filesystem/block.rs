@@ -1,6 +1,6 @@
 use crate::filesystem::params;
 use crate::filesystem::bcache::{BCACHE, BufferBlock};
-use crate::filesystem::fs::{block_num_for_node, get_super_block};
+use crate::filesystem::fs::{block_num_for_node, SUPER_BLOCK};
 
 pub struct Block {}
 
@@ -8,7 +8,7 @@ impl Block {
     // Frees a disk block
     // xv6 equivalent: bfree
     pub fn free(device: u32, block: u32) {
-        let super_block = get_super_block();
+        let super_block = SUPER_BLOCK.r#try().expect("fs not initialized");
 
         let mut bguard = BCACHE.read(device, block_num_for_node(block, &super_block));
         let mut buffer = bguard.lock();
@@ -27,7 +27,7 @@ impl Block {
     // Returns None if out of blocks
     // xv6 equivalent: balloc
     pub fn alloc(device: u32) -> Option<u32> {
-        let super_block = get_super_block();
+        let super_block = SUPER_BLOCK.r#try().expect("fs not initialized");
 
         for b in (0..super_block.size).step_by(params::BPB) {
             let mut bguard = BCACHE.read(device, block_num_for_node(b as u32, &super_block));

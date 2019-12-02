@@ -5,12 +5,15 @@ use core::mem::MaybeUninit;
 use core::ops::Drop;
 use core::sync::atomic::{AtomicBool, Ordering};
 
-use spin::{Mutex, MutexGuard};
+use spin::{Mutex, MutexGuard, Once};
 
 use crate::filesystem::bcache::{BufferBlock, BCACHE};
 use crate::filesystem::block::Block;
 use crate::filesystem::directory::DirectoryEntry;
+use crate::filesystem::log::{Log, LOG};
 use crate::filesystem::params;
+
+pub static SUPER_BLOCK: Once<SuperBlock> = Once::new();
 
 pub struct SuperBlock {
     pub size: usize,
@@ -93,7 +96,7 @@ impl INodeDataGuard<'_> {
     // xv6 equivalent: iupdate()
     pub fn update(&self) {
         // TODO: global superblock
-        let super_block = get_super_block();
+        let super_block = SUPER_BLOCK.r#try().expect("fs not initialized");
 
         let mut bguard = BCACHE.read(
             self.node.meta.device,
@@ -227,9 +230,9 @@ impl INodeDataGuard<'_> {
             panic!("dirlookup not DIR");
         }
 
-        const size_of_dirent: usize = core::mem::size_of::<DirectoryEntry>();
-        for offset in (0usize..self.data.size as usize).step_by(size_of_dirent) {
-            let mut buffer = [0; size_of_dirent];
+        const SIZE_OF_DIRENT: usize = core::mem::size_of::<DirectoryEntry>();
+        for offset in (0usize..self.data.size as usize).step_by(SIZE_OF_DIRENT) {
+            let mut buffer = [0; SIZE_OF_DIRENT];
             if self.read(&mut buffer[..], offset).is_none() {
                 panic!("dirlookup read");
             }
@@ -253,10 +256,10 @@ impl INodeDataGuard<'_> {
         }
 
         // look for empty dirent
-        const size_of_dirent: usize = core::mem::size_of::<DirectoryEntry>();
-        let mut buffer = [0; size_of_dirent];
+        const SIZE_OF_DIRENT: usize = core::mem::size_of::<DirectoryEntry>();
+        let mut buffer = [0; SIZE_OF_DIRENT];
 
-        for offset in (0usize..self.data.size as usize).step_by(size_of_dirent) {
+        for offset in (0usize..self.data.size as usize).step_by(SIZE_OF_DIRENT) {
             if self.read(&mut buffer[..], offset).is_none() {
                 return Err("dirlink read");
             }
@@ -395,7 +398,7 @@ impl INode {
     // Locks node, reads from disk if necessary
     // xv6 equivalent: ilock(...)
     pub fn lock(&self) -> INodeDataGuard {
-        let super_block = get_super_block();
+        let super_block = SUPER_BLOCK.r#try().expect("fs not initialized");
 
         let mut data = self.data.lock();
 
@@ -403,7 +406,7 @@ impl INode {
             // if not valid, load from disk
             let mut bguard = BCACHE.read(
                 self.meta.device,
-                block_num_for_node(self.meta.inum, &super_block),
+                block_num_for_node(self.meta.inum, super_block),
             );
             let buffer = bguard.lock();
 
@@ -460,9 +463,9 @@ impl ICache {
     // Allocate a node on device.
     // Looks for a free inode on disk, marks it as used
     pub fn alloc(&mut self, device: u32, file_type: INodeFileType) -> Option<Arc<INode>> {
-        let super_block = get_super_block();
+        let super_block = SUPER_BLOCK.r#try().expect("fs not initialized");
         for inum in 1..super_block.ninodes {
-            let mut bguard = BCACHE.read(device, block_num_for_node(inum, &super_block));
+            let mut bguard = BCACHE.read(device, block_num_for_node(inum, super_block));
             let buffer = bguard.lock();
 
             // TODO: work around unsafe
@@ -606,12 +609,12 @@ lazy_static! {
 }
 
 // TODO: better name and place
-pub fn block_num_for_node(inum: u32, super_block: &Arc<SuperBlock>) -> u32 {
+pub fn block_num_for_node(inum: u32, super_block: &SuperBlock) -> u32 {
     return inum / params::IPB as u32 + super_block.inodestart;
 }
 
 // TODO: load super block from disk
-pub fn get_super_block() -> Arc<SuperBlock> {
+fn read_superblock(dev: u32) -> SuperBlock {
     const NINODES: usize = 200;
 
     let nbitmap = params::FSSIZE / (params::BSIZE * 8) + 1;
@@ -622,7 +625,7 @@ pub fn get_super_block() -> Arc<SuperBlock> {
     let nmeta = 2 + nlog + ninodeblocks + nbitmap;
     let nblocks = params::FSSIZE - nmeta;
     // TODO: ensure the encoding is intel's encoding
-    Arc::new(SuperBlock {
+    SuperBlock {
         size: params::FSSIZE as usize,
         nblocks: nlog as u32,
         ninodes: NINODES as u32,
@@ -630,7 +633,16 @@ pub fn get_super_block() -> Arc<SuperBlock> {
         logstart: 2,
         inodestart: 2 + nlog as u32,
         bmapstart: (2 + nlog + ninodeblocks) as u32,
-    })
+    }
+}
+
+pub fn fsinit(dev: u32) {
+    let sb = read_superblock(dev);
+    // We don't have the sb_magic in the original xv6
+    // assert!(sb.magic)
+    LOG.call_once(|| {
+        Log::new(dev, sb)
+    });
 }
 
 fn test() {
