@@ -1,15 +1,16 @@
 use alloc::sync::Arc;
-use core::mem::MaybeUninit;
-use core::sync::atomic::{AtomicBool, Ordering};
-use core::ops::Drop;
+use alloc::vec::Vec;
 use core::convert::TryInto;
+use core::mem::MaybeUninit;
+use core::ops::Drop;
+use core::sync::atomic::{AtomicBool, Ordering};
 
 use spin::{Mutex, MutexGuard};
 
-use crate::filesystem::params;
-use crate::filesystem::bcache::{BCACHE, BufferBlock};
+use crate::filesystem::bcache::{BufferBlock, BCACHE};
 use crate::filesystem::block::Block;
 use crate::filesystem::directory::DirectoryEntry;
+use crate::filesystem::params;
 
 pub struct SuperBlock {
     pub size: usize,
@@ -24,7 +25,7 @@ pub struct SuperBlock {
     // Block number of first log block
     pub inodestart: u32,
     // Block number of first inode block
-    pub bmapstart: u32,    // Block number of first free map block
+    pub bmapstart: u32, // Block number of first free map block
 }
 
 pub struct INodeMeta {
@@ -49,7 +50,7 @@ pub struct INodeData {
     // Size of file (bytes)
     pub size: usize,
     // Data block addresses
-    pub addresses: [u32; params::NDIRECT+1],
+    pub addresses: [u32; params::NDIRECT + 1],
 }
 
 pub type DINode = INodeData;
@@ -62,13 +63,13 @@ pub struct INodeDataGuard<'a> {
 #[repr(u16)]
 #[derive(PartialEq, Copy, Clone)]
 pub enum INodeFileType {
-    // This is not a file type; it indicates that the inode is not initialized 
-    Unitialized,    
+    // This is not a file type; it indicates that the inode is not initialized
+    Unitialized,
     // Correspond to T_DIR in xv6
     Directory,
     // Correspond to T_FILE in xv6
     File,
-    // Correspond to 
+    // Correspond to
     Device,
 }
 
@@ -94,7 +95,10 @@ impl INodeDataGuard<'_> {
         // TODO: global superblock
         let super_block = get_super_block();
 
-        let mut bguard = BCACHE.read(self.node.meta.device, block_num_for_node(self.node.meta.inum, &super_block));
+        let mut bguard = BCACHE.read(
+            self.node.meta.device,
+            block_num_for_node(self.node.meta.inum, &super_block),
+        );
         let buffer = bguard.lock();
 
         // TODO: work around unsafe
@@ -128,7 +132,8 @@ impl INodeDataGuard<'_> {
         }
 
         if self.data.addresses[params::NDIRECT] != 0 {
-            let mut bguard = BCACHE.read(self.node.meta.device, self.data.addresses[params::NDIRECT]);
+            let mut bguard =
+                BCACHE.read(self.node.meta.device, self.data.addresses[params::NDIRECT]);
             let buffer = bguard.lock();
 
             let mut chunks_iter = buffer.data.chunks_exact(core::mem::size_of::<u32>());
@@ -157,7 +162,7 @@ impl INodeDataGuard<'_> {
             inum: self.node.meta.inum,
             file_type: self.data.file_type,
             nlink: self.data.nlink,
-            size: self.data.size as u64
+            size: self.data.size as u64,
         }
     }
 
@@ -289,13 +294,16 @@ impl INodeDataGuard<'_> {
         let mut user_offset = 0usize;
 
         while total < bytes_to_read {
-            let mut bguard = BCACHE.read(self.node.meta.device, self.block_map((offset / params::BSIZE) as u32));
+            let mut bguard = BCACHE.read(
+                self.node.meta.device,
+                self.block_map((offset / params::BSIZE) as u32),
+            );
             let buffer = bguard.lock();
 
             let start = offset % params::BSIZE;
             let bytes_read = core::cmp::min(bytes_to_read - total, params::BSIZE - start);
 
-            user_buffer[user_offset..].copy_from_slice(&buffer.data[start..(start+bytes_read)]);
+            user_buffer[user_offset..].copy_from_slice(&buffer.data[start..(start + bytes_read)]);
 
             drop(buffer);
             BCACHE.release(&mut bguard);
@@ -312,7 +320,6 @@ impl INodeDataGuard<'_> {
     // Returns number of bytes written, or None upon overflow
     // xv6 equivalent: writei
     pub fn write(&mut self, user_buffer: &mut [u8], mut offset: usize) -> Option<usize> {
-
         let bytes_to_write = user_buffer.len();
 
         if offset > self.data.size || offset.checked_add(bytes_to_write).is_none() {
@@ -327,13 +334,17 @@ impl INodeDataGuard<'_> {
         let mut user_offset = 0usize;
 
         while total < bytes_to_write {
-            let mut bguard = BCACHE.read(self.node.meta.device, self.block_map((offset / params::BSIZE) as u32));
+            let mut bguard = BCACHE.read(
+                self.node.meta.device,
+                self.block_map((offset / params::BSIZE) as u32),
+            );
             let mut buffer = bguard.lock();
 
             let start = offset % params::BSIZE;
             let bytes_written = core::cmp::min(bytes_to_write - total, params::BSIZE - start);
 
-            buffer.data[start..].copy_from_slice(&user_buffer[user_offset..(user_offset+bytes_written)]);
+            buffer.data[start..]
+                .copy_from_slice(&user_buffer[user_offset..(user_offset + bytes_written)]);
 
             // TODO: log_write here
             drop(buffer);
@@ -368,7 +379,7 @@ impl INode {
             meta: INodeMeta {
                 device: 0,
                 inum: 0,
-                valid: AtomicBool::new(false)
+                valid: AtomicBool::new(false),
             },
             data: Mutex::new(INodeData {
                 file_type: INodeFileType::Unitialized,
@@ -376,8 +387,8 @@ impl INode {
                 minor: 0,
                 nlink: 0,
                 size: 0,
-                addresses: [0; params::NDIRECT+1]
-            })
+                addresses: [0; params::NDIRECT + 1],
+            }),
         }
     }
 
@@ -390,12 +401,15 @@ impl INode {
 
         if !self.meta.valid.load(Ordering::Relaxed) {
             // if not valid, load from disk
-            let mut bguard = BCACHE.read(self.meta.device, block_num_for_node(self.meta.inum, &super_block));
+            let mut bguard = BCACHE.read(
+                self.meta.device,
+                block_num_for_node(self.meta.inum, &super_block),
+            );
             let buffer = bguard.lock();
 
             // TODO: work around unsafe
             let dinode = unsafe {
-                & *(&buffer.data as *const BufferBlock as *mut BufferBlock as *mut DINode)
+                &*(&buffer.data as *const BufferBlock as *mut BufferBlock as *mut DINode)
                     .offset((self.meta.inum % params::IPB as u32) as isize)
             };
 
@@ -419,7 +433,7 @@ impl INode {
 
         INodeDataGuard {
             node: &self,
-            data: data
+            data: data,
         }
     }
 }
@@ -434,10 +448,12 @@ impl ICache {
             inodes: unsafe {
                 let mut arr = MaybeUninit::<[Arc<INode>; params::NINODE]>::uninit();
                 for i in 0..params::NINODE {
-                    (arr.as_mut_ptr() as *mut Arc<INode>).add(i).write(Arc::new(INode::new()));
+                    (arr.as_mut_ptr() as *mut Arc<INode>)
+                        .add(i)
+                        .write(Arc::new(INode::new()));
                 }
                 arr.assume_init()
-            }
+            },
         }
     }
 
@@ -451,11 +467,15 @@ impl ICache {
 
             // TODO: work around unsafe
             let mut dinode = unsafe {
-                &mut *(&buffer.data as *const BufferBlock as *mut BufferBlock as *mut DINode).offset((inum % params::IPB as u32) as isize)
+                &mut *(&buffer.data as *const BufferBlock as *mut BufferBlock as *mut DINode)
+                    .offset((inum % params::IPB as u32) as isize)
             };
-            if dinode.file_type == INodeFileType::Unitialized { // free inode
+            if dinode.file_type == INodeFileType::Unitialized {
+                // free inode
                 // memset to 0
-                unsafe { core::ptr::write_bytes(dinode as *const DINode as *mut DINode, 0, 1); }
+                unsafe {
+                    core::ptr::write_bytes(dinode as *const DINode as *mut DINode, 0, 1);
+                }
                 // setting file_type marks it as used
                 dinode.file_type = file_type;
                 // TODO: log_write here
@@ -473,7 +493,10 @@ impl ICache {
     pub fn get(&mut self, device: u32, inum: u32) -> Option<Arc<INode>> {
         let mut empty: Option<&mut Arc<INode>> = None;
         for inode in self.inodes.iter_mut() {
-            if Arc::strong_count(inode) == 1 && inode.meta.device == device && inode.meta.inum == inum {
+            if Arc::strong_count(inode) == 1
+                && inode.meta.device == device
+                && inode.meta.inum == inum
+            {
                 return Some(inode.clone());
             }
             if empty.is_none() && Arc::strong_count(inode) == 1 {
@@ -515,6 +538,67 @@ impl ICache {
         // make sure this reference is not used afterwards
         drop(inode);
     }
+
+    // Look up and return the inode for a path.
+    // If parent is true, return the inode for the parent and the final path element.
+    // Must be called inside a transaction since it calls iput().
+    fn namex(path: &str, parent: bool) -> Option<(Arc<INode>, &str)> {
+        let mut inode: Arc<INode>;
+        if path.starts_with("/") {
+            if let Some(root) = ICACHE.lock().get(params::ROOTDEV, params::ROOTINO) {
+                inode = root;
+            } else {
+                return None;
+            }
+        } else {
+            unimplemented!("idup(myproc()->cwd)")
+        }
+
+        let components: Vec<&str> = path.split('/').filter(|n| !n.is_empty()).collect();
+
+        let mut components_iter = components.iter().peekable();
+        while let Some(component) = components_iter.next() {
+            let mut iguard = inode.lock();
+
+            // only the last path component can be a file
+            if iguard.data.file_type != INodeFileType::Directory {
+                drop(iguard);
+                Self::put(inode);
+                return None;
+            }
+
+            // return the parent of the last path component
+            if parent && components_iter.peek().is_none() {
+                drop(iguard);
+                return Some((inode, component));
+            }
+
+            let next = iguard.dirlookup(component);
+            drop(iguard);
+            Self::put(inode);
+
+            match next {
+                Some(next) => inode = next,
+                None => return None,
+            }
+        }
+
+        if parent {
+            Self::put(inode);
+            return None;
+        }
+
+        // if we have a last component, return it along with the last inode
+        components.last().map(|component| (inode, *component))
+    }
+
+    pub fn namei(path: &str) -> Option<Arc<INode>> {
+        Self::namex(path, false).map(|(inode, name)| inode)
+    }
+
+    pub fn nameiparent(path: &str) -> Option<(Arc<INode>, &str)> {
+        Self::namex(path, true)
+    }
 }
 
 lazy_static! {
@@ -528,10 +612,9 @@ pub fn block_num_for_node(inum: u32, super_block: &Arc<SuperBlock>) -> u32 {
 
 // TODO: load super block from disk
 pub fn get_super_block() -> Arc<SuperBlock> {
-
     const NINODES: usize = 200;
 
-    let nbitmap = params::FSSIZE / (params::BSIZE*8) + 1;
+    let nbitmap = params::FSSIZE / (params::BSIZE * 8) + 1;
     let ninodeblocks = NINODES / params::IPB + 1;
     let nlog = params::LOGSIZE;
 
