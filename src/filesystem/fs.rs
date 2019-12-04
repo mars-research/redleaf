@@ -248,6 +248,7 @@ impl INodeDataGuard<'_> {
         None
     }
 
+    // Write a new directory entry (name, inum) into the directory.
     pub fn dirlink(&mut self, name: &str, inum: u32) -> Result<(), &'static str> {
         // check that the name is not present
         if let Some(inode) = self.dirlookup(name) {
@@ -601,6 +602,56 @@ impl ICache {
 
     pub fn nameiparent(path: &str) -> Option<(Arc<INode>, &str)> {
         Self::namex(path, true)
+    }
+
+    pub fn create(path: &str, file_type: INodeFileType, major: i16, minor: i16) -> Option<Arc<INode>> {
+        return match ICache::nameiparent(path) {
+            None => None,
+            Some((dirnode, name)) => {
+                // found parent directory
+                let mut dirguard = dirnode.lock();
+
+                match dirguard.dirlookup(name) {
+                    Some(inode) => {
+                        // full path already exists
+                        drop(&mut dirguard);
+
+                        let iguard = inode.lock();
+                        if file_type == INodeFileType::File && iguard.data.file_type == INodeFileType::File {
+                            return Some(inode.clone());
+                        }
+                        None
+                    },
+                    None => {
+                        // create child
+                        let inode = ICACHE.lock().alloc(dirnode.meta.device, file_type).expect("ICache alloc failed");
+
+                        let mut iguard = inode.lock();
+                        iguard.data.major = major;
+                        iguard.data.minor = minor;
+                        iguard.data.nlink = 1;
+                        iguard.update();
+
+                        if file_type == INodeFileType::Directory {
+                            // create . and ..
+                            dirguard.data.nlink += 1; // ..
+                            dirguard.update();
+
+                            if iguard.dirlink(".", inode.meta.inum).is_err() ||
+                                iguard.dirlink("..", dirnode.meta.inum).is_err() {
+                                // failed to add dot entries
+                                return None;
+                            }
+                        }
+
+                        dirguard.dirlink(name, inode.meta.inum);
+                        drop(&mut dirguard);
+
+                        Some(inode.clone())
+                    }
+                }
+            }
+        }
     }
 }
 
