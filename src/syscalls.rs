@@ -87,7 +87,7 @@ pub fn sys_open(path: &str, mode: FileMode) -> Option<usize> {
         }
     };
 
-    let fd = FDTABLE.lock().alloc_fd(file);
+    let fd = unsafe { FDTABLE.alloc_fd(file) };
 
     drop(iguard);
     // TODO: log end_op here

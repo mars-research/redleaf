@@ -3,7 +3,6 @@ use crate::filesystem::params;
 use alloc::sync::Arc;
 use core::mem::{MaybeUninit, swap};
 use alloc::vec::Vec;
-use spin::Mutex;
 
 pub enum FileType {
     Pipe, // TODO: { pipe: Arc<Pipe> }
@@ -127,8 +126,6 @@ impl FileDescriptorTable {
     }
 }
 
-unsafe impl Sync for FileDescriptorTable {}
-
 // TODO: remove mutex here... can't figure out 'static mut' even with #[thread_local]
 #[thread_local]
-pub static FDTABLE: Mutex<FileDescriptorTable> = Mutex::new(FileDescriptorTable { files: Vec::new() });
+pub static mut FDTABLE: FileDescriptorTable = FileDescriptorTable { files: Vec::new() };
