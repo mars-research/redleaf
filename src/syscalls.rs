@@ -1,7 +1,11 @@
 use crate::interrupt::{disable_irq, enable_irq};
 use crate::thread::{do_yield, create_thread};
+use crate::filesystem::fs::{ICACHE, ICache, INode, INodeFileType};
+use crate::filesystem::file::{File, FileType, FDTABLE};
+use crate::filesystem::params;
 use usr::capabilities::Capability;
-use usr::syscalls::Syscall;
+use usr::syscalls::{Syscall, FileMode};
+use alloc::sync::Arc;
 
 // Print a string 
 pub fn sys_print(s: &str) {
@@ -31,10 +35,69 @@ pub fn sys_create_thread(name: &str, func: extern fn()) -> Capability  {
     return cap;
 }
 
+pub fn sys_open(path: &str, mode: FileMode) -> Option<usize> {
+    // TODO: log begin_op here
+    let inode: Option<Arc<INode>> = match mode {
+        FileMode::Create => {
+            if let Some(inode) = ICache::create(path, INodeFileType::File, 0, 0) {
+
+                Some(inode)
+            } else {
+                // TODO: log end_op here
+                None
+            }
+        },
+        _ => {
+            if let Some(inode) = ICache::namei(path) {
+                let is_directory = inode.lock().data.file_type == INodeFileType::Directory;
+                if is_directory && mode != FileMode::Read {
+                    ICache::put(inode);
+                    // TODO: log end_op here
+                    None
+                } else {
+                    Some(inode)
+                }
+            } else {
+                // TODO: log end_op here
+                None
+            }
+        }
+    };
+
+    if inode.is_none() {
+        return None;
+    }
+
+    let inode = inode.unwrap();
+    let iguard = inode.lock();
+
+    if iguard.data.file_type == INodeFileType::Device && (iguard.data.major < 0 || iguard.data.major >= params::NDEV) {
+        drop(iguard);
+        ICache::put(inode);
+        // TODO: log end_op here
+        return None;
+    }
+
+    let file: Arc<File> = match iguard.data.file_type {
+        Device => {
+            Arc::new(File::new(FileType::Device { inode: inode.clone(), major: iguard.data.major }, mode.readable(), mode.writeable()))
+        },
+        _ => {
+            Arc::new(File::new(FileType::INode { inode: inode.clone(), offset: 0 }, mode.readable(), mode.writeable()))
+        }
+    };
+
+    let fd = FDTABLE.lock().alloc_fd(file);
+
+    drop(iguard);
+    // TODO: log end_op here
+
+    Some(fd)
+}
 
 pub static UKERN: Syscall = Syscall{
     sys_print,
     sys_yield,
     sys_create_thread,
+    sys_open,
 };
-

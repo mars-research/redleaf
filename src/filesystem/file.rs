@@ -3,6 +3,7 @@ use crate::filesystem::params;
 use alloc::sync::Arc;
 use core::mem::{MaybeUninit, swap};
 use alloc::vec::Vec;
+use spin::Mutex;
 
 pub enum FileType {
     Pipe, // TODO: { pipe: Arc<Pipe> }
@@ -16,8 +17,8 @@ pub struct File {
     pub writable: bool,
 }
 
-pub struct FileTable {
-    pub files: Vec<File>,
+pub struct FileDescriptorTable {
+    pub files: Vec<Option<Arc<File>>>,
 }
 
 impl File {
@@ -107,3 +108,27 @@ impl File {
         }
     }
 }
+
+impl FileDescriptorTable {
+    // xv6 equivalent: fdalloc
+    pub fn alloc_fd(&mut self, file: Arc<File>) -> usize {
+        for (fd, f) in self.files.iter_mut().enumerate() {
+            if f.is_none() {
+                *f = Some(file.clone());
+                return fd;
+            }
+        }
+        self.files.push(Some(file.clone()));
+        return self.files.len() - 1;
+    }
+
+    pub fn free_fd(&mut self, fd: usize) {
+        self.files[fd] = None;
+    }
+}
+
+unsafe impl Sync for FileDescriptorTable {}
+
+// TODO: remove mutex here... can't figure out 'static mut' even with #[thread_local]
+#[thread_local]
+pub static FDTABLE: Mutex<FileDescriptorTable> = Mutex::new(FileDescriptorTable { files: Vec::new() });
