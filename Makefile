@@ -11,6 +11,17 @@ grub_cfg := boot/grub.cfg
 target ?= $(arch)-redleaf
 rust_os := target/$(target)/debug/libredleaf.a
 
+qemu_common := -m 128m -vga std -s
+qemu_common := $(qemu_common) -cdrom $(iso)
+qemu_common := $(qemu_common) -no-reboot -no-shutdown -d int,cpu_reset
+qemu_common := $(qemu_common) -drive file=disk.img,index=0,media=disk,format=raw
+qemu_common := $(qemu_common) -smp 2
+
+# https://superuser.com/a/1412150
+qemu_nox := -nographic -chardev stdio,id=char0,mux=on,logfile=serial.log,signal=off -serial chardev:char0 -mon chardev=char0
+
+qemu_x := -serial file:serial.log
+
 .PHONY: all
 all: $(kernel)
 
@@ -30,24 +41,28 @@ run-nox: qemu-nox
 
 .PHONY: qemu
 qemu: $(iso) disk.img
-	qemu-system-x86_64 -m 128m -cdrom $(iso) -vga std -s -serial file:serial.log -no-reboot -no-shutdown -d int,cpu_reset -drive file=disk.img,index=0,media=disk,format=raw -smp 2
+	qemu-system-x86_64 $(qemu_common) $(qemu_x)
 
 .PHONY: qemu-gdb
 qemu-gdb: $(iso)
-	qemu-system-x86_64 -S -m 128m -cdrom $(iso) -vga std -s -serial file:serial.log -no-reboot -no-shutdown -d int,cpu_reset -smp 2
+	qemu-system-x86_64 $(qemu_common) $(qemu_x) -S
 
 .PHONY: qemu-gdb-nox
 qemu-gdb-nox: $(iso)
-	qemu-system-x86_64 -S -m 128m -cdrom $(iso) -vga std -s -serial file:serial.log -no-reboot -no-shutdown -d int,cpu_reset -smp 2 -nographic
-
+	qemu-system-x86_64 $(qemu_common) $(qemu_nox) -S
 
 .PHONY: qemu-nox
 qemu-nox: $(iso)
-	qemu-system-x86_64 -m 128m -cdrom $(iso) -vga std -s -no-reboot -nographic -smp 2
+	qemu-system-x86_64 $(qemu_common) $(qemu_nox)
+
+.PHONY: qemu-nox-cloudlab
+qemu-nox-cloudlab: $(iso)
+	$(eval pciflag := $(shell sudo ./rebind-82599es.sh))
+	sudo qemu-system-x86_64 $(qemu_common) $(qemu_nox) $(pciflag)
 
 .PHONY: qemu-efi-nox
 qemu-efi-nox: $(iso) ovmf-code
-	qemu-system-x86_64 -m 128m -bios OVMF_CODE.fd -cdrom $(iso) -s -no-reboot -nographic -smp 2
+	qemu-system-x86_64 $(qemu_common) $(qemu_nox) -bios OVMF_CODE.fd
 
 disk.img:
 	fallocate -l 512M disk.img
