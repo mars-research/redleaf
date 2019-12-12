@@ -452,8 +452,12 @@ fn kernel_end() -> u64 {
 const KERNEL_BASE: u64 = 0x100000;
 const MAP_BASE: u64 = 0x0;
 
+lazy_static! {
+    pub static ref VSPACE: Mutex<VSpace> = Mutex::new(VSpace::new());
+}
+
 pub fn construct_pt() {
-    let mut vspace = VSpace::new();
+    if let ref mut vspace = *VSPACE.lock() {
 
     // Map RWX as some code is copied to 0x7000 for ap start
     vspace.map_generic(VAddr::from(MAP_BASE),
@@ -522,7 +526,7 @@ pub fn construct_pt() {
         println!("Flushing TLB");
         x86::tlb::flush_all();
     }
-
+    }
     // We need the memory pointed to by vspace after exiting the scope
-    core::mem::forget(vspace);
+   // core::mem::forget(vspace);
 }

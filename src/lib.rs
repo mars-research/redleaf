@@ -24,6 +24,7 @@ extern crate alloc;
 extern crate backtracer;
 extern crate usr;
 extern crate pcid;
+extern crate elfloader;
 
 #[macro_use]
 mod console;
@@ -45,6 +46,7 @@ mod thread;
 mod panic; 
 mod syscalls;
 mod pci;
+mod domain;
 
 use x86::cpuid::CpuId;
 use crate::arch::init_buddy;
@@ -63,6 +65,7 @@ use crate::interrupt::{enable_irq};
 use crate::syscalls::UKERN;
 use crate::memory::construct_pt;
 use crate::pci::scan_pci_devs;
+use crate::domain::sys_init::load_sys_init;
 
 #[no_mangle]
 pub static mut cpu1_stack: u32 = 0;
@@ -140,6 +143,8 @@ pub extern "C" fn rust_main() -> ! {
 
     // Init page table (code runs on a new page table after this call)
     construct_pt();
+
+    unsafe { load_sys_init(); }
 
     scan_pci_devs();
 
