@@ -111,7 +111,7 @@ pub fn init_allocator() {
 
 fn init_user() {
     //crate::thread::create_thread("init", usr::init::init); 
-    usr::init::init(UKERN); 
+    //usr::init::init(UKERN); 
 }
 
 const MAX_CPUS: u32 = 32;

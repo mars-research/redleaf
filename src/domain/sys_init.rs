@@ -3,7 +3,8 @@ use x86::bits64::paging::BASE_PAGE_SIZE;
 use elfloader::ElfBinary;
 use super::Domain;
 use alloc::string::String;
-use crate::syscalls::{Syscall, UKERN};
+use crate::syscalls::UKERN;
+use syscalls::syscalls::Syscall;
 use core::mem::transmute;
 
 macro_rules! round_up {

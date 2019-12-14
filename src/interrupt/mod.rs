@@ -282,6 +282,7 @@ extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: &mut InterruptStac
 #[no_mangle]
 extern fn do_invalid_op(pt_regs: &mut PtRegs) {
     println!("Invalide opcode exception:\n{:#?}", pt_regs);
+    crate::panic::backtrace_exception(pt_regs);
     crate::halt();
 }
 
