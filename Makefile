@@ -10,6 +10,7 @@ grub_cfg := boot/grub.cfg
 
 target ?= $(arch)-redleaf
 rust_os := target/$(target)/debug/libredleaf.a
+xv6fs = usr/mkfs/build/fs.img
 
 .PHONY: all
 all: $(kernel)
@@ -21,6 +22,7 @@ release: $(releaseKernel)
 clean:
 	rm -r build
 	cargo clean
+	make -C usr/mkfs clean
 
 .PHONY: run
 run: qemu
@@ -30,7 +32,7 @@ run-nox: qemu-nox
 
 .PHONY: qemu
 qemu: $(iso) disk.img
-	qemu-system-x86_64 -m 128m -cdrom $(iso) -vga std -s -serial file:serial.log -no-reboot -no-shutdown -d int,cpu_reset -drive file=disk.img,index=0,media=disk,format=raw -smp 2
+	qemu-system-x86_64 -m 128m -cdrom $(iso) -vga std -s -serial file:serial.log -no-reboot -no-shutdown -d int,cpu_reset -drive file=$(xv6fs),index=0,media=disk,format=raw -smp 2
 
 .PHONY: qemu-gdb
 qemu-gdb: $(iso)
@@ -50,7 +52,8 @@ qemu-efi-nox: $(iso) ovmf-code
 	qemu-system-x86_64 -m 128m -bios OVMF_CODE.fd -cdrom $(iso) -s -no-reboot -nographic -smp 2
 
 disk.img:
-	fallocate -l 512M disk.img
+	make -C usr/mkfs 
+	#fallocate -l 512M disk.img
 
 ovmf-code:
 	echo "Getting OVMF_CODE.fd is not implemented..."
