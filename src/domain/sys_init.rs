@@ -56,4 +56,5 @@ pub unsafe fn load_sys_init() {
         transmute::<*const(), user_init>(_entry)
     };
     user_ep(UKERN);
+    println!("Hello back");
 }
