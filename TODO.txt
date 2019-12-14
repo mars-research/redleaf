@@ -1,0 +1,55 @@
+
+
+
+Domains
+-------
+ -- Support for memory allocator to run Box [Vikram]
+
+ -- We need "domain_create()" system call and how we pass system calls
+    
+     - Here it's a bit tricky, we need to pass unique system calls into each
+       domain type. For example, device drvier domains get ukern syscalls, xv6
+domains get both xv6 system calls and ukern syscalls (maybe it's not strictly
+needed (we thought we need this for memory allocator to work, but maybe xv6 can
+implement it's own allocator, but maybe it's not possible as it has to be
+unsafe)
+
+domain_create() 
+
+  - Create a new thread for a domain, jump into entry point with a specific set
+    of system calls
+
+  - 
+
+xv6
+-----
+
+ -- Move xv6 into ELF files [Tian?]
+
+ -- Interrupt support for xv6, i.e. we need a layer that 
+    starts interrupts as threads, the thread is parked waiting on an interrupt 
+    and is woken up when the interrupt arrives
+
+ - Scheduling support, i.e., all system calls to allow control over scheduling
+   decisions
+
+
+ -- xv6 user process creation 
+    -- Need to figure out a prototype for "safe compilation" 
+
+Device drviers
+--------------
+
+-- Move block device driver into loadable domains
+
+
+Software Fault Isolation
+------------------------
+
+ -- Interface wrapping
+
+Secure compilation
+--------------------------------------------------------------------
+
+ -- Generation of the 
+
