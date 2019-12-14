@@ -3,6 +3,8 @@ use x86::bits64::paging::BASE_PAGE_SIZE;
 use elfloader::ElfBinary;
 use super::Domain;
 use alloc::string::String;
+use crate::syscalls::{Syscall, UKERN};
+use core::mem::transmute;
 
 macro_rules! round_up {
     ($num:expr, $s:expr) => {
@@ -28,6 +30,7 @@ pub unsafe fn load_sys_init() {
     let (binary_start, binary_end) = sys_init_binary_range();
     let binary_start: *const u8 = binary_start as *const u8;
     let binary_end: *const u8 = binary_end as *const u8;
+    type user_init = fn(Syscall);
 
     let num_bytes = ((binary_end as usize) - (binary_start as usize)) as usize;
 
@@ -44,4 +47,12 @@ pub unsafe fn load_sys_init() {
 
     // print its entry point for now
     println!("entry point at {:x}", loader.offset + sys_init_elf.entry_point());
+
+    let user_ep: user_init = unsafe {
+        let mut entry: *const u8 = loader.offset.as_ptr();
+        entry = entry.offset(sys_init_elf.entry_point() as isize);
+        let _entry = entry as *const ();
+        transmute::<*const(), user_init>(_entry)
+    };
+    user_ep(UKERN);
 }

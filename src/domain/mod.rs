@@ -123,6 +123,14 @@ impl elfloader::ElfLoader for Domain {
             max_alignment,
         );
 
+        let ptr = pbase.as_u64() as *mut u8;
+        for i in 0..((max_end.as_usize() - min_base.as_usize()) as isize) {
+            unsafe {
+                *ptr.offset(i) = 0;
+            }
+        }
+        println!("num_pages: {}", (max_end - min_base) >> BASE_PAGE_SHIFT);
+
         self.offset = VAddr::from(pbase.as_usize());
         info!(
             "Binary loaded at address: {:#x} entry {:#x}",

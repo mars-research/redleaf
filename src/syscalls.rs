@@ -1,7 +1,7 @@
 use crate::interrupt::{disable_irq, enable_irq};
 use crate::thread::{do_yield, create_thread};
 use usr::capabilities::Capability;
-use usr::syscalls::Syscall;
+pub use usr::syscalls::Syscall;
 
 // Print a string 
 pub fn sys_print(s: &str) {
