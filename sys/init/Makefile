@@ -15,7 +15,7 @@ release: $(releaseinit)
 
 .PHONY: clean
 clean:
-	rm -r build
+	rm -rf build
 	cargo clean
 
 $(bin): lib $(linker_script)

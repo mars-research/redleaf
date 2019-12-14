@@ -30,7 +30,8 @@ release: $(releaseKernel)
 
 .PHONY: clean
 clean:
-	rm -r build
+	make -C sys/init clean
+	rm -rf build
 	cargo clean
 
 .PHONY: run
