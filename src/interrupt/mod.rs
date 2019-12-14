@@ -378,6 +378,9 @@ extern "x86-interrupt" fn general_protection_fault_handler(
 #[no_mangle]
 extern fn do_general_protection(pt_regs: &mut PtRegs) {
     println!("general protection fault:\n{:#?}", pt_regs);
+
+    crate::panic::backtrace_exception(pt_regs);
+
     crate::halt(); 
 }
 
