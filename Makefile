@@ -44,15 +44,15 @@ qemu: $(iso) disk.img
 	qemu-system-x86_64 $(qemu_common) $(qemu_x)
 
 .PHONY: qemu-gdb
-qemu-gdb: $(iso)
+qemu-gdb: $(iso) disk.img
 	qemu-system-x86_64 $(qemu_common) $(qemu_x) -S
 
 .PHONY: qemu-gdb-nox
-qemu-gdb-nox: $(iso)
+qemu-gdb-nox: $(iso) disk.img
 	qemu-system-x86_64 $(qemu_common) $(qemu_nox) -S
 
 .PHONY: qemu-nox
-qemu-nox: $(iso)
+qemu-nox: $(iso) disk.img
 	qemu-system-x86_64 $(qemu_common) $(qemu_nox)
 
 .PHONY: qemu-nox-cloudlab
@@ -61,7 +61,7 @@ qemu-nox-cloudlab: $(iso)
 	sudo qemu-system-x86_64 $(qemu_common) $(qemu_nox) $(pciflag)
 
 .PHONY: qemu-efi-nox
-qemu-efi-nox: $(iso) ovmf-code
+qemu-efi-nox: $(iso) disk.img ovmf-code
 	qemu-system-x86_64 $(qemu_common) $(qemu_nox) -bios OVMF_CODE.fd
 
 disk.img:
