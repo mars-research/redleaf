@@ -112,6 +112,8 @@ pub fn init_allocator() {
 fn init_user() {
     //crate::thread::create_thread("init", usr::init::init); 
     //usr::init::init(UKERN); 
+    
+    unsafe { load_sys_init(); }
 }
 
 const MAX_CPUS: u32 = 32;
@@ -144,7 +146,6 @@ pub extern "C" fn rust_main() -> ! {
     // Init page table (code runs on a new page table after this call)
     construct_pt();
 
-    unsafe { load_sys_init(); }
 
     scan_pci_devs();
 
@@ -239,9 +240,13 @@ pub extern "C" fn rust_main_ap() -> ! {
 
     */
 
-    init_user(); 
 
+   
     println!("Ready to enable interrupts");
+
+    // The first user system call will re-enable interrupts on 
+    // exit to user
+    init_user(); 
 
     // Enable interrupts and the timer will schedule the next thread
     enable_irq();
