@@ -106,6 +106,7 @@ impl<T> List<T> {
         match &node.prev {
             Some(prev) => {
                 prev.lock().next = node.next.clone();
+                self.head.replace(prev.clone());
             }
             None => {/*noop*/}
         }
@@ -113,6 +114,7 @@ impl<T> List<T> {
         match &node.next {
             Some(next) => {
                 next.lock().prev = node.prev.clone();
+                self.head.replace(next.clone());
             }
             None => {/*noop*/}
         }
