@@ -53,7 +53,7 @@ pub struct Log {
 }
 
 impl Log {
-    pub fn new(dev: u32, superblock: SuperBlock) -> Self {
+    pub fn new(dev: u32, superblock: &SuperBlock) -> Self {
         assert!(
             size_of::<LogHeader>() < params::BSIZE,
             "initlog: too big logheader"

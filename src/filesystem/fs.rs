@@ -692,11 +692,9 @@ fn read_superblock(dev: u32) -> SuperBlock {
 
 pub fn fsinit(dev: u32) {
     println!("fsinit");
-    let sb = read_superblock(dev);
-    // We don't have the sb_magic in the original xv6
-    // assert!(sb.magic)
+    SUPER_BLOCK.call_once(|| read_superblock(dev));
     LOG.call_once(|| {
-        Log::new(dev, sb)
+        Log::new(dev, SUPER_BLOCK.r#try().unwrap())
     });
 }
 
