@@ -19,3 +19,13 @@ pub fn sys_print(s: &str) {
     (scalls.sys_print)(s);
 }
 
+pub fn sys_yield() {
+    let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
+    (scalls.sys_yield)();
+}
+
+pub fn sys_create_thread(name: &str, func: extern fn()) -> Capability {
+    let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
+    return (scalls.sys_create_thread)(name, func);
+}
+
