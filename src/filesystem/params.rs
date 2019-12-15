@@ -14,7 +14,7 @@ pub const MAXARG: usize =       32;     // max exec arguments
 pub const MAXOPBLOCKS: usize =  10;     // max # of blocks any FS op writes
 pub const LOGSIZE: usize =      (MAXOPBLOCKS*3);  // max data blocks in on-disk log
 pub const NBUF: usize =         (MAXOPBLOCKS*3);  // size of disk block cache
-pub const BSIZE: usize =        1024;   // block size
+pub const BSIZE: usize =        512;   // block size
 pub const BPB: usize =          BSIZE * 8; // bits per block
 pub const FSSIZE: usize =       1000;   // size of file system in blocks
 
