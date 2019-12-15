@@ -4,6 +4,7 @@ use alloc::sync::Arc;
 use core::mem::{MaybeUninit, swap};
 use alloc::vec::Vec;
 
+#[derive(Debug)]
 pub enum FileType {
     Pipe, // TODO: { pipe: Arc<Pipe> }
     INode { inode: Arc<INode>, offset: usize },

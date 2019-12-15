@@ -3,11 +3,13 @@
 //use redleaf::syscalls::{sys_create_thread, sys_print};
 use spin::Once;
 use crate::syscalls::{Syscall};
+use crate::ls;
 
 static SYSCALL: Once<Syscall> = Once::new();
 
 pub extern fn init(s: Syscall) {
     SYSCALL.call_once(|| s);
+    ls::ls(&s, "/");
     (s.sys_print)("init userland");
     (s.sys_create_thread)("hello1", hello1); 
     (s.sys_create_thread)("hello2", hello2); 

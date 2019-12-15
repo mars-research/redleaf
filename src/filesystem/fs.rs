@@ -31,6 +31,7 @@ pub struct SuperBlock {
     pub bmapstart: u32, // Block number of first free map block
 }
 
+#[derive(Debug)]
 pub struct INodeMeta {
     // Device number
     pub device: u32,
@@ -41,6 +42,7 @@ pub struct INodeMeta {
 }
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct INodeData {
     // File type
     pub file_type: INodeFileType,
@@ -64,7 +66,7 @@ pub struct INodeDataGuard<'a> {
 }
 
 #[repr(u16)]
-#[derive(PartialEq, Copy, Clone)]
+#[derive(PartialEq, Copy, Clone, Debug)]
 pub enum INodeFileType {
     // This is not a file type; it indicates that the inode is not initialized
     Unitialized,
@@ -372,6 +374,7 @@ impl INodeDataGuard<'_> {
     }
 }
 
+#[derive(Debug)]
 pub struct INode {
     pub meta: INodeMeta,
     pub data: Mutex<INodeData>,
@@ -593,7 +596,7 @@ impl ICache {
         }
 
         // if we have a last component, return it along with the last inode
-        components.last().map(|component| (inode, *component))
+        Some((inode, components.last().unwrap_or(&"")))
     }
 
     pub fn namei(path: &str) -> Option<Arc<INode>> {
