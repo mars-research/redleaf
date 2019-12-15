@@ -8,16 +8,13 @@
     panic_info_message
 )]
 
-use spin::Once;
-use syscalls::syscalls::{Syscall};
 use core::panic::PanicInfo;
-
-static SYSCALL: Once<Syscall> = Once::new();
+use syscalls::syscalls::{Syscall, sys_print};
 
 #[no_mangle]
 pub fn init(s: Syscall) {
-    SYSCALL.call_once(|| s);
-    (s.sys_print)("init userland");
+    syscalls::syscalls::init(s);
+    sys_print("init userland");
 }
 
 // This function is called on panic.
