@@ -691,6 +691,7 @@ fn read_superblock(dev: u32) -> SuperBlock {
 }
 
 pub fn fsinit(dev: u32) {
+    println!("fsinit");
     let sb = read_superblock(dev);
     // We don't have the sb_magic in the original xv6
     // assert!(sb.magic)

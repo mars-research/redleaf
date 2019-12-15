@@ -9,6 +9,7 @@ static SYSCALL: Once<Syscall> = Once::new();
 
 pub extern fn init(s: Syscall) {
     SYSCALL.call_once(|| s);
+    (s.init_fs_temp)();
     ls::ls(&s, "/");
     (s.sys_print)("init userland");
     (s.sys_create_thread)("hello1", hello1); 

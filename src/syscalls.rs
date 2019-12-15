@@ -1,11 +1,17 @@
 use crate::interrupt::{disable_irq, enable_irq};
 use crate::thread::{do_yield, create_thread};
-use crate::filesystem::fs::{ICACHE, ICache, INode, INodeFileType};
+use crate::filesystem::fs::{ICACHE, ICache, INode, INodeFileType, fsinit};
 use crate::filesystem::file::{File, FileType, FDTABLE};
 use crate::filesystem::params;
 use usr::capabilities::Capability;
 use usr::syscalls::{Syscall, FileMode};
 use alloc::sync::Arc;
+
+// A temperory function that we can use to init the fs in user land.
+// TODO: delete this after we split fs into a seperate crate
+pub fn init_fs_temp() {
+    fsinit(0);
+}
 
 // Print a string 
 pub fn sys_print(s: &str) {
@@ -100,4 +106,5 @@ pub static UKERN: Syscall = Syscall{
     sys_yield,
     sys_create_thread,
     sys_open,
+    init_fs_temp,
 };

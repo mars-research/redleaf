@@ -162,6 +162,7 @@ impl BufferCache {
     // This is okay because the buffer will become valid only if it is a reused buffer.
     // We can also merge `bread` with `bget` since `bget` is only a helper for `bread`
     pub fn read(&self, device: u32, block_number: u32) -> BufferGuard {
+        println!("bread dev{} block{}", device, block_number);
         let buffer = self.get(device, block_number);
         {
             let mut guard = buffer.lock();
@@ -184,6 +185,7 @@ impl BufferCache {
     // Check xv6 for details
     // TODO(tianjiao): fix this
     pub fn release(&self, guard: &mut BufferGuard) {
+        println!("brlse dev{} block{}", guard.dev, guard.block_number);
         let node = guard.node.take().expect("Buffer is not initialized or already released.");
         let mut list = self.list.lock();
         node.lock().elem.reference_count -= 1;

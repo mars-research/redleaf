@@ -103,7 +103,7 @@ impl Log {
         let mut buf = BCACHE.read(self.dev, self.start); 
         {
             let mut locked_buf = buf.lock();
-            self.logheader.to_buffer_block(&mut buf.lock().data);
+            self.logheader.to_buffer_block(&mut locked_buf.data);
             BCACHE.write(&mut locked_buf);
         }
         BCACHE.release(&mut buf);
