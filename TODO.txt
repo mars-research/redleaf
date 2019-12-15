@@ -16,10 +16,17 @@ unsafe)
 
 domain_create() 
 
-  - Create a new thread for a domain, jump into entry point with a specific set
-    of system calls
+  - Jump into entry point with a specific set of system calls (i.e., ukern
+    syscalls), we don't create a new thread (domains can be passive). If the
+domain needs a thread it will create it inside the main() function.  
 
-  - 
+  - TSS support for per-thread data structures
+
+  - Scheduler support to "create or migrate threads to specific CPUs" 
+
+  - Syscall wrappers 
+
+  - support for println system call 
 
 xv6
 -----
