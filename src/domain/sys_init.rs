@@ -6,6 +6,7 @@ use alloc::string::String;
 use crate::syscalls::UKERN;
 use syscalls::syscalls::Syscall;
 use core::mem::transmute;
+use crate::interrupt::{disable_irq, enable_irq};
 
 macro_rules! round_up {
     ($num:expr, $s:expr) => {
@@ -55,6 +56,11 @@ pub unsafe fn load_sys_init() {
         let _entry = entry as *const ();
         transmute::<*const(), user_init>(_entry)
     };
+
+    // Enable interrupts as we do upcall into user
+    disable_irq();
     user_ep(UKERN);
+    enable_irq(); 
+
     println!("Hello back");
 }
