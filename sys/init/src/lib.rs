@@ -10,11 +10,16 @@
 
 use core::panic::PanicInfo;
 use syscalls::syscalls::{Syscall, sys_print};
+use console::println;
 
 #[no_mangle]
 pub fn init(s: Syscall) {
     syscalls::syscalls::init(s);
     sys_print("init userland");
+    sys_print("init userland 2");
+    sys_print("init userland 3");
+
+    //println!("init userland print works {}", 4); 
 }
 
 // This function is called on panic.

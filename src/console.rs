@@ -19,10 +19,10 @@ macro_rules! println {
 
 #[doc(hidden)]
 pub fn _print(args: core::fmt::Arguments) {
-	use x86_64::instructions::interrupts;
+    use x86_64::instructions::interrupts;
 
-	interrupts::without_interrupts(|| {
+    interrupts::without_interrupts(|| {
         WRITER.lock().write_fmt(args).unwrap();
-	    SERIAL1.lock().write_fmt(args).unwrap(); 
-	});
+        SERIAL1.lock().write_fmt(args).unwrap(); 
+    });
 }

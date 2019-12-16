@@ -5,6 +5,8 @@ ENTRY(start)
 SECTIONS {
   . = 0x0; /* Link at 0x0 */
 
+  /* . = 0x227000;  */
+
   ENTRY(init)
 
   .rodata :
