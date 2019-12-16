@@ -20,7 +20,7 @@ clean:
 
 $(bin): lib $(linker_script)
 	mkdir -p build	
-	ld -n --gc-sections -T $(linker_script) -o $(bin) $(lib) 
+	ld -q -n --gc-sections -T $(linker_script) -o $(bin) $(lib) 
 
 .PHONY: lib
 lib:

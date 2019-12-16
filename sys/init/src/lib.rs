@@ -19,7 +19,7 @@ pub fn init(s: Syscall) {
     sys_print("init userland 2");
     sys_print("init userland 3");
 
-    //println!("init userland print works {}", 4); 
+    println!("init userland print works"); 
 }
 
 // This function is called on panic.

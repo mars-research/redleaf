@@ -58,9 +58,9 @@ pub unsafe fn load_sys_init() {
     };
 
     // Enable interrupts as we do upcall into user
-    disable_irq();
+    enable_irq();
     user_ep(UKERN);
-    enable_irq(); 
+    disable_irq(); 
 
     println!("Hello back");
 }
