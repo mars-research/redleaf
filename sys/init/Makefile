@@ -20,9 +20,8 @@ clean:
 
 $(bin): lib $(linker_script)
 	mkdir -p build	
-	ld -q -n --gc-sections -T $(linker_script) -o $(bin) $(lib) 
+	ld -n -pie --no-dynamic-linker --gc-sections -T $(linker_script) -o $(bin) $(lib)
 
 .PHONY: lib
 lib:
 	@RUST_TARGET_PATH=$(32shell pwd) cargo xbuild --target x86_64-init.json
-
