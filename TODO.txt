@@ -24,9 +24,9 @@ domain needs a thread it will create it inside the main() function.
 
   - Scheduler support to "create or migrate threads to specific CPUs" 
 
-  - Syscall wrappers 
+  - Syscall wrappers  [done]
 
-  - support for println system call 
+  - support for println system call [done]
 
 xv6
 -----
@@ -42,6 +42,7 @@ xv6
 
 
  -- xv6 user process creation 
+
     -- Need to figure out a prototype for "safe compilation" 
 
 Device drviers
