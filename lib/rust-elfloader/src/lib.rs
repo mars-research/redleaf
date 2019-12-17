@@ -305,6 +305,9 @@ impl<'s> ElfBinary<'s> {
         trace!("rela size {:?} rela off {:?}", rela_size, rela);
 
         // It's easier to just locate the section by name:
+        // XXX: Not sure what this check is intended for. It picks up the DYNAMIC header from the
+        // program headers and compares it with .rela.dyn section of the elf file. But, in reality,
+        // this DYNAMIC header is generated from a different section named .dynamic.
         self.file
             .find_section_by_name(".rela.dyn")
             .map_or(Ok(()), |rela_section_dyn| {
@@ -354,9 +357,10 @@ impl<'s> ElfBinary<'s> {
                 }
                 Ph64(header) => {
                     let typ = header.get_type()?;
-                    if typ == Type::Dynamic {
-                        self.check_dynamic(header, loader)?;
-                    }
+                    // XXX: Do not perform this check
+                    //if typ == Type::Dynamic {
+                    //    self.check_dynamic(header, loader)?;
+                    //}
                 }
             }
         }

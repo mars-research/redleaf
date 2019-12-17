@@ -205,11 +205,11 @@ impl elfloader::ElfLoader for Domain {
             }
             _paddr
         };
-        let kernel_addr: VAddr = paddr_to_kernel_vaddr(paddr);
+        let vaddr: VAddr = paddr_to_kernel_vaddr(paddr);
 
         debug!(
             "ELF relocation paddr {:#x} kernel_addr {:#x}",
-            paddr, kernel_addr
+            paddr, vaddr
         );
 
         use elfloader::TypeRela64;
@@ -219,7 +219,7 @@ impl elfloader::ElfLoader for Domain {
             unsafe {
                 // Scary unsafe changing stuff in random memory locations based on
                 // ELF binary values weee!
-                *(kernel_addr.as_mut_ptr::<u64>()) = self.offset.as_u64() + entry.get_addend();
+                *(vaddr.as_mut_ptr::<u64>()) = self.offset.as_u64() + entry.get_addend();
             }
             Ok(())
         } else {
