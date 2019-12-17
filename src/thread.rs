@@ -219,7 +219,7 @@ impl  Scheduler {
 
     // Flip active and passive queue making active queue passive
     pub fn flip_queues(&mut self) {
-        println!("flip queues");
+        //println!("flip queues");
         if self.active {
             self.active = false
         } else {
@@ -327,7 +327,7 @@ fn get_current() -> Option<Box<Thread>> {
 // Kicked from the timer IRQ
 pub fn schedule() {
 
-    println!("Schedule"); 
+    //println!("Schedule"); 
 
     let mut s = SCHED.borrow_mut();
     let mut next_thread = match s.next() {

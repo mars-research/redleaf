@@ -22,6 +22,7 @@ use console::println;
 #[no_mangle]
 pub fn init(s: Syscall) {
     syscalls::syscalls::init(s);
+    
     //let b = Box::new(4);
     //let r = sys_alloc();
     let mut v1: Vec<u64> = Vec::with_capacity(1024);
@@ -34,6 +35,7 @@ pub fn init(s: Syscall) {
     sys_print("init userland 3");
 
     println!("init userland print works"); 
+
 }
 
 // This function is called on panic.
