@@ -1,12 +1,11 @@
 //! A minimal example that implements the GlobalAlloc trait.
 
-extern crate alloc;
 use core::alloc::{GlobalAlloc, Layout};
 use core::mem::transmute;
 use core::ptr::{self, NonNull};
 use slabmalloc::*;
 use spin::Mutex;
-use syscalls::syscalls::{sys_alloc, sys_free, sys_alloc_huge, sys_free_huge};
+use std::alloc::System;
 
 /// SLAB_ALLOC is set as the system's default allocator, it's implementation follows below.
 ///
@@ -23,13 +22,13 @@ struct Pager;
 
 impl Pager {
     const BASE_PAGE_SIZE: usize = 4096;
-    const LARGE_PAGE_SIZE: usize = 2 * 2 * 1024;
+    const LARGE_PAGE_SIZE: usize = 2 * 1024 * 1024;
 
     /// Allocates a given `page_size`.
-    fn alloc_page(&mut self, _page_size: usize) -> Option<*mut u8> {
-        let r = sys_alloc();
+    fn alloc_page(&mut self, page_size: usize) -> Option<*mut u8> {
+        let r = unsafe { System.alloc(Layout::from_size_align(page_size, page_size).unwrap()) };
 
-        if r as u64 != 0 {
+        if !r.is_null() {
             Some(r)
         } else {
             None
@@ -38,7 +37,7 @@ impl Pager {
 
     /// De-allocates a given `page_size`.
     fn dealloc_page(&mut self, ptr: *mut u8, page_size: usize) {
-        let _layout = match page_size {
+        let layout = match page_size {
             Pager::BASE_PAGE_SIZE => {
                 Layout::from_size_align(Pager::BASE_PAGE_SIZE, Pager::BASE_PAGE_SIZE).unwrap()
             }
@@ -48,7 +47,7 @@ impl Pager {
             _ => unreachable!("invalid page-size supplied"),
         };
 
-        sys_free(ptr);
+        unsafe { System.dealloc(ptr, layout) };
     }
 
     /// Allocates a new ObjectPage from the System.
@@ -102,10 +101,7 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
                 // to avoid fragmentation
                 PAGER.allocate_large_page().expect("Can't allocate page?") as *mut _ as *mut u8
             }
-            sz => {
-                sys_alloc_huge(sz as u64)
-            }
-            /*0..=ZoneAllocator::MAX_ALLOC_SIZE => {
+            0..=ZoneAllocator::MAX_ALLOC_SIZE => {
                 let mut zone_allocator = self.0.lock();
                 match zone_allocator.allocate(layout) {
                     Ok(nptr) => nptr.as_ptr(),
@@ -137,7 +133,7 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
                     }
                     Err(AllocationError::InvalidLayout) => panic!("Can't allocate this size"),
                 }
-            }*/
+            }
             _ => unimplemented!("Can't handle it, probably needs another allocator."),
         }
     }
@@ -146,9 +142,7 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
         match layout.size() {
             Pager::BASE_PAGE_SIZE => Pager.dealloc_page(ptr, Pager::BASE_PAGE_SIZE),
             Pager::LARGE_PAGE_SIZE => Pager.dealloc_page(ptr, Pager::LARGE_PAGE_SIZE),
-
-            sz => sys_free_huge(ptr),
-            /*0..=ZoneAllocator::MAX_ALLOC_SIZE => {
+            0..=ZoneAllocator::MAX_ALLOC_SIZE => {
                 if let Some(nptr) = NonNull::new(ptr) {
                     self.0
                         .lock()
@@ -160,13 +154,26 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
 
                 // An proper reclamation strategy could be implemented here
                 // to release empty pages back from the ZoneAllocator to the PAGER
-            }*/
+            }
             _ => unimplemented!("Can't handle it, probably needs another allocator."),
         }
     }
 }
 
-#[alloc_error_handler]
-fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
-    panic!("allocation error: {:?}", layout)
+fn main() {
+    let _r = env_logger::init();
+
+    let mut v1: Vec<u64> = Vec::with_capacity(1024);
+    for i in 0..2048 {
+        v1.push(i);
+    }
+    let sum1: u64 = v1.iter().sum();
+    println!("sum = {}", sum1);
+
+    let mut v2: Vec<u8> = Vec::with_capacity(4096);
+    for _i in 0..4096 {
+        v2.push(0);
+    }
+    let sum2: u8 = v2.iter().sum();
+    println!("sum2 = {}", sum2);
 }

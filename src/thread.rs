@@ -375,7 +375,7 @@ pub extern fn idle() {
     halt(); 
 }
 
-
+/*
 pub fn create_thread (name: &str, func: extern fn()) -> Capability {
     let mut s = SCHED.borrow_mut();
 
@@ -383,6 +383,21 @@ pub fn create_thread (name: &str, func: extern fn()) -> Capability {
     
     s.put_thread(t1);
     return 0; 
+} */
+
+pub fn create_thread (name: &str, func: extern fn()) -> Box<syscalls::syscalls::Thread> {
+    //let mut s = SCHED.borrow_mut();
+
+    let mut t1 = Box::new(Thread::new(name, func));
+    
+    //s.put_thread(t1);
+    return t1; 
+}
+
+impl syscalls::syscalls::Thread for Thread {
+    fn set_affinity(&self, affinity: u64) {
+        println!("Setting affinity:{}", affinity); 
+    }
 }
 
 pub fn init_threads() {

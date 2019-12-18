@@ -16,8 +16,12 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::panic::PanicInfo;
-use syscalls::syscalls::{Syscall, sys_print, sys_alloc};
+use syscalls::syscalls::{Syscall, sys_print, sys_alloc, sys_create_thread};
 use console::println;
+
+extern fn foo() {
+    
+}
 
 #[no_mangle]
 pub fn init(s: Syscall) {
@@ -34,8 +38,11 @@ pub fn init(s: Syscall) {
     sys_print("init userland 2");
     sys_print("init userland 3");
 
-    println!("init userland print works"); 
-
+    println!("init userland print works");
+    let t = sys_create_thread("trait_test", foo); 
+    t.set_affinity(10); 
+    //println!("thread:{}", t);
+    drop(t); 
 }
 
 // This function is called on panic.
