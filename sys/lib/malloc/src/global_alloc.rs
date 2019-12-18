@@ -6,7 +6,7 @@ use core::mem::transmute;
 use core::ptr::{self, NonNull};
 use slabmalloc::*;
 use spin::Mutex;
-use syscalls::syscalls::{sys_alloc,sys_free};
+use syscalls::syscalls::{sys_alloc, sys_free, sys_alloc_huge, sys_free_huge};
 
 /// SLAB_ALLOC is set as the system's default allocator, it's implementation follows below.
 ///
@@ -23,7 +23,7 @@ struct Pager;
 
 impl Pager {
     const BASE_PAGE_SIZE: usize = 4096;
-    const LARGE_PAGE_SIZE: usize = 2 * 1024 * 1024;
+    const LARGE_PAGE_SIZE: usize = 2 * 2 * 1024;
 
     /// Allocates a given `page_size`.
     fn alloc_page(&mut self, _page_size: usize) -> Option<*mut u8> {
@@ -102,7 +102,10 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
                 // to avoid fragmentation
                 PAGER.allocate_large_page().expect("Can't allocate page?") as *mut _ as *mut u8
             }
-            0..=ZoneAllocator::MAX_ALLOC_SIZE => {
+            sz => {
+                sys_alloc_huge(sz as u64)
+            }
+            /*0..=ZoneAllocator::MAX_ALLOC_SIZE => {
                 let mut zone_allocator = self.0.lock();
                 match zone_allocator.allocate(layout) {
                     Ok(nptr) => nptr.as_ptr(),
@@ -134,7 +137,7 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
                     }
                     Err(AllocationError::InvalidLayout) => panic!("Can't allocate this size"),
                 }
-            }
+            }*/
             _ => unimplemented!("Can't handle it, probably needs another allocator."),
         }
     }
@@ -143,7 +146,9 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
         match layout.size() {
             Pager::BASE_PAGE_SIZE => Pager.dealloc_page(ptr, Pager::BASE_PAGE_SIZE),
             Pager::LARGE_PAGE_SIZE => Pager.dealloc_page(ptr, Pager::LARGE_PAGE_SIZE),
-            0..=ZoneAllocator::MAX_ALLOC_SIZE => {
+
+            sz => sys_free_huge(ptr),
+            /*0..=ZoneAllocator::MAX_ALLOC_SIZE => {
                 if let Some(nptr) = NonNull::new(ptr) {
                     self.0
                         .lock()
@@ -155,7 +160,7 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
 
                 // An proper reclamation strategy could be implemented here
                 // to release empty pages back from the ZoneAllocator to the PAGER
-            }
+            }*/
             _ => unimplemented!("Can't handle it, probably needs another allocator."),
         }
     }

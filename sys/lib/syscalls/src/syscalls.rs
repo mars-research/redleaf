@@ -10,6 +10,8 @@ pub struct Syscall {
     pub sys_create_thread: fn(name: &str, func: extern fn()) -> Capability,
     pub sys_alloc: fn() -> *mut u8,
     pub sys_free: fn(p: *mut u8),
+    pub sys_alloc_huge: fn(sz: u64) -> *mut u8,
+    pub sys_free_huge: fn(p: *mut u8),
 }
 
 pub fn init(s: Syscall) {
@@ -39,4 +41,14 @@ pub fn sys_alloc() -> *mut u8 {
 pub fn sys_free(p: *mut u8) {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
     return (scalls.sys_free)(p);
+}
+
+pub fn sys_alloc_huge(sz: u64) -> *mut u8 {
+    let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
+    return (scalls.sys_alloc_huge)(sz);
+}
+
+pub fn sys_free_huge(p: *mut u8) {
+    let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
+    return (scalls.sys_free_huge)(p);
 }

@@ -66,7 +66,7 @@ const BASE_PAGE_SIZE: usize = 4096;
 
 #[cfg(target_arch = "x86_64")]
 #[allow(unused)]
-const LARGE_PAGE_SIZE: usize = 2 * 1024 * 1024;
+const LARGE_PAGE_SIZE: usize = 2 * 2 * 1024;
 
 #[cfg(target_arch = "x86_64")]
 type VAddr = usize;
