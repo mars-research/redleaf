@@ -1,5 +1,4 @@
 extern crate alloc;
-use crate::capabilities::Capability; 
 use spin::Once;
 use alloc::boxed::Box;
 

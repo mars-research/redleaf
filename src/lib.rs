@@ -22,7 +22,6 @@ extern crate slabmalloc;
 #[macro_use]
 extern crate alloc;
 extern crate backtracer;
-extern crate usr;
 extern crate pcid;
 extern crate elfloader;
 

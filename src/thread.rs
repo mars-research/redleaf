@@ -7,7 +7,6 @@ use alloc::string::ToString;
 use core::cell::RefCell;
 use crate::halt;
 use crate::syscalls::{sys_yield, sys_create_thread};
-use usr::capabilities::Capability; 
 
 const MAX_PRIO: usize = 15;
 
