@@ -18,9 +18,65 @@ static FD_TABLE: RefCell<[Option<Box<File>>; params::NOFILE]> = RefCell::new(
     None, None, None, None, None, None, None, None]
 );
 
-pub fn sys_open(path: &str, omode: u32) {
-    
-}
+// pub fn sys_open(path: &str, mode: FileMode) -> Option<usize> {
+//     // TODO: log begin_op here
+//     let inode: Option<Arc<INode>> = match mode {
+//         FileMode::Create => {
+//             if let Some(inode) = ICache::create(path, INodeFileType::File, 0, 0) {
+
+//                 Some(inode)
+//             } else {
+//                 // TODO: log end_op here
+//                 None
+//             }
+//         },
+//         _ => {
+//             if let Some(inode) = ICache::namei(path) {
+//                 let is_directory = inode.lock().data.file_type == INodeFileType::Directory;
+//                 if is_directory && mode != FileMode::Read {
+//                     ICache::put(inode);
+//                     // TODO: log end_op here
+//                     None
+//                 } else {
+//                     Some(inode)
+//                 }
+//             } else {
+//                 // TODO: log end_op here
+//                 None
+//             }
+//         }
+//     };
+
+//     if inode.is_none() {
+//         return None;
+//     }
+
+//     let inode = inode.unwrap();
+//     let iguard = inode.lock();
+
+//     if iguard.data.file_type == INodeFileType::Device && (iguard.data.major < 0 || iguard.data.major >= params::NDEV) {
+//         drop(iguard);
+//         ICache::put(inode);
+//         // TODO: log end_op here
+//         return None;
+//     }
+
+//     let file: Arc<File> = match iguard.data.file_type {
+//         Device => {
+//             Arc::new(File::new(FileType::Device { inode: inode.clone(), major: iguard.data.major }, mode.readable(), mode.writeable()))
+//         },
+//         _ => {
+//             Arc::new(File::new(FileType::INode { inode: inode.clone(), offset: 0 }, mode.readable(), mode.writeable()))
+//         }
+//     };
+
+//     let fd = unsafe { FDTABLE.alloc_fd(file) };
+
+//     drop(iguard);
+//     // TODO: log end_op here
+
+//     Some(fd)
+// }
 
 // Allocate a file descriptor for the given file.
 // Takes over file reference from caller on success.

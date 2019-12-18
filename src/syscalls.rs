@@ -1,16 +1,16 @@
 use crate::interrupt::{disable_irq, enable_irq};
 use crate::thread::{do_yield, create_thread};
-use crate::filesystem::fs::{ICACHE, ICache, INode, INodeFileType, fsinit};
-use crate::filesystem::file::{File, FileType, FDTABLE};
-use crate::filesystem::params;
 use usr::capabilities::Capability;
-use usr::syscalls::{Syscall, FileMode};
-use alloc::sync::Arc;
+use syscalls::syscalls::Syscall;
+use x86::bits64::paging::{PAddr, VAddr};
+use crate::arch::vspace::{VSpace, ResourceType};
+use crate::memory::paddr_to_kernel_vaddr;
+use x86::bits64::paging::BASE_PAGE_SIZE;
 
-// A temperory function that we can use to init the fs in user land.
-// TODO: delete this after we split fs into a seperate crate
-pub fn init_fs_temp() {
-    fsinit(0);
+macro_rules! round_up {
+    ($num:expr, $s:expr) => {
+        (($num + $s - 1) / $s) * $s
+    };
 }
 
 // Print a string 
@@ -21,6 +21,36 @@ pub fn sys_print(s: &str) {
     enable_irq(); 
 }
 
+pub fn sys_alloc() -> *mut u8 {
+    disable_irq();
+    let paddr: PAddr = VSpace::allocate_one_page();
+    let vaddr: VAddr = paddr_to_kernel_vaddr(paddr);
+    println!("sys_alloc: returning {:x}", vaddr.as_u64());
+    enable_irq();
+    vaddr.as_mut_ptr()
+}
+
+pub fn sys_alloc_huge(sz: u64) -> *mut u8 {
+    let how_many = round_up!(sz as usize, BASE_PAGE_SIZE as usize) / BASE_PAGE_SIZE;
+    disable_irq();
+    let paddr: PAddr = VSpace::allocate_pages(how_many, ResourceType::Memory);
+    let vaddr: VAddr = paddr_to_kernel_vaddr(paddr);
+    println!("sys_alloc_huge: returning {:x}", vaddr.as_u64());
+    enable_irq();
+    vaddr.as_mut_ptr()
+}
+
+// todo: implement free!
+pub fn sys_free(_p: *mut u8) {
+    disable_irq();
+    enable_irq();
+}
+
+// todo: implement free!
+pub fn sys_free_huge(_p: *mut u8) {
+    disable_irq();
+    enable_irq();
+}
 
 // Yield to any thread
 pub fn sys_yield() {
@@ -41,70 +71,12 @@ pub fn sys_create_thread(name: &str, func: extern fn()) -> Capability  {
     return cap;
 }
 
-pub fn sys_open(path: &str, mode: FileMode) -> Option<usize> {
-    // TODO: log begin_op here
-    let inode: Option<Arc<INode>> = match mode {
-        FileMode::Create => {
-            if let Some(inode) = ICache::create(path, INodeFileType::File, 0, 0) {
-
-                Some(inode)
-            } else {
-                // TODO: log end_op here
-                None
-            }
-        },
-        _ => {
-            if let Some(inode) = ICache::namei(path) {
-                let is_directory = inode.lock().data.file_type == INodeFileType::Directory;
-                if is_directory && mode != FileMode::Read {
-                    ICache::put(inode);
-                    // TODO: log end_op here
-                    None
-                } else {
-                    Some(inode)
-                }
-            } else {
-                // TODO: log end_op here
-                None
-            }
-        }
-    };
-
-    if inode.is_none() {
-        return None;
-    }
-
-    let inode = inode.unwrap();
-    let iguard = inode.lock();
-
-    if iguard.data.file_type == INodeFileType::Device && (iguard.data.major < 0 || iguard.data.major >= params::NDEV) {
-        drop(iguard);
-        ICache::put(inode);
-        // TODO: log end_op here
-        return None;
-    }
-
-    let file: Arc<File> = match iguard.data.file_type {
-        Device => {
-            Arc::new(File::new(FileType::Device { inode: inode.clone(), major: iguard.data.major }, mode.readable(), mode.writeable()))
-        },
-        _ => {
-            Arc::new(File::new(FileType::INode { inode: inode.clone(), offset: 0 }, mode.readable(), mode.writeable()))
-        }
-    };
-
-    let fd = unsafe { FDTABLE.alloc_fd(file) };
-
-    drop(iguard);
-    // TODO: log end_op here
-
-    Some(fd)
-}
-
 pub static UKERN: Syscall = Syscall{
     sys_print,
     sys_yield,
     sys_create_thread,
-    sys_open,
-    init_fs_temp,
+    sys_alloc,
+    sys_free,
+    sys_alloc_huge,
+    sys_free_huge,
 };

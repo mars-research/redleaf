@@ -282,6 +282,7 @@ extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: &mut InterruptStac
 #[no_mangle]
 extern fn do_invalid_op(pt_regs: &mut PtRegs) {
     println!("Invalide opcode exception:\n{:#?}", pt_regs);
+    crate::panic::backtrace_exception(pt_regs);
     crate::halt();
 }
 
@@ -377,6 +378,9 @@ extern "x86-interrupt" fn general_protection_fault_handler(
 #[no_mangle]
 extern fn do_general_protection(pt_regs: &mut PtRegs) {
     println!("general protection fault:\n{:#?}", pt_regs);
+
+    crate::panic::backtrace_exception(pt_regs);
+
     crate::halt(); 
 }
 
