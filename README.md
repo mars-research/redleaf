@@ -22,6 +22,12 @@ sudo apt-get install qemu
 sudo apt-get install nasm
 ```
 
+* Install Grub
+
+```
+apt-get install grub-pc-bin
+```
+
 ### Run
 
 ```
