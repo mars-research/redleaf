@@ -1,9 +1,9 @@
 .PHONY: all
 all:
 	make -C fs	
-	make -C kernel
+	make -C core
 
 .PHONY: clean
 clean:
 	make -C fs clean
-	make -C kernel clean
+	make -C core clean

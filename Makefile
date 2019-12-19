@@ -30,7 +30,8 @@ release: $(releaseKernel)
 
 .PHONY: clean
 clean:
-	make -C sys/init clean
+	make -C sys clean
+	make -C usr clean
 	rm -rf build
 	cargo clean
 
@@ -88,7 +89,7 @@ $(kernel): kernel $(rust_os) bootblock entryother entry $(linker_script) init
 .PHONY: init
 init:
 	make -C usr/xv6
-	make -C sys/init
+	make -C sys
 
 .PHONY: kernel
 kernel:
