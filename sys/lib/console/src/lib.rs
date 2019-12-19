@@ -2,7 +2,7 @@
 #[macro_use]
 use core::fmt::{Write};
 use spin::Mutex;
-use syscalls::syscalls::sys_print;
+use libsyscalls::syscalls::sys_print;
 
 pub static CONSOLE: Mutex<Console> = Mutex::new(Console {});
 

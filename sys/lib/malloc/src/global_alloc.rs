@@ -6,7 +6,7 @@ use core::mem::transmute;
 use core::ptr::{self, NonNull};
 use slabmalloc::*;
 use spin::Mutex;
-use syscalls::syscalls::{sys_alloc, sys_free, sys_alloc_huge, sys_free_huge};
+use libsyscalls::syscalls::{sys_alloc, sys_free, sys_alloc_huge, sys_free_huge};
 
 /// SLAB_ALLOC is set as the system's default allocator, it's implementation follows below.
 ///

@@ -16,7 +16,8 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::panic::PanicInfo;
-use syscalls::syscalls::{Syscall, sys_print, sys_alloc, sys_create_thread};
+use syscalls::syscalls::{Syscall};
+use libsyscalls::syscalls::{sys_print, sys_alloc, sys_create_thread};
 use console::println;
 
 extern fn foo() {
@@ -25,7 +26,7 @@ extern fn foo() {
 
 #[no_mangle]
 pub fn init(s: Syscall) {
-    syscalls::syscalls::init(s);
+    libsyscalls::syscalls::init(s);
     
     //let b = Box::new(4);
     //let r = sys_alloc();

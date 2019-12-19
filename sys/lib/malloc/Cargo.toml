@@ -8,5 +8,5 @@ edition = "2018"
 
 [dependencies]
 slabmalloc = { path = "../slabmalloc" }
-syscalls = { path = "../syscalls", version = "0.1.0" }
+libsyscalls = { path = "../libsyscalls", version = "0.1.0" }
 spin = "0.5.2"
