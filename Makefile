@@ -99,7 +99,7 @@ init:
 
 .PHONY: kernel
 kernel:
-	@RUST_TARGET_PATH=$(32shell pwd) cargo xbuild --target x86_64-redleaf.json
+	@RUST_TARGET_PATH=$(shell pwd) cargo xbuild --target x86_64-redleaf.json
 
 # compile assembly files for the exception entry code
 .PHONY: entry

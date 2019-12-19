@@ -25,4 +25,4 @@ $(bin): lib $(linker_script)
 
 .PHONY: lib
 lib:
-	@RUST_TARGET_PATH=$(32shell pwd) cargo xbuild --target x86_64-$(bin_name).json
+	@RUST_TARGET_PATH=$(shell pwd) cargo xbuild --target x86_64-$(bin_name).json
