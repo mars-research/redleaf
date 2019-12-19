@@ -10,6 +10,10 @@ grub_cfg := boot/grub.cfg
 
 target ?= $(arch)-redleaf
 rust_os := target/$(target)/debug/libredleaf.a
+root := ./
+domain_list := sys/init/build/init \
+	usr/xv6/kernel/core/build/xv6kernel \
+	usr/xv6/kernel/fs/build/xv6fs
 
 qemu_common := -m 128m -vga std -s
 qemu_common := $(qemu_common) -cdrom $(iso)
@@ -84,7 +88,7 @@ $(iso): $(kernel) $(grub_cfg)
 	@rm -r build/isofiles
 
 $(kernel): kernel $(rust_os) bootblock entryother entry $(linker_script) init
-	ld -n --gc-sections -T $(linker_script) -o $(kernel) build/entry.o build/boot.o build/multiboot_header.o $(rust_os) -b binary build/entryother.bin sys/init/build/init
+	ld -n --gc-sections -T $(linker_script) -o $(kernel) build/entry.o build/boot.o build/multiboot_header.o $(rust_os) -b binary build/entryother.bin $(domain_list) 
 
 .PHONY: init
 init:

@@ -7,7 +7,6 @@ linker_script := linker.ld
 
 target ?= $(arch)-init
 lib := target/$(target)/debug/libinit.a
-domain_list := $(root)/usr/xv6/kernel/core/build/xv6kernel
 
 .PHONY: all
 all: $(bin)
@@ -22,7 +21,7 @@ clean:
 
 $(bin): lib $(linker_script)
 	mkdir -p build	
-	ld -n -pie --no-dynamic-linker --gc-sections -T $(linker_script) -o $(bin) $(lib) -b binary $(domain_list)
+	ld -n -pie --no-dynamic-linker --gc-sections -T $(linker_script) -o $(bin) $(lib) 
 
 .PHONY: lib
 lib:
