@@ -30,4 +30,5 @@ fs.img: mkfs $(FILES)
 clean: 
 	rm -f *.o *.d
 	rm -rf build
+	rm ./mkfs
 

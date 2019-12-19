@@ -10,7 +10,7 @@ grub_cfg := boot/grub.cfg
 
 target ?= $(arch)-redleaf
 rust_os := target/$(target)/debug/libredleaf.a
-xv6fs = usr/mkfs/build/fs.img
+xv6fs_img = usr/mkfs/build/fs.img
 root := ./
 domain_list := sys/init/build/init \
 	usr/xv6/kernel/core/build/xv6kernel \
@@ -19,7 +19,7 @@ domain_list := sys/init/build/init \
 qemu_common := -m 128m -vga std -s
 qemu_common := $(qemu_common) -cdrom $(iso)
 qemu_common := $(qemu_common) -no-reboot -no-shutdown -d int,cpu_reset
-qemu_common := $(qemu_common) -drive file=disk.img,index=0,media=$(xv6fs),format=raw
+qemu_common := $(qemu_common) -drive file=$(xv6fs_img),index=0,media=disk,format=raw
 qemu_common := $(qemu_common) -smp 2
 
 # https://superuser.com/a/1412150
@@ -35,11 +35,11 @@ release: $(releaseKernel)
 
 .PHONY: clean
 clean:
-	make -C sys clean
-	make -C usr clean
-	rm -rf build
-	cargo clean
-	make -C usr/mkfs clean
+	-make -C sys clean
+	-make -C usr clean
+	-rm -rf build
+	-cargo clean
+	-make -C usr/mkfs clean
 
 .PHONY: run
 run: qemu
@@ -48,19 +48,19 @@ run: qemu
 run-nox: qemu-nox
 
 .PHONY: qemu
-qemu: $(iso) disk.img
+qemu: $(iso) $(xv6fs_img)
 	qemu-system-x86_64 $(qemu_common) $(qemu_x)
 
 .PHONY: qemu-gdb
-qemu-gdb: $(iso) disk.img
+qemu-gdb: $(iso) $(xv6fs_img)
 	qemu-system-x86_64 $(qemu_common) $(qemu_x) -S
 
 .PHONY: qemu-gdb-nox
-qemu-gdb-nox: $(iso) disk.img
+qemu-gdb-nox: $(iso) $(xv6fs_img)
 	qemu-system-x86_64 $(qemu_common) $(qemu_nox) -S
 
 .PHONY: qemu-nox
-qemu-nox: $(iso) disk.img
+qemu-nox: $(iso) $(xv6fs_img)
 	qemu-system-x86_64 $(qemu_common) $(qemu_nox)
 
 .PHONY: qemu-nox-cloudlab
@@ -69,12 +69,11 @@ qemu-nox-cloudlab: $(iso)
 	sudo qemu-system-x86_64 $(qemu_common) $(qemu_nox) $(pciflag)
 
 .PHONY: qemu-efi-nox
-qemu-efi-nox: $(iso) disk.img ovmf-code
+qemu-efi-nox: $(iso) $(xv6fs_img) ovmf-code
 	qemu-system-x86_64 $(qemu_common) $(qemu_nox) -bios OVMF_CODE.fd
 
-disk.img:
+$(xv6fs_img):
 	make -C usr/mkfs 
-	#fallocate -l 512M disk.img
 
 ovmf-code:
 	echo "Getting OVMF_CODE.fd is not implemented..."
