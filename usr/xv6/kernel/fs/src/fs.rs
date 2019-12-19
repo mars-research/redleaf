@@ -4,14 +4,14 @@ use core::convert::TryInto;
 use core::mem::MaybeUninit;
 use core::ops::Drop;
 use core::sync::atomic::{AtomicBool, Ordering};
-
 use spin::{Mutex, MutexGuard, Once};
+use libsyscalls::syscalls::sys_print;
 
-use crate::filesystem::bcache::{BufferBlock, BCACHE};
-use crate::filesystem::block::Block;
-use crate::filesystem::directory::DirectoryEntry;
-use crate::filesystem::log::{Log, LOG};
-use crate::filesystem::params;
+use crate::bcache::{BufferBlock, BCACHE};
+use crate::block::Block;
+use crate::directory::DirectoryEntry;
+use crate::log::{Log, LOG};
+use crate::params;
 
 pub static SUPER_BLOCK: Once<SuperBlock> = Once::new();
 
@@ -691,7 +691,7 @@ fn read_superblock(dev: u32) -> SuperBlock {
 }
 
 pub fn fsinit(dev: u32) {
-    println!("fsinit");
+    sys_print("fsinit");
     SUPER_BLOCK.call_once(|| read_superblock(dev));
     LOG.call_once(|| {
         Log::new(dev, SUPER_BLOCK.r#try().unwrap())

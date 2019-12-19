@@ -1,5 +1,5 @@
-use crate::filesystem::fs::{ICache, INode, Stat};
-use crate::filesystem::params;
+use crate::fs::{ICache, INode, Stat};
+use crate::params;
 use alloc::sync::Arc;
 use core::mem::{MaybeUninit, swap};
 use alloc::vec::Vec;

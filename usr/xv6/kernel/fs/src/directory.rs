@@ -1,6 +1,6 @@
 use core::convert::TryFrom;
-use crate::common::bytearray; 
-use crate::filesystem::params;
+use utils::bytearray; 
+use crate::params;
 
 // Correspond to dirent in xv6
 #[repr(C)]

@@ -4,10 +4,10 @@ use core::mem::size_of;
 
 use spin::Once;
 
-use crate::common::bytearray;
-use crate::filesystem::fs::SuperBlock;
-use crate::filesystem::params;
-use crate::filesystem::bcache::{BCACHE, BufferBlock, BufferGuard};
+use utils::bytearray;
+use crate::fs::SuperBlock;
+use crate::params;
+use crate::bcache::{BCACHE, BufferBlock, BufferGuard};
 
 // We only have one device 
 pub static LOG: Once<Log> = Once::new();

@@ -5,9 +5,9 @@
 use alloc::boxed::Box;
 use core::cell::RefCell;
 
-use crate::filesystem::fcntl::{O_RDONLY, O_WRONLY, O_RDWR, O_CREATE};
-use crate::filesystem::file::File;
-use crate::filesystem::params;
+use crate::fcntl::{O_RDONLY, O_WRONLY, O_RDWR, O_CREATE};
+use crate::file::File;
+use crate::params;
 
 // Opened files of the current thread. Use file descriptors to index into this array.
 // I put it in a thread_local variable in fs instead of a member variable of `Thread`

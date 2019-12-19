@@ -1,6 +1,6 @@
 // https://github.com/mit-pdos/xv6-public/blob/master/param.h
 use core::mem;
-use crate::filesystem::fs;
+use crate::fs;
 
 pub const NPROC: usize =        64;     // maximum number of processes
 pub const KSTACKSIZE: usize = 4096;     // size of per-process kernel stack

@@ -31,7 +31,6 @@ mod interrupt;
 mod entryother;
 mod redsys;
 mod drivers;
-mod filesystem;
 pub mod gdt;
 
 
@@ -41,7 +40,6 @@ mod prelude;
 pub mod arch;
 
 mod tls;
-mod common; 
 mod thread;
 mod panic; 
 mod syscalls;

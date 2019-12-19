@@ -2,11 +2,12 @@
 // The entire ownership system is a mess and error-prone(no one is the owner).
 // Need to revisit this and fix it one day.
 
-use crate::filesystem::params::{NBUF, BSIZE};
-use crate::common::list2;
+use crate::params::{NBUF, BSIZE};
+use utils::list2;
 use alloc::sync::Arc;
 use core::ops::Deref;
 use spin::{Mutex};
+use libsyscalls::syscalls::sys_print;
 
 const B_DIRTY: u32 = 1 << 0;
 const B_VALID: u32 = 1 << 1;
@@ -162,7 +163,7 @@ impl BufferCache {
     // This is okay because the buffer will become valid only if it is a reused buffer.
     // We can also merge `bread` with `bget` since `bget` is only a helper for `bread`
     pub fn read(&self, device: u32, block_number: u32) -> BufferGuard {
-        println!("bread dev{} block{}", device, block_number);
+        sys_print(&format!("bread dev{} block{}", device, block_number));
         let buffer = self.get(device, block_number);
         {
             let mut guard = buffer.lock();
@@ -185,7 +186,7 @@ impl BufferCache {
     // Check xv6 for details
     // TODO(tianjiao): fix this
     pub fn release(&self, guard: &mut BufferGuard) {
-        println!("brlse dev{} block{}", guard.dev, guard.block_number);
+        sys_print(&format!("brlse dev{} block{}", guard.dev, guard.block_number));
         let node = guard.node.take().expect("Buffer is not initialized or already released.");
         let mut list = self.list.lock();
         node.lock().elem.reference_count -= 1;

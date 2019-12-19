@@ -1,6 +1,6 @@
-use crate::filesystem::params;
-use crate::filesystem::bcache::{BCACHE, BufferBlock};
-use crate::filesystem::fs::{block_num_for_node, SUPER_BLOCK};
+use crate::params;
+use crate::bcache::{BCACHE, BufferBlock};
+use crate::fs::{block_num_for_node, SUPER_BLOCK};
 
 pub struct Block {}
 
