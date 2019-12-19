@@ -35,9 +35,7 @@ pub fn init(s: Syscall) {
         v1.push(i);
     }
 
-    sys_print("init userland");
-    sys_print("init userland 2");
-    sys_print("init userland 3");
+    sys_print("init xv6 filesystem");
 
     println!("init userland print works");
     let t = sys_create_thread("trait_test", foo); 

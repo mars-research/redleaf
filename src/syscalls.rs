@@ -1,11 +1,11 @@
 use crate::interrupt::{disable_irq, enable_irq};
 use crate::thread::{do_yield, create_thread};
-use usr::capabilities::Capability;
-use syscalls::syscalls::Syscall;
+use syscalls::syscalls::{Syscall, Thread};
 use x86::bits64::paging::{PAddr, VAddr};
 use crate::arch::vspace::{VSpace, ResourceType};
 use crate::memory::paddr_to_kernel_vaddr;
 use x86::bits64::paging::BASE_PAGE_SIZE;
+use alloc::boxed::Box; 
 
 macro_rules! round_up {
     ($num:expr, $s:expr) => {
@@ -62,13 +62,13 @@ pub fn sys_yield() {
 }
 
 // Create a new thread
-pub fn sys_create_thread(name: &str, func: extern fn()) -> Capability  {
+pub fn sys_create_thread(name: &str, func: extern fn()) -> Box<dyn Thread>  {
 
     disable_irq();
     println!("sys_create_thread"); 
-    let cap = create_thread(name, func);
+    let t = create_thread(name, func);
     enable_irq();
-    return cap;
+    return t;
 }
 
 pub static UKERN: Syscall = Syscall{

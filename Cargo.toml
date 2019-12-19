@@ -24,7 +24,6 @@ backtracer = { git = "https://github.com/gz/backtracer.git" }
 addr2line = { git = "https://github.com/gz/addr2line.git", branch = "patch-1", default-features = false, features = ["alloc", "rustc-demangle"] }
 bit_field = "0.9.0"
 bitflags = "1.0.4"
-usr = { path = "usr", version = "0.1.0" }
 syscalls = { path = "sys/lib/syscalls", version = "0.1.0" }
 log = "0.4"
 custom_error = { git = "https://github.com/gz/custom_error.git" }

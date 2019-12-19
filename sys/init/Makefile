@@ -1,4 +1,5 @@
 
+root := ../../
 arch ?= x86_64
 bin := build/init
 
@@ -20,7 +21,7 @@ clean:
 
 $(bin): lib $(linker_script)
 	mkdir -p build	
-	ld -n -pie --no-dynamic-linker --gc-sections -T $(linker_script) -o $(bin) $(lib)
+	ld -n -pie --no-dynamic-linker --gc-sections -T $(linker_script) -o $(bin) $(lib) 
 
 .PHONY: lib
 lib:
