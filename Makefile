@@ -87,6 +87,7 @@ $(kernel): kernel $(rust_os) bootblock entryother entry $(linker_script) init
 
 .PHONY: init
 init:
+	make -C usr/xv6
 	make -C sys/init
 
 .PHONY: kernel
