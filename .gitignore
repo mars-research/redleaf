@@ -1,4 +1,5 @@
-/target
+**/target/
+**/build/
 **/*.rs.bk
 *.swp
 Cargo.lock
