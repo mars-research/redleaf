@@ -1,6 +1,6 @@
 .PHONY: all
 all:
-	make -C fs
+#	make -C fs
 	make -C core
 
 .PHONY: clean
