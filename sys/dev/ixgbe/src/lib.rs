@@ -21,13 +21,9 @@ use libsyscalls::syscalls::{sys_print, sys_alloc, sys_create_thread};
 use console::println;
 //use pci::Pci;
 
-
-// Implementation not visible to the ixgbe domain
-
-/*fn get_ixgbe() -> impl IxgbeBarRegion {
-    let ixgbe_bar = IxgbeBar::new(0x8_0000, 0x1000);
-    ixgbe_bar
-}*/
+/*
+ * fn get_ixgbe_traitobj() -> impl IxgbeBarRegion { }
+ */
 
 #[no_mangle]
 pub fn init(s: Syscall) {
