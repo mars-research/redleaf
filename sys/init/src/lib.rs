@@ -16,7 +16,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::panic::PanicInfo;
-use syscalls::syscalls::{Syscall};
+use syscalls::{Syscall};
 use libsyscalls::syscalls::{sys_print, sys_alloc, sys_create_thread, sys_yield};
 use console::println;
 

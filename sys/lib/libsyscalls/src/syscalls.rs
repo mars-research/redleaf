@@ -1,7 +1,7 @@
 extern crate alloc;
 use spin::Once;
 use alloc::boxed::Box;
-use syscalls::syscalls::{Syscall, Thread}; 
+use syscalls::{Syscall, Thread};
 
 static SYSCALL: Once<Syscall> = Once::new();
 

@@ -2,7 +2,7 @@ use elfloader::ElfBinary;
 use super::Domain;
 use alloc::string::String;
 use crate::syscalls::UKERN;
-use syscalls::syscalls::Syscall;
+use syscalls::Syscall;
 use core::mem::transmute;
 use crate::interrupt::{disable_irq, enable_irq};
 

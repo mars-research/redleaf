@@ -1,6 +1,6 @@
 use crate::interrupt::{disable_irq, enable_irq};
 use crate::thread::{do_yield, create_thread};
-use syscalls::syscalls::{Syscall, Thread};
+use syscalls::{Syscall, Thread};
 use x86::bits64::paging::{PAddr, VAddr};
 use crate::arch::vspace::{VSpace, ResourceType};
 use crate::memory::paddr_to_kernel_vaddr;

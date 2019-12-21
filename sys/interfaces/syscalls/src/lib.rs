@@ -1,3 +1,5 @@
+#![no_std]
+
 extern crate alloc;
 use alloc::boxed::Box;
 
@@ -15,5 +17,3 @@ pub struct Syscall {
 pub trait Thread {
     fn set_affinity(&self, affinity: u64);
 }
-
-
