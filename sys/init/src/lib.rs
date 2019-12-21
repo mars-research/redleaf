@@ -43,7 +43,7 @@ pub fn init(s: Syscall) {
     sys_print("init userland 3");
 
     println!("init userland print works");
-    let t = sys_create_thread("trait_test", foo); 
+    let t = sys_create_thread("init_thread", foo); 
     t.set_affinity(10); 
     //println!("thread:{}", t);
     drop(t); 

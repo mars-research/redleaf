@@ -8,6 +8,7 @@ use core::cell::RefCell;
 use alloc::rc::Rc; 
 use crate::halt;
 use crate::syscalls::{sys_yield, sys_create_thread};
+use crate::interrupt::{disable_irq, enable_irq};
 
 const MAX_PRIO: usize = 15;
 
@@ -405,7 +406,9 @@ impl PThread {
 
 impl syscalls::syscalls::Thread for PThread {
     fn set_affinity(&self, affinity: u64) {
-        println!("Setting affinity:{}", affinity); 
+        disable_irq();
+        println!("Setting affinity:{} for {}", affinity, self.t.borrow().name); 
+        enable_irq(); 
     }
 }
 
