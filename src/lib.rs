@@ -45,6 +45,7 @@ mod panic;
 mod syscalls;
 mod pci;
 mod domain;
+mod dev;
 
 use x86::cpuid::CpuId;
 use crate::arch::init_buddy;
