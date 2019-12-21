@@ -108,6 +108,24 @@ pub fn init_allocator() {
     }
 }
 
+pub extern fn hello1() {
+    loop {
+        println!("hello 1"); 
+    }
+}
+
+pub extern fn hello2() {
+    loop {
+        println!("hello 2"); 
+    }
+}
+
+fn test_threads() {
+    let t1 = crate::thread::create_thread("hello 1", hello1); 
+    let t2 = crate::thread::create_thread("hello 2", hello2); 
+}
+
+
 fn init_user() {
     //crate::thread::create_thread("init", usr::init::init); 
     //usr::init::init(UKERN); 
@@ -242,6 +260,8 @@ pub extern "C" fn rust_main_ap() -> ! {
 
    
     println!("Ready to enable interrupts");
+
+    test_threads(); 
 
     // The first user system call will re-enable interrupts on 
     // exit to user

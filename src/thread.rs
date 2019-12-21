@@ -5,6 +5,7 @@ use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::string::ToString;
 use core::cell::RefCell;
+use alloc::rc::Rc; 
 use crate::halt;
 use crate::syscalls::{sys_yield, sys_create_thread};
 
@@ -16,7 +17,7 @@ static SCHED: RefCell<Scheduler> = RefCell::new(Scheduler::new());
 
 /// Per-CPU current thread
 #[thread_local]
-static CURRENT: RefCell<Option<Box<Thread>>> = RefCell::new(None); 
+static CURRENT: RefCell<Option<Rc<RefCell<Thread>>>> = RefCell::new(None); 
 
 
 enum ThreadState {
@@ -45,7 +46,7 @@ pub struct Context {
 
 type Priority = usize;
 
-type Link = Option<Box<Thread>>;
+type Link = Option<Rc<RefCell<Thread>>>;
 
 pub struct Thread {
     name: String,
@@ -130,20 +131,20 @@ impl  SchedulerQueue {
         }
     }
 
-    fn push_thread(&mut self, queue: usize, mut thread: Box<Thread>) {
+    fn push_thread(&mut self, queue: usize, mut thread: Rc<RefCell<Thread>>) {
         let previous_head = self.prio_queues[queue].take();
 
         if let Some(node) = previous_head {
-            thread.next = Some(node);
+            thread.borrow_mut().next = Some(node);
         }
         self.prio_queues[queue] = Some(thread);
     }
 
-    pub fn pop_thread(&mut self, queue: usize) -> Option<Box<Thread>> {
+    pub fn pop_thread(&mut self, queue: usize) -> Option<Rc<RefCell<Thread>>> {
         let previous_head = self.prio_queues[queue].take();
 
         if let Some(mut node) = previous_head {
-            self.prio_queues[queue] = node.next.take();
+            self.prio_queues[queue] = node.borrow_mut().next.take();
             Some(node)
         } else {
             None
@@ -151,8 +152,8 @@ impl  SchedulerQueue {
     }
 
     // Add thread to the queue that matches thread's priority
-    pub fn put_thread(&mut self, mut thread: Box<Thread>) {
-        let prio = thread.priority;
+    pub fn put_thread(&mut self, mut thread: Rc<RefCell<Thread>>) {
+        let prio = thread.borrow_mut().priority;
    
         self.push_thread(prio, thread); 
 
@@ -164,7 +165,7 @@ impl  SchedulerQueue {
 
     
     // Try to get the thread with the highest priority
-    pub fn get_highest(&mut self) -> Option<Box<Thread>> {
+    pub fn get_highest(&mut self) -> Option<Rc<RefCell<Thread>>> {
         loop {
             match self.pop_thread(self.highest) {
                 None => {
@@ -192,7 +193,7 @@ impl  Scheduler {
         }
     }
 
-    pub fn put_thread(&mut self, mut thread: Box<Thread>) {
+    pub fn put_thread(&mut self, mut thread: Rc<RefCell<Thread>>) {
         /* put thread in the currently passive queue */
         if !self.active {
             self.active_queue.put_thread(thread)
@@ -201,7 +202,7 @@ impl  Scheduler {
         }
     }
 
-    fn get_next_active(&mut self) -> Option<Box<Thread>> {
+    fn get_next_active(&mut self) -> Option<Rc<RefCell<Thread>>> {
         if self.active {
             //println!("get highest from active");
             self.active_queue.get_highest()
@@ -212,7 +213,7 @@ impl  Scheduler {
     }
 
     
-    pub fn get_next(&mut self) -> Option<Box<Thread>> {
+    pub fn get_next(&mut self) -> Option<Rc<RefCell<Thread>>> {
         return self.get_next_active();
     }   
 
@@ -226,7 +227,7 @@ impl  Scheduler {
         }
     }
     
-    pub fn next(&mut self) -> Option<Box<Thread>> {
+    pub fn next(&mut self) -> Option<Rc<RefCell<Thread>>> {
         if let Some(t) = self.get_next() {
             return Some(t);
         }
@@ -310,7 +311,7 @@ pub unsafe fn switch(prev: *mut Thread, next: *mut Thread) {
     asm!("mov rbp, $0" : : "r"((*next).context.rbp) : "memory" : "intel", "volatile");
 }
 
-fn set_current(mut t: Box<Thread>) {
+fn set_current(mut t: Rc<RefCell<Thread>>) {
     CURRENT.replace(Some(t)); 
 }
 
@@ -318,7 +319,7 @@ fn set_current(mut t: Box<Thread>) {
 //    unsafe{&mut *CURRENT.get()}
 //}
 
-fn get_current() -> Option<Box<Thread>> {
+fn get_current() -> Option<Rc<RefCell<Thread>>> {
     CURRENT.replace(None)
 }
 
@@ -345,8 +346,13 @@ pub fn schedule() {
         None => { return; } 
     };
 
-    let prev = &mut *c as *mut Thread; 
-    let next = &mut *next_thread as *mut Thread; 
+
+    // Rc<RefCell<Thread>
+   // let prev = &mut *c.as_ptr() as *mut Thread; 
+    //let next = &mut *next_thread.as_ptr() as *mut Thread; 
+
+    let prev = c.as_ptr(); 
+    let next = next_thread.as_ptr(); 
 
 
     // Make next thread current
@@ -374,33 +380,37 @@ pub extern fn idle() {
     halt(); 
 }
 
-/*
-pub fn create_thread (name: &str, func: extern fn()) -> Capability {
+pub fn create_thread (name: &str, func: extern fn()) -> Box<syscalls::syscalls::Thread> {
     let mut s = SCHED.borrow_mut();
 
-    let mut t1 = Box::new(Thread::new(name, func));
-    
-    s.put_thread(t1);
-    return 0; 
-} */
-
-pub fn create_thread (name: &str, func: extern fn()) -> Box<syscalls::syscalls::Thread> {
-    //let mut s = SCHED.borrow_mut();
-
-    let mut t1 = Box::new(Thread::new(name, func));
-    
-    //s.put_thread(t1);
-    return t1; 
+    let mut t = Rc::new(RefCell::new(Thread::new(name, func)));
+ 
+    let mut pt = Box::new(PThread::new(Rc::clone(&t)));
+   
+    s.put_thread(t);
+    return pt; 
 }
 
-impl syscalls::syscalls::Thread for Thread {
+struct PThread {
+    t: Rc<RefCell<Thread>>
+}
+
+impl PThread {
+    pub const fn new(t:Rc<RefCell<Thread>>) -> PThread {
+        PThread {
+            t: t,
+        }
+    }
+}
+
+impl syscalls::syscalls::Thread for PThread {
     fn set_affinity(&self, affinity: u64) {
         println!("Setting affinity:{}", affinity); 
     }
 }
 
 pub fn init_threads() {
-    let mut idle = Box::new(Thread::new("idle", idle));
+    let mut idle = Rc::new(RefCell::new(Thread::new("idle", idle)));
 
     // Make idle the current thread
     set_current(idle);   
