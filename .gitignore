@@ -6,3 +6,4 @@ Cargo.lock
 serial.log
 build/*
 disk.img
+.gdb_history
