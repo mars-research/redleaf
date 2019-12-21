@@ -40,7 +40,6 @@ mod prelude;
 pub mod arch;
 
 mod tls;
-//mod common; 
 mod thread;
 mod panic; 
 mod syscalls;
@@ -64,7 +63,7 @@ use crate::interrupt::{enable_irq};
 use crate::syscalls::UKERN;
 use crate::memory::construct_pt;
 use crate::pci::scan_pci_devs;
-use crate::domain::sys_init::load_sys_init;
+use crate::domain::create_domain;
 
 #[no_mangle]
 pub static mut cpu1_stack: u32 = 0;
@@ -127,10 +126,19 @@ fn test_threads() {
 
 
 fn init_user() {
-    //crate::thread::create_thread("init", usr::init::init); 
-    //usr::init::init(UKERN); 
-    
-    unsafe { load_sys_init(); }
+    extern "C" {
+        fn _binary_sys_init_build_init_start();
+        fn _binary_sys_init_build_init_end();
+    }
+
+    let binary_range = (
+        _binary_sys_init_build_init_start as *const u8,
+        _binary_sys_init_build_init_end as *const u8
+    );
+
+    unsafe {
+        create_domain("sys_init", binary_range);
+    }
 }
 
 const MAX_CPUS: u32 = 32;

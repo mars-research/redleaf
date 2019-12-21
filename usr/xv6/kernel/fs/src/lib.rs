@@ -7,27 +7,42 @@
     alloc_error_handler,
     const_fn,
     const_raw_ptr_to_usize_cast,
+    thread_local,
     untagged_unions,
     panic_info_message
 )]
 
-extern crate malloc;
+#[macro_use]
 extern crate alloc;
+extern crate core;
+extern crate malloc;
+extern crate spin;
+#[macro_use]
+extern crate lazy_static;
+extern crate syscalls;
+
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-use core::panic::PanicInfo;
-use syscalls::syscalls::{Syscall};
-use libsyscalls::syscalls::{sys_print, sys_alloc, sys_create_thread};
 use console::println;
+use core::panic::PanicInfo;
+use libsyscalls::syscalls::{sys_alloc, sys_create_thread, sys_print};
+use syscalls::syscalls::Syscall;
 
-extern fn foo() {
-    
-}
+mod bcache;
+mod block;
+mod directory;
+mod fcntl;
+mod file;
+mod fs;
+mod log;
+mod params;
+mod sysfile;
+
+extern "C" fn foo() {}
 
 #[no_mangle]
 pub fn init(s: Syscall) {
     libsyscalls::syscalls::init(s);
-    
     //let b = Box::new(4);
     //let r = sys_alloc();
     let mut v1: Vec<u64> = Vec::with_capacity(1024);
@@ -35,15 +50,13 @@ pub fn init(s: Syscall) {
         v1.push(i);
     }
 
-    sys_print("init userland");
-    sys_print("init userland 2");
-    sys_print("init userland 3");
+    sys_print("init xv6 filesystem");
 
     println!("init userland print works");
-    let t = sys_create_thread("trait_test", foo); 
-    t.set_affinity(10); 
+    let t = sys_create_thread("trait_test", foo);
+    t.set_affinity(10);
     //println!("thread:{}", t);
-    drop(t); 
+    drop(t);
 }
 
 // This function is called on panic.
