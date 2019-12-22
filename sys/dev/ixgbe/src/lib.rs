@@ -17,7 +17,7 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::panic::PanicInfo;
 use syscalls::{Syscall};
-use libsyscalls::syscalls::{sys_print, sys_alloc, sys_create_thread};
+use libsyscalls::syscalls::{sys_println, sys_alloc, sys_create_thread};
 use console::println;
 //use pci::Pci;
 

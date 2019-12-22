@@ -25,7 +25,7 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use console::println;
 use core::panic::PanicInfo;
-use libsyscalls::syscalls::{sys_alloc, sys_create_thread, sys_print};
+use libsyscalls::syscalls::{sys_alloc, sys_create_thread, sys_println};
 use syscalls::syscalls::Syscall;
 
 mod bcache;
@@ -50,9 +50,8 @@ pub fn init(s: Syscall) {
         v1.push(i);
     }
 
-    sys_print("init xv6 filesystem");
+    sys_println("init xv6 filesystem");
 
-    println!("init userland print works");
     let t = sys_create_thread("trait_test", foo);
     t.set_affinity(10);
     //println!("thread:{}", t);

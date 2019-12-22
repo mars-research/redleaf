@@ -30,14 +30,14 @@ mod pci;
 
 use core::panic::PanicInfo;
 use syscalls::{Syscall};
-use libsyscalls::syscalls::{sys_print, sys_alloc};
+use libsyscalls::syscalls::{sys_println, sys_alloc};
 use console::println;
 
 #[no_mangle]
 pub fn init(s: Syscall) {
     libsyscalls::syscalls::init(s);
 
-    sys_print("init PCI domain");
+    sys_println("init PCI domain");
 
 
 }

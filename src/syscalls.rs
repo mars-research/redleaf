@@ -15,7 +15,12 @@ macro_rules! round_up {
 
 // Print a string 
 pub fn sys_print(s: &str) {
-
+    disable_irq();
+    print!("{}", s);
+    enable_irq(); 
+}
+// Print a string and a newline
+pub fn sys_println(s: &str) {
     disable_irq();
     println!("{}", s);
     enable_irq(); 
@@ -73,6 +78,7 @@ pub fn sys_create_thread(name: &str, func: extern fn()) -> Box<dyn Thread>  {
 
 pub static UKERN: Syscall = Syscall{
     sys_print,
+    sys_println,
     sys_yield,
     sys_create_thread,
     sys_alloc,

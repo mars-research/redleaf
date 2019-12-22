@@ -14,6 +14,11 @@ pub fn sys_print(s: &str) {
     (scalls.sys_print)(s);
 }
 
+pub fn sys_println(s: &str) {
+    let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
+    (scalls.sys_println)(s);
+}
+
 pub fn sys_yield() {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
     (scalls.sys_yield)();
