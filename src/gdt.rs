@@ -22,7 +22,6 @@ use x86_64::instructions::segmentation::load_es;
 use x86_64::instructions::segmentation::load_fs;
 use x86_64::instructions::segmentation::load_gs;
 use x86_64::instructions::segmentation::load_ss;
-use x86_64::instructions::tables::load_tss;
 use x86_64::PrivilegeLevel::{Ring0};
 
 //use crate::paging::PAGE_SIZE;

@@ -5,7 +5,7 @@ use core::alloc::{GlobalAlloc, Layout};
 use spin::Mutex;
 use slabmalloc::{ObjectPage, PageProvider, ZoneAllocator};
 use crate::memory::buddy::BUDDY;
-use log::{debug, warn, trace, info};
+use log::{trace};
 
 pub use self::buddy::BuddyFrameAllocator as PhysicalMemoryAllocator;
 pub use crate::arch::memory::{paddr_to_kernel_vaddr, PAddr, VAddr, BASE_PAGE_SIZE};
@@ -287,7 +287,7 @@ static PAGER: Mutex<BespinSlabsProvider> = Mutex::new(BespinSlabsProvider::new()
 pub struct SafeZoneAllocator(Mutex<ZoneAllocator<'static>>);
 
 impl SafeZoneAllocator {
-    pub const fn new(provider: &'static Mutex<PageProvider>) -> SafeZoneAllocator {
+    pub const fn new(provider: &'static Mutex<dyn PageProvider>) -> SafeZoneAllocator {
         SafeZoneAllocator(Mutex::new(ZoneAllocator::new(provider)))
     }
 }
@@ -327,7 +327,7 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
             //debug!("dealloc ptr = 0x{:x} layout={:?}", ptr as usize, layout);
             self.0.lock().deallocate(ptr, layout);
         } else {
-            use crate::arch::memory::{kernel_vaddr_to_paddr, VAddr};
+            use crate::arch::memory::{kernel_vaddr_to_paddr};
             if let Some(ref mut fmanager) = *BUDDY.lock() {
                 fmanager.deallocate(
                     Frame::new(

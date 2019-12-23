@@ -48,19 +48,8 @@ mod domain;
 
 use x86::cpuid::CpuId;
 use crate::arch::init_buddy;
-use spin::Mutex;
-use core::alloc::{GlobalAlloc, Layout};
-use memory::{BespinSlabsProvider, PhysicalAllocator};
-use slabmalloc::{PageProvider, ZoneAllocator};
-use crate::memory::buddy::BUDDY;
-use thread::{Scheduler, Thread};
-use core::cell::{UnsafeCell, RefCell};
-use alloc::boxed::Box;
-use alloc::sync::Arc;
-use crate::thread::switch;
-use crate::drivers::Driver;
+use core::alloc::{Layout};
 use crate::interrupt::{enable_irq};
-use crate::syscalls::UKERN;
 use crate::memory::construct_pt;
 use crate::pci::scan_pci_devs;
 use crate::domain::create_domain;
@@ -120,8 +109,8 @@ pub extern fn hello2() {
 }
 
 fn test_threads() {
-    let t1 = crate::thread::create_thread("hello 1", hello1); 
-    let t2 = crate::thread::create_thread("hello 2", hello2); 
+    crate::thread::create_thread("hello 1", hello1); 
+    crate::thread::create_thread("hello 2", hello2); 
 }
 
 
@@ -154,7 +143,8 @@ pub extern "C" fn rust_main() -> ! {
     let featureInfo = CpuId::new().get_feature_info()
         .expect("CPUID unavailable");
 
-    let cpu_id: u32 = featureInfo.initial_local_apic_id() as u32;
+    //let cpu_id: u32 = 
+    featureInfo.initial_local_apic_id() as u32;
 
     unsafe {
         // We don't have per-CPU variables yet, init global gdt

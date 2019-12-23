@@ -13,7 +13,7 @@ use core::ptr;
 
 use crate::prelude::*;
 
-use log::{debug, trace, info};
+use log::{trace, info};
 use super::{Frame, PAddr, PhysicalAllocator, VAddr};
 use crate::arch::memory::{kernel_vaddr_to_paddr, BASE_PAGE_SIZE};
 use spin::Mutex;

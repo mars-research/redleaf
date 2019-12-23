@@ -3,7 +3,7 @@
 
 extern crate pcid;
 
-use pcid::pci::{Pci, PciBar, PciClass, PciHeader, PciHeaderError, PciHeaderType};
+use pcid::pci::{Pci, PciClass, PciHeader, PciHeaderError};
 
 fn handle_parsed_header(pci: &Pci, bus_num: u8,
                         dev_num: u8, func_num: u8, header: PciHeader) {

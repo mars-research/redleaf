@@ -8,7 +8,7 @@ use crate::interrupt::{disable_irq, enable_irq};
 
 pub unsafe fn create_domain(name: &'static str, binary_range: (*const u8, *const u8)) {
     let (binary_start, binary_end) = binary_range;
-    type user_init = fn(Syscall);
+    type UserInit = fn(Syscall);
 
     let num_bytes = ((binary_end as usize) - (binary_start as usize)) as usize;
 
@@ -26,11 +26,11 @@ pub unsafe fn create_domain(name: &'static str, binary_range: (*const u8, *const
     // print its entry point for now
     println!("domain/{}: Entry point at {:x}", name, loader.offset + domain_elf.entry_point());
 
-    let user_ep: user_init = unsafe {
+    let user_ep: UserInit = unsafe {
         let mut entry: *const u8 = loader.offset.as_ptr();
         entry = entry.offset(domain_elf.entry_point() as isize);
         let _entry = entry as *const ();
-        transmute::<*const(), user_init>(_entry)
+        transmute::<*const(), UserInit>(_entry)
     };
 
     // Enable interrupts as we do upcall into user

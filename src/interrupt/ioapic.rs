@@ -4,7 +4,6 @@
 //  - https://github.com/mit-pdos/xv6-public/blob/master/ioapic.c
 
 use core::ptr;
-use super::InterruptIndex;
 
 // FIXME: This is bad. We should use ACPI to get a list of IOAPICs
 const IOAPIC: u32 = 0xfec00000;

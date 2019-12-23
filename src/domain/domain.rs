@@ -1,6 +1,4 @@
-use alloc::boxed::Box;
 use alloc::string::String;
-use alloc::string::ToString;
 use core::cell::RefCell;
 use log::{debug,info,trace};
 use x86::bits64::paging::{PAddr, VAddr, BASE_PAGE_SIZE, BASE_PAGE_SHIFT};
@@ -8,6 +6,10 @@ use crate::arch::vspace::{VSpace, MapAction, ResourceType};
 use crate::alloc::vec::Vec;
 use crate::memory::VSPACE;
 use super::super::memory::{paddr_to_kernel_vaddr};
+use crate::thread::Thread;
+use alloc::sync::Arc; 
+use spin::Mutex;
+use alloc::rc::Rc;
 
 macro_rules! round_up {
     ($num:expr, $s:expr) => {
@@ -21,13 +23,15 @@ macro_rules! is_page_aligned {
     };
 }
 
-pub struct Domain{
+pub struct Domain {
     name: String,
     pub mapping: Vec<(VAddr, usize, u64, MapAction)>,
     /// Offset where ELF is located.
     pub offset: VAddr,
     /// The entry point of the ELF file.
     pub entry_point: VAddr,
+    /// List of threads in the domain
+    threads: Option<Arc<Mutex<Rc<RefCell<Thread>>>>>, 
 }
 
 impl Domain {
@@ -37,7 +41,20 @@ impl Domain {
             mapping: Vec::with_capacity(64),
             offset: VAddr::from(0usize),
             entry_point: VAddr::from(0usize),
+            threads: None, 
         }
+    }
+
+    pub fn add_thread(&mut self, t: Rc<RefCell<Thread>>) {
+        let previous_head = self.threads.take(); 
+        
+        if let Some(node) = previous_head {
+            //let head = *node.lock(); 
+            t.borrow_mut().next_domain = Some(node);
+        }
+
+        self.threads = Some(Arc::new(Mutex::new(t)));
+     
     }
 }
 

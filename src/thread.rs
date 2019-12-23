@@ -5,12 +5,14 @@ use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::string::ToString;
 use core::cell::RefCell;
-use alloc::rc::Rc; 
+use alloc::rc::Rc;
 use crate::halt;
-use crate::syscalls::{sys_yield, sys_create_thread};
 use crate::interrupt::{disable_irq, enable_irq};
+use spin::Mutex;
+use alloc::sync::Arc; 
 
 const MAX_PRIO: usize = 15;
+const MAX_CPUS: usize = 64;
 
 /// Per-CPU scheduler
 #[thread_local]
@@ -20,6 +22,93 @@ static SCHED: RefCell<Scheduler> = RefCell::new(Scheduler::new());
 #[thread_local]
 static CURRENT: RefCell<Option<Rc<RefCell<Thread>>>> = RefCell::new(None); 
 
+static REBALANCE_FLAGS: RebalanceFlags = RebalanceFlags::new();
+static REBALANCE_QUEUES: RebalanceQueues = RebalanceQueues::new();
+static REBALANCE_LOCK: Mutex<()> = Mutex::new(());
+
+type Priority = usize;
+pub type Link = Option<Rc<RefCell<Thread>>>;
+
+
+#[repr(align(64))]
+struct RebalanceFlag {
+    rebalance: bool,
+}
+
+impl RebalanceFlag {
+    const fn new() -> RebalanceFlag {
+        RebalanceFlag { rebalance: false }
+    }
+}
+
+struct RebalanceFlags {
+    flags: [RebalanceFlag; MAX_CPUS],
+}
+
+impl RebalanceFlags {
+    const fn new() -> RebalanceFlags {
+        RebalanceFlags {
+            flags : [RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(), 
+                     RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(),
+                     RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(), 
+                     RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(),
+                     RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(), 
+                     RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(),
+                     RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(), 
+                     RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(),
+                     RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(), 
+                     RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(),
+                     RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(), 
+                     RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(),
+                     RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(), 
+                     RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(),
+                     RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(), 
+                     RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new(), RebalanceFlag::new()],
+        }
+    }
+}
+
+struct RebalanceNode {
+    next: usize
+}
+
+impl RebalanceNode {
+    const fn new() -> RebalanceNode {
+        RebalanceNode { next: 0 }
+    }
+}
+
+struct RebalanceQueues {
+    queues: [RebalanceNode; MAX_CPUS],
+}
+
+impl RebalanceQueues {
+    const fn new() -> RebalanceQueues {
+        RebalanceQueues {
+            queues: [RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), 
+                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(),
+                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), 
+                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(),
+                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), 
+                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(),
+                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), 
+                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(),
+                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), 
+                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(),
+                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), 
+                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(),
+                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), 
+                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(),
+                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), 
+                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new()],
+        }
+    }
+}
+
+pub fn rebalance_thread(mut t: Rc<RefCell<Thread>>) {
+
+   // REBALANCE_QUEUES[
+}
 
 enum ThreadState {
     Running = 0,
@@ -45,10 +134,6 @@ pub struct Context {
   rflags: usize,
 }
 
-type Priority = usize;
-
-type Link = Option<Rc<RefCell<Thread>>>;
-
 pub struct Thread {
     name: String,
     state: ThreadState, 
@@ -57,6 +142,8 @@ pub struct Thread {
     stack: RefCell<Box<Stack>>,
     // Next thread in the scheduling queue
     next: Link,
+    // Next thread on the domain list 
+    pub next_domain: Option<Arc<Mutex<Rc<RefCell<Thread>>>>>,
 }
 
 
@@ -111,6 +198,7 @@ impl  Thread {
             context: Context::new(),
             stack: RefCell::new(Box::new(Stack::new())),
             next: None, 
+            next_domain: None, 
         };
 
         t.init_stack(func);
@@ -381,7 +469,7 @@ pub extern fn idle() {
     halt(); 
 }
 
-pub fn create_thread (name: &str, func: extern fn()) -> Box<syscalls::syscalls::Thread> {
+pub fn create_thread (name: &str, func: extern fn()) -> Box<dyn syscalls::syscalls::Thread> {
     let mut s = SCHED.borrow_mut();
 
     let mut t = Rc::new(RefCell::new(Thread::new(name, func)));

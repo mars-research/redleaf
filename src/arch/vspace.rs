@@ -4,20 +4,16 @@ use core::pin::Pin;
 
 use alloc::boxed::Box;
 
-use x86::bits64::paging;
 use x86::bits64::paging::*;
 use x86::controlregs;
 
 use super::memory::{kernel_vaddr_to_paddr, paddr_to_kernel_vaddr, PAddr, VAddr};
 
-use crate::memory::BespinPageTableProvider;
-use crate::memory::PageTableProvider;
-
-use core::fmt::{Debug, Display};
+use core::fmt::{Debug};
 use custom_error::custom_error;
 
 use crate::alloc::string::ToString;
-use log::{debug, warn, trace, info};
+use log::{debug, trace, info};
 
 custom_error! {pub VSpaceError
     AlreadyMapped{from: u64, to: u64} = "VSpace operation covers existing mapping ({from} -- {to})",
@@ -315,7 +311,7 @@ impl VSpace {
                 // Add entries as long as we are within this allocated PDPT table
                 // and have at least 2 MiB things to map
                 while mapped < psize && ((psize - mapped) >= LARGE_PAGE_SIZE) && pd_idx < 512 {
-                    if (pd[pd_idx].is_present()) {
+                    if pd[pd_idx].is_present() {
                         panic!("Already mapped pd at {:#x}", pbase + mapped);
                     }
 
