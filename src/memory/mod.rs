@@ -257,7 +257,7 @@ impl BespinSlabsProvider {
 impl<'a> PageProvider<'a> for BespinSlabsProvider {
     fn allocate_page(&mut self) -> Option<&'a mut ObjectPage<'a>> {
         if let Some(ref mut fmanager) = *BUDDY.lock() {
-            let mut f = unsafe {
+            let f = unsafe {
                 fmanager.allocate(
                     Layout::new::<paging::Page>()
                         .align_to(BASE_PAGE_SIZE)
@@ -305,10 +305,10 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
             trace!("allocated ptr=0x{:x} layout={:?}", ptr as usize, layout);
             ptr
         } else {
-            let mut ptr = core::ptr::null_mut();
+            let ptr; // = core::ptr::null_mut();
 
             if let Some(ref mut fmanager) = *BUDDY.lock() {
-                let mut f = fmanager.allocate(layout);
+                let f = fmanager.allocate(layout);
                 ptr = f.map_or(core::ptr::null_mut(), |mut region| {
                     region.zero();
                     region.kernel_vaddr().as_mut_ptr()
@@ -457,76 +457,78 @@ lazy_static! {
 }
 
 pub fn construct_pt() {
-    if let ref mut vspace = *VSPACE.lock() {
+    
+    {
+        let ref mut vspace = *VSPACE.lock(); 
 
-    // Map RWX as some code is copied to 0x7000 for ap start
-    vspace.map_generic(VAddr::from(MAP_BASE),
-                (PAddr::from(MAP_BASE),
-                KERNEL_BASE as usize - MAP_BASE as usize),
-                MapAction::ReadWriteExecuteKernel);
+        // Map RWX as some code is copied to 0x7000 for ap start
+        vspace.map_generic(VAddr::from(MAP_BASE),
+                    (PAddr::from(MAP_BASE),
+                    KERNEL_BASE as usize - MAP_BASE as usize),
+                    MapAction::ReadWriteExecuteKernel);
 
-    // Map kernel sections with appropriate permission bits
-    vspace.map_generic(VAddr::from(KERNEL_BASE),
-                (PAddr::from(KERNEL_BASE),
-                text_end() as usize - KERNEL_BASE as usize),
-                MapAction::ReadWriteExecuteKernel);
+        // Map kernel sections with appropriate permission bits
+        vspace.map_generic(VAddr::from(KERNEL_BASE),
+                    (PAddr::from(KERNEL_BASE),
+                    text_end() as usize - KERNEL_BASE as usize),
+                    MapAction::ReadWriteExecuteKernel);
 
-    vspace.map_generic(VAddr::from(rodata_start()),
-                (PAddr::from(rodata_start()),
-                rodata_end() as usize - rodata_start() as usize),
-                MapAction::ReadKernel);
+        vspace.map_generic(VAddr::from(rodata_start()),
+                    (PAddr::from(rodata_start()),
+                    rodata_end() as usize - rodata_start() as usize),
+                    MapAction::ReadKernel);
 
-    vspace.map_generic(VAddr::from(data_start()),
-                (PAddr::from(data_start()),
-                data_end() as usize - data_start() as usize),
-                MapAction::ReadWriteExecuteKernel);
+        vspace.map_generic(VAddr::from(data_start()),
+                    (PAddr::from(data_start()),
+                    data_end() as usize - data_start() as usize),
+                    MapAction::ReadWriteExecuteKernel);
 
-    vspace.map_generic(VAddr::from(bss_start()),
-                (PAddr::from(bss_start()),
-                bss_end() as usize - bss_start() as usize),
-                MapAction::ReadWriteExecuteKernel);
+        vspace.map_generic(VAddr::from(bss_start()),
+                    (PAddr::from(bss_start()),
+                    bss_end() as usize - bss_start() as usize),
+                    MapAction::ReadWriteExecuteKernel);
 
-    vspace.map_generic(VAddr::from(tdata_start()),
-                (PAddr::from(tdata_start()),
-                kernel_end() as usize - tdata_start() as usize),
-                MapAction::ReadWriteExecuteKernel);
+        vspace.map_generic(VAddr::from(tdata_start()),
+                    (PAddr::from(tdata_start()),
+                    kernel_end() as usize - tdata_start() as usize),
+                    MapAction::ReadWriteExecuteKernel);
 
-    let mut frame = {
-        if let Some(ref mut fmanager) = *BUDDY.lock() {
-            fmanager.get_region()
-        } else {
-            panic!("__rust_allocate: buddy not initialized");
+        let frame = {
+            if let Some(ref mut fmanager) = *BUDDY.lock() {
+                fmanager.get_region()
+            } else {
+                panic!("__rust_allocate: buddy not initialized");
+            }
+        };
+
+        // Map the regions held by buddy allocator
+        vspace.map_identity(
+            frame.base,
+            frame.base + frame.size as u64,
+            MapAction::ReadWriteExecuteKernel,
+        );
+
+        // Map LAPIC regions
+        vspace.map_identity(
+            PAddr(0xfec00000u64),
+            PAddr(0xfec00000u64 + BASE_PAGE_SIZE as u64),
+            MapAction::ReadWriteExecuteKernel,
+        );
+
+        vspace.map_identity(
+            PAddr(0xfee00000u64),
+            PAddr(0xfee00000u64 + BASE_PAGE_SIZE as u64),
+            MapAction::ReadWriteExecuteKernel,
+        );
+
+        println!("pml4_vaddr {:x}", vspace.pml4_address());
+        unsafe {
+            println!("=> Switching to new PageTable!");
+            controlregs::cr3_write(vspace.pml4_address().into());
+            println!("Flushing TLB");
+            x86::tlb::flush_all();
         }
-    };
-
-    // Map the regions held by buddy allocator
-    vspace.map_identity(
-        frame.base,
-        frame.base + frame.size as u64,
-        MapAction::ReadWriteExecuteKernel,
-    );
-
-    // Map LAPIC regions
-    vspace.map_identity(
-        PAddr(0xfec00000u64),
-        PAddr(0xfec00000u64 + BASE_PAGE_SIZE as u64),
-        MapAction::ReadWriteExecuteKernel,
-    );
-
-    vspace.map_identity(
-        PAddr(0xfee00000u64),
-        PAddr(0xfee00000u64 + BASE_PAGE_SIZE as u64),
-        MapAction::ReadWriteExecuteKernel,
-    );
-
-    println!("pml4_vaddr {:x}", vspace.pml4_address());
-    unsafe {
-        println!("=> Switching to new PageTable!");
-        controlregs::cr3_write(vspace.pml4_address().into());
-        println!("Flushing TLB");
-        x86::tlb::flush_all();
-    }
-    }
+        }
     // We need the memory pointed to by vspace after exiting the scope
    // core::mem::forget(vspace);
 }

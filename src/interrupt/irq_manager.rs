@@ -33,7 +33,7 @@ impl IRQManager {
             return Err("Invalid IRQ number");
         }
 
-        for (rdriver, callback) in &self._irqmap[irq as usize] {
+        for (rdriver, _callback) in &self._irqmap[irq as usize] {
             if Arc::ptr_eq(&rdriver, &driver) {
                 return Err("IRQ already registered");
             }

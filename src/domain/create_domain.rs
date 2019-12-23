@@ -1,6 +1,5 @@
 use elfloader::ElfBinary;
 use super::Domain;
-use alloc::string::String;
 use crate::syscalls::UKERN;
 use syscalls::Syscall;
 use core::mem::transmute;
@@ -18,7 +17,7 @@ pub unsafe fn create_domain(name: &'static str, binary_range: (*const u8, *const
     let domain_elf = ElfBinary::new(name, core::slice::from_raw_parts(binary_start, num_bytes)).expect("Invalid ELF file");
 
     // Create a domain for the to-be-loaded elf file
-    let mut loader = Domain::new(String::from(name));
+    let mut loader = Domain::new(name);
 
     // load the binary
     domain_elf.load(&mut loader).expect("Cannot load binary");
@@ -26,7 +25,7 @@ pub unsafe fn create_domain(name: &'static str, binary_range: (*const u8, *const
     // print its entry point for now
     println!("domain/{}: Entry point at {:x}", name, loader.offset + domain_elf.entry_point());
 
-    let user_ep: UserInit = unsafe {
+    let user_ep: UserInit = {
         let mut entry: *const u8 = loader.offset.as_ptr();
         entry = entry.offset(domain_elf.entry_point() as isize);
         let _entry = entry as *const ();

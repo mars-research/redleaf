@@ -42,7 +42,7 @@ pub fn init_buddy(bootinfo: BootInformation) {
                 if base > KERNEL_START && size > BASE_PAGE_SIZE && size > 49152000 {
                     println!("region.base = {:#x} region.size = {:#x}", base, size);
                     unsafe {
-                        let mut f = Frame::new(PAddr::from(base), size);
+                        let f = Frame::new(PAddr::from(base), size);
                         if let Some(ref mut fmanager) = *BUDDY.lock() {
                             if fmanager.add_memory(f) {
                                 println!("Added base={:#x} size={:#x}", base, size);

@@ -356,7 +356,7 @@ impl<'s> ElfBinary<'s> {
                     return Err("Encountered 32-bit header");
                 }
                 Ph64(header) => {
-                    let typ = header.get_type()?;
+                    let _typ = header.get_type()?;
                     // XXX: Do not perform this check
                     //if typ == Type::Dynamic {
                     //    self.check_dynamic(header, loader)?;

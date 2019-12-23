@@ -1,4 +1,5 @@
 use alloc::string::String;
+use alloc::string::ToString;
 use core::cell::RefCell;
 use log::{debug,info,trace};
 use x86::bits64::paging::{PAddr, VAddr, BASE_PAGE_SIZE, BASE_PAGE_SHIFT};
@@ -10,6 +11,7 @@ use crate::thread::Thread;
 use alloc::sync::Arc; 
 use spin::Mutex;
 use alloc::rc::Rc;
+use spin::Once;
 
 macro_rules! round_up {
     ($num:expr, $s:expr) => {
@@ -23,6 +25,11 @@ macro_rules! is_page_aligned {
     };
 }
 
+/// Global Domain list
+//pub static KERNEL_DOMAIN: Mutex<Option<Arc<Mutex<Domain>>>> = Mutex::new(None); 
+//pub static KERNEL_DOMAIN: Arc<Mutex<Domain>> = Arc::new(Mutex::new(Domain::new("kernel"))); 
+pub static KERNEL_DOMAIN: Once<Arc<Mutex<Domain>>> = Once::new();
+
 pub struct Domain {
     name: String,
     pub mapping: Vec<(VAddr, usize, u64, MapAction)>,
@@ -31,31 +38,57 @@ pub struct Domain {
     /// The entry point of the ELF file.
     pub entry_point: VAddr,
     /// List of threads in the domain
-    threads: Option<Arc<Mutex<Rc<RefCell<Thread>>>>>, 
+    //threads: Option<Arc<Mutex<Rc<RefCell<Thread>>>>>,
+    threads: DomainThreads, 
+}
+
+pub struct DomainThreads {
+    head: Option<Rc<RefCell<Thread>>>, 
+}
+
+unsafe impl Send for DomainThreads {}
+//unsafe impl Sync for DomainThreads {}
+
+impl DomainThreads {
+    pub fn new() -> DomainThreads {
+        DomainThreads {
+            head: None, 
+        }
+    }
 }
 
 impl Domain {
-    pub fn new(name: String) -> Domain {
+    pub fn new(name: &str) -> Domain {
         Domain {
-            name: name,
+            name: name.to_string(),
             mapping: Vec::with_capacity(64),
             offset: VAddr::from(0usize),
             entry_point: VAddr::from(0usize),
-            threads: None, 
+            threads: DomainThreads::new(), 
         }
     }
 
+    /// This function should be executed under a lock on domain
+    /// We explicitly avoid using another lock, but the assumption 
+    /// is that it's imposible to access the domain without holding 
+    /// a lock on the domain data structure
     pub fn add_thread(&mut self, t: Rc<RefCell<Thread>>) {
-        let previous_head = self.threads.take(); 
+        let previous_head = self.threads.head.take(); 
         
         if let Some(node) = previous_head {
-            //let head = *node.lock(); 
             t.borrow_mut().next_domain = Some(node);
         }
 
-        self.threads = Some(Arc::new(Mutex::new(t)));
+        self.threads.head = Some(t);
      
     }
+}
+
+pub fn init_domains() {
+    let kernel = Arc::new(Mutex::new(Domain::new("kernel")));
+    KERNEL_DOMAIN.call_once(|| kernel); 
+
+    //KERNEL_DOMAIN.lock().replace(kernel); 
 }
 
 impl elfloader::ElfLoader for Domain {
@@ -178,9 +211,10 @@ impl elfloader::ElfLoader for Domain {
             let vaddr = VAddr::from(destination + idx);
             let paddr = {
                 let mut _paddr: PAddr = PAddr::from(0 as usize);
-                if let ref mut vspace = *VSPACE.lock() {
+                {
+                    let ref mut vspace = *VSPACE.lock();
                     _paddr = vspace.resolve_addr(vaddr)
-                    .expect("Can't resolve address");
+                        .expect("Can't resolve address");
                 };
                 _paddr
             };
@@ -213,7 +247,8 @@ impl elfloader::ElfLoader for Domain {
         // Translate `addr` into a kernel vaddr we can write to:
         let paddr = {
             let mut _paddr: PAddr = PAddr::from(0 as usize);
-            if let ref mut vspace = *VSPACE.lock() {
+            {
+                let ref mut vspace = *VSPACE.lock();
                 _paddr = vspace
                 .resolve_addr(addr)
                 .expect("Can't resolve address");

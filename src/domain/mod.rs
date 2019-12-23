@@ -1,4 +1,4 @@
-mod domain;
+pub mod domain;
 pub use domain::Domain;
 
 mod create_domain;

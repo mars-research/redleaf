@@ -1,6 +1,5 @@
 use elfloader::ElfBinary;
 use super::Domain;
-use alloc::string::String;
 use crate::syscalls::UKERN;
 use syscalls::Syscall;
 use core::mem::transmute;
@@ -34,7 +33,7 @@ pub unsafe fn load_sys_init() {
     let sys_init_elf = ElfBinary::new("sys_init", core::slice::from_raw_parts(binary_start, num_bytes)).expect("Got ELF file");
 
     // Create a domain for the to-be-loaded elf file
-    let mut loader = Domain::new(String::from("sys_init"));
+    let mut loader = Domain::new("sys_init");
 
     // load the binary
     sys_init_elf.load(&mut loader).expect("Cannot load binary");
@@ -42,7 +41,7 @@ pub unsafe fn load_sys_init() {
     // print its entry point for now
     println!("entry point at {:x}", loader.offset + sys_init_elf.entry_point());
 
-    let user_ep: UserInit = unsafe {
+    let user_ep: UserInit = {
         let mut entry: *const u8 = loader.offset.as_ptr();
         entry = entry.offset(sys_init_elf.entry_point() as isize);
         let _entry = entry as *const ();

@@ -452,11 +452,11 @@ impl VSpace {
         );
 
         // Free unused top and bottom regions again:
-        unsafe {
+        {
             trace!("NYI free");
         }
 
-        unsafe {
+        {
             trace!("NYI free");
         }
 

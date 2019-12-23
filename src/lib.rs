@@ -10,7 +10,8 @@
     thread_local,
     untagged_unions,
     naked_functions,
-    panic_info_message
+    panic_info_message,
+    param_attrs
 )]
 
 extern crate x86;

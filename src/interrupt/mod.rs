@@ -138,7 +138,7 @@ lazy_static! {
             println!("irq_entries_start:{:#x?}, irq_handlers:{:#x?}", irq_entries_start, irq_handlers); 
             for i in IRQ_OFFSET..255 {
                 let ptr = (irq_handlers + 8*(i - IRQ_OFFSET) as u64) as *const ();
-                let handler: HandlerFunc = unsafe { core::mem::transmute(ptr) };
+                let handler: HandlerFunc = core::mem::transmute(ptr);
                 //idt[InterruptIndex::Timer.as_usize()].set_handler_fn(handler);
                 idt[i as usize].set_handler_fn(handler);
             }
@@ -151,7 +151,7 @@ lazy_static! {
 pub unsafe fn init_cpu(cpu: u32, stack: u32, code: u64) {
     let destination: *mut u8 = 0x7000 as *mut u8;
 
-    let mut pgdir: u64 = 0;
+    let mut pgdir: u64;
     asm!("mov $0, cr3" : "=r"(pgdir) ::: "intel");
 
     entryother::copy_binary_to(destination);
@@ -170,7 +170,7 @@ pub fn init_idt() {
 }
 
 pub fn init_irqs_local() {
-    unsafe {
+    {
         if !detect_apic() {
             panic!("APIC is required to run RedLeaf");
         }
@@ -194,7 +194,7 @@ pub unsafe fn get_irq_registrar<T: Driver + Send>(driver: Arc<Mutex<T>>) -> IRQR
     IRQRegistrar::new(driver, irqManager.clone())
 }
 
-fn end_of_interrupt(interrupt: u8) {
+fn end_of_interrupt(#[allow(unused_variables)]interrupt: u8) {
     lapic::end_of_interrupt();
 }
 
@@ -326,7 +326,7 @@ extern "x86-interrupt" fn invalid_tss_handler(
     stack_frame: &mut InterruptStackFrame,
     error_code: u64,
 ) {
-    println!("Invalid TSS exception:\n{:#?}", stack_frame);
+    println!("Invalid TSS exception:\n{:#?}\nerror_code:{}", stack_frame, error_code);
     crate::halt();
 }
 
@@ -431,7 +431,7 @@ extern "x86-interrupt" fn alignment_check_handler(
     stack_frame: &mut InterruptStackFrame,
     error_code: u64
 ) {
-    println!("Alignment check exception:\n{:#?}", stack_frame);
+    println!("Alignment check exception:\n{:#?}\nerror_code:{}", stack_frame, error_code);
     crate::halt(); 
 }
 
@@ -484,7 +484,7 @@ extern fn do_virtualization(pt_regs: &mut PtRegs) {
 extern "x86-interrupt" fn security_exception_handler(
     stack_frame: &mut InterruptStackFrame,
     error_code: u64) {
-    println!("Security exception:\n{:#?}", stack_frame);
+    println!("Security exception:\n{:#?}\nerror_code:{}", stack_frame, error_code);
     crate::halt(); 
 }
 
@@ -515,7 +515,7 @@ extern fn do_IRQ(pt_regs: &mut PtRegs) -> u64 {
 }
 
 // IRQ 0: Timer
-fn timer_interrupt_handler(pt_regs: &mut PtRegs) {
+fn timer_interrupt_handler(#[allow(unused_variables)]pt_regs: &mut PtRegs) {
     end_of_interrupt(InterruptIndex::Timer.as_u8());
     crate::thread::schedule();
 }
@@ -545,7 +545,7 @@ extern fn swapfs() {
 }
 
 #[no_mangle]
-extern fn fixup_bad_iret(pt_regs: &mut PtRegs) -> u64 {
+extern fn fixup_bad_iret(#[allow(unused_variables)]pt_regs: &mut PtRegs) -> u64 {
     panic!("fixup_bad_iret");
 }
 

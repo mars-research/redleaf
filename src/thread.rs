@@ -10,6 +10,7 @@ use crate::halt;
 use crate::interrupt::{disable_irq, enable_irq};
 use spin::Mutex;
 use alloc::sync::Arc; 
+use crate::domain::domain::{Domain, KERNEL_DOMAIN}; 
 
 const MAX_PRIO: usize = 15;
 const MAX_CPUS: usize = 64;
@@ -105,7 +106,7 @@ impl RebalanceQueues {
     }
 }
 
-pub fn rebalance_thread(mut t: Rc<RefCell<Thread>>) {
+pub fn rebalance_thread(mut _t: Rc<RefCell<Thread>>) {
 
    // REBALANCE_QUEUES[
 }
@@ -140,10 +141,11 @@ pub struct Thread {
     priority: Priority, 
     context: Context,
     stack: RefCell<Box<Stack>>,
+    domain: Option<Arc<Mutex<Domain>>>,
     // Next thread in the scheduling queue
     next: Link,
     // Next thread on the domain list 
-    pub next_domain: Option<Arc<Mutex<Rc<RefCell<Thread>>>>>,
+    pub next_domain: Option<Rc<RefCell<Thread>>>,
 }
 
 
@@ -197,6 +199,7 @@ impl  Thread {
             priority: 0,
             context: Context::new(),
             stack: RefCell::new(Box::new(Stack::new())),
+            domain: None, 
             next: None, 
             next_domain: None, 
         };
@@ -220,7 +223,7 @@ impl  SchedulerQueue {
         }
     }
 
-    fn push_thread(&mut self, queue: usize, mut thread: Rc<RefCell<Thread>>) {
+    fn push_thread(&mut self, queue: usize, thread: Rc<RefCell<Thread>>) {
         let previous_head = self.prio_queues[queue].take();
 
         if let Some(node) = previous_head {
@@ -232,7 +235,7 @@ impl  SchedulerQueue {
     pub fn pop_thread(&mut self, queue: usize) -> Option<Rc<RefCell<Thread>>> {
         let previous_head = self.prio_queues[queue].take();
 
-        if let Some(mut node) = previous_head {
+        if let Some(node) = previous_head {
             self.prio_queues[queue] = node.borrow_mut().next.take();
             Some(node)
         } else {
@@ -241,7 +244,7 @@ impl  SchedulerQueue {
     }
 
     // Add thread to the queue that matches thread's priority
-    pub fn put_thread(&mut self, mut thread: Rc<RefCell<Thread>>) {
+    pub fn put_thread(&mut self, thread: Rc<RefCell<Thread>>) {
         let prio = thread.borrow_mut().priority;
    
         self.push_thread(prio, thread); 
@@ -282,7 +285,7 @@ impl  Scheduler {
         }
     }
 
-    pub fn put_thread(&mut self, mut thread: Rc<RefCell<Thread>>) {
+    pub fn put_thread(&mut self, thread: Rc<RefCell<Thread>>) {
         /* put thread in the currently passive queue */
         if !self.active {
             self.active_queue.put_thread(thread)
@@ -400,7 +403,7 @@ pub unsafe fn switch(prev: *mut Thread, next: *mut Thread) {
     asm!("mov rbp, $0" : : "r"((*next).context.rbp) : "memory" : "intel", "volatile");
 }
 
-fn set_current(mut t: Rc<RefCell<Thread>>) {
+fn set_current(t: Rc<RefCell<Thread>>) {
     CURRENT.replace(Some(t)); 
 }
 
@@ -419,7 +422,7 @@ pub fn schedule() {
     //println!("Schedule"); 
 
     let mut s = SCHED.borrow_mut();
-    let mut next_thread = match s.next() {
+    let next_thread = match s.next() {
         Some(t) => t,
         None => {
             // Nothing again, current is the only runnable thread, no need to
@@ -430,7 +433,7 @@ pub fn schedule() {
 
     };
 
-    let mut c = match get_current() {
+    let c = match get_current() {
         Some(t) => t,
         None => { return; } 
     };
@@ -472,9 +475,9 @@ pub extern fn idle() {
 pub fn create_thread (name: &str, func: extern fn()) -> Box<dyn syscalls::Thread> {
     let mut s = SCHED.borrow_mut();
 
-    let mut t = Rc::new(RefCell::new(Thread::new(name, func)));
+    let t = Rc::new(RefCell::new(Thread::new(name, func)));
  
-    let mut pt = Box::new(PThread::new(Rc::clone(&t)));
+    let pt = Box::new(PThread::new(Rc::clone(&t)));
    
     s.put_thread(t);
     return pt; 
@@ -501,7 +504,19 @@ impl syscalls::Thread for PThread {
 }
 
 pub fn init_threads() {
-    let mut idle = Rc::new(RefCell::new(Thread::new("idle", idle)));
+    let idle = Rc::new(RefCell::new(Thread::new("idle", idle)));
+    
+    /*
+     let kdom = KERNEL_DOMAIN.lock(); 
+
+    if let Some(kernel_domain) = *kdom {
+        idle.borrow_mut().domain = Some(kernel_domain); 
+    } else {
+        panic!("Kernel domain is not initialized"); 
+    }*/
+    let kernel_domain = KERNEL_DOMAIN.r#try().expect("Kernel domain is not initialized");
+
+    idle.borrow_mut().domain = Some(kernel_domain.clone());
 
     // Make idle the current thread
     set_current(idle);   

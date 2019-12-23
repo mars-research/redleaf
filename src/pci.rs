@@ -5,7 +5,7 @@ extern crate pcid;
 
 use pcid::pci::{Pci, PciClass, PciHeader, PciHeaderError};
 
-fn handle_parsed_header(pci: &Pci, bus_num: u8,
+fn handle_parsed_header(#[allow(unused_variables)]pci: &Pci, bus_num: u8,
                         dev_num: u8, func_num: u8, header: PciHeader) {
     let raw_class: u8 = header.class().into();
     let mut string = format!("PCI {:>02X}/{:>02X}/{:>02X} {:>04X}:{:>04X} {:>02X}.{:>02X}.{:>02X}.{:>02X} {:?}",
@@ -213,7 +213,7 @@ pub fn scan_pci_devs() {
                         handle_parsed_header(&pci, bus.num, dev.num, func_num, header);
                     }
                     Err(PciHeaderError::NoDevice) => {},
-                    Err(PciHeaderError::UnknownHeaderType(id)) => {
+                    Err(PciHeaderError::UnknownHeaderType(_id)) => {
                         //println!("pcid: unknown header type: {}", id);
                     }
                 }
