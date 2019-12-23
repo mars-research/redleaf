@@ -16,8 +16,8 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::panic::PanicInfo;
-use syscalls::syscalls::{Syscall};
-use libsyscalls::syscalls::{sys_print, sys_alloc, sys_create_thread, sys_yield};
+use syscalls::{Syscall};
+use libsyscalls::syscalls::{sys_println, sys_alloc, sys_create_thread, sys_yield};
 use console::println;
 
 extern fn foo() {
@@ -38,9 +38,7 @@ pub fn init(s: Syscall) {
         v1.push(i);
     }
 
-    sys_print("init userland");
-    sys_print("init userland 2");
-    sys_print("init userland 3");
+    println!("{} {} {}", "init", "userland", 1);
 
     println!("init userland print works");
     let t = sys_create_thread("init_thread", foo); 

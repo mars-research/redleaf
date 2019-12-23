@@ -1,5 +1,5 @@
 [package]
-name = "pci"
+name = "ixgbe"
 version = "0.1.0"
 authors = ["RedLeaf Team"]
 edition = "2018"

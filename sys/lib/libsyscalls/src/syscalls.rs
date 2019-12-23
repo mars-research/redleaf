@@ -1,7 +1,7 @@
 extern crate alloc;
 use spin::Once;
 use alloc::boxed::Box;
-use syscalls::syscalls::{Syscall, Thread}; 
+use syscalls::{Syscall, Thread};
 
 static SYSCALL: Once<Syscall> = Once::new();
 
@@ -12,6 +12,11 @@ pub fn init(s: Syscall) {
 pub fn sys_print(s: &str) {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
     (scalls.sys_print)(s);
+}
+
+pub fn sys_println(s: &str) {
+    let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
+    (scalls.sys_println)(s);
 }
 
 pub fn sys_yield() {

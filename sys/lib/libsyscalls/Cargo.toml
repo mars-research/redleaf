@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 spin = "0.5.2"
-syscalls = { path = "../syscalls", version = "0.1.0"}
+syscalls = { path = "../../interfaces/syscalls", version = "0.1.0"}
 
 #[dev-dependencies]
 #redleaf = { path = "../", version = "0.1.0" }

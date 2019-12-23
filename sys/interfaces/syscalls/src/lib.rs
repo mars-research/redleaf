@@ -1,9 +1,12 @@
+#![no_std]
+
 extern crate alloc;
 use alloc::boxed::Box;
 
 #[derive(Copy, Clone)]
 pub struct Syscall {
     pub sys_print: fn(s: &str),
+    pub sys_println: fn(s: &str),
     pub sys_yield: fn(),
     pub sys_create_thread: fn(name: &str, func: extern fn()) -> Box<dyn Thread>,
     pub sys_alloc: fn() -> *mut u8,
@@ -15,5 +18,3 @@ pub struct Syscall {
 pub trait Thread {
     fn set_affinity(&self, affinity: u64);
 }
-
-

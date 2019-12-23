@@ -19,27 +19,15 @@ use core::panic::PanicInfo;
 use syscalls::{Syscall};
 use libsyscalls::syscalls::{sys_println, sys_alloc, sys_create_thread};
 use console::println;
+//use pci::Pci;
 
-extern fn foo() {
-    
-}
+/*
+ * fn get_ixgbe_traitobj() -> impl IxgbeBarRegion { }
+ */
 
 #[no_mangle]
 pub fn init(s: Syscall) {
-    libsyscalls::syscalls::init(s);
-    
-    //let b = Box::new(4);
-    //let r = sys_alloc();
-    let mut v1: Vec<u64> = Vec::with_capacity(1024);
-    for i in 0..2048 {
-        v1.push(i);
-    }
 
-    println!("init xv6/core");
-    let t = sys_create_thread("trait_test", foo); 
-    t.set_affinity(10); 
-    //println!("thread:{}", t);
-    drop(t); 
 }
 
 // This function is called on panic.

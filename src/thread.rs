@@ -469,7 +469,7 @@ pub extern fn idle() {
     halt(); 
 }
 
-pub fn create_thread (name: &str, func: extern fn()) -> Box<dyn syscalls::syscalls::Thread> {
+pub fn create_thread (name: &str, func: extern fn()) -> Box<dyn syscalls::Thread> {
     let mut s = SCHED.borrow_mut();
 
     let mut t = Rc::new(RefCell::new(Thread::new(name, func)));
@@ -492,7 +492,7 @@ impl PThread {
     }
 }
 
-impl syscalls::syscalls::Thread for PThread {
+impl syscalls::Thread for PThread {
     fn set_affinity(&self, affinity: u64) {
         disable_irq();
         println!("Setting affinity:{} for {}", affinity, self.t.borrow().name); 
