@@ -31,7 +31,7 @@ macro_rules! is_page_aligned {
 pub static KERNEL_DOMAIN: Once<Arc<Mutex<Domain>>> = Once::new();
 
 pub struct Domain {
-    name: String,
+    pub name: String,
     pub mapping: Vec<(VAddr, usize, u64, MapAction)>,
     /// Offset where ELF is located.
     pub offset: VAddr,

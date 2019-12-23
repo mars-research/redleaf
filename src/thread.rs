@@ -136,7 +136,7 @@ pub struct Context {
 }
 
 pub struct Thread {
-    name: String,
+    pub name: String,
     state: ThreadState, 
     priority: Priority, 
     context: Context,
@@ -415,6 +415,16 @@ fn get_current() -> Option<Rc<RefCell<Thread>>> {
     CURRENT.replace(None)
 }
 
+fn get_current_dom() -> Arc<Mutex<Domain>> {
+
+    let rc_t = CURRENT.borrow().as_ref().unwrap().clone(); 
+    
+    let arc_d = rc_t.borrow().domain.as_ref().unwrap().clone();
+            
+    arc_d
+}
+
+
 
 // Kicked from the timer IRQ
 pub fn schedule() {
@@ -476,7 +486,15 @@ pub fn create_thread (name: &str, func: extern fn()) -> Box<dyn syscalls::Thread
     let mut s = SCHED.borrow_mut();
 
     let t = Rc::new(RefCell::new(Thread::new(name, func)));
- 
+
+    let arc_d = get_current_dom(); 
+    
+    {
+        let mut d = arc_d.lock();
+        d.add_thread(t.clone()); 
+        println!("Created thread {} for domain {}", t.borrow().name, d.name); 
+    }
+
     let pt = Box::new(PThread::new(Rc::clone(&t)));
    
     s.put_thread(t);

@@ -207,7 +207,9 @@ pub extern "C" fn rust_main_ap() -> ! {
         interrupt::init_idt();
         interrupt::init_irqs_local();
     }
-     
+    
+    domain::domain::init_domains(); 
+
     println!("cpu{}: Initialized", cpu_id);
     thread::init_threads(); 
    
