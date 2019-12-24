@@ -12,6 +12,9 @@ use alloc::sync::Arc;
 use spin::Mutex;
 use alloc::rc::Rc;
 use spin::Once;
+use alloc::boxed::Box; 
+use crate::syscalls::PDomain;
+use syscalls::Syscall;
 
 macro_rules! round_up {
     ($num:expr, $s:expr) => {
@@ -26,9 +29,10 @@ macro_rules! is_page_aligned {
 }
 
 /// Global Domain list
-//pub static KERNEL_DOMAIN: Mutex<Option<Arc<Mutex<Domain>>>> = Mutex::new(None); 
-//pub static KERNEL_DOMAIN: Arc<Mutex<Domain>> = Arc::new(Mutex::new(Domain::new("kernel"))); 
 pub static KERNEL_DOMAIN: Once<Arc<Mutex<Domain>>> = Once::new();
+
+#[thread_local]
+pub static BOOTING_DOMAIN: RefCell<Option<Box<PDomain>>> = RefCell::new(None); 
 
 pub struct Domain {
     pub name: String,
@@ -84,12 +88,13 @@ impl Domain {
     }
 }
 
+/// Create kernel domain (must be called before any threads are 
+/// created) 
 pub fn init_domains() {
     let kernel = Arc::new(Mutex::new(Domain::new("kernel")));
     KERNEL_DOMAIN.call_once(|| kernel); 
-
-    //KERNEL_DOMAIN.lock().replace(kernel); 
 }
+
 
 impl elfloader::ElfLoader for Domain {
     /// Makes sure the domain vspace is backed for the regions

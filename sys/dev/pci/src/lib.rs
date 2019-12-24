@@ -32,9 +32,10 @@ use core::panic::PanicInfo;
 use syscalls::{Syscall};
 use libsyscalls::syscalls::{sys_println, sys_alloc};
 use console::println;
+use alloc::boxed::Box;
 
 #[no_mangle]
-pub fn init(s: Syscall) {
+pub fn init(s: Box<dyn Syscall + Send + Sync>) {
     libsyscalls::syscalls::init(s);
 
     sys_println("init PCI domain");

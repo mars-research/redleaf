@@ -4,15 +4,19 @@ extern crate alloc;
 use alloc::boxed::Box;
 
 #[derive(Copy, Clone)]
-pub struct Syscall {
-    pub sys_print: fn(s: &str),
-    pub sys_println: fn(s: &str),
-    pub sys_yield: fn(),
-    pub sys_create_thread: fn(name: &str, func: extern fn()) -> Box<dyn Thread>,
-    pub sys_alloc: fn() -> *mut u8,
-    pub sys_free: fn(p: *mut u8),
-    pub sys_alloc_huge: fn(sz: u64) -> *mut u8,
-    pub sys_free_huge: fn(p: *mut u8),
+pub struct BootSyscall {
+    pub sys_boot_syscall: fn() -> Box<dyn Syscall>,
+}
+
+pub trait Syscall {
+    fn sys_print(&self, s: &str);
+    fn sys_println(&self, s: &str);
+    fn sys_yield(&self);
+    fn sys_create_thread(&self, name: &str, func: extern fn()) -> Box<dyn Thread>;
+    fn sys_alloc(&self) -> *mut u8;
+    fn sys_free(&self, p: *mut u8);
+    fn sys_alloc_huge(&self, sz: u64) -> *mut u8;
+    fn sys_free_huge(&self, p: *mut u8);
 }
 
 pub trait Thread {

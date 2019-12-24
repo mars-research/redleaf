@@ -28,7 +28,7 @@ extern fn foo() {
 }
 
 #[no_mangle]
-pub fn init(s: Syscall) {
+pub fn init(s: Box<dyn Syscall + Send + Sync>) {
     libsyscalls::syscalls::init(s);
     
     //let b = Box::new(4);
