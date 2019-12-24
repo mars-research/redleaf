@@ -26,9 +26,10 @@ use core::panic::PanicInfo;
 use syscalls::{Syscall};
 use libsyscalls::syscalls::{sys_print, sys_alloc};
 use console::println;
+use alloc::boxed::Box;
 
 #[no_mangle]
-pub fn ahci_init(s: Syscall) {
+pub fn ahci_init(s: Box<dyn Syscall + Send + Sync>) {
     libsyscalls::syscalls::init(s);
 
     self::ahcid::disks(0xfebf1000, "meow");

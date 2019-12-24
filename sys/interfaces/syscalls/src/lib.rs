@@ -3,10 +3,10 @@
 extern crate alloc;
 use alloc::boxed::Box;
 
-#[derive(Copy, Clone)]
-pub struct BootSyscall {
-    pub sys_boot_syscall: fn() -> Box<dyn Syscall>,
-}
+//#[derive(Copy, Clone)]
+//pub struct BootSyscall {
+//    pub sys_boot_syscall: fn() -> Box<dyn Syscall>,
+//}
 
 pub trait Syscall {
     fn sys_print(&self, s: &str);

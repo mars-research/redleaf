@@ -1,6 +1,6 @@
 use crate::interrupt::{disable_irq, enable_irq};
 use crate::thread::{do_yield, create_thread};
-use syscalls::{BootSyscall, Syscall, Thread};
+use syscalls::{Syscall, Thread};
 use x86::bits64::paging::{PAddr, VAddr};
 use crate::arch::vspace::{VSpace, ResourceType};
 use crate::memory::paddr_to_kernel_vaddr;
@@ -9,7 +9,7 @@ use alloc::boxed::Box;
 use spin::Mutex;
 use alloc::sync::Arc; 
 use crate::domain::domain::{Domain}; 
-use crate::domain::domain::BOOTING_DOMAIN; 
+//use crate::domain::domain::BOOTING_DOMAIN; 
 
 extern crate syscalls; 
 
@@ -19,19 +19,19 @@ macro_rules! round_up {
     };
 }
 
-pub static BOOT_SYSCALL: BootSyscall = BootSyscall {
-    sys_boot_syscall,
-};
+//pub static BOOT_SYSCALL: BootSyscall = BootSyscall {
+//    sys_boot_syscall,
+//};
 
-/// AB: I was not able to pass Box<dyn Syscall> as an argument 
-/// to user_ep() (maybe it's possible, I didn't have time to 
-/// figure it out
-pub fn sys_boot_syscall() -> Box<dyn Syscall> {
-    let pdom = BOOTING_DOMAIN.replace(None);
-
-    enable_irq(); 
-    return pdom.unwrap();
-}
+//// AB: I was not able to pass Box<dyn Syscall> as an argument 
+//// to user_ep() (maybe it's possible, I didn't have time to 
+//// figure it out
+//pub fn sys_boot_syscall() -> Box<dyn Syscall> {
+//    let pdom = BOOTING_DOMAIN.replace(None);
+//
+//    enable_irq(); 
+//    return pdom.unwrap();
+//}
 
 pub struct PDomain {
     dom: Arc<Mutex<Domain>>

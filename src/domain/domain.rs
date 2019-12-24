@@ -31,8 +31,8 @@ macro_rules! is_page_aligned {
 /// Global Domain list
 pub static KERNEL_DOMAIN: Once<Arc<Mutex<Domain>>> = Once::new();
 
-#[thread_local]
-pub static BOOTING_DOMAIN: RefCell<Option<Box<PDomain>>> = RefCell::new(None); 
+//#[thread_local]
+//pub static BOOTING_DOMAIN: RefCell<Option<Box<PDomain>>> = RefCell::new(None); 
 
 pub struct Domain {
     pub name: String,

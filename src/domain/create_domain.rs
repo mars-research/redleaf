@@ -7,9 +7,9 @@ use crate::interrupt::{disable_irq, enable_irq};
 use spin::Mutex;
 use alloc::sync::Arc; 
 use alloc::boxed::Box; 
-use syscalls::BootSyscall;
-use crate::domain::domain::BOOTING_DOMAIN; 
-use crate::syscalls::BOOT_SYSCALL; 
+//use syscalls::BootSyscall;
+//use crate::domain::domain::BOOTING_DOMAIN; 
+//use crate::syscalls::BOOT_SYSCALL; 
 
 pub unsafe fn create_domain(name: &'static str, binary_range: (*const u8, *const u8)) {
     let (binary_start, binary_end) = binary_range;
@@ -46,15 +46,11 @@ pub unsafe fn create_domain(name: &'static str, binary_range: (*const u8, *const
     drop(loader);
 
     let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    
     //BOOTING_DOMAIN.replace(Some(pdom));
-
-    // We play a little dance with interrupts here. While normally
-    // we would enable interrupts as we upcall into user, we can't
-    // as we have to ensure atomicity with respect to sys_boot_syscall.
-    // We enter user with interrupts off, init immediately calls back into 
-    // the kernel with the sys_boot_syscall, which enables interrupts
-    // on return to user. 
     //user_ep(BOOT_SYSCALL);
+    
+    // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     user_ep(pdom); 
     disable_irq(); 
