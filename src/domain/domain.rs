@@ -12,9 +12,6 @@ use alloc::sync::Arc;
 use spin::Mutex;
 use alloc::rc::Rc;
 use spin::Once;
-use alloc::boxed::Box; 
-use crate::syscalls::PDomain;
-use syscalls::Syscall;
 
 macro_rules! round_up {
     ($num:expr, $s:expr) => {

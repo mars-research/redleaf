@@ -1,6 +1,5 @@
 use crate::interrupt::{disable_irq, enable_irq};
-use crate::thread::{do_yield, create_thread};
-use syscalls::{Syscall, Thread};
+use crate::thread::{do_yield, create_thread, PThread};
 use x86::bits64::paging::{PAddr, VAddr};
 use crate::arch::vspace::{VSpace, ResourceType};
 use crate::memory::paddr_to_kernel_vaddr;
@@ -9,6 +8,8 @@ use alloc::boxed::Box;
 use spin::Mutex;
 use alloc::sync::Arc; 
 use crate::domain::domain::{Domain}; 
+use syscalls::Thread;
+
 //use crate::domain::domain::BOOTING_DOMAIN; 
 
 extern crate syscalls; 
@@ -34,13 +35,13 @@ macro_rules! round_up {
 //}
 
 pub struct PDomain {
-    dom: Arc<Mutex<Domain>>
+    domain: Arc<Mutex<Domain>>
 }
 
 impl PDomain {
     pub const fn new(dom: Arc<Mutex<Domain>>) -> PDomain {
         PDomain {
-            dom: dom,
+            domain: dom,
         }
     }
 }
@@ -106,9 +107,20 @@ impl syscalls::Syscall for PDomain {
 
         disable_irq();
         println!("sys_create_thread"); 
-        let t = create_thread(name, func);
+        let pt = create_thread(name, func);
+
+        let t = pt.thread.clone(); 
+    
+        let mut d = self.domain.lock();
+        d.add_thread(t); 
+
+        println!("Created thread {} for domain {}", pt.thread.borrow().name, d.name); 
+
+        // Drop before re-enabling interrupts
+        drop(d); 
+
         enable_irq();
-        return t;
+        return pt;
     }
 }
 

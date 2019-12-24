@@ -482,18 +482,18 @@ pub extern fn idle() {
     halt(); 
 }
 
-pub fn create_thread (name: &str, func: extern fn()) -> Box<dyn syscalls::Thread> {
+pub fn create_thread (name: &str, func: extern fn()) -> Box<PThread> {
     let mut s = SCHED.borrow_mut();
 
     let t = Rc::new(RefCell::new(Thread::new(name, func)));
 
-    let arc_d = get_current_dom(); 
-    
-    {
-        let mut d = arc_d.lock();
-        d.add_thread(t.clone()); 
-        println!("Created thread {} for domain {}", t.borrow().name, d.name); 
-    }
+    //let arc_d = get_current_dom(); 
+    //
+    //{
+    //    let mut d = arc_d.lock();
+    //    d.add_thread(t.clone()); 
+    //    println!("Created thread {} for domain {}", t.borrow().name, d.name); 
+    //}
 
     let pt = Box::new(PThread::new(Rc::clone(&t)));
    
@@ -501,14 +501,14 @@ pub fn create_thread (name: &str, func: extern fn()) -> Box<dyn syscalls::Thread
     return pt; 
 }
 
-struct PThread {
-    t: Rc<RefCell<Thread>>
+pub struct PThread {
+    pub thread: Rc<RefCell<Thread>>
 }
 
 impl PThread {
     pub const fn new(t:Rc<RefCell<Thread>>) -> PThread {
         PThread {
-            t: t,
+            thread: t,
         }
     }
 }
@@ -516,7 +516,7 @@ impl PThread {
 impl syscalls::Thread for PThread {
     fn set_affinity(&self, affinity: u64) {
         disable_irq();
-        println!("Setting affinity:{} for {}", affinity, self.t.borrow().name); 
+        println!("Setting affinity:{} for {}", affinity, self.thread.borrow().name); 
         enable_irq(); 
     }
 }
