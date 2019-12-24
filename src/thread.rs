@@ -11,6 +11,7 @@ use crate::interrupt::{disable_irq, enable_irq};
 use spin::Mutex;
 use alloc::sync::Arc; 
 use crate::domain::domain::{Domain, KERNEL_DOMAIN}; 
+use crate::tls::cpuid; 
 
 const MAX_PRIO: usize = 15;
 const MAX_CPUS: usize = 64;
@@ -23,9 +24,8 @@ static SCHED: RefCell<Scheduler> = RefCell::new(Scheduler::new());
 #[thread_local]
 static CURRENT: RefCell<Option<Rc<RefCell<Thread>>>> = RefCell::new(None); 
 
-static REBALANCE_FLAGS: RebalanceFlags = RebalanceFlags::new();
-static REBALANCE_QUEUES: RebalanceQueues = RebalanceQueues::new();
-static REBALANCE_LOCK: Mutex<()> = Mutex::new(());
+static mut REBALANCE_FLAGS: RebalanceFlags = RebalanceFlags::new();
+static REBALANCE_QUEUES: Mutex<RebalanceQueues> = Mutex::new(RebalanceQueues::new());
 
 type Priority = usize;
 pub type Link = Option<Rc<RefCell<Thread>>>;
@@ -46,6 +46,8 @@ struct RebalanceFlags {
     flags: [RebalanceFlag; MAX_CPUS],
 }
 
+// AB: I need this nested data structure hoping that 
+// it will ensure cache-line alignment
 impl RebalanceFlags {
     const fn new() -> RebalanceFlags {
         RebalanceFlags {
@@ -69,46 +71,93 @@ impl RebalanceFlags {
     }
 }
 
-struct RebalanceNode {
-    next: usize
-}
-
-impl RebalanceNode {
-    const fn new() -> RebalanceNode {
-        RebalanceNode { next: 0 }
-    }
-}
-
 struct RebalanceQueues {
-    queues: [RebalanceNode; MAX_CPUS],
+    queues: [Link; MAX_CPUS],
 }
+
+unsafe impl Sync for RebalanceQueues {} 
+unsafe impl Send for RebalanceQueues {} 
 
 impl RebalanceQueues {
     const fn new() -> RebalanceQueues {
         RebalanceQueues {
-            queues: [RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), 
-                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(),
-                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), 
-                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(),
-                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), 
-                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(),
-                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), 
-                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(),
-                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), 
-                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(),
-                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), 
-                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(),
-                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), 
-                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(),
-                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), 
-                     RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new(), RebalanceNode::new()],
+            queues: [None, None, None, None, 
+                     None, None, None, None,
+                     None, None, None, None, 
+                     None, None, None, None,
+                     None, None, None, None, 
+                     None, None, None, None,
+                     None, None, None, None, 
+                     None, None, None, None,
+                     None, None, None, None, 
+                     None, None, None, None,
+                     None, None, None, None, 
+                     None, None, None, None,
+                     None, None, None, None, 
+                     None, None, None, None,
+                     None, None, None, None, 
+                     None, None, None, None],
         }
     }
 }
 
-pub fn rebalance_thread(mut _t: Rc<RefCell<Thread>>) {
+fn rb_push_thread(queue: usize, thread: Rc<RefCell<Thread>>) {
+    let mut rb_lock = REBALANCE_QUEUES.lock();
 
-   // REBALANCE_QUEUES[
+    let previous_head = rb_lock.queues[queue].take();
+
+    if let Some(node) = previous_head {
+        thread.borrow_mut().next = Some(node);
+    } else {
+        thread.borrow_mut().next = None; 
+    }
+    rb_lock.queues[queue] = Some(thread);
+}
+
+
+fn rb_pop_thread(queue: usize) -> Option<Rc<RefCell<Thread>>> {
+    let mut rb_lock = REBALANCE_QUEUES.lock(); 
+    let previous_head = rb_lock.queues[queue].take();
+
+    if let Some(node) = previous_head {
+        rb_lock.queues[queue] = node.borrow_mut().next.take();
+        return Some(node);
+    } else {
+        return None;
+    }
+}
+
+fn rb_queue_signal(queue: usize) {
+    unsafe {
+        REBALANCE_FLAGS.flags[queue].rebalance = true; 
+    };
+}
+
+fn rb_queue_clear_signal(queue: usize) {
+    unsafe {
+        REBALANCE_FLAGS.flags[queue].rebalance = false; 
+    };
+}
+
+fn rb_check_signal(queue: usize) -> bool {
+    let flag = unsafe {
+        REBALANCE_FLAGS.flags[queue].rebalance 
+    };
+
+    return flag;
+}
+
+/// Move thread to another CPU, affinity is CPU number for now
+// We push thread on the rebalance queue (at the moment it's not 
+// on the scheduling queue of this CPU), and signal rebalance request
+// for the target CPU
+fn rebalance_thread(mut t: Rc<RefCell<Thread>>) {
+    // AB: TODO: treat affinity in a standard way as a bitmask
+    // not as CPU number, yes I'm vomiting too
+    let cpu_id = t.borrow().affinity;
+    
+    rb_push_thread(cpu_id as usize, t);
+    rb_queue_signal(cpu_id as usize); 
 }
 
 enum ThreadState {
@@ -138,7 +187,9 @@ pub struct Context {
 pub struct Thread {
     pub name: String,
     state: ThreadState, 
-    priority: Priority, 
+    priority: Priority,
+    affinity: u64,
+    rebalance: bool, 
     context: Context,
     stack: RefCell<Box<Stack>>,
     domain: Option<Arc<Mutex<Domain>>>,
@@ -147,7 +198,6 @@ pub struct Thread {
     // Next thread on the domain list 
     pub next_domain: Option<Rc<RefCell<Thread>>>,
 }
-
 
 struct SchedulerQueue {
     highest: Priority,
@@ -197,6 +247,8 @@ impl  Thread {
             name: name.to_string(),
             state: ThreadState::Runnable, 
             priority: 0,
+            affinity: 0,
+            rebalance: false,
             context: Context::new(),
             stack: RefCell::new(Box::new(Stack::new())),
             domain: None, 
@@ -228,7 +280,10 @@ impl  SchedulerQueue {
 
         if let Some(node) = previous_head {
             thread.borrow_mut().next = Some(node);
+        } else {
+            thread.borrow_mut().next = None; 
         }
+
         self.prio_queues[queue] = Some(thread);
     }
 
@@ -267,6 +322,7 @@ impl  SchedulerQueue {
                     self.highest += 1;
                 },
                 Some(t) => {
+                   
                     return Some(t);
                 },
             }
@@ -334,6 +390,20 @@ impl  Scheduler {
        
         return None;
     }
+
+    /// Process rebalance queue
+    fn process_rb_queue(&mut self) {
+        let cpu_id = cpuid(); 
+        loop{
+            if let Some(thread) = rb_pop_thread(cpu_id) {
+                self.put_thread(thread); 
+                continue;
+            } 
+
+            break;
+        }
+        rb_queue_clear_signal(cpu_id); 
+     }
 }
 
 
@@ -407,24 +477,18 @@ fn set_current(t: Rc<RefCell<Thread>>) {
     CURRENT.replace(Some(t)); 
 }
 
-//fn get_current_ref() -> &'static mut Option<Box<Thread>> {
-//    unsafe{&mut *CURRENT.get()}
-//}
-
 fn get_current() -> Option<Rc<RefCell<Thread>>> {
     CURRENT.replace(None)
 }
 
-fn get_current_dom() -> Arc<Mutex<Domain>> {
+/// Return domain of the current thread
+fn get_domain_of_current() -> Arc<Mutex<Domain>> {
 
     let rc_t = CURRENT.borrow().as_ref().unwrap().clone(); 
-    
     let arc_d = rc_t.borrow().domain.as_ref().unwrap().clone();
-            
-    arc_d
+
+    return arc_d;
 }
-
-
 
 // Kicked from the timer IRQ
 pub fn schedule() {
@@ -432,15 +496,30 @@ pub fn schedule() {
     //println!("Schedule"); 
 
     let mut s = SCHED.borrow_mut();
-    let next_thread = match s.next() {
-        Some(t) => t,
-        None => {
-            // Nothing again, current is the only runnable thread, no need to
-            // context switch
-            println!("No runnable threads");
-            return; 
-        }
 
+    // Process rebalance requests
+    if rb_check_signal(cpuid()) {
+        s.process_rb_queue(); 
+    }
+
+    let next_thread = loop {
+        let next_thread = match s.next() {
+            Some(t) => t,
+            None => {
+                // Nothing again, current is the only runnable thread, no need to
+                // context switch
+                println!("No runnable threads");
+                return; 
+            }
+
+        };
+
+        // Need to rebalance this thread, send it to another CPU
+        if next_thread.borrow().rebalance {
+            rebalance_thread(next_thread); 
+            continue; 
+        }
+        break next_thread;
     };
 
     let c = match get_current() {
@@ -449,13 +528,10 @@ pub fn schedule() {
     };
 
 
-    // Rc<RefCell<Thread>
-   // let prev = &mut *c.as_ptr() as *mut Thread; 
-    //let next = &mut *next_thread.as_ptr() as *mut Thread; 
+    println!("cpu({}): switch to {}", cpuid(), next_thread.borrow().name); 
 
     let prev = c.as_ptr(); 
     let next = next_thread.as_ptr(); 
-
 
     // Make next thread current
     set_current(next_thread); 
@@ -486,15 +562,6 @@ pub fn create_thread (name: &str, func: extern fn()) -> Box<PThread> {
     let mut s = SCHED.borrow_mut();
 
     let t = Rc::new(RefCell::new(Thread::new(name, func)));
-
-    //let arc_d = get_current_dom(); 
-    //
-    //{
-    //    let mut d = arc_d.lock();
-    //    d.add_thread(t.clone()); 
-    //    println!("Created thread {} for domain {}", t.borrow().name, d.name); 
-    //}
-
     let pt = Box::new(PThread::new(Rc::clone(&t)));
    
     s.put_thread(t);
@@ -515,8 +582,23 @@ impl PThread {
 
 impl syscalls::Thread for PThread {
     fn set_affinity(&self, affinity: u64) {
-        disable_irq();
-        println!("Setting affinity:{} for {}", affinity, self.thread.borrow().name); 
+        disable_irq(); 
+
+        if affinity as usize >= crate::tls::active_cpus() {
+            println!("Error: trying to set affinity:{} for {} but only {} cpus are active", 
+                affinity, self.thread.borrow().name, crate::tls::active_cpus());
+            enable_irq();
+            return; 
+        }
+
+        {
+            let mut thread = self.thread.borrow_mut(); 
+        
+            println!("Setting affinity:{} for {}", affinity, thread.name);
+            thread.affinity = affinity; 
+            thread.rebalance = true; 
+
+        }
         enable_irq(); 
     }
 }

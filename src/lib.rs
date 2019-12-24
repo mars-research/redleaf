@@ -180,7 +180,7 @@ pub extern "C" fn rust_main() -> ! {
     //x86_64::instructions::interrupts::enable();
      
     // Spin up other CPUs 
-    //init_ap_cpus(); 
+    // init_ap_cpus(); 
 
     //panic!("Test panic in main()"); 
     rust_main_ap(); 
@@ -200,8 +200,11 @@ pub extern "C" fn rust_main_ap() -> ! {
         }
         let tcb_offset = tls::init_per_cpu_vars(cpu_id);
         gdt::init_percpu_gdt(tcb_offset);
-    }
+        
+        // Update cpuid of this CPU
+        tls::set_cpuid(cpu_id as usize); 
 
+    }
 
     if cpu_id != 0 {
         interrupt::init_idt();
@@ -258,16 +261,16 @@ pub extern "C" fn rust_main_ap() -> ! {
     }
 
     */
-
-
    
     println!("Ready to enable interrupts");
 
-    test_threads(); 
+    if cpu_id == 0 {
+        test_threads(); 
 
-    // The first user system call will re-enable interrupts on 
-    // exit to user
-    init_user(); 
+        // The first user system call will re-enable interrupts on 
+        // exit to user
+        init_user();
+    }
 
     // Enable interrupts and the timer will schedule the next thread
     enable_irq();

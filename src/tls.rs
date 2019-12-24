@@ -1,9 +1,32 @@
 use core::{mem, ptr};
 use core::alloc::Layout;
+use core::sync::atomic::{AtomicUsize, Ordering};
 
+#[thread_local]
+static THIS_CPU_ID: usize = 0;
+static ACTIVE_CPU_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 static mut KERNEL_PER_CPU_AREA: *mut usize = 0x0 as *mut usize;
 static mut KERNEL_PER_CPU_AREA_SIZE: usize = 0x0;
+
+pub unsafe fn set_cpuid(id: usize) {
+    let mut ptr = &THIS_CPU_ID as *const usize as *mut usize; 
+    *ptr = id;
+    let old_cpu_count = ACTIVE_CPU_COUNT.fetch_add(1, Ordering::SeqCst);
+
+    assert_eq!(old_cpu_count, id);
+
+}
+
+pub fn cpuid() -> usize {
+    THIS_CPU_ID
+}
+
+pub fn active_cpus() -> usize {
+    ACTIVE_CPU_COUNT.load(Ordering::Relaxed)
+}
+
+
 
 pub unsafe fn init_per_cpu_area(max_cpus: u32) {
     extern {

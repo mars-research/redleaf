@@ -1,5 +1,5 @@
 use crate::interrupt::{disable_irq, enable_irq};
-use crate::thread::{do_yield, create_thread, PThread};
+use crate::thread::{do_yield, create_thread};
 use x86::bits64::paging::{PAddr, VAddr};
 use crate::arch::vspace::{VSpace, ResourceType};
 use crate::memory::paddr_to_kernel_vaddr;
