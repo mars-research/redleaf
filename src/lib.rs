@@ -52,7 +52,7 @@ use x86::cpuid::CpuId;
 use crate::arch::init_buddy;
 use core::alloc::{Layout};
 use crate::interrupt::{enable_irq};
-use crate::memory::construct_pt;
+use crate::memory::{construct_pt, construct_ap_pt};
 use crate::pci::scan_pci_devs;
 use crate::domain::create_domain;
 
@@ -163,8 +163,7 @@ pub extern "C" fn rust_main() -> ! {
     // Init page table (code runs on a new page table after this call)
     construct_pt();
 
-
-    scan_pci_devs();
+    //scan_pci_devs();
 
     // Init per-CPU variables
     unsafe {
@@ -179,9 +178,6 @@ pub extern "C" fn rust_main() -> ! {
     // we re-enable them on exits
     //x86_64::instructions::interrupts::enable();
      
-    // Spin up other CPUs 
-    // init_ap_cpus(); 
-
     //panic!("Test panic in main()"); 
     rust_main_ap(); 
 }
@@ -198,6 +194,7 @@ pub extern "C" fn rust_main_ap() -> ! {
         if cpu_id != 0 {
             gdt::init_global_gdt();
         }
+
         let tcb_offset = tls::init_per_cpu_vars(cpu_id);
         gdt::init_percpu_gdt(tcb_offset);
         
@@ -209,9 +206,18 @@ pub extern "C" fn rust_main_ap() -> ! {
     if cpu_id != 0 {
         interrupt::init_idt();
         interrupt::init_irqs_local();
+
+        // Init page table (code runs on a new page table after this call)
+        construct_ap_pt();
     }
     
-    domain::domain::init_domains(); 
+    if cpu_id == 0 {
+        domain::domain::init_domains(); 
+
+        // We initialized kernel domain, it's safe to start 
+        // other CPUs 
+        init_ap_cpus(); 
+    }
 
     println!("cpu{}: Initialized", cpu_id);
     thread::init_threads(); 
@@ -265,7 +271,7 @@ pub extern "C" fn rust_main_ap() -> ! {
     println!("Ready to enable interrupts");
 
     if cpu_id == 0 {
-        test_threads(); 
+        //test_threads(); 
 
         // The first user system call will re-enable interrupts on 
         // exit to user
