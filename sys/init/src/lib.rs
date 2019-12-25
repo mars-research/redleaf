@@ -42,7 +42,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>) {
 
     println!("init userland print works");
     let t = sys_create_thread("init_thread", foo); 
-    t.set_affinity(10); 
+    t.set_affinity(1); 
     //println!("thread:{}", t);
     drop(t); 
 }

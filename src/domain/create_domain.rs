@@ -55,5 +55,5 @@ pub unsafe fn create_domain(name: &'static str, binary_range: (*const u8, *const
     user_ep(pdom); 
     disable_irq(); 
 
-    println!("domain/{}: Returned", name);
+    println!("domain/{}: returned from entry point", name);
 }

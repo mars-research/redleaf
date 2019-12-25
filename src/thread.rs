@@ -128,12 +128,14 @@ fn rb_pop_thread(queue: usize) -> Option<Rc<RefCell<Thread>>> {
 }
 
 fn rb_queue_signal(queue: usize) {
+    println!("cpu({}): rb queue signal, queue:{}", cpuid(), queue);
     unsafe {
         REBALANCE_FLAGS.flags[queue].rebalance = true; 
     };
 }
 
 fn rb_queue_clear_signal(queue: usize) {
+    println!("cpu({}): rb clear signal, queue:{}", cpuid(), queue);
     unsafe {
         REBALANCE_FLAGS.flags[queue].rebalance = false; 
     };
@@ -394,8 +396,16 @@ impl  Scheduler {
     /// Process rebalance queue
     fn process_rb_queue(&mut self) {
         let cpu_id = cpuid(); 
+        println!("cpu({}): process rb queue", cpuid());
         loop{
             if let Some(thread) = rb_pop_thread(cpu_id) {
+
+                println!("cpu({}): found rb thread: {}", cpuid(), thread.borrow().name);
+
+                {
+                    thread.borrow_mut().rebalance = false; 
+                }
+
                 self.put_thread(thread); 
                 continue;
             } 
@@ -508,7 +518,7 @@ pub fn schedule() {
             None => {
                 // Nothing again, current is the only runnable thread, no need to
                 // context switch
-                println!("No runnable threads");
+                println!("cpu({}): no runnable threads", cpuid());
                 return; 
             }
 
