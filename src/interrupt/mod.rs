@@ -157,6 +157,8 @@ pub unsafe fn init_cpu(cpu: u32, stack: u32, code: u64) {
     entryother::copy_binary_to(destination);
     entryother::init_args(destination, stack, pgdir as u32, code);
 
+    println!("Starting CPU wth eip:{:x}, stack:{:x}", code, stack); 
+
     lapic::start_ap(cpu, destination);
 }
 

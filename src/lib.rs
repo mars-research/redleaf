@@ -69,7 +69,10 @@ extern "C" {
 static mut AP_INIT_STACK: *mut usize = 0x0 as *mut usize;
 
 /// Stack size for the kernel main thread
-const KERNEL_STACK_SIZE: usize = 4096 * 16;
+// Note, the bootstrap CPU runs on a statically allocated 
+// stack that is defined in boot.asm 
+// AB TODO: fix this (i.e., switch to the dynamically allocated stack)
+const KERNEL_STACK_SIZE: usize = 4096 * 64;
 
 // Init AP cpus
 pub fn init_ap_cpus() {
@@ -84,8 +87,10 @@ pub fn init_ap_cpus() {
 
         let ap_cpu_stack = AP_INIT_STACK as u32; 
     
-        //println!("Waking up CPU with stack: {}", ap_cpu_stack);
-        interrupt::init_cpu(1, ap_cpu_stack, rust_main_ap as u64);
+        println!("Waking up CPU with stack: {:x}--{:x}", 
+            ap_cpu_stack, ap_cpu_stack + KERNEL_STACK_SIZE as u32);
+
+        interrupt::init_cpu(1, ap_cpu_stack + KERNEL_STACK_SIZE as u32, rust_main_ap as u64);
     }
 }
 
@@ -163,7 +168,7 @@ pub extern "C" fn rust_main() -> ! {
     // Init page table (code runs on a new page table after this call)
     construct_pt();
 
-    //scan_pci_devs();
+    scan_pci_devs();
 
     // Init per-CPU variables
     unsafe {
