@@ -20,9 +20,16 @@ use syscalls::{Syscall};
 use libsyscalls::syscalls::{sys_println, sys_alloc, sys_create_thread, sys_yield};
 use console::println;
 
-extern fn foo() {
+extern fn test_init_thread() {
    loop {
         println!("User init thread"); 
+        sys_yield(); 
+   }
+}
+
+extern fn test_init_thread2() {
+   loop {
+        println!("User init thread 2"); 
         sys_yield(); 
    }
 }
@@ -41,8 +48,12 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>) {
     println!("{} {} {}", "init", "userland", 1);
 
     println!("init userland print works");
-    let t = sys_create_thread("init_thread", foo); 
+    let t = sys_create_thread("init_thread", test_init_thread); 
     t.set_affinity(1); 
+
+    let t = sys_create_thread("init_thread_2", test_init_thread2); 
+    t.set_affinity(0); 
+
     //println!("thread:{}", t);
     drop(t); 
 }
