@@ -22,3 +22,14 @@ pub trait Syscall {
 pub trait Thread {
     fn set_affinity(&self, affinity: u64);
 }
+
+pub trait PCI {
+}
+
+pub trait VFS {
+}
+
+pub trait BDev {
+}
+
+

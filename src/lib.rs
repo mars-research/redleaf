@@ -54,7 +54,6 @@ use core::alloc::{Layout};
 use crate::interrupt::{enable_irq};
 use crate::memory::{construct_pt, construct_ap_pt};
 use crate::pci::scan_pci_devs;
-use crate::domain::create_domain;
 
 #[no_mangle]
 pub static mut cpu1_stack: u32 = 0;
@@ -122,19 +121,7 @@ fn test_threads() {
 
 
 fn init_user() {
-    extern "C" {
-        fn _binary_sys_init_build_init_start();
-        fn _binary_sys_init_build_init_end();
-    }
-
-    let binary_range = (
-        _binary_sys_init_build_init_start as *const u8,
-        _binary_sys_init_build_init_end as *const u8
-    );
-
-    unsafe {
-        create_domain("sys_init", binary_range);
-    }
+    crate::domain::create_domain::create_domain_init(); 
 }
 
 const MAX_CPUS: u32 = 32;

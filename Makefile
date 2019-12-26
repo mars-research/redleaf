@@ -14,7 +14,10 @@ xv6fs_img = usr/mkfs/build/fs.img
 root := ./
 domain_list := sys/init/build/init \
 	usr/xv6/kernel/core/build/xv6kernel \
-	usr/xv6/kernel/fs/build/xv6fs
+	usr/xv6/kernel/fs/build/xv6fs \
+	sys/dev/pci/build/pci \
+	sys/dev/ahci/build/ahci \
+	sys/dev/ixgbe/build/ixgbe
 
 qemu_common := -m 128m -vga std -s
 qemu_common := $(qemu_common) -cdrom $(iso)
