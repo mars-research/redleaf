@@ -6,11 +6,11 @@
 use core::ptr;
 
 // FIXME: This is bad. We should use ACPI to get a list of IOAPICs
-const IOAPIC: u32 = 0xfec00000;
+const IOAPIC: u32 = 0xfec0_0000;
 const IOAPIC_VER: u32 = 0x01;
 const IOAPIC_REDTBL: u32 = 0x10;
 
-const IOAPIC_INT_DISABLED: u32 = 0x00010000;
+const IOAPIC_INT_DISABLED: u32 = 0x0001_0000;
 
 const IRQ_OFFSET: u32 = super::IRQ_OFFSET as u32;
 

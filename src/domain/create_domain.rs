@@ -26,7 +26,6 @@ pub fn create_domain_init() {
     unsafe {
         create_domain("sys_init", binary_range);
     }
-
 }
 
 pub fn create_domain_pci() -> Box<dyn PCI> {
@@ -41,11 +40,9 @@ pub fn create_domain_pci() -> Box<dyn PCI> {
         _binary_sys_dev_pci_build_pci_end as *const u8
     );
 
-    let pci = unsafe {
+    unsafe {
         create_domain_pci_bus("pci", binary_range)
-    };
-
-    return pci;
+    }
 }
 
 pub fn create_domain_ahci(pci: Box<dyn PCI>) -> Box<dyn BDev> {
@@ -60,12 +57,9 @@ pub fn create_domain_ahci(pci: Box<dyn PCI>) -> Box<dyn BDev> {
         _binary_sys_dev_ahci_build_ahci_end as *const u8
     );
 
-    let bdev = unsafe {
+    unsafe {
         create_domain_bdev("ahci", binary_range, pci)
-    };
-
-    return bdev;
-
+    }
 }
 
 pub fn create_domain_xv6kernel() {
@@ -82,7 +76,6 @@ pub fn create_domain_xv6kernel() {
     unsafe {
         create_domain("xv6kernel", binary_range);
     }
-
 }
 
 pub fn create_domain_xv6fs(bdev: Box<dyn BDev>) -> Box<dyn VFS> {
@@ -97,12 +90,9 @@ pub fn create_domain_xv6fs(bdev: Box<dyn BDev>) -> Box<dyn VFS> {
         _binary_usr_xv6_kernel_core_build_xv6fs_end as *const u8
     );
 
-    let vfs = unsafe {
+    unsafe {
         create_domain_fs("xv6fs", binary_range, bdev)
-    };
-
-    return vfs;
-
+    }
 }
 
 pub unsafe fn create_domain_pci_bus(name: &str, 
@@ -122,7 +112,8 @@ pub unsafe fn create_domain_pci_bus(name: &str,
     disable_irq(); 
 
     println!("domain/{}: returned from entry point", name);
-    return pci;     
+
+    pci
 }
 
 
@@ -143,7 +134,8 @@ pub unsafe fn create_domain_bdev(name: &str,
     disable_irq(); 
 
     println!("domain/{}: returned from entry point", name);
-    return bdev;     
+
+    bdev
 }
 
 pub unsafe fn create_domain_fs(name: &str, 
@@ -164,7 +156,8 @@ pub unsafe fn create_domain_fs(name: &str,
     disable_irq(); 
 
     println!("domain/{}: returned from entry point", name);
-    return vfs;     
+
+    vfs
 }
 
 
@@ -221,6 +214,6 @@ pub unsafe fn load_domain(name: &str, binary_range: (*const u8, *const u8)) -> (
     // deadlock
     drop(loader);
 
-    return (dom, user_ep); 
+    (dom, user_ep)
 }
 

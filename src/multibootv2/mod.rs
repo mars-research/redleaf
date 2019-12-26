@@ -26,7 +26,7 @@ pub unsafe fn load_with_offset(address: usize, offset: usize) -> BootInformation
     let multiboot = &*((address + offset) as *const BootInformationInner);
     assert_eq!(0, multiboot.total_size & 0b111);
     assert!(multiboot.has_valid_end_tag());
-    BootInformation { inner: multiboot, offset: offset }
+    BootInformation { inner: multiboot, offset }
 }
 
 pub struct BootInformation {

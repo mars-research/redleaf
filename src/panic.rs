@@ -55,7 +55,7 @@ pub fn panic_impl(info: &PanicInfo) -> ! {
     if let Some(location) = info.location() {
         println!(" in {}:{}", location.file(), location.line());
     } else {
-        println!("");
+        println!();
     }
 
     backtrace();

@@ -7,7 +7,7 @@ use crate::multibootv2::BootInformation;
 use crate::memory::PhysicalAllocator;
 use crate::memory::buddy::BUDDY;
 
-const KERNEL_START: u64 = 0x100000;
+const KERNEL_START: u64 = 0x10_0000;
 
 fn kernel_end() -> u64 {
     extern {

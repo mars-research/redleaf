@@ -19,15 +19,15 @@ macro_rules! println {
 
 #[doc(hidden)]
 pub fn _print(args: core::fmt::Arguments) {
-    use x86_64::instructions::interrupts;
+    //use x86_64::instructions::interrupts;
 
     // We don't need interrupts off any more, inside the 
     // kernel interrupts are off all the time
 
-    interrupts::without_interrupts(|| {
+    //interrupts::without_interrupts(|| {
         WRITER.lock().write_fmt(args).unwrap();
         SERIAL1.lock().write_fmt(args).unwrap(); 
-    });
+    //});
 }
 
 #[macro_export]
@@ -43,13 +43,9 @@ macro_rules! eprintln {
 
 #[doc(hidden)]
 pub fn _eprint(args: core::fmt::Arguments) {
-    use x86_64::instructions::interrupts;
-
     // We don't need interrupts off any more, inside the 
     // kernel interrupts are off all the time
 
-//    interrupts::without_interrupts(|| {
-        WRITER.lock().write_fmt(args).unwrap();
-        SERIAL1.lock().write_fmt(args).unwrap(); 
-//    });
+    WRITER.lock().write_fmt(args).unwrap();
+    SERIAL1.lock().write_fmt(args).unwrap();
 }

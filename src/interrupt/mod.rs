@@ -513,7 +513,7 @@ extern fn do_IRQ(pt_regs: &mut PtRegs) -> u64 {
         // ???
         println!("Unknown interrupt: {}", vector); 
     }
-    return 1; 
+    1 
 }
 
 // IRQ 0: Timer

@@ -28,7 +28,7 @@ pub struct FreeBlock {
 impl FreeBlock {
     /// Construct a `FreeBlock` header pointing at `next`.
     fn new(next: *mut FreeBlock) -> FreeBlock {
-        FreeBlock { next: next }
+        FreeBlock { next }
     }
 }
 

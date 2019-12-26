@@ -16,8 +16,8 @@ pub struct RawMemoryRegion<T> {
 impl<T> RawMemoryRegion<T> {
     pub unsafe fn new(start: usize, length: usize) -> RawMemoryRegion<T> {
         RawMemoryRegion {
-            start: start,
-            length: length,
+            start,
+            length,
             cur: start,
             _phantom: PhantomData,
         }
