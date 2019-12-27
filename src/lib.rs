@@ -55,9 +55,6 @@ use crate::interrupt::{enable_irq};
 use crate::memory::{construct_pt, construct_ap_pt};
 use crate::pci::scan_pci_devs;
 
-#[no_mangle]
-pub static mut cpu1_stack: u32 = 0;
-
 extern "C" {
     #[no_mangle]
     static _bootinfo: usize;
