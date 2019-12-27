@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use spin::Mutex;
 use alloc::sync::Arc; 
 use crate::domain::domain::{Domain}; 
-use syscalls::Thread;
+use syscalls::{Thread,PciResource};
 
 //use crate::domain::domain::BOOTING_DOMAIN; 
 
@@ -127,11 +127,19 @@ impl syscalls::Syscall for PDomain {
 }
 
 impl syscalls::CreatePCI for PDomain {
-    fn create_domain_pci(&self) -> (Box<dyn syscalls::Domain>, Box<dyn syscalls::PCI>) {
+    fn create_domain_pci(&self, pci_resource: Box<dyn syscalls::PciResource>) -> (Box<dyn syscalls::Domain>, Box<dyn syscalls::PCI>) {
         disable_irq();
-        let r = crate::domain::create_domain::create_domain_pci();
+        let r = crate::domain::create_domain::create_domain_pci(pci_resource);
         enable_irq();
         r
+    }
+
+    fn get_pci_resource(&self) -> Box<dyn PciResource> {
+        use crate::dev::pci_resource::PCI_RESOURCE;
+        disable_irq();
+        let pci_r = Box::new(PCI_RESOURCE);
+        enable_irq();
+        pci_r
     }
 }
 

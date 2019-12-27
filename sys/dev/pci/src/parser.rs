@@ -1,9 +1,9 @@
-
 #![feature(alloc)]
 
-extern crate pcid;
-
-use pcid::pci::{Pci, PciBar, PciClass, PciHeader, PciHeaderError, PciHeaderType};
+use crate::pci::{Pci, PciClass, PciHeader, PciHeaderError};
+use syscalls::PciResource;
+use console::println;
+use alloc::format;
 
 fn handle_parsed_header(pci: &Pci, bus_num: u8,
                         dev_num: u8, func_num: u8, header: PciHeader) {
@@ -51,7 +51,7 @@ fn handle_parsed_header(pci: &Pci, bus_num: u8,
 
     string.push('\n');
 
-    print!("{}", string);
+    println!("{}", string);
 /*
     for driver in config.drivers.iter() {
         if let Some(class) = driver.class {
@@ -199,8 +199,8 @@ fn handle_parsed_header(pci: &Pci, bus_num: u8,
 */
 }
 
-fn scan_pci_devs() {
-    let pci = Pci::new();
+pub fn scan_pci_devs(PciResource: &dyn PciResource) {
+    let pci = Pci::new(PciResource);
     for bus in pci.buses() {
         for dev in bus.devs() {
             for func in dev.funcs() {

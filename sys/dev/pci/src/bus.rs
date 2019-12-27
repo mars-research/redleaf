@@ -1,7 +1,7 @@
 use crate::pci::{Pci, PciDev};
 
 pub struct PciBus<'pci> {
-    pub pci: &'pci Pci,
+    pub pci: &'pci Pci<'pci>,
     pub num: u8
 }
 

@@ -47,7 +47,8 @@ pub trait Xv6 {
 }   
 
 pub trait CreatePCI {
-    fn create_domain_pci(&self) -> (Box<dyn Domain>, Box<dyn PCI>); 
+    fn create_domain_pci(&self, pci_resource: Box<dyn PciResource>) -> (Box<dyn Domain>, Box<dyn PCI>);
+    fn get_pci_resource(&self) -> Box<dyn PciResource>;
 }
 
 pub trait CreateAHCI {
@@ -68,7 +69,7 @@ pub trait CreateXv6User {
 } 
 */
 
-
-
-
-
+pub trait PciResource {
+    fn read(&self, bus: u8, dev: u8, func: u8, offset: u8) -> u32;
+    fn write(&self, bus: u8, dev: u8, func: u8, offset: u8, value: u32);
+}

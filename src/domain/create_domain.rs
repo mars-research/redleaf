@@ -1,6 +1,6 @@
 use elfloader::ElfBinary;
 use super::Domain;
-use syscalls::{Syscall, BDev, PCI, VFS};
+use syscalls::{Syscall, BDev, PCI, VFS, PciResource};
 use crate::syscalls::{PDomain};
 use core::mem::transmute;
 use crate::interrupt::{disable_irq, enable_irq};
@@ -28,7 +28,7 @@ pub fn create_domain_init() -> Box<dyn syscalls::Domain> {
     }
 }
 
-pub fn create_domain_pci() -> (Box<dyn syscalls::Domain>, Box<dyn PCI>) {
+pub fn create_domain_pci(pci_resource: Box<dyn PciResource>) -> (Box<dyn syscalls::Domain>, Box<dyn PCI>) {
 
     extern "C" {
         fn _binary_sys_dev_pci_build_pci_start();
@@ -41,7 +41,7 @@ pub fn create_domain_pci() -> (Box<dyn syscalls::Domain>, Box<dyn PCI>) {
     );
 
     unsafe {
-        create_domain_pci_bus("pci", binary_range)
+        create_domain_pci_bus("pci", binary_range, pci_resource)
     }
 }
 
@@ -155,9 +155,10 @@ pub unsafe fn build_domain_init(name: &str,
 
 
 pub fn create_domain_pci_bus(name: &str, 
-                                binary_range: (*const u8, *const u8)) -> (Box<dyn syscalls::Domain>, Box<dyn PCI>) 
+                                binary_range: (*const u8, *const u8),
+                                pci_resource: Box<dyn PciResource>) -> (Box<dyn syscalls::Domain>, Box<dyn PCI>) 
 {
-    type UserInit = fn(Box<dyn Syscall>) -> Box<dyn PCI>;
+    type UserInit = fn(Box<dyn Syscall>, Box<dyn PciResource>) -> Box<dyn PCI>;
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)
@@ -171,7 +172,7 @@ pub fn create_domain_pci_bus(name: &str,
     
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
-    let pci = user_ep(pdom); 
+    let pci = user_ep(pdom, pci_resource);
     disable_irq(); 
 
     println!("domain/{}: returned from entry point", name);

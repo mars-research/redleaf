@@ -27,11 +27,11 @@ mod dev;
 mod func;
 mod header;
 mod pci;
+mod parser;
 
 use core::panic::PanicInfo;
-use syscalls::{Syscall};
-use libsyscalls::syscalls::{sys_println, sys_alloc};
-use console::println;
+use syscalls::{Syscall, PciResource};
+use libsyscalls::syscalls::{sys_println};
 use alloc::boxed::Box;
 
 struct PCI {}
@@ -45,10 +45,13 @@ impl PCI {
 impl syscalls::PCI for PCI {}
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>) -> Box<dyn syscalls::PCI> {
+pub fn init(s: Box<dyn Syscall + Send + Sync>, PciResource: Box<dyn PciResource>) -> Box<dyn syscalls::PCI> {
+
     libsyscalls::syscalls::init(s);
 
     sys_println("init: starting PCI domain");
+
+    parser::scan_pci_devs(PciResource.as_ref());
 
     Box::new(PCI::new()) 
 }

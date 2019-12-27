@@ -76,7 +76,9 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
 
     */
 
-    let (dom_pci, pci) = create_pci.create_domain_pci(/*ioresource*/);
+    let pci_resource = create_pci.get_pci_resource();
+
+    let (dom_pci, pci) = create_pci.create_domain_pci(pci_resource);
 
     let (dom_ahci, bdev) = create_ahci.create_domain_ahci(pci); 
 
