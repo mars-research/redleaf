@@ -128,25 +128,37 @@ impl syscalls::Syscall for PDomain {
 
 impl syscalls::CreatePCI for PDomain {
     fn create_domain_pci(&self) -> (Box<dyn syscalls::Domain>, Box<dyn syscalls::PCI>) {
-        crate::domain::create_domain::create_domain_pci()
+        disable_irq();
+        let r = crate::domain::create_domain::create_domain_pci();
+        enable_irq();
+        r
     }
 }
 
 impl syscalls::CreateAHCI for PDomain {
     fn create_domain_ahci(&self, pci: Box<dyn syscalls::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn syscalls::BDev>) {
-        crate::domain::create_domain::create_domain_ahci(pci)
+        disable_irq();
+        let r = crate::domain::create_domain::create_domain_ahci(pci);
+        enable_irq();
+        r
     }
 }
 
 impl syscalls::CreateXv6 for PDomain {
     fn create_domain_xv6kernel(&self, bdev: Box<dyn syscalls::BDev>) -> Box<dyn syscalls::Domain> {
-        crate::domain::create_domain::create_domain_xv6kernel(bdev)
+        disable_irq();
+        let r = crate::domain::create_domain::create_domain_xv6kernel(bdev);
+        enable_irq();
+        r
     }
 }   
 
 impl syscalls::CreateXv6FS for PDomain {
     fn create_domain_xv6fs(&self, bdev: Box<dyn syscalls::BDev>) ->(Box<dyn syscalls::Domain>, Box<dyn syscalls::VFS>) {
-        crate::domain::create_domain::create_domain_xv6fs(bdev)
+        disable_irq();
+        let r = crate::domain::create_domain::create_domain_xv6fs(bdev);
+        enable_irq();
+        r
     }
 }   
 

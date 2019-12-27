@@ -1,11 +1,13 @@
+use x86::io::{outb, inb};
+
+
+
 pub struct SerialPort {
     base_port: u16
 }
 
-use x86::io::{outb, inb};
-
 impl SerialPort {
-    pub const unsafe fn new(base_port: u16) -> SerialPort {
+    pub const fn new(base_port: u16) -> SerialPort {
         SerialPort {
             base_port
         }
@@ -62,6 +64,8 @@ impl Write for SerialPort {
 }
 
 use spin::Mutex;
+
+pub static mut EMERGENCY_SERIAL1: SerialPort = SerialPort::new(0x3F8);
 
 lazy_static! {
     pub static ref SERIAL1: Mutex<SerialPort> = {

@@ -38,8 +38,8 @@ pub struct Frame {
 impl Frame {
     pub const fn new(base: PAddr, size: usize) -> Frame {
         Frame {
-            base: base,
-            size: size,
+            base,
+            size,
         }
     }
 
@@ -449,7 +449,7 @@ fn kernel_end() -> u64 {
         & __end as *const _ as u64
     }
 }
-const KERNEL_BASE: u64 = 0x100000;
+const KERNEL_BASE: u64 = 0x10_0000;
 const MAP_BASE: u64 = 0x0;
 
 lazy_static! {
@@ -510,14 +510,14 @@ pub fn construct_pt() {
 
         // Map LAPIC regions
         vspace.map_identity(
-            PAddr(0xfec00000u64),
-            PAddr(0xfec00000u64 + BASE_PAGE_SIZE as u64),
+            PAddr(0xfec0_0000u64),
+            PAddr(0xfec0_0000u64 + BASE_PAGE_SIZE as u64),
             MapAction::ReadWriteExecuteKernel,
         );
 
         vspace.map_identity(
-            PAddr(0xfee00000u64),
-            PAddr(0xfee00000u64 + BASE_PAGE_SIZE as u64),
+            PAddr(0xfee0_0000u64),
+            PAddr(0xfee0_0000u64 + BASE_PAGE_SIZE as u64),
             MapAction::ReadWriteExecuteKernel,
         );
 

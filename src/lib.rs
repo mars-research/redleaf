@@ -55,17 +55,12 @@ use crate::interrupt::{enable_irq};
 use crate::memory::{construct_pt, construct_ap_pt};
 use crate::pci::scan_pci_devs;
 
-#[no_mangle]
-pub static mut cpu1_stack: u32 = 0;
+pub static mut ap_entry_running: bool = true;
 
 extern "C" {
     #[no_mangle]
     static _bootinfo: usize;
 }
-
-/// We use this static variable to temporarely save the stack of the 
-/// boot function (rust_main_ap()) 
-static mut AP_INIT_STACK: *mut usize = 0x0 as *mut usize;
 
 /// Stack size for the kernel main thread
 // Note, the bootstrap CPU runs on a statically allocated 
@@ -75,22 +70,22 @@ const KERNEL_STACK_SIZE: usize = 4096 * 64;
 
 // Init AP cpus
 pub fn init_ap_cpus() {
-
-    // Allocate CPU stack, write it into a global variable 
-    // until the CPU is woken up
-    unsafe{
-        AP_INIT_STACK = alloc::alloc::alloc(
-                    Layout::from_size_align_unchecked(KERNEL_STACK_SIZE, 4096)) as *mut usize;
-        
-        //println!("Allocated stack for the CPU: {:?}", AP_INIT_STACK); 
-
-        let ap_cpu_stack = AP_INIT_STACK as u32; 
+    for cpu in (1..4) {
+        let ap_cpu_stack = unsafe { alloc::alloc::alloc(
+                    Layout::from_size_align_unchecked(KERNEL_STACK_SIZE, 4096)) } as u32;
     
-        println!("Waking up CPU with stack: {:x}--{:x}", 
-            ap_cpu_stack, ap_cpu_stack + KERNEL_STACK_SIZE as u32);
+        println!("Waking up CPU{} with stack: {:x}--{:x}",
+            cpu, ap_cpu_stack, ap_cpu_stack + KERNEL_STACK_SIZE as u32);
 
-        interrupt::init_cpu(1, ap_cpu_stack + KERNEL_STACK_SIZE as u32, rust_main_ap as u64);
+        unsafe {
+            ap_entry_running = true;
+            interrupt::init_cpu(cpu, ap_cpu_stack + KERNEL_STACK_SIZE as u32, rust_main_ap as u64);
+        }
+
+        while unsafe { ap_entry_running } {}
     }
+
+    println!("Done initializing APs");
 }
 
 pub fn init_allocator() {
@@ -176,6 +171,10 @@ pub extern "C" fn rust_main() -> ! {
 
 #[no_mangle]
 pub extern "C" fn rust_main_ap() -> ! {
+    unsafe {
+        ap_entry_running = false;
+    }
+
     let featureInfo = CpuId::new().get_feature_info()
         .expect("CPUID unavailable");
 
@@ -208,7 +207,7 @@ pub extern "C" fn rust_main_ap() -> ! {
 
         // We initialized kernel domain, it's safe to start 
         // other CPUs 
-        //init_ap_cpus(); 
+        init_ap_cpus(); 
     }
 
     println!("cpu{}: Initialized", cpu_id);
@@ -260,7 +259,7 @@ pub extern "C" fn rust_main_ap() -> ! {
 
     */
    
-    println!("Ready to enable interrupts");
+    println!("cpu{}: Ready to enable interrupts", cpu_id);
 
     if cpu_id == 0 {
         //test_threads(); 

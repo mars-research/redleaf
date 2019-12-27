@@ -24,7 +24,7 @@ qemu_common := -m 128m -vga std -s
 qemu_common := $(qemu_common) -cdrom $(iso)
 qemu_common := $(qemu_common) -no-reboot -no-shutdown -d int,cpu_reset
 qemu_common := $(qemu_common) -drive file=$(xv6fs_img),index=0,media=disk,format=raw
-qemu_common := $(qemu_common) -smp 2
+qemu_common := $(qemu_common) -smp 4
 
 # https://superuser.com/a/1412150
 qemu_nox := -nographic -chardev stdio,id=char0,mux=on,logfile=serial.log,signal=off -serial chardev:char0 -mon chardev=char0

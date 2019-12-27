@@ -142,11 +142,9 @@ fn rb_queue_clear_signal(queue: usize) {
 }
 
 fn rb_check_signal(queue: usize) -> bool {
-    let flag = unsafe {
+    unsafe {
         REBALANCE_FLAGS.flags[queue].rebalance 
-    };
-
-    return flag;
+    }
 }
 
 /// Move thread to another CPU, affinity is CPU number for now
@@ -260,11 +258,8 @@ impl  Thread {
 
         t.init_stack(func);
 
-        return t; 
+        t
     }
-
-
-
 }
 
 impl  SchedulerQueue {
@@ -497,7 +492,7 @@ fn get_domain_of_current() -> Arc<Mutex<Domain>> {
     let rc_t = CURRENT.borrow().as_ref().unwrap().clone(); 
     let arc_d = rc_t.borrow().domain.as_ref().unwrap().clone();
 
-    return arc_d;
+    arc_d
 }
 
 // Kicked from the timer IRQ

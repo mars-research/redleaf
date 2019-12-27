@@ -245,6 +245,8 @@ extern fn do_nmi(pt_regs: &mut PtRegs) {
 #[no_mangle]
 extern fn do_int3(pt_regs: &mut PtRegs) {
     println!("Breakpoint exception:\n{:#?}", pt_regs);
+
+    crate::panic::backtrace_exception(pt_regs);
 }
 
 // 3: Breakpoint
@@ -513,7 +515,7 @@ extern fn do_IRQ(pt_regs: &mut PtRegs) -> u64 {
         // ???
         println!("Unknown interrupt: {}", vector); 
     }
-    return 1; 
+    1 
 }
 
 // IRQ 0: Timer

@@ -27,15 +27,15 @@ const LAPIC_ERROR: u32 = 0x0370;
 const LAPIC_TICR: u32 = 0x0380;
 const LAPIC_TDCR: u32 = 0x03e0;
 
-const LAPIC_ICRLO_INIT: u32 = 0x00000500;
-const LAPIC_ICRLO_STARTUP: u32 = 0x00000600;
-const LAPIC_ICRLO_LEVEL: u32 = 0x00008000;
-const LAPIC_ICRLO_ASSERT: u32 = 0x00004000;
+const LAPIC_ICRLO_INIT: u32 = 0x0000_0500;
+const LAPIC_ICRLO_STARTUP: u32 = 0x0000_0600;
+const LAPIC_ICRLO_LEVEL: u32 = 0x0000_8000;
+const LAPIC_ICRLO_ASSERT: u32 = 0x0000_4000;
 
 const LAPIC_SVR_ENABLE: u32 = 0x0100;
-const LAPIC_TDCR_X1: u32 = 0x0000000b;
-const LAPIC_TIMER_PERIODIC: u32 = 0x00020000;
-const LAPIC_MASKED: u32 = 0x00010000;
+const LAPIC_TDCR_X1: u32 = 0x0000_000b;
+const LAPIC_TIMER_PERIODIC: u32 = 0x0002_0000;
+const LAPIC_MASKED: u32 = 0x0001_0000;
 
 const CMOS_PORT: u16 = 0x70;
 const CMOD_RETURN: u16 = 0x71;
@@ -57,7 +57,7 @@ unsafe fn lapicw(offset: u32, value: u32) {
 fn probe_apic() {
     unsafe {
         let msr27: u32 = msr::rdmsr(msr::APIC_BASE) as u32;
-        lapic = msr27 & 0xffff0000;
+        lapic = msr27 & 0xffff_0000;
     }
 }
 
@@ -69,7 +69,7 @@ fn init_lapic() {
         // Timer interrupt
         lapicw(LAPIC_TDCR, LAPIC_TDCR_X1);
         lapicw(LAPIC_TIMER, LAPIC_TIMER_PERIODIC | InterruptIndex::Timer.as_u32());
-        lapicw(LAPIC_TICR, 10000000);
+        lapicw(LAPIC_TICR, 1000_0000);
 
         // Mask logical interrupt lines
         lapicw(LAPIC_LINT0, LAPIC_MASKED);
