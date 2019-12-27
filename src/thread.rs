@@ -153,7 +153,7 @@ fn rb_check_signal(queue: usize) -> bool {
 // We push thread on the rebalance queue (at the moment it's not 
 // on the scheduling queue of this CPU), and signal rebalance request
 // for the target CPU
-fn rebalance_thread(mut t: Rc<RefCell<Thread>>) {
+fn rebalance_thread(t: Rc<RefCell<Thread>>) {
     // AB: TODO: treat affinity in a standard way as a bitmask
     // not as CPU number, yes I'm vomiting too
     let cpu_id = t.borrow().affinity;

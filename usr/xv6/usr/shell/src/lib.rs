@@ -11,46 +11,22 @@
     panic_info_message
 )]
 
-#[macro_use]
-extern crate bitflags;
-extern crate byteorder;
-#[macro_use]
-extern crate serde_derive;
-
 extern crate malloc;
 extern crate alloc;
 
-mod bar;
-mod bus;
-mod class;
-mod dev;
-mod func;
-mod header;
-mod pci;
-
 use core::panic::PanicInfo;
-use syscalls::{Syscall};
+use syscalls::{Syscall, Xv6};
 use libsyscalls::syscalls::{sys_println, sys_alloc};
 use console::println;
 use alloc::boxed::Box;
 
-struct PCI {}
-
-impl PCI {
-    fn new() -> PCI {
-        PCI{}
-    }
-}
-
-impl syscalls::PCI for PCI {}
-
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>) -> Box<dyn syscalls::PCI> {
+pub fn init(s: Box<dyn Syscall + Send + Sync>, xv6: Box<dyn Xv6>) {
     libsyscalls::syscalls::init(s);
 
-    sys_println("init: starting PCI domain");
+    sys_println("xv6 shell domain");
 
-    Box::new(PCI::new()) 
+
 }
 
 // This function is called on panic.

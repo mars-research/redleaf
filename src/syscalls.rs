@@ -46,6 +46,8 @@ impl PDomain {
     }
 }
 
+impl syscalls::Domain for PDomain { }
+
 impl syscalls::Syscall for PDomain {
 
     // Print a string 
@@ -123,5 +125,29 @@ impl syscalls::Syscall for PDomain {
         return pt;
     }
 }
+
+impl syscalls::CreatePCI for PDomain {
+    fn create_domain_pci(&self) -> (Box<dyn syscalls::Domain>, Box<dyn syscalls::PCI>) {
+        crate::domain::create_domain::create_domain_pci()
+    }
+}
+
+impl syscalls::CreateAHCI for PDomain {
+    fn create_domain_ahci(&self, pci: Box<dyn syscalls::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn syscalls::BDev>) {
+        crate::domain::create_domain::create_domain_ahci(pci)
+    }
+}
+
+impl syscalls::CreateXv6 for PDomain {
+    fn create_domain_xv6kernel(&self, bdev: Box<dyn syscalls::BDev>) -> Box<dyn syscalls::Domain> {
+        crate::domain::create_domain::create_domain_xv6kernel(bdev)
+    }
+}   
+
+impl syscalls::CreateXv6FS for PDomain {
+    fn create_domain_xv6fs(&self, bdev: Box<dyn syscalls::BDev>) ->(Box<dyn syscalls::Domain>, Box<dyn syscalls::VFS>) {
+        crate::domain::create_domain::create_domain_xv6fs(bdev)
+    }
+}   
 
 

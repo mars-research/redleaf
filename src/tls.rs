@@ -10,7 +10,7 @@ static mut KERNEL_PER_CPU_AREA: *mut usize = 0x0 as *mut usize;
 static mut KERNEL_PER_CPU_AREA_SIZE: usize = 0x0;
 
 pub unsafe fn set_cpuid(id: usize) {
-    let mut ptr = &THIS_CPU_ID as *const usize as *mut usize; 
+    let ptr = &THIS_CPU_ID as *const usize as *mut usize; 
     *ptr = id;
     let old_cpu_count = ACTIVE_CPU_COUNT.fetch_add(1, Ordering::SeqCst);
 

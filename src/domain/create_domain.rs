@@ -12,7 +12,7 @@ use alloc::boxed::Box;
 //use crate::syscalls::BOOT_SYSCALL; 
 
 
-pub fn create_domain_init() {
+pub fn create_domain_init() -> Box<dyn syscalls::Domain> {
     extern "C" {
         fn _binary_sys_init_build_init_start();
         fn _binary_sys_init_build_init_end();
@@ -24,12 +24,12 @@ pub fn create_domain_init() {
     );
 
     unsafe {
-        create_domain("sys_init", binary_range);
+        return build_domain_init("sys_init", binary_range);
     }
 
 }
 
-pub fn create_domain_pci() -> Box<dyn PCI> {
+pub fn create_domain_pci() -> (Box<dyn syscalls::Domain>, Box<dyn PCI>) {
 
     extern "C" {
         fn _binary_sys_dev_pci_build_pci_start();
@@ -41,14 +41,14 @@ pub fn create_domain_pci() -> Box<dyn PCI> {
         _binary_sys_dev_pci_build_pci_end as *const u8
     );
 
-    let pci = unsafe {
+    let (dom, pci) = unsafe {
         create_domain_pci_bus("pci", binary_range)
     };
 
-    return pci;
+    return (dom, pci);
 }
 
-pub fn create_domain_ahci(pci: Box<dyn PCI>) -> Box<dyn BDev> {
+pub fn create_domain_ahci(pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn BDev>) {
 
     extern "C" {
         fn _binary_sys_dev_ahci_build_ahci_start();
@@ -60,15 +60,15 @@ pub fn create_domain_ahci(pci: Box<dyn PCI>) -> Box<dyn BDev> {
         _binary_sys_dev_ahci_build_ahci_end as *const u8
     );
 
-    let bdev = unsafe {
+    let (dom, bdev) = unsafe {
         create_domain_bdev("ahci", binary_range, pci)
     };
 
-    return bdev;
+    return (dom, bdev);
 
 }
 
-pub fn create_domain_xv6kernel() {
+pub fn create_domain_xv6kernel(bdev: Box<dyn BDev>) -> Box<dyn syscalls::Domain> {
     extern "C" {
         fn _binary_usr_xv6_kernel_core_build_xv6kernel_start();
         fn _binary_usr_xv6_kernel_core_build_xv6kernel_end();
@@ -80,39 +80,98 @@ pub fn create_domain_xv6kernel() {
     );
 
     unsafe {
-        create_domain("xv6kernel", binary_range);
+        create_domain_kernel("xv6kernel", binary_range, bdev)
     }
-
 }
 
-pub fn create_domain_xv6fs(bdev: Box<dyn BDev>) -> Box<dyn VFS> {
+pub fn create_domain_xv6fs(bdev: Box<dyn BDev>) ->(Box<dyn syscalls::Domain>, Box<dyn VFS>) {
 
     extern "C" {
-        fn _binary_usr_xv6_kernel_core_build_xv6fs_start();
-        fn _binary_usr_xv6_kernel_core_build_xv6fs_end();
+        fn _binary_usr_xv6_kernel_fs_build_xv6fs_start();
+        fn _binary_usr_xv6_kernel_fs_build_xv6fs_end();
     }
 
     let binary_range = (
-        _binary_usr_xv6_kernel_core_build_xv6fs_start as *const u8,
-        _binary_usr_xv6_kernel_core_build_xv6fs_end as *const u8
+        _binary_usr_xv6_kernel_fs_build_xv6fs_start as *const u8,
+        _binary_usr_xv6_kernel_fs_build_xv6fs_end as *const u8
     );
 
-    let vfs = unsafe {
+    unsafe {
         create_domain_fs("xv6fs", binary_range, bdev)
-    };
-
-    return vfs;
-
+    }
 }
 
-pub unsafe fn create_domain_pci_bus(name: &str, 
-                                binary_range: (*const u8, *const u8)) -> Box<dyn PCI> 
+/* 
+// AB: We have to split ukern syscalls into some that are 
+// accessible to xv6 user, e.g., memory management, and the rest 
+// which is hidden, e.g., create_thread, etc.
+pub fn create_domain_xv6user(name: &str, xv6: Box<dyn syscalls::Xv6>) -> (Box<dyn syscalls::Domain>) {
+    extern "C" {
+        fn _binary_usr_xv6_user_shell_build_shell_start();
+        fn _binary_usr_xv6_user_shell_build_shell_end();
+    }
+
+    let binary_range = (
+        _binary_usr_xv6_kernel_fs_build_xv6fs_start as *const u8,
+        _binary_usr_xv6_kernel_fs_build_xv6fs_end as *const u8
+    );
+
+    unsafe {
+        create_domain_fs("xv6fs", binary_range, bdev)
+    }
+}
+*/
+
+// AB: XXX: The following is is not supported in Rust at the moment
+//
+//pub fn init(s: Box<dyn syscalls::Syscall 
+//                    + syscalls::CreateXv6 + syscalls::CreateXv6FS /* + CreateXv6User */
+//                    + syscalls::CreatePCI + syscalls::CreateAHCI + Send + Sync>) 
+// See
+//   rustc --explain E0225
+//
+// We have to re-write in an ugly way
+
+pub unsafe fn build_domain_init(name: &str, 
+                            binary_range: (*const u8, *const u8)) 
+                                -> Box<dyn syscalls::Domain> 
 {
-    type UserInit = fn(Box<dyn Syscall>) -> Box<dyn PCI>;
+    type UserInit = fn(Box<dyn Syscall>, 
+                         Box<dyn syscalls::CreateXv6>,
+                         Box<dyn syscalls::CreateXv6FS>,
+                         Box<dyn syscalls::CreatePCI>,
+                         Box<dyn syscalls::CreateAHCI>);
 
     let (dom, entry) = load_domain(name, binary_range);
 
     let user_ep: UserInit = transmute::<*const(), UserInit>(entry);
+
+    // Enable interrupts on exit to user so it can be preempted
+    enable_irq();
+    user_ep(Box::new(PDomain::new(Arc::clone(&dom))),
+            Box::new(PDomain::new(Arc::clone(&dom))),
+            Box::new(PDomain::new(Arc::clone(&dom))),
+            Box::new(PDomain::new(Arc::clone(&dom))),
+            Box::new(PDomain::new(Arc::clone(&dom)))); 
+    disable_irq(); 
+
+    println!("domain/{}: returned from entry point", name);
+    return Box::new(PDomain::new(Arc::clone(&dom))); 
+}
+
+
+pub fn create_domain_pci_bus(name: &str, 
+                                binary_range: (*const u8, *const u8)) -> (Box<dyn syscalls::Domain>, Box<dyn PCI>) 
+{
+    type UserInit = fn(Box<dyn Syscall>) -> Box<dyn PCI>;
+
+    let (dom, entry) = unsafe {
+        load_domain(name, binary_range)
+    };
+
+    let user_ep: UserInit = unsafe {
+        transmute::<*const(), UserInit>(entry)
+    };
 
     let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
     
@@ -122,16 +181,18 @@ pub unsafe fn create_domain_pci_bus(name: &str,
     disable_irq(); 
 
     println!("domain/{}: returned from entry point", name);
-    return pci;     
+    return (Box::new(PDomain::new(Arc::clone(&dom))), pci);     
 }
 
 
 pub unsafe fn create_domain_bdev(name: &str, 
                                  binary_range: (*const u8, *const u8), 
-                                 pci: Box<dyn PCI>) -> Box<dyn BDev> {
+                                 pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn BDev>) {
     type UserInit = fn(Box<dyn Syscall>, Box<dyn PCI>) -> Box<dyn BDev>;
 
-    let (dom, entry) = load_domain(name, binary_range);
+    let (dom, entry) = unsafe {
+        load_domain(name, binary_range)
+    };
 
     let user_ep: UserInit = transmute::<*const(), UserInit>(entry);
 
@@ -143,12 +204,12 @@ pub unsafe fn create_domain_bdev(name: &str,
     disable_irq(); 
 
     println!("domain/{}: returned from entry point", name);
-    return bdev;     
+    return (Box::new(PDomain::new(Arc::clone(&dom))), bdev);     
 }
 
 pub unsafe fn create_domain_fs(name: &str, 
                                  binary_range: (*const u8, *const u8), 
-                                 bdev: Box<dyn BDev>) -> Box<dyn VFS> 
+                                 bdev: Box<dyn BDev>) -> (Box<dyn syscalls::Domain>, Box<dyn VFS>) 
 {
     type UserInit = fn(Box<dyn Syscall>, Box<dyn BDev>) -> Box<dyn VFS>;
     
@@ -164,13 +225,15 @@ pub unsafe fn create_domain_fs(name: &str,
     disable_irq(); 
 
     println!("domain/{}: returned from entry point", name);
-    return vfs;     
+    return (Box::new(PDomain::new(Arc::clone(&dom))), vfs);     
 }
 
-
-pub unsafe fn create_domain(name: &str, binary_range: (*const u8, *const u8)) {
-    type UserInit = fn(Box<dyn Syscall>);
-
+pub unsafe fn create_domain_kernel(name: &str, 
+                                 binary_range: (*const u8, *const u8), 
+                                 bdev: Box<dyn BDev>) -> Box<dyn syscalls::Domain> 
+{
+    type UserInit = fn(Box<dyn Syscall>, Box<dyn BDev>);
+    
     let (dom, entry) = load_domain(name, binary_range);
 
     let user_ep: UserInit = transmute::<*const(), UserInit>(entry);
@@ -179,11 +242,13 @@ pub unsafe fn create_domain(name: &str, binary_range: (*const u8, *const u8)) {
     
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
-    user_ep(pdom); 
+    user_ep(pdom, bdev); 
     disable_irq(); 
 
     println!("domain/{}: returned from entry point", name);
+    return Box::new(PDomain::new(Arc::clone(&dom)));     
 }
+
 
 pub unsafe fn load_domain(name: &str, binary_range: (*const u8, *const u8)) -> (Arc<Mutex<Domain>>, *const()) {
     let (binary_start, binary_end) = binary_range;

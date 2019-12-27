@@ -17,7 +17,8 @@ domain_list := sys/init/build/init \
 	usr/xv6/kernel/fs/build/xv6fs \
 	sys/dev/pci/build/pci \
 	sys/dev/ahci/build/ahci \
-	sys/dev/ixgbe/build/ixgbe
+	sys/dev/ixgbe/build/ixgbe \
+	usr/xv6/usr/shell/build/shell
 
 qemu_common := -m 128m -vga std -s
 qemu_common := $(qemu_common) -cdrom $(iso)

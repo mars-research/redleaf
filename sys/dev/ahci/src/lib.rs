@@ -28,13 +28,26 @@ use libsyscalls::syscalls::{sys_print, sys_alloc};
 use console::println;
 use alloc::boxed::Box;
 
+struct AHCI {}
+
+impl AHCI {
+    fn new() -> AHCI {
+        AHCI{}
+    }
+}
+
+impl syscalls::BDev for AHCI {}
+
+
 #[no_mangle]
-pub fn ahci_init(s: Box<dyn Syscall + Send + Sync>) {
+pub fn ahci_init(s: Box<dyn Syscall + Send + Sync>,
+                 pci: Box<dyn syscalls::PCI>) -> Box<dyn syscalls::BDev> {
     libsyscalls::syscalls::init(s);
 
-    self::ahcid::disks(0xfebf1000, "meow");
+    //self::ahcid::disks(0xfebf1000, "meow");
 
-    sys_print("Init AHCI domain");
+    println!("ahci_init: starting AHCI domain");
+    Box::new(AHCI::new()) 
 }
 
 // This function is called on panic.

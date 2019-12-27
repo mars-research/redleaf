@@ -16,8 +16,8 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::panic::PanicInfo;
-use syscalls::{Syscall};
-use libsyscalls::syscalls::{sys_println, sys_alloc, sys_create_thread, sys_yield};
+//use syscalls::{Syscall};
+use libsyscalls::syscalls::{sys_create_thread, sys_yield};
 use console::println;
 
 extern fn test_init_thread() {
@@ -34,8 +34,24 @@ extern fn test_init_thread2() {
    }
 }
 
+
+// AB: XXX: The following is is not supported in Rust at the moment
+//
+//pub fn init(s: Box<dyn syscalls::Syscall 
+//                    + syscalls::CreateXv6 + syscalls::CreateXv6FS /* + CreateXv6User */
+//                    + syscalls::CreatePCI + syscalls::CreateAHCI + Send + Sync>) 
+// See
+//   rustc --explain E0225
+//
+// We have to re-write in an ugly way
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>) {
+pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
+            create_xv6: Box<dyn syscalls::CreateXv6>,
+            create_xv6fs: Box<dyn syscalls::CreateXv6FS>,
+            /* + CreateXv6User */
+            create_pci: Box<dyn syscalls::CreatePCI>,
+            create_ahci: Box<dyn syscalls::CreateAHCI>) 
+{
     libsyscalls::syscalls::init(s);
     
     //let b = Box::new(4);
@@ -47,16 +63,26 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>) {
 
     println!("{} {} {}", "init", "userland", 1);
 
+    /*
     println!("init userland print works");
     let t = sys_create_thread("init_thread", test_init_thread); 
     t.set_affinity(1); 
 
-    let t = sys_create_thread("init_thread_2", test_init_thread2); 
-    t.set_affinity(0); 
+    let t2 = sys_create_thread("init_thread_2", test_init_thread2); 
+    t2.set_affinity(0); 
 
-    //println!("thread:{}", t);
     drop(t); 
-}
+    drop(t2); 
+
+    */
+
+    let (dom_pci, pci) = create_pci.create_domain_pci(/*ioresource*/);
+
+    let (dom_ahci, bdev) = create_ahci.create_domain_ahci(pci); 
+
+    //create_xv6.create_domain_xv6kernel(bdev); 
+
+  }
 
 // This function is called on panic.
 #[panic_handler]
