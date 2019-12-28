@@ -20,6 +20,16 @@ use syscalls::{Syscall};
 use libsyscalls::syscalls::{sys_create_thread, sys_yield};
 use console::println;
 
+struct Xv6Syscalls {}
+
+impl Xv6Syscalls {
+    fn new() -> Xv6Syscalls {
+        Xv6Syscalls{}
+    }
+}
+
+impl syscalls::Xv6 for Xv6Syscalls {}
+
 extern fn xv6_kernel_test_th() {
    loop {
         println!("xv6_kernel_test_th"); 
@@ -39,7 +49,12 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
     let t = sys_create_thread("xv6_kernel_test_th", xv6_kernel_test_th); 
     t.set_affinity(10); 
     
-    let (dom_xv6fs, vfs)  = create_xv6fs.create_domain_xv6fs(bdev); 
+    let (dom_xv6fs, vfs)  = create_xv6fs.create_domain_xv6fs(bdev);
+    
+    let xv6 = Box::new(Xv6Syscalls::new()); 
+
+    let dom_shell  = create_xv6usr.create_domain_xv6usr("shell", xv6);
+
     //println!("thread:{}", t);
     drop(t); 
 }
