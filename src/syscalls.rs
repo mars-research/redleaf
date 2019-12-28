@@ -145,9 +145,12 @@ impl syscalls::CreateAHCI for PDomain {
 }
 
 impl syscalls::CreateXv6 for PDomain {
-    fn create_domain_xv6kernel(&self, bdev: Box<dyn syscalls::BDev>) -> Box<dyn syscalls::Domain> {
+    fn create_domain_xv6kernel(&self,
+                                create_xv6fs: Box<dyn syscalls::CreateXv6FS>,
+                                create_xv6usr: Box<dyn syscalls::CreateXv6Usr>,
+                                bdev: Box<dyn syscalls::BDev>) -> Box<dyn syscalls::Domain> {
         disable_irq();
-        let r = crate::domain::create_domain::create_domain_xv6kernel(bdev);
+        let r = crate::domain::create_domain::create_domain_xv6kernel(create_xv6fs, create_xv6usr, bdev);
         enable_irq();
         r
     }
@@ -162,4 +165,12 @@ impl syscalls::CreateXv6FS for PDomain {
     }
 }   
 
-
+impl syscalls::CreateXv6Usr for PDomain {
+    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn syscalls::Xv6>) -> Box<dyn syscalls::Domain> 
+    {
+        disable_irq();
+        let r = crate::domain::create_domain::create_domain_xv6usr(name, xv6);
+        enable_irq();
+        r
+    }
+} 

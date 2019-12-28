@@ -62,7 +62,9 @@ pub fn create_domain_ahci(pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box<
     }
 }
 
-pub fn create_domain_xv6kernel(bdev: Box<dyn BDev>) -> Box<dyn syscalls::Domain> {
+pub fn create_domain_xv6kernel(create_xv6fs: Box<dyn syscalls::CreateXv6FS>,
+                               create_xv6usr: Box<dyn syscalls::CreateXv6Usr>,
+                               bdev: Box<dyn BDev>) -> Box<dyn syscalls::Domain> {
     extern "C" {
         fn _binary_usr_xv6_kernel_core_build_xv6kernel_start();
         fn _binary_usr_xv6_kernel_core_build_xv6kernel_end();
@@ -74,7 +76,8 @@ pub fn create_domain_xv6kernel(bdev: Box<dyn BDev>) -> Box<dyn syscalls::Domain>
     );
 
     unsafe {
-        create_domain_kernel("xv6kernel", binary_range, bdev)
+        build_domain_xv6kernel("xv6kernel", binary_range, 
+                            create_xv6fs, create_xv6usr, bdev)
     }
 }
 
@@ -95,26 +98,35 @@ pub fn create_domain_xv6fs(bdev: Box<dyn BDev>) ->(Box<dyn syscalls::Domain>, Bo
     }
 }
 
-/* 
+ 
 // AB: We have to split ukern syscalls into some that are 
 // accessible to xv6 user, e.g., memory management, and the rest 
 // which is hidden, e.g., create_thread, etc.
-pub fn create_domain_xv6user(name: &str, xv6: Box<dyn syscalls::Xv6>) -> (Box<dyn syscalls::Domain>) {
-    extern "C" {
-        fn _binary_usr_xv6_user_shell_build_shell_start();
-        fn _binary_usr_xv6_user_shell_build_shell_end();
-    }
+pub fn create_domain_xv6usr(name: &str, xv6: Box<dyn syscalls::Xv6>) -> Box<dyn syscalls::Domain> {
 
-    let binary_range = (
-        _binary_usr_xv6_kernel_fs_build_xv6fs_start as *const u8,
-        _binary_usr_xv6_kernel_fs_build_xv6fs_end as *const u8
-    );
+    let binary_range = match name {
+        "shell" => {
+            extern "C" {
+                fn _binary_usr_xv6_usr_shell_build_shell_start();
+                fn _binary_usr_xv6_usr_shell_build_shell_end();
+            }
+
+            let binary_range = (
+                _binary_usr_xv6_usr_shell_build_shell_start as *const u8,
+                _binary_usr_xv6_usr_shell_build_shell_end as *const u8
+            );
+            binary_range
+        },
+        _ => {
+            (0 as *const u8, 0 as *const u8)
+        }
+    };
 
     unsafe {
-        create_domain_fs("xv6fs", binary_range, bdev)
+        build_domain_xv6usr(name, binary_range, xv6)
     }
 }
-*/
+
 
 // AB: XXX: The following is is not supported in Rust at the moment
 //
@@ -133,6 +145,7 @@ pub unsafe fn build_domain_init(name: &str,
     type UserInit = fn(Box<dyn Syscall>, 
                          Box<dyn syscalls::CreateXv6>,
                          Box<dyn syscalls::CreateXv6FS>,
+                         Box<dyn syscalls::CreateXv6Usr>,
                          Box<dyn syscalls::CreatePCI>,
                          Box<dyn syscalls::CreateAHCI>);
 
@@ -143,6 +156,7 @@ pub unsafe fn build_domain_init(name: &str,
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     user_ep(Box::new(PDomain::new(Arc::clone(&dom))),
+            Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(PDomain::new(Arc::clone(&dom))),
@@ -222,11 +236,16 @@ pub unsafe fn create_domain_fs(name: &str,
     (Box::new(PDomain::new(Arc::clone(&dom))), vfs)     
 }
 
-pub unsafe fn create_domain_kernel(name: &str, 
+pub unsafe fn build_domain_xv6kernel(name: &str, 
                                  binary_range: (*const u8, *const u8), 
+                                 create_xv6fs: Box<dyn syscalls::CreateXv6FS>,
+                                 create_xv6usr: Box<dyn syscalls::CreateXv6Usr>,
                                  bdev: Box<dyn BDev>) -> Box<dyn syscalls::Domain> 
 {
-    type UserInit = fn(Box<dyn Syscall>, Box<dyn BDev>);
+    type UserInit = fn(Box<dyn Syscall>,
+                       Box<dyn syscalls::CreateXv6FS>,
+                       Box<dyn syscalls::CreateXv6Usr>,
+                       Box<dyn BDev>);
     
     let (dom, entry) = load_domain(name, binary_range);
 
@@ -236,12 +255,34 @@ pub unsafe fn create_domain_kernel(name: &str,
     
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
-    user_ep(pdom, bdev); 
+    user_ep(pdom, create_xv6fs, create_xv6usr, bdev); 
     disable_irq(); 
 
     println!("domain/{}: returned from entry point", name);
     Box::new(PDomain::new(Arc::clone(&dom)))
 }
+
+pub unsafe fn build_domain_xv6usr(name: &str, 
+                                 binary_range: (*const u8, *const u8), 
+                                 xv6: Box<dyn syscalls::Xv6>) -> Box<dyn syscalls::Domain> 
+{
+    type UserInit = fn(Box<dyn Syscall>, Box<dyn syscalls::Xv6>);
+    
+    let (dom, entry) = load_domain(name, binary_range);
+
+    let user_ep: UserInit = transmute::<*const(), UserInit>(entry);
+
+    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    
+    // Enable interrupts on exit to user so it can be preempted
+    enable_irq();
+    user_ep(pdom, xv6); 
+    disable_irq(); 
+
+    println!("domain/{}: returned from entry point", name);
+    Box::new(PDomain::new(Arc::clone(&dom)))
+}
+
 
 
 pub unsafe fn load_domain(name: &str, binary_range: (*const u8, *const u8)) -> (Arc<Mutex<Domain>>, *const()) {

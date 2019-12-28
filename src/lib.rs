@@ -207,7 +207,7 @@ pub extern "C" fn rust_main_ap() -> ! {
 
         // We initialized kernel domain, it's safe to start 
         // other CPUs 
-        init_ap_cpus(); 
+        //init_ap_cpus(); 
     }
 
     println!("cpu{}: Initialized", cpu_id);

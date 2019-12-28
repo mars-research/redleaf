@@ -54,20 +54,20 @@ pub trait CreateAHCI {
     fn create_domain_ahci(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn BDev>);
 }
 
-pub trait CreateXv6 {
-    fn create_domain_xv6kernel(&self, bdev: Box<dyn BDev>) -> Box<dyn Domain>;
-}   
-
 pub trait CreateXv6FS {
     fn create_domain_xv6fs(&self, bdev: Box<dyn BDev>) ->(Box<dyn Domain>, Box<dyn VFS>);
 }   
 
-/*
-pub trait CreateXv6User {
-    fn create_domain_xv6usr(bdev: Box<dyn BDev>) -> Box<dyn Domain>;
+pub trait CreateXv6Usr {
+    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn Xv6>) -> Box<dyn Domain>;
 } 
-*/
 
+pub trait CreateXv6 {
+    fn create_domain_xv6kernel(&self, 
+                                create_xv6fs: Box<dyn CreateXv6FS>, 
+                                create_xv6usr: Box<dyn CreateXv6Usr>,
+                                bdev: Box<dyn BDev>) -> Box<dyn Domain>;
+}   
 
 
 
