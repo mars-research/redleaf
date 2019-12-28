@@ -93,9 +93,9 @@ impl PciHeader {
     /// Parse the bytes found in the Configuration Space of the PCI device into
     /// a more usable PciHeader.
     pub fn from_reader<T: ConfigReader>(reader: T) -> Result<PciHeader, PciHeaderError> {
-        if unsafe { reader.read_u32(0) } != 0xffffffff {
+        if reader.read_u32(0) != 0xffffffff {
             // Read the initial 16 bytes and set variables used by all header types.
-            let bytes = unsafe { reader.read_range(0, 16) };
+            let bytes = reader.read_range(0, 16);
             let vendor_id = LittleEndian::read_u16(&bytes[0..2]);
             let device_id = LittleEndian::read_u16(&bytes[2..4]);
             let command = LittleEndian::read_u16(&bytes[4..6]);
@@ -110,7 +110,7 @@ impl PciHeader {
             let bist = bytes[15];
             match header_type & PciHeaderType::HEADER_TYPE {
                 PciHeaderType::GENERAL => {
-                    let bytes = unsafe { reader.read_range(16, 48) };
+                    let bytes = reader.read_range(16, 48);
                     let bars = [
                         PciBar::from(LittleEndian::read_u32(&bytes[0..4])),
                         PciBar::from(LittleEndian::read_u32(&bytes[4..8])),
@@ -138,7 +138,7 @@ impl PciHeader {
                     })
                 },
                 PciHeaderType::PCITOPCI => {
-                    let bytes = unsafe { reader.read_range(16, 48) };
+                    let bytes = reader.read_range(16, 48);
                     let bars = [
                         PciBar::from(LittleEndian::read_u32(&bytes[0..4])),
                         PciBar::from(LittleEndian::read_u32(&bytes[4..8])),

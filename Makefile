@@ -17,7 +17,7 @@ domain_list := sys/init/build/init \
 	usr/xv6/kernel/fs/build/xv6fs \
 	sys/dev/pci/build/pci \
 	sys/dev/ahci/build/ahci \
-	sys/dev/ixgbe/build/ixgbe \
+	sys/dev/ixgbe_driver/build/ixgbe \
 	usr/xv6/usr/shell/build/shell
 
 qemu_common := -m 512m -vga std -s

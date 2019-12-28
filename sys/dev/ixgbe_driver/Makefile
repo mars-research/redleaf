@@ -1,5 +1,5 @@
 
-bin_name := ixgbe
+bin_name := ixgbe_driver
 arch ?= x86_64
 bin := build/$(bin_name)
 

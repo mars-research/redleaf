@@ -199,8 +199,8 @@ fn handle_parsed_header(pci: &Pci, bus_num: u8,
 */
 }
 
-pub fn scan_pci_devs(PciResource: &dyn PciResource) {
-    let pci = Pci::new(PciResource);
+pub fn scan_pci_devs(pci_resource: &dyn PciResource) {
+    let pci = Pci::new(pci_resource);
     for bus in pci.buses() {
         for dev in bus.devs() {
             for func in dev.funcs() {
