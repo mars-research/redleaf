@@ -9,7 +9,8 @@
     const_raw_ptr_to_usize_cast,
     thread_local,
     untagged_unions,
-    panic_info_message
+    panic_info_message,
+    const_vec_new
 )]
 
 #[macro_use]
@@ -26,7 +27,7 @@ use alloc::vec::Vec;
 use console::println;
 use core::panic::PanicInfo;
 use libsyscalls::syscalls::{sys_alloc, sys_create_thread, sys_println};
-use syscalls::syscalls::Syscall;
+use syscalls::Syscall;
 
 mod bcache;
 mod block;
@@ -38,24 +39,25 @@ mod log;
 mod params;
 mod sysfile;
 
-extern "C" fn foo() {}
+struct VFS {}
+
+impl VFS {
+    fn new() -> VFS {
+        VFS{}
+    }
+}
+
+impl syscalls::VFS for VFS {}
+
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>) {
+pub fn init(s: Box<dyn Syscall + Send + Sync>, bdev: Box<dyn syscalls::BDev>) -> Box<dyn syscalls::VFS> {
     libsyscalls::syscalls::init(s);
-    //let b = Box::new(4);
-    //let r = sys_alloc();
-    let mut v1: Vec<u64> = Vec::with_capacity(1024);
-    for i in 0..2048 {
-        v1.push(i);
-    }
 
-    sys_println("init xv6 filesystem");
 
-    let t = sys_create_thread("trait_test", foo);
-    t.set_affinity(10);
-    //println!("thread:{}", t);
-    drop(t);
+    println!("init xv6 filesystem");
+
+    Box::new(VFS::new()) 
 }
 
 // This function is called on panic.

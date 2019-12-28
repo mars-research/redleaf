@@ -39,6 +39,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
     let t = sys_create_thread("xv6_kernel_test_th", xv6_kernel_test_th); 
     t.set_affinity(10); 
     
+    let (dom_xv6fs, vfs)  = create_xv6fs.create_domain_xv6fs(bdev); 
     //println!("thread:{}", t);
     drop(t); 
 }

@@ -94,7 +94,7 @@ pub fn create_domain_xv6fs(bdev: Box<dyn BDev>) ->(Box<dyn syscalls::Domain>, Bo
     );
 
     unsafe {
-        create_domain_fs("xv6fs", binary_range, bdev)
+        build_domain_fs("xv6fs", binary_range, bdev)
     }
 }
 
@@ -216,7 +216,7 @@ pub unsafe fn create_domain_bdev(name: &str,
     (Box::new(PDomain::new(Arc::clone(&dom))), bdev)     
 }
 
-pub unsafe fn create_domain_fs(name: &str, 
+pub unsafe fn build_domain_fs(name: &str, 
                                  binary_range: (*const u8, *const u8), 
                                  bdev: Box<dyn BDev>) -> (Box<dyn syscalls::Domain>, Box<dyn VFS>) 
 {

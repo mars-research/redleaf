@@ -279,13 +279,13 @@ extern fn do_bounds(pt_regs: &mut PtRegs) {
 
 // 6: Invalid opcode
 extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: &mut InterruptStackFrame) {
-    println!("Invalide opcode exception:\n{:#?}", stack_frame);
+    println!("Invalid opcode exception:\n{:#?}", stack_frame);
     crate::halt();
 }
 
 #[no_mangle]
 extern fn do_invalid_op(pt_regs: &mut PtRegs) {
-    println!("Invalide opcode exception:\n{:#?}", pt_regs);
+    println!("Invalid opcode exception:\n{:#?}", pt_regs);
     crate::panic::backtrace_exception(pt_regs);
     crate::halt();
 }
