@@ -25,6 +25,7 @@ pub fn _print(args: core::fmt::Arguments) {
     unsafe {
         if IN_A_CRASH {
                 EMERGENCY_SERIAL1.write_fmt(args).unwrap();
+                return; 
         }
     }
 
@@ -45,22 +46,16 @@ pub fn _print(args: core::fmt::Arguments) {
     SERIAL1.lock().write_fmt(args).unwrap(); 
 }
 
-#[macro_export]
-macro_rules! eprint {
-    ($($arg:tt)*) => ($crate::console::_eprint(format_args!($($arg)*)));
+// The debug version
+#[cfg(trace_sched)]
+macro_rules! trace_sched {
+    ($( $args:expr ),*) => { println!( $( $args ),* ); }
 }
 
-#[macro_export]
-macro_rules! eprintln {
-    () => ($crate::print!("\n"));
-    ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
+// Non-debug version
+#[cfg(not(trace_sched))]
+macro_rules! trace_sched {
+    ($( $args:expr ),*) => {()}
 }
 
-#[doc(hidden)]
-pub fn _eprint(args: core::fmt::Arguments) {
-    // We don't need interrupts off any more, inside the 
-    // kernel interrupts are off all the time
 
-    //WRITER.force_unlock().write_fmt(args).unwrap();
-    //SERIAL1.force_unlock().write_fmt(args).unwrap();
-}

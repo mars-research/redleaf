@@ -166,7 +166,7 @@ enum ThreadState {
     Paused = 2, 
 }
 
-const STACK_SIZE_IN_LINES: usize = 4096 * 2;
+const STACK_SIZE_IN_LINES: usize = 4096 * 4;
 
 struct Stack {
     mem: [usize; STACK_SIZE_IN_LINES],
@@ -431,8 +431,8 @@ extern "C" fn die(/*func: extern fn()*/) {
     disable_irq();
     
     loop {
-        do_yield();
         println!("waiting to be cleaned up"); 
+        do_yield();
     };
 }
 
@@ -515,7 +515,7 @@ pub fn schedule() {
             None => {
                 // Nothing again, current is the only runnable thread, no need to
                 // context switch
-                println!("cpu({}): no runnable threads", cpuid());
+                trace_sched!("cpu({}): no runnable threads", cpuid());
                 return; 
             }
 
@@ -535,7 +535,7 @@ pub fn schedule() {
     };
 
 
-    println!("cpu({}): switch to {}", cpuid(), next_thread.borrow().name); 
+    trace_sched!("cpu({}): switch to {}", cpuid(), next_thread.borrow().name); 
 
     let prev = c.as_ptr(); 
     let next = next_thread.as_ptr(); 
@@ -557,7 +557,7 @@ pub fn schedule() {
 
 // yield is a reserved keyword
 pub fn do_yield() {
-    println!("Yield"); 
+    trace_sched!("Yield"); 
     schedule();
 }
 

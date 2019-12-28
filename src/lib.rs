@@ -66,7 +66,7 @@ extern "C" {
 // Note, the bootstrap CPU runs on a statically allocated 
 // stack that is defined in boot.asm 
 // AB TODO: fix this (i.e., switch to the dynamically allocated stack)
-const KERNEL_STACK_SIZE: usize = 4096 * 64;
+const KERNEL_STACK_SIZE: usize = 4096 * 128;
 
 // Init AP cpus
 pub fn init_ap_cpus() {
@@ -217,7 +217,7 @@ pub extern "C" fn rust_main_ap() -> ! {
 
         // We initialized kernel domain, it's safe to start 
         // other CPUs 
-        //init_ap_cpus(); 
+        init_ap_cpus(); 
     }
 
     println!("cpu{}: Initialized", cpu_id);
