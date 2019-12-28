@@ -25,6 +25,7 @@ extern crate alloc;
 extern crate backtracer;
 extern crate pcid;
 extern crate elfloader;
+use crate::interrupt::{disable_irq, enable_irq};
 
 #[macro_use]
 mod console;
@@ -51,7 +52,6 @@ mod dev;
 use x86::cpuid::CpuId;
 use crate::arch::init_buddy;
 use core::alloc::{Layout};
-use crate::interrupt::{enable_irq};
 use crate::memory::{construct_pt, construct_ap_pt};
 use crate::pci::scan_pci_devs;
 
@@ -115,9 +115,19 @@ fn test_threads() {
 }
 
 
-fn init_user() {
+// Create sys/init domain and execute its init function
+extern fn init_user() {
+    // die() enables interrupts as it thinks it is 
+    // starting a user thead, lets disable them
+    disable_irq(); 
     crate::domain::create_domain::create_domain_init(); 
+    enable_irq(); 
 }
+
+fn start_init_thread() {
+    crate::thread::create_thread("init", init_user); 
+}
+
 
 const MAX_CPUS: u32 = 32;
 
@@ -266,7 +276,7 @@ pub extern "C" fn rust_main_ap() -> ! {
 
         // The first user system call will re-enable interrupts on 
         // exit to user
-        init_user();
+        start_init_thread();
     }
 
     // Enable interrupts and the timer will schedule the next thread

@@ -425,11 +425,13 @@ extern "C" fn die(/*func: extern fn()*/) {
 
     println!("Starting new thread"); 
 
-    // Enable interrupts so we get next scheduling tick
-    x86_64::instructions::interrupts::enable();
+    // Enable interrupts before exiting to user
+    enable_irq();
     func();
+    disable_irq();
     
     loop {
+        do_yield();
         println!("waiting to be cleaned up"); 
     };
 }
@@ -611,14 +613,6 @@ impl syscalls::Thread for PThread {
 pub fn init_threads() {
     let idle = Rc::new(RefCell::new(Thread::new("idle", idle)));
     
-    /*
-     let kdom = KERNEL_DOMAIN.lock(); 
-
-    if let Some(kernel_domain) = *kdom {
-        idle.borrow_mut().domain = Some(kernel_domain); 
-    } else {
-        panic!("Kernel domain is not initialized"); 
-    }*/
     let kernel_domain = KERNEL_DOMAIN.r#try().expect("Kernel domain is not initialized");
 
     idle.borrow_mut().domain = Some(kernel_domain.clone());
