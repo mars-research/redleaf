@@ -50,6 +50,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
             create_xv6fs: Box<dyn syscalls::CreateXv6FS>,
             create_xv6usr: Box<dyn syscalls::CreateXv6Usr>,
             create_pci: Box<dyn syscalls::CreatePCI>,
+            create_ixgbe: Box<dyn syscalls::CreateIxgbe>,
             create_ahci: Box<dyn syscalls::CreateAHCI>) 
 {
     libsyscalls::syscalls::init(s);
@@ -80,11 +81,15 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
 
     let (dom_pci, pci) = create_pci.create_domain_pci(pci_resource);
 
-    let (dom_ahci, bdev) = create_ahci.create_domain_ahci(pci); 
+    let pci2 = pci.pci_clone();
+
+    let (dom_ahci, bdev) = create_ahci.create_domain_ahci(pci);
+
+    let (dom_ixgbe, net) = create_ixgbe.create_domain_ixgbe(pci2);
 
     let dom_xv6 = create_xv6.create_domain_xv6kernel(create_xv6fs, create_xv6usr, bdev); 
 
-  }
+}
 
 // This function is called on panic.
 #[panic_handler]

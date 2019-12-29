@@ -152,6 +152,15 @@ impl syscalls::CreateAHCI for PDomain {
     }
 }
 
+impl syscalls::CreateIxgbe for PDomain {
+    fn create_domain_ixgbe(&self, pci: Box<dyn syscalls::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn syscalls::Net>) {
+        disable_irq();
+        let r = crate::domain::create_domain::create_domain_ixgbe(pci);
+        enable_irq();
+        r
+    }
+}
+
 impl syscalls::CreateXv6 for PDomain {
     fn create_domain_xv6kernel(&self,
                                 create_xv6fs: Box<dyn syscalls::CreateXv6FS>,

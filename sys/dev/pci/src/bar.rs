@@ -31,8 +31,8 @@ impl From<u32> for PciBar {
 impl fmt::Display for PciBar {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            &PciBar::Memory(address) => write!(f, "{:>08X}", address),
-            &PciBar::Port(address) => write!(f, "{:>04X}", address),
+            &PciBar::Memory(address) => write!(f, "M {:>08X}", address),
+            &PciBar::Port(address) => write!(f, "P {:>04X}", address),
             &PciBar::None => write!(f, "None")
         }
     }

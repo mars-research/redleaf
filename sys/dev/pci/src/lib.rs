@@ -34,6 +34,7 @@ use syscalls::{Syscall, PciResource};
 use libsyscalls::syscalls::{sys_println};
 use alloc::boxed::Box;
 
+#[derive(Clone)]
 struct PCI {}
 
 impl PCI {
@@ -42,7 +43,20 @@ impl PCI {
     }
 }
 
-impl syscalls::PCI for PCI {}
+impl syscalls::PCI for PCI {
+
+    //-> bar_regions::BarRegions
+    fn pci_register_driver(&self, pci_driver: &dyn pci_driver::PciDriver) {
+        let vid = pci_driver.get_vid();
+        let did = pci_driver.get_did();
+        // match vid, dev_id with the registered pci devices we have and
+        // typecast the barregion to the appropriate one for this device
+    }
+
+    fn pci_clone(&self) -> Box<dyn syscalls::PCI> {
+        Box::new((*self).clone())
+    }
+}
 
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>, PciResource: Box<dyn PciResource>) -> Box<dyn syscalls::PCI> {

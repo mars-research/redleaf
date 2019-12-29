@@ -26,6 +26,10 @@ pub trait Thread {
 
 /// RedLeaf PCI bus driver interface
 pub trait PCI {
+    fn pci_register_driver(&self, pci_driver: &dyn pci_driver::PciDriver);// -> bar_regions::BarRegions; 
+    /// Boxed trait objects cannot be cloned trivially!
+    /// https://users.rust-lang.org/t/solved-is-it-possible-to-clone-a-boxed-trait-object/1714/6
+    fn pci_clone(&self) -> Box<dyn PCI>;
 }
 
 /// Virtual file system interface
@@ -35,6 +39,10 @@ pub trait VFS {
 
 /// RedLeaf block device interface
 pub trait BDev {
+}
+
+/// RedLeaf network interface
+pub trait Net {
 }
 
 /// RedLeaf Domain interface
@@ -53,6 +61,10 @@ pub trait CreatePCI {
 
 pub trait CreateAHCI {
     fn create_domain_ahci(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn BDev>);
+}
+
+pub trait CreateIxgbe {
+    fn create_domain_ixgbe(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net>);
 }
 
 pub trait CreateXv6FS {

@@ -24,7 +24,7 @@ bitflags = "1.0.4"
 byteorder = { version = "1.2", default-features = false }
 serde_derive = "1.0.101"
 ixgbe = { path = "../../../sys/interfaces/dev/ixgbe", version = "0.1.0" }
-bar_regions = { path = "../../../sys/interfaces/dev/pci/bar_regions", version = "0.1.0" }
+pci_driver = { path = "../../../sys/interfaces/dev/pci/pci_driver", version = "0.1.0" }
 
 [dependencies.lazy_static]
 version = "1.3.0"
