@@ -124,6 +124,11 @@ impl syscalls::Syscall for PDomain {
         enable_irq();
         return pt;
     }
+
+    fn sys_get_thread_id(&self) -> u32 {
+        // TODO: implement
+        0
+    }
 }
 
 impl syscalls::CreatePCI for PDomain {

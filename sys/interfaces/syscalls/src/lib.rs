@@ -17,6 +17,7 @@ pub trait Syscall {
     fn sys_free(&self, p: *mut u8);
     fn sys_alloc_huge(&self, sz: u64) -> *mut u8;
     fn sys_free_huge(&self, p: *mut u8);
+    fn sys_get_thread_id(&self) -> u32;
 }
 
 /// RedLeaf thread interface

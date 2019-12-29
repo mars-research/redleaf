@@ -48,3 +48,8 @@ pub fn sys_free_huge(p: *mut u8) {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
     return scalls.sys_free_huge(p);
 }
+
+pub fn sys_get_thread_id() -> u32 {
+    let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
+    return scalls.sys_get_thread_id();
+}

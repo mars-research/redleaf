@@ -21,6 +21,7 @@ extern crate spin;
 #[macro_use]
 extern crate lazy_static;
 extern crate syscalls;
+extern crate tls;
 
 use alloc::boxed::Box;
 use alloc::vec::Vec;

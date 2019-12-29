@@ -5,18 +5,25 @@
 use alloc::boxed::Box;
 use core::cell::RefCell;
 
+use tls::{ThreadLocal};
+use libsyscalls::syscalls::{sys_get_thread_id};
 use crate::fcntl::{O_RDONLY, O_WRONLY, O_RDWR, O_CREATE};
 use crate::file::File;
 use crate::params;
 
+
 // Opened files of the current thread. Use file descriptors to index into this array.
 // I put it in a thread_local variable in fs instead of a member variable of `Thread`
 // because this helps isolating the two modules.
-#[thread_local]
-static FD_TABLE: RefCell<[Option<Box<File>>; params::NOFILE]> = RefCell::new(
-    [None, None, None, None, None, None, None, None,
-    None, None, None, None, None, None, None, None]
-);
+//#[thread_local]
+//static FD_TABLE: RefCell<[Option<Box<File>>; params::NOFILE]> = RefCell::new(
+//    [None, None, None, None, None, None, None, None,
+//    None, None, None, None, None, None, None, None]
+//);
+
+static mut FD_TABLE: ThreadLocal<u32, [Option<Box<File>>; params::NOFILE]> = ThreadLocal::new({ ||
+    [None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]
+});
 
 // pub fn sys_open(path: &str, mode: FileMode) -> Option<usize> {
 //     // TODO: log begin_op here
@@ -81,12 +88,14 @@ static FD_TABLE: RefCell<[Option<Box<File>>; params::NOFILE]> = RefCell::new(
 // Allocate a file descriptor for the given file.
 // Takes over file reference from caller on success.
 fn fdalloc(f: Box<File>) -> Option<usize> {
-    FD_TABLE
-        .borrow()
-        .iter()
-        .position(|f| f.is_none())
-        .map(|fd| {
-            FD_TABLE.borrow_mut()[fd].replace(f);
-            fd
-        })
+    let key = sys_get_thread_id();
+    FD_TABLE.with(key, { |fd_table|
+        fd_table
+            .iter()
+            .position(|f| f.is_none())
+            .map(|fd| {
+                fd_table[fd].replace(f);
+                fd
+            })
+    })
 }
