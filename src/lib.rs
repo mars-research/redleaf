@@ -48,6 +48,7 @@ mod syscalls;
 mod pci;
 mod domain;
 mod dev;
+mod waitqueue; 
 
 use x86::cpuid::CpuId;
 use crate::arch::init_buddy;
@@ -70,7 +71,7 @@ const KERNEL_STACK_SIZE: usize = 4096 * 128;
 
 // Init AP cpus
 pub fn init_ap_cpus() {
-    for cpu in (1..4) {
+    for cpu in 1..4 {
         let ap_cpu_stack = unsafe { alloc::alloc::alloc(
                     Layout::from_size_align_unchecked(KERNEL_STACK_SIZE, 4096)) } as u32;
     

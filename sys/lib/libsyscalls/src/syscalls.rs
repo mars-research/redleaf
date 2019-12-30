@@ -1,9 +1,19 @@
 extern crate alloc;
 use spin::Once;
 use alloc::boxed::Box;
-use syscalls::{Syscall, Thread};
+use syscalls::{Syscall, Thread, Interrupt};
 
 static SYSCALL: Once<Box<dyn Syscall + Send + Sync>> = Once::new();
+static INT: Once<Box<dyn Interrupt + Send + Sync>> = Once::new();
+
+pub fn init_interrupts(int: Box<dyn Interrupt + Send + Sync>) {
+    INT.call_once(|| int);
+}
+
+pub fn sys_recv_int(int: u8) {
+    let ints = INT.r#try().expect("Interrupt system call interface is not initialized.");
+    ints.sys_recv_int(int);
+}
 
 pub fn init(s: Box<dyn Syscall + Send + Sync>) {
     SYSCALL.call_once(|| s);

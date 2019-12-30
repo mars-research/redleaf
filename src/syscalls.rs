@@ -44,6 +44,20 @@ impl PDomain {
             domain: dom,
         }
     }
+    
+    fn create_domain_thread(&self, name: &str, func: extern fn()) -> Box<dyn Thread>  {
+
+        println!("sys_create_thread"); 
+        let pt = create_thread(name, func);
+
+        let t = pt.thread.clone(); 
+    
+        let mut d = self.domain.lock();
+        d.add_thread(t); 
+
+        println!("Created thread {} for domain {}", pt.thread.borrow().name, d.name); 
+        pt   
+    }
 }
 
 impl syscalls::Domain for PDomain { }
@@ -99,31 +113,30 @@ impl syscalls::Syscall for PDomain {
     fn sys_yield(&self) {
 
         disable_irq();
-        println!("sys_yield"); 
+        trace_sched!("sys_yield"); 
         do_yield();
         enable_irq(); 
     }
 
     // Create a new thread
     fn sys_create_thread(&self, name: &str, func: extern fn()) -> Box<dyn Thread>  {
+        disable_irq();
+        let pt = self.create_domain_thread(name, func); 
+        enable_irq();
+        pt
+    }
+
+    /*
+    // Create a new thread
+    fn sys_register_interrupt(&self, int: u8, func: extern fn()) -> Box<dyn Thread>  {
 
         disable_irq();
-        println!("sys_create_thread"); 
-        let pt = create_thread(name, func);
-
-        let t = pt.thread.clone(); 
-    
-        let mut d = self.domain.lock();
-        d.add_thread(t); 
-
-        println!("Created thread {} for domain {}", pt.thread.borrow().name, d.name); 
-
-        // Drop before re-enabling interrupts
-        drop(d); 
-
+        let pt = create_domain_thread(name, func); 
+        register_interrupt_thread(int, pt.thread.clone());
         enable_irq();
-        return pt;
-    }
+        return pt
+    }*/
+
 }
 
 impl syscalls::CreatePCI for PDomain {
@@ -181,4 +194,30 @@ impl syscalls::CreateXv6Usr for PDomain {
         enable_irq();
         r
     }
-} 
+}
+
+impl syscalls::Interrupt for PDomain {
+
+    // Recieve an interrupt
+    fn sys_recv_int(&self, int: u8) {
+        disable_irq();
+        if int as usize > crate::waitqueue::MAX_INT {
+            println!("Interrupt {} doesn't exist", int); 
+            enable_irq(); 
+            return;
+        }
+
+        // take the thread off the scheduling queue
+        // AB: XXX: for now just mark it as WAITING later we'll 
+        // implement a real doubly-linked list and take it out
+        let t = crate::thread::get_current_ref(); 
+        t.borrow_mut().state = crate::thread::ThreadState::Waiting;
+
+        crate::waitqueue::add_interrupt_thread(int as usize, t);
+        
+        do_yield();
+        enable_irq();
+    }
+
+}
+

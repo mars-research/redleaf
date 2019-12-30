@@ -521,6 +521,8 @@ extern fn do_IRQ(pt_regs: &mut PtRegs) -> u64 {
 // IRQ 0: Timer
 fn timer_interrupt_handler(#[allow(unused_variables)]pt_regs: &mut PtRegs) {
     end_of_interrupt(InterruptIndex::Timer.as_u8());
+
+    crate::waitqueue::signal_interrupt_threads(32); 
     crate::thread::schedule();
 }
 

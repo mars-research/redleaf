@@ -3,11 +3,6 @@
 extern crate alloc;
 use alloc::boxed::Box;
 
-//#[derive(Copy, Clone)]
-//pub struct BootSyscall {
-//    pub sys_boot_syscall: fn() -> Box<dyn Syscall>,
-//}
-
 pub trait Syscall {
     fn sys_print(&self, s: &str);
     fn sys_println(&self, s: &str);
@@ -22,6 +17,7 @@ pub trait Syscall {
 /// RedLeaf thread interface
 pub trait Thread {
     fn set_affinity(&self, affinity: u64);
+    fn set_priority(&self, prio: u64);
 }
 
 /// RedLeaf PCI bus driver interface
@@ -70,7 +66,16 @@ pub trait CreateXv6 {
                                 bdev: Box<dyn BDev>) -> Box<dyn Domain>;
 }   
 
+pub static IRQ_TIMER: u8 = 32; 
+
+pub trait Interrupt {
+    // Recieve an interrupt
+    fn sys_recv_int(&self, int: u8);
+}
+
 pub trait PciResource {
     fn read(&self, bus: u8, dev: u8, func: u8, offset: u8) -> u32;
     fn write(&self, bus: u8, dev: u8, func: u8, offset: u8, value: u32);
 }
+
+

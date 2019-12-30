@@ -5,7 +5,6 @@ mod vga;
 use core::fmt::{Write};
 use crate::console::vga::WRITER;
 use crate::console::serial::{SERIAL1, EMERGENCY_SERIAL1};
-use x86_64::instructions::interrupts;
 
 pub static mut IN_A_CRASH: bool = false; 
 
@@ -55,6 +54,18 @@ macro_rules! trace_sched {
 // Non-debug version
 #[cfg(not(trace_sched))]
 macro_rules! trace_sched {
+    ($( $args:expr ),*) => {()}
+}
+
+// The debug version
+#[cfg(trace_wq)]
+macro_rules! trace_wq {
+    ($( $args:expr ),*) => { println!( $( $args ),* ); }
+}
+
+// Non-debug version
+#[cfg(not(trace_wq))]
+macro_rules! trace_wq {
     ($( $args:expr ),*) => {()}
 }
 

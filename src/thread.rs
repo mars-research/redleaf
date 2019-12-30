@@ -160,10 +160,12 @@ fn rebalance_thread(t: Rc<RefCell<Thread>>) {
     rb_queue_signal(cpu_id as usize); 
 }
 
-enum ThreadState {
+#[derive(Clone,Copy)]
+pub enum ThreadState {
     Running = 0,
     Runnable = 1,
-    Paused = 2, 
+    Paused = 2,
+    Waiting = 3, 
 }
 
 const STACK_SIZE_IN_LINES: usize = 4096 * 4;
@@ -186,7 +188,7 @@ pub struct Context {
 
 pub struct Thread {
     pub name: String,
-    state: ThreadState, 
+    pub state: ThreadState, 
     priority: Priority,
     affinity: u64,
     rebalance: bool, 
@@ -197,6 +199,9 @@ pub struct Thread {
     next: Link,
     // Next thread on the domain list 
     pub next_domain: Option<Rc<RefCell<Thread>>>,
+    // Next thread on the interrupt wait queue list 
+    pub next_iwq: Option<Rc<RefCell<Thread>>>,
+
 }
 
 struct SchedulerQueue {
@@ -253,7 +258,8 @@ impl  Thread {
             stack: RefCell::new(Box::new(Stack::new())),
             domain: None, 
             next: None, 
-            next_domain: None, 
+            next_domain: None,
+            next_iwq: None, 
         };
 
         t.init_stack(func);
@@ -302,7 +308,7 @@ impl  SchedulerQueue {
         self.push_thread(prio, thread); 
 
         if self.highest < prio {
-            println!("set highest priority to {}", prio);
+            trace_sched!("set highest priority to {}", prio);
             self.highest = prio
         }
     }
@@ -316,7 +322,7 @@ impl  SchedulerQueue {
                     if self.highest == 0 {
                         return None;
                     }
-                    self.highest += 1;
+                    self.highest -= 1;
                 },
                 Some(t) => {
                    
@@ -338,7 +344,7 @@ impl  Scheduler {
         }
     }
 
-    pub fn put_thread(&mut self, thread: Rc<RefCell<Thread>>) {
+    pub fn put_thread_in_passive(&mut self, thread: Rc<RefCell<Thread>>) {
         /* put thread in the currently passive queue */
         if !self.active {
             self.active_queue.put_thread(thread)
@@ -401,7 +407,7 @@ impl  Scheduler {
                     thread.borrow_mut().rebalance = false; 
                 }
 
-                self.put_thread(thread); 
+                self.put_thread_in_passive(thread); 
                 continue;
             } 
 
@@ -488,6 +494,14 @@ fn get_current() -> Option<Rc<RefCell<Thread>>> {
     CURRENT.replace(None)
 }
 
+/// Return rc into the current thread
+pub fn get_current_ref() -> Rc<RefCell<Thread>> {
+
+    let rc_t = CURRENT.borrow().as_ref().unwrap().clone(); 
+    rc_t
+}
+
+
 /// Return domain of the current thread
 fn get_domain_of_current() -> Arc<Mutex<Domain>> {
 
@@ -526,6 +540,18 @@ pub fn schedule() {
             rebalance_thread(next_thread); 
             continue; 
         }
+
+        let state = next_thread.borrow().state; 
+
+        // The thread is not runnable, put it back into the passive queue
+        match state {
+            ThreadState::Waiting => {
+                s.put_thread_in_passive(next_thread); 
+                continue; 
+            },
+            _ => {}
+        }
+
         break next_thread;
     };
 
@@ -544,7 +570,7 @@ pub fn schedule() {
     set_current(next_thread); 
 
     // put the old thread back in the scheduling queue
-    s.put_thread(c);
+    s.put_thread_in_passive(c);
 
     drop(s); 
 
@@ -571,7 +597,7 @@ pub fn create_thread (name: &str, func: extern fn()) -> Box<PThread> {
     let t = Rc::new(RefCell::new(Thread::new(name, func)));
     let pt = Box::new(PThread::new(Rc::clone(&t)));
    
-    s.put_thread(t);
+    s.put_thread_in_passive(t);
     return pt; 
 }
 
@@ -608,6 +634,27 @@ impl syscalls::Thread for PThread {
         }
         enable_irq(); 
     }
+
+    fn set_priority(&self, prio: u64) {
+        disable_irq(); 
+
+        if prio as usize > MAX_PRIO {
+            println!("Error: trying to set priority:{} for {} but MAX_PRIO is only {}", 
+                prio, self.thread.borrow().name, MAX_PRIO);
+            enable_irq();
+            return; 
+        }
+
+        {
+            let mut thread = self.thread.borrow_mut(); 
+        
+            println!("Setting priority:{} for {}", prio, thread.name);
+            thread.priority = prio as usize; 
+
+        }
+        enable_irq(); 
+    }
+
 }
 
 pub fn init_threads() {

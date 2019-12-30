@@ -1,5 +1,4 @@
 #![no_std]
-#[macro_use]
 use core::fmt::{Write};
 use spin::Mutex;
 use libsyscalls::syscalls::sys_print;

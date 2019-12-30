@@ -3,7 +3,7 @@
 extern crate alloc;
 use core::alloc::{GlobalAlloc, Layout};
 use core::mem::transmute;
-use core::ptr::{self, NonNull};
+//use core::ptr::{self, NonNull};
 use slabmalloc::*;
 use spin::Mutex;
 use libsyscalls::syscalls::{sys_alloc, sys_free, sys_alloc_huge, sys_free_huge};

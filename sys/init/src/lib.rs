@@ -16,9 +16,18 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::panic::PanicInfo;
-//use syscalls::{Syscall};
-use libsyscalls::syscalls::{sys_create_thread, sys_yield};
+use libsyscalls::syscalls::{sys_create_thread, sys_yield, sys_recv_int};
 use console::println;
+
+extern fn timer_thread() {
+    println!("Registering timer thread"); 
+    
+    loop {
+         sys_recv_int(syscalls::IRQ_TIMER);
+         println!("Got a timer interrupt"); 
+    }
+}
+
 
 extern fn test_init_thread() {
    loop {
@@ -46,6 +55,7 @@ extern fn test_init_thread2() {
 // We have to re-write in an ugly way
 #[no_mangle]
 pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
+            ints: Box<dyn syscalls::Interrupt + Send + Sync>,
             create_xv6: Box<dyn syscalls::CreateXv6>,
             create_xv6fs: Box<dyn syscalls::CreateXv6FS>,
             create_xv6usr: Box<dyn syscalls::CreateXv6Usr>,
@@ -53,6 +63,8 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
             create_ahci: Box<dyn syscalls::CreateAHCI>) 
 {
     libsyscalls::syscalls::init(s);
+
+    libsyscalls::syscalls::init_interrupts(ints);
     
     //let b = Box::new(4);
     //let r = sys_alloc();
@@ -63,8 +75,14 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
 
     println!("{} {} {}", "init", "userland", 1);
 
+    //println!("init userland print works");
+
+    let t = sys_create_thread("int[timer]", timer_thread); 
+    t.set_priority(10);
+
+
     /*
-    println!("init userland print works");
+
     let t = sys_create_thread("init_thread", test_init_thread); 
     t.set_affinity(1); 
 
