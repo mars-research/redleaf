@@ -16,10 +16,16 @@ lazy_static! {
     };
 }
 
-#[derive(Hash, Eq, PartialEq, Copy, Clone)]
+#[derive(Hash, Eq, PartialEq, Copy, Clone, Debug)]
 pub struct PciDevice {
-    vid: u16,
-    dev_id: u16,
+    vendor_id: u16,
+    device_id: u16,
+}
+
+impl PciDevice {
+    pub fn new(vendor_id: u16, device_id: u16) -> PciDevice {
+        PciDevice { vendor_id, device_id }
+    }
 }
 
 fn handle_parsed_header(pci: &Pci, bus_num: u8,
@@ -29,7 +35,7 @@ fn handle_parsed_header(pci: &Pci, bus_num: u8,
                              bus_num, dev_num, func_num, header.vendor_id(), header.device_id(), raw_class,
                              header.subclass(), header.interface(), header.revision(), header.class());
 
-    let pci_device = PciDevice { vid: header.vendor_id(), dev_id: header.device_id() };
+    let pci_device = PciDevice { vendor_id: header.vendor_id(), device_id: header.device_id() };
 
     PCI_MAP.lock().insert(pci_device, Vec::new());
 

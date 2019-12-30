@@ -33,6 +33,8 @@ use core::panic::PanicInfo;
 use syscalls::{Syscall, PciResource};
 use libsyscalls::syscalls::{sys_println};
 use alloc::boxed::Box;
+use crate::parser::{PciDevice, PCI_MAP};
+use console::println;
 
 #[derive(Clone)]
 struct PCI {}
@@ -47,10 +49,14 @@ impl syscalls::PCI for PCI {
 
     //-> bar_regions::BarRegions
     fn pci_register_driver(&self, pci_driver: &dyn pci_driver::PciDriver) {
-        let vid = pci_driver.get_vid();
-        let did = pci_driver.get_did();
+        let vendor_id = pci_driver.get_vid();
+        let device_id = pci_driver.get_did();
         // match vid, dev_id with the registered pci devices we have and
         // typecast the barregion to the appropriate one for this device
+        let pci_dev = PciDevice::new(vendor_id, device_id);
+        if let Some(bars) = PCI_MAP.lock().get(&pci_dev) {
+            println!("Device found {:x?}", pci_dev);
+        };
     }
 
     fn pci_clone(&self) -> Box<dyn syscalls::PCI> {
