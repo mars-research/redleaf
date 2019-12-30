@@ -21,9 +21,11 @@ use crate::params;
 //    None, None, None, None, None, None, None, None]
 //);
 
-static mut FD_TABLE: ThreadLocal<u32, [Option<Box<File>>; params::NOFILE]> = ThreadLocal::new({ ||
-    [None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]
-});
+lazy_static! {
+    static ref FD_TABLE: ThreadLocal<u32, [Option<Box<File>>; params::NOFILE]> = ThreadLocal::new({ ||
+        [None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]
+    });
+}
 
 // pub fn sys_open(path: &str, mode: FileMode) -> Option<usize> {
 //     // TODO: log begin_op here
