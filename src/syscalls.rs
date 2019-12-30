@@ -176,11 +176,15 @@ impl syscalls::CreateIxgbe for PDomain {
 
 impl syscalls::CreateXv6 for PDomain {
     fn create_domain_xv6kernel(&self,
+                                ints: Box<dyn syscalls::Interrupt>,
                                 create_xv6fs: Box<dyn syscalls::CreateXv6FS>,
                                 create_xv6usr: Box<dyn syscalls::CreateXv6Usr>,
                                 bdev: Box<dyn syscalls::BDev>) -> Box<dyn syscalls::Domain> {
         disable_irq();
-        let r = crate::domain::create_domain::create_domain_xv6kernel(create_xv6fs, create_xv6usr, bdev);
+        let r = crate::domain::create_domain::create_domain_xv6kernel(ints, 
+                        create_xv6fs, 
+                        create_xv6usr, 
+                        bdev);
         enable_irq();
         r
     }
@@ -205,7 +209,18 @@ impl syscalls::CreateXv6Usr for PDomain {
     }
 }
 
-impl syscalls::Interrupt for PDomain {
+#[derive(Clone)]
+pub struct Interrupt {
+}
+
+impl Interrupt {
+    pub const fn new() -> Interrupt {
+        Interrupt {
+        }
+    }
+}
+ 
+impl syscalls::Interrupt for Interrupt {
 
     // Recieve an interrupt
     fn sys_recv_int(&self, int: u8) {
@@ -227,6 +242,11 @@ impl syscalls::Interrupt for PDomain {
         do_yield();
         enable_irq();
     }
+
+    fn int_clone(&self) -> Box<dyn syscalls::Interrupt> {
+        Box::new((*self).clone())
+    }
+
 
 }
 

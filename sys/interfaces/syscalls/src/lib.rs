@@ -73,6 +73,7 @@ pub trait CreateXv6Usr {
 
 pub trait CreateXv6 {
     fn create_domain_xv6kernel(&self, 
+                                ints: Box<dyn Interrupt>,
                                 create_xv6fs: Box<dyn CreateXv6FS>, 
                                 create_xv6usr: Box<dyn CreateXv6Usr>,
                                 bdev: Box<dyn BDev>) -> Box<dyn Domain>;
@@ -83,6 +84,7 @@ pub static IRQ_TIMER: u8 = 32;
 pub trait Interrupt {
     // Recieve an interrupt
     fn sys_recv_int(&self, int: u8);
+    fn int_clone(&self) -> Box<dyn Interrupt>; 
 }
 
 pub trait PciResource {

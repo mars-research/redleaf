@@ -1,7 +1,7 @@
 use elfloader::ElfBinary;
 use super::Domain;
 use syscalls::{Syscall, BDev, PCI, VFS, PciResource, Net};
-use crate::syscalls::{PDomain};
+use crate::syscalls::{PDomain, Interrupt};
 use core::mem::transmute;
 use crate::interrupt::{disable_irq, enable_irq};
 use spin::Mutex;
@@ -68,12 +68,11 @@ pub fn create_domain_ixgbe(pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box
         _binary_sys_dev_ixgbe_driver_build_ixgbe_driver_end as *const u8
     );
 
-    unsafe {
-        create_domain_net("ixgbe_driver", binary_range, pci)
-    }
+    create_domain_net("ixgbe_driver", binary_range, pci)
 }
 
-pub fn create_domain_xv6kernel(create_xv6fs: Box<dyn syscalls::CreateXv6FS>,
+pub fn create_domain_xv6kernel(ints: Box<dyn syscalls::Interrupt>,
+                               create_xv6fs: Box<dyn syscalls::CreateXv6FS>,
                                create_xv6usr: Box<dyn syscalls::CreateXv6Usr>,
                                bdev: Box<dyn BDev>) -> Box<dyn syscalls::Domain> {
     extern "C" {
@@ -86,7 +85,7 @@ pub fn create_domain_xv6kernel(create_xv6fs: Box<dyn syscalls::CreateXv6FS>,
         _binary_usr_xv6_kernel_core_build_xv6kernel_end as *const u8
     );
 
-    build_domain_xv6kernel("xv6kernel", binary_range, 
+    build_domain_xv6kernel("xv6kernel", binary_range, ints, 
                             create_xv6fs, create_xv6usr, bdev)
 }
 
@@ -167,7 +166,7 @@ pub fn build_domain_init(name: &str,
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     user_ep(Box::new(PDomain::new(Arc::clone(&dom))),
-            Box::new(PDomain::new(Arc::clone(&dom))),
+            Box::new(Interrupt::new()),
             Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(PDomain::new(Arc::clone(&dom))),
@@ -281,12 +280,14 @@ pub fn build_domain_fs(name: &str,
 }
 
 pub fn build_domain_xv6kernel(name: &str, 
-                                 binary_range: (*const u8, *const u8), 
+                                 binary_range: (*const u8, *const u8),
+                                 ints: Box<dyn syscalls::Interrupt>,
                                  create_xv6fs: Box<dyn syscalls::CreateXv6FS>,
                                  create_xv6usr: Box<dyn syscalls::CreateXv6Usr>,
                                  bdev: Box<dyn BDev>) -> Box<dyn syscalls::Domain> 
 {
     type UserInit = fn(Box<dyn Syscall>,
+                       Box<dyn syscalls::Interrupt>,
                        Box<dyn syscalls::CreateXv6FS>,
                        Box<dyn syscalls::CreateXv6Usr>,
                        Box<dyn BDev>);
@@ -303,7 +304,7 @@ pub fn build_domain_xv6kernel(name: &str,
     
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
-    user_ep(pdom, create_xv6fs, create_xv6usr, bdev); 
+    user_ep(pdom, ints, create_xv6fs, create_xv6usr, bdev); 
     disable_irq(); 
 
     println!("domain/{}: returned from entry point", name);

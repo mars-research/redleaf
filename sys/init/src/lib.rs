@@ -24,7 +24,7 @@ extern fn timer_thread() {
     
     loop {
          sys_recv_int(syscalls::IRQ_TIMER);
-         println!("Got a timer interrupt"); 
+         println!("init: got a timer interrupt"); 
     }
 }
 
@@ -65,6 +65,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
 {
     libsyscalls::syscalls::init(s);
 
+    let ints_clone = ints.int_clone(); 
     libsyscalls::syscalls::init_interrupts(ints);
     
     //let b = Box::new(4);
@@ -78,7 +79,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
 
     //println!("init userland print works");
 
-    let t = sys_create_thread("int[timer]", timer_thread); 
+    let t = sys_create_thread("init_int[timer]", timer_thread); 
     t.set_priority(10);
 
 
@@ -105,7 +106,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
 
     let (dom_ixgbe, net) = create_ixgbe.create_domain_ixgbe(pci2);
 
-    let dom_xv6 = create_xv6.create_domain_xv6kernel(create_xv6fs, create_xv6usr, bdev); 
+    let dom_xv6 = create_xv6.create_domain_xv6kernel(ints_clone, create_xv6fs, create_xv6usr, bdev); 
 
 }
 
