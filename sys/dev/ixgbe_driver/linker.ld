@@ -7,7 +7,7 @@ SECTIONS {
 
   /* . = 0x227000;  */
 
-  ENTRY(init)
+  ENTRY(ixgbe_init)
 
   .rodata :
   {

@@ -1,9 +1,32 @@
 #![feature(alloc)]
 
-use crate::pci::{Pci, PciClass, PciHeader, PciHeaderError};
+use crate::pci::{Pci, PciBar, PciClass, PciHeader, PciHeaderError};
 use syscalls::PciResource;
 use console::println;
 use alloc::format;
+use hashbrown::HashMap;
+use lazy_static::lazy_static;
+use alloc::vec::Vec;
+use spin::Mutex;
+
+lazy_static! {
+    pub static ref PCI_MAP: Mutex<HashMap<PciDevice, Vec<PciBar>>> = {
+        let hmap = HashMap::new();
+        Mutex::new(hmap)
+    };
+}
+
+#[derive(Hash, Eq, PartialEq, Copy, Clone, Debug)]
+pub struct PciDevice {
+    vendor_id: u16,
+    device_id: u16,
+}
+
+impl PciDevice {
+    pub fn new(vendor_id: u16, device_id: u16) -> PciDevice {
+        PciDevice { vendor_id, device_id }
+    }
+}
 
 fn handle_parsed_header(pci: &Pci, bus_num: u8,
                         dev_num: u8, func_num: u8, header: PciHeader) {
@@ -11,6 +34,10 @@ fn handle_parsed_header(pci: &Pci, bus_num: u8,
     let mut string = format!("PCI {:>02X}/{:>02X}/{:>02X} {:>04X}:{:>04X} {:>02X}.{:>02X}.{:>02X}.{:>02X} {:?}",
                              bus_num, dev_num, func_num, header.vendor_id(), header.device_id(), raw_class,
                              header.subclass(), header.interface(), header.revision(), header.class());
+
+    let pci_device = PciDevice { vendor_id: header.vendor_id(), device_id: header.device_id() };
+
+    PCI_MAP.lock().insert(pci_device, Vec::new());
 
     match header.class() {
         PciClass::Storage => match header.subclass() {
@@ -43,8 +70,12 @@ fn handle_parsed_header(pci: &Pci, bus_num: u8,
         _ => ()
     }
 
+
     for (i, bar) in header.bars().iter().enumerate() {
         if !bar.is_none() {
+            if let Some(bar_vec) = PCI_MAP.lock().get_mut(&pci_device) {
+                bar_vec.push(*bar);
+            }
             string.push_str(&format!(" {}={}", i, bar));
         }
     }
@@ -199,8 +230,8 @@ fn handle_parsed_header(pci: &Pci, bus_num: u8,
 */
 }
 
-pub fn scan_pci_devs(PciResource: &dyn PciResource) {
-    let pci = Pci::new(PciResource);
+pub fn scan_pci_devs(pci_resource: &dyn PciResource) {
+    let pci = Pci::new(pci_resource);
     for bus in pci.buses() {
         for dev in bus.devs() {
             for func in dev.funcs() {

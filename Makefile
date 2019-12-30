@@ -17,7 +17,7 @@ domain_list := sys/init/build/init \
 	usr/xv6/kernel/fs/build/xv6fs \
 	sys/dev/pci/build/pci \
 	sys/dev/ahci/build/ahci \
-	sys/dev/ixgbe/build/ixgbe \
+	sys/dev/ixgbe_driver/build/ixgbe_driver \
 	usr/xv6/usr/shell/build/shell
 
 qemu_common := -m 512m -vga std -s
@@ -40,7 +40,7 @@ release: $(releaseKernel)
 .PHONY: clean
 clean:
 	-make -C sys clean
-	-make -C usr clean
+	-make -C usr/xv6 clean
 	-rm -rf build
 	-cargo clean
 	-make -C usr/mkfs clean

@@ -1,6 +1,6 @@
 use elfloader::ElfBinary;
 use super::Domain;
-use syscalls::{Syscall, BDev, PCI, VFS, PciResource};
+use syscalls::{Syscall, BDev, PCI, VFS, PciResource, Net};
 use crate::syscalls::{PDomain};
 use core::mem::transmute;
 use crate::interrupt::{disable_irq, enable_irq};
@@ -54,6 +54,23 @@ pub fn create_domain_ahci(pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box<
     );
 
     create_domain_bdev("ahci", binary_range, pci)
+}
+
+pub fn create_domain_ixgbe(pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn Net>) {
+
+    extern "C" {
+        fn _binary_sys_dev_ixgbe_driver_build_ixgbe_driver_start();
+        fn _binary_sys_dev_ixgbe_driver_build_ixgbe_driver_end();
+    }
+
+    let binary_range = (
+        _binary_sys_dev_ixgbe_driver_build_ixgbe_driver_start as *const u8,
+        _binary_sys_dev_ixgbe_driver_build_ixgbe_driver_end as *const u8
+    );
+
+    unsafe {
+        create_domain_net("ixgbe_driver", binary_range, pci)
+    }
 }
 
 pub fn create_domain_xv6kernel(create_xv6fs: Box<dyn syscalls::CreateXv6FS>,
@@ -136,6 +153,7 @@ pub fn build_domain_init(name: &str,
                          Box<dyn syscalls::CreateXv6FS>,
                          Box<dyn syscalls::CreateXv6Usr>,
                          Box<dyn syscalls::CreatePCI>,
+                         Box<dyn syscalls::CreateIxgbe>,
                          Box<dyn syscalls::CreateAHCI>);
 
     let (dom, entry) = unsafe { 
@@ -149,6 +167,7 @@ pub fn build_domain_init(name: &str,
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     user_ep(Box::new(PDomain::new(Arc::clone(&dom))),
+            Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(PDomain::new(Arc::clone(&dom))),
@@ -210,6 +229,30 @@ pub fn create_domain_bdev(name: &str,
 
     println!("domain/{}: returned from entry point", name);
     (Box::new(PDomain::new(Arc::clone(&dom))), bdev)     
+}
+
+pub fn create_domain_net(name: &str,
+                                 binary_range: (*const u8, *const u8),
+                                 pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn Net>) {
+    type UserInit = fn(Box<dyn Syscall>, Box<dyn PCI>) -> Box<dyn Net>;
+
+    let (dom, entry) = unsafe {
+        load_domain(name, binary_range)
+    };
+
+    let user_ep: UserInit = unsafe {
+        transmute::<*const(), UserInit>(entry)
+    };
+
+    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+
+    // Enable interrupts on exit to user so it can be preempted
+    enable_irq();
+    let net = user_ep(pdom, pci);
+    disable_irq();
+
+    println!("domain/{}: returned from entry point", name);
+    (Box::new(PDomain::new(Arc::clone(&dom))), net)
 }
 
 pub fn build_domain_fs(name: &str, 

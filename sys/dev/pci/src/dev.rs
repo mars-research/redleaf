@@ -10,7 +10,7 @@ impl<'pci> PciDev<'pci> {
         PciDevIter::new(self)
     }
 
-    pub unsafe fn read(&self, func: u8, offset: u8) -> u32 {
+    pub fn read(&self, func: u8, offset: u8) -> u32 {
         self.bus.read(self.num, func, offset)
     }
 }

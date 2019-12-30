@@ -16,18 +16,28 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::panic::PanicInfo;
-use syscalls::{Syscall};
+use syscalls::{Syscall,PCI};
 use libsyscalls::syscalls::{sys_println, sys_alloc, sys_create_thread};
 use console::println;
-//use pci::Pci;
 
-/*
- * fn get_ixgbe_traitobj() -> impl IxgbeBarRegion { }
- */
+struct Ixgbe {}
+
+impl Ixgbe {
+    fn new() -> Ixgbe {
+        Ixgbe{}
+    }
+}
+
+impl syscalls::Net for Ixgbe {
+}
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>) {
+pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
+                 pci: Box<dyn syscalls::PCI>) -> Box<dyn syscalls::Net> {
+    libsyscalls::syscalls::init(s);
 
+    println!("ixgbe_init: starting ixgbe driver domain");
+    Box::new(Ixgbe::new())
 }
 
 // This function is called on panic.

@@ -10,7 +10,7 @@ impl<'pci> PciBus<'pci> {
         PciBusIter::new(self)
     }
 
-    pub unsafe fn read(&self, dev: u8, func: u8, offset: u8) -> u32 {
+    pub fn read(&self, dev: u8, func: u8, offset: u8) -> u32 {
         self.pci.read(self.num, dev, func, offset)
     }
 }
@@ -23,7 +23,7 @@ pub struct PciBusIter<'pci> {
 impl<'pci> PciBusIter<'pci> {
     pub fn new(bus: &'pci PciBus<'pci>) -> Self {
         PciBusIter {
-            bus: bus,
+            bus,
             num: 0
         }
     }
