@@ -2,91 +2,117 @@
 // File-system system calls.
 // Arguments are checked
 //
+
 use alloc::boxed::Box;
-use core::cell::RefCell;
+use alloc::sync::Arc;
+use alloc::vec::Vec;
 
-use crate::fcntl::{O_RDONLY, O_WRONLY, O_RDWR, O_CREATE};
-use crate::file::File;
+use tls::ThreadLocal;
 use crate::params;
+use crate::file::{File, FileType};
+use crate::fs::{ICache, INode, INodeFileType};
 
-// Opened files of the current thread. Use file descriptors to index into this array.
-// I put it in a thread_local variable in fs instead of a member variable of `Thread`
-// because this helps isolating the two modules.
-#[thread_local]
-static FD_TABLE: RefCell<[Option<Box<File>>; params::NOFILE]> = RefCell::new(
-    [None, None, None, None, None, None, None, None,
-    None, None, None, None, None, None, None, None]
-);
+lazy_static! {
+    static ref FD_TABLE: ThreadLocal<Vec<Option<Box<File>>>> = ThreadLocal::new(Vec::new);
+}
 
-// pub fn sys_open(path: &str, mode: FileMode) -> Option<usize> {
-//     // TODO: log begin_op here
-//     let inode: Option<Arc<INode>> = match mode {
-//         FileMode::Create => {
-//             if let Some(inode) = ICache::create(path, INodeFileType::File, 0, 0) {
+#[derive(Copy, Clone, PartialEq)]
+pub enum FileMode {
+    Read,
+    Write,
+    ReadWrite,
+    Create
+}
 
-//                 Some(inode)
-//             } else {
-//                 // TODO: log end_op here
-//                 None
-//             }
-//         },
-//         _ => {
-//             if let Some(inode) = ICache::namei(path) {
-//                 let is_directory = inode.lock().data.file_type == INodeFileType::Directory;
-//                 if is_directory && mode != FileMode::Read {
-//                     ICache::put(inode);
-//                     // TODO: log end_op here
-//                     None
-//                 } else {
-//                     Some(inode)
-//                 }
-//             } else {
-//                 // TODO: log end_op here
-//                 None
-//             }
-//         }
-//     };
+impl FileMode {
+    fn readable(self) -> bool {
+        match self {
+            Self::Read | Self::ReadWrite => true,
+            _ => false
+        }
+    }
 
-//     if inode.is_none() {
-//         return None;
-//     }
+    fn writable(self) -> bool {
+        match self {
+            Self::Write | Self::ReadWrite => true,
+            _ => false
+        }
+    }
+}
 
-//     let inode = inode.unwrap();
-//     let iguard = inode.lock();
+pub fn sys_open(path: &str, mode: FileMode) -> Option<usize> {
+    // TODO: log begin_op here
+    let inode: Option<Arc<INode>> = match mode {
+        FileMode::Create => {
+            if let Some(inode) = ICache::create(path, INodeFileType::File, 0, 0) {
 
-//     if iguard.data.file_type == INodeFileType::Device && (iguard.data.major < 0 || iguard.data.major >= params::NDEV) {
-//         drop(iguard);
-//         ICache::put(inode);
-//         // TODO: log end_op here
-//         return None;
-//     }
+                Some(inode)
+            } else {
+                // TODO: log end_op here
+                None
+            }
+        },
+        _ => {
+            if let Some(inode) = ICache::namei(path) {
+                let is_directory = inode.lock().data.file_type == INodeFileType::Directory;
+                if is_directory && mode != FileMode::Read {
+                    ICache::put(inode);
+                    // TODO: log end_op here
+                    None
+                } else {
+                    Some(inode)
+                }
+            } else {
+                // TODO: log end_op here
+                None
+            }
+        }
+    };
 
-//     let file: Arc<File> = match iguard.data.file_type {
-//         Device => {
-//             Arc::new(File::new(FileType::Device { inode: inode.clone(), major: iguard.data.major }, mode.readable(), mode.writeable()))
-//         },
-//         _ => {
-//             Arc::new(File::new(FileType::INode { inode: inode.clone(), offset: 0 }, mode.readable(), mode.writeable()))
-//         }
-//     };
+    if inode.is_none() {
+        return None;
+    }
 
-//     let fd = unsafe { FDTABLE.alloc_fd(file) };
+    let inode = inode.unwrap();
+    let iguard = inode.lock();
 
-//     drop(iguard);
-//     // TODO: log end_op here
+    if iguard.data.file_type == INodeFileType::Device && (iguard.data.major < 0 || iguard.data.major >= params::NDEV) {
+        drop(iguard);
+        ICache::put(inode);
+        // TODO: log end_op here
+        return None;
+    }
 
-//     Some(fd)
-// }
+    let file: Box<File> = match iguard.data.file_type {
+        Device => {
+            Box::new(File::new(FileType::Device { inode: inode.clone(), major: iguard.data.major }, mode.readable(), mode.writable()))
+        },
+        _ => {
+            Box::new(File::new(FileType::INode { inode: inode.clone(), offset: 0 }, mode.readable(), mode.writable()))
+        }
+    };
+
+    let fd = fdalloc(file);
+
+    drop(iguard);
+    // TODO: log end_op here
+
+    Some(fd)
+}
 
 // Allocate a file descriptor for the given file.
 // Takes over file reference from caller on success.
-fn fdalloc(f: Box<File>) -> Option<usize> {
-    FD_TABLE
-        .borrow()
-        .iter()
-        .position(|f| f.is_none())
-        .map(|fd| {
-            FD_TABLE.borrow_mut()[fd].replace(f);
-            fd
-        })
+fn fdalloc(f: Box<File>) -> usize {
+    FD_TABLE.with({ |fd_table: &mut Vec<Option<Box<File>>>|
+        match fd_table.iter().position(|f| f.is_none()) {
+            Some(fd) => {
+                fd_table[fd].replace(f);
+                fd
+            },
+            None => {
+                fd_table.push(Some(f));
+                fd_table.len() - 1
+            }
+        }
+    })
 }
