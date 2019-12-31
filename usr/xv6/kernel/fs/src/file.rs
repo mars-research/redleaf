@@ -17,10 +17,6 @@ pub struct File {
     pub writable: bool,
 }
 
-pub struct FileDescriptorTable {
-    pub files: Vec<Option<Arc<File>>>,
-}
-
 impl File {
     pub fn new(file_type: FileType, readable: bool, writable: bool) -> File {
         File {
@@ -108,25 +104,3 @@ impl File {
         }
     }
 }
-
-impl FileDescriptorTable {
-    // xv6 equivalent: fdalloc
-    pub fn alloc_fd(&mut self, file: Arc<File>) -> usize {
-        for (fd, f) in self.files.iter_mut().enumerate() {
-            if f.is_none() {
-                *f = Some(file.clone());
-                return fd;
-            }
-        }
-        self.files.push(Some(file.clone()));
-        return self.files.len() - 1;
-    }
-
-    pub fn free_fd(&mut self, fd: usize) {
-        self.files[fd] = None;
-    }
-}
-
-// TODO: remove mutex here... can't figure out 'static mut' even with #[thread_local]
-#[thread_local]
-pub static mut FDTABLE: FileDescriptorTable = FileDescriptorTable { files: Vec::new() };

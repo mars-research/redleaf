@@ -43,9 +43,9 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
             create_xv6usr: Box<dyn syscalls::CreateXv6Usr>,
             bdev: Box<dyn syscalls::BDev>) {
     libsyscalls::syscalls::init(s);
-    
+
     println!("init xv6/core");
-    
+
     let t = sys_create_thread("xv6_kernel_test_th", xv6_kernel_test_th); 
     t.set_affinity(10); 
     

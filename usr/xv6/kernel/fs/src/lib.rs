@@ -9,8 +9,7 @@
     const_raw_ptr_to_usize_cast,
     thread_local,
     untagged_unions,
-    panic_info_message,
-    const_vec_new
+    panic_info_message
 )]
 
 #[macro_use]
@@ -33,7 +32,6 @@ use syscalls::Syscall;
 mod bcache;
 mod block;
 mod directory;
-mod fcntl;
 mod file;
 mod fs;
 mod log;
