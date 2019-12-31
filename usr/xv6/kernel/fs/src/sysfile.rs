@@ -8,13 +8,12 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 
 use tls::ThreadLocal;
-use libsyscalls::syscalls::{sys_get_thread_id};
 use crate::params;
 use crate::file::{File, FileType};
 use crate::fs::{ICache, INode, INodeFileType};
 
 lazy_static! {
-    static ref FD_TABLE: ThreadLocal<u32, Vec<Option<Box<File>>>> = ThreadLocal::new(Vec::new);
+    static ref FD_TABLE: ThreadLocal<Vec<Option<Box<File>>>> = ThreadLocal::new(Vec::new);
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -93,25 +92,27 @@ pub fn sys_open(path: &str, mode: FileMode) -> Option<usize> {
         }
     };
 
-    // TODO: get caller thread id, not fs's
-    let fd = fdalloc(sys_get_thread_id(), file);
+    let fd = fdalloc(file);
 
     drop(iguard);
     // TODO: log end_op here
 
-    fd
+    Some(fd)
 }
 
 // Allocate a file descriptor for the given file.
 // Takes over file reference from caller on success.
-fn fdalloc(tls_key: u32, f: Box<File>) -> Option<usize> {
-    FD_TABLE.with(tls_key, { |fd_table|
-        fd_table
-            .iter()
-            .position(|f| f.is_none())
-            .map(|fd| {
+fn fdalloc(f: Box<File>) -> usize {
+    FD_TABLE.with({ |fd_table: &mut Vec<Option<Box<File>>>|
+        match fd_table.iter().position(|f| f.is_none()) {
+            Some(fd) => {
                 fd_table[fd].replace(f);
                 fd
-            })
+            },
+            None => {
+                fd_table.push(Some(f));
+                fd_table.len() - 1
+            }
+        }
     })
 }

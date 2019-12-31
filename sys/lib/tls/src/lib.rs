@@ -3,18 +3,14 @@
 use hashbrown::HashMap;
 use core::hash::Hash;
 use spin::Mutex;
+use libsyscalls::syscalls::sys_get_thread_id;
 
-pub trait ThreadLocalKey: Eq + Hash + Sized {
-}
-
-impl ThreadLocalKey for u32 {}
-
-pub struct ThreadLocal<K, T> where K: ThreadLocalKey {
-    values: Mutex<HashMap<K, T>>,
+pub struct ThreadLocal<T> {
+    values: Mutex<HashMap<u32, T>>,
     init: fn() -> T,
 }
 
-impl<K, T> ThreadLocal<K, T> where K: ThreadLocalKey {
+impl<T> ThreadLocal<T> {
     pub fn new(init: fn() -> T) -> Self {
         Self {
             values: Mutex::new(HashMap::new()),
@@ -22,7 +18,10 @@ impl<K, T> ThreadLocal<K, T> where K: ThreadLocalKey {
         }
     }
 
-    pub fn with<F, R>(&self, key: K, f: F) -> R where F: FnOnce(&mut T) -> R {
-        f(self.values.lock().entry(key).or_insert_with(self.init))
+    pub fn with<F, R>(&self, f: F) -> R where F: FnOnce(&mut T) -> R {
+        let key = sys_get_thread_id();
+        let mut values = self.values.lock();
+        let value = values.entry(key).or_insert_with(self.init);
+        f(value)
     }
 }
