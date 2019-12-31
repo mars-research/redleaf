@@ -12,12 +12,21 @@ pub trait Syscall {
     fn sys_free(&self, p: *mut u8);
     fn sys_alloc_huge(&self, sz: u64) -> *mut u8;
     fn sys_free_huge(&self, p: *mut u8);
+    fn get_thread_id(&self) -> u64; 
+}
+
+#[derive(Clone,Copy,Debug)]
+pub enum ThreadState {
+    Runnable = 1,
+    Paused = 2,
+    Waiting = 3, 
 }
 
 /// RedLeaf thread interface
 pub trait Thread {
     fn set_affinity(&self, affinity: u64);
     fn set_priority(&self, prio: u64);
+    fn set_state(&self, state: ThreadState);
 }
 
 /// RedLeaf PCI bus driver interface

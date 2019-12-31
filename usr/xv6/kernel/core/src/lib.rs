@@ -17,7 +17,7 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::panic::PanicInfo;
 use syscalls::{Syscall};
-use libsyscalls::syscalls::{sys_create_thread, sys_yield, sys_recv_int};
+use libsyscalls::syscalls::{sys_create_thread, sys_yield, sys_recv_int, sys_get_thread_id};
 use console::println;
 
 struct Xv6Syscalls {}
@@ -32,7 +32,7 @@ impl syscalls::Xv6 for Xv6Syscalls {}
 
 extern fn xv6_kernel_test_th() {
    loop {
-        println!("xv6_kernel_test_th"); 
+        println!("xv6_kernel_test_th, tid: {}", sys_get_thread_id()); 
         sys_yield(); 
    }
 }
@@ -59,12 +59,18 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
     libsyscalls::syscalls::init_interrupts(ints);
 
     println!("init xv6/core");
+
+    println!("thread id:{}", sys_get_thread_id()); 
     
     let t = sys_create_thread("xv6_kernel_test_th", xv6_kernel_test_th); 
-    t.set_affinity(2); 
+    //t.set_affinity(2);
+
+    println!("Mark the thread as waiting for a bit"); 
+
+    t.set_state(syscalls::ThreadState::Waiting); 
  
-    let t = sys_create_thread("xv6_int[timer]", timer_thread); 
-    t.set_priority(10);
+    let timer = sys_create_thread("xv6_int[timer]", timer_thread); 
+    timer.set_priority(10);
 
    
     let (dom_xv6fs, vfs)  = create_xv6fs.create_domain_xv6fs(bdev);
@@ -72,6 +78,9 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
     let xv6 = Box::new(Xv6Syscalls::new()); 
 
     let dom_shell  = create_xv6usr.create_domain_xv6usr("shell", xv6);
+
+    println!("Mark the thread as runnable again"); 
+    t.set_state(syscalls::ThreadState::Runnable); 
 
     //println!("thread:{}", t);
     drop(t); 

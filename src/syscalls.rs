@@ -126,16 +126,17 @@ impl syscalls::Syscall for PDomain {
         pt
     }
 
-    /*
-    // Create a new thread
-    fn sys_register_interrupt(&self, int: u8, func: extern fn()) -> Box<dyn Thread>  {
+    fn get_thread_id(&self) -> u64 {
+        disable_irq(); 
 
-        disable_irq();
-        let pt = create_domain_thread(name, func); 
-        register_interrupt_thread(int, pt.thread.clone());
-        enable_irq();
-        return pt
-    }*/
+        let tid = {
+            let current = crate::thread::get_current_ref(); 
+            let tid = current.borrow().id;
+            tid
+        };
+        enable_irq(); 
+        tid
+    }
 
 }
 

@@ -12,6 +12,11 @@ use spin::Mutex;
 use alloc::sync::Arc; 
 use crate::domain::domain::{Domain, KERNEL_DOMAIN}; 
 use crate::tls::cpuid; 
+use core::sync::atomic::{AtomicU64, Ordering};
+
+/// This should be a cryptographically secure number, for now 
+/// just sequential ID
+static THREAD_ID: AtomicU64 = AtomicU64::new(0);
 
 const MAX_PRIO: usize = 15;
 const MAX_CPUS: usize = 64;
@@ -160,7 +165,7 @@ fn rebalance_thread(t: Rc<RefCell<Thread>>) {
     rb_queue_signal(cpu_id as usize); 
 }
 
-#[derive(Clone,Copy)]
+#[derive(Clone,Copy,Debug)]
 pub enum ThreadState {
     Running = 0,
     Runnable = 1,
@@ -187,6 +192,7 @@ pub struct Context {
 }
 
 pub struct Thread {
+    pub id: u64, 
     pub name: String,
     pub state: ThreadState, 
     priority: Priority,
@@ -249,6 +255,7 @@ impl  Thread {
 
     pub fn new(name: &str, func: extern fn()) -> Thread  {
         let mut t = Thread {
+            id: THREAD_ID.fetch_add(1, Ordering::SeqCst),
             name: name.to_string(),
             state: ThreadState::Runnable, 
             priority: 0,
@@ -541,15 +548,17 @@ pub fn schedule() {
             continue; 
         }
 
-        let state = next_thread.borrow().state; 
+        {
+            let state = next_thread.borrow().state; 
 
-        // The thread is not runnable, put it back into the passive queue
-        match state {
-            ThreadState::Waiting => {
-                s.put_thread_in_passive(next_thread); 
-                continue; 
-            },
-            _ => {}
+            // The thread is not runnable, put it back into the passive queue
+            match state {
+                ThreadState::Waiting => {
+                    s.put_thread_in_passive(next_thread); 
+                    continue; 
+                },
+                _ => {}
+            }
         }
 
         break next_thread;
@@ -614,6 +623,8 @@ impl PThread {
 }
 
 impl syscalls::Thread for PThread {
+
+
     fn set_affinity(&self, affinity: u64) {
         disable_irq(); 
 
@@ -650,6 +661,32 @@ impl syscalls::Thread for PThread {
         
             println!("Setting priority:{} for {}", prio, thread.name);
             thread.priority = prio as usize; 
+
+        }
+        enable_irq(); 
+    }
+
+    fn set_state(&self, state: syscalls::ThreadState) {
+        disable_irq(); 
+
+        {
+            let mut thread = self.thread.borrow_mut(); 
+        
+            println!("Setting state:{:#?} for {}", state, thread.name);
+            match state {
+                syscalls::ThreadState::Waiting => {
+                    thread.state = ThreadState::Waiting;
+                },
+
+                syscalls::ThreadState::Runnable => {
+                    thread.state = ThreadState::Runnable; 
+                },
+                _ => {
+                    println!("Can't set {:#?} state for {}", state, thread.name);
+                }
+
+            }
+            drop(thread);
 
         }
         enable_irq(); 
