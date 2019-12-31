@@ -1,5 +1,7 @@
 use core::ptr;
 use ixgbe::{IxgbeRegs, IxgbeArrayRegs, IxgbeBarRegion};
+use syscalls::PciBar;
+use alloc::boxed::Box;
 
 macro_rules! reg_ixgbe {
     ($off: ident) => {
@@ -30,7 +32,7 @@ struct ArrayRegister {
     multiplier: u64,
 }
 
-struct IxgbeBar {
+pub struct IxgbeBar {
     base: u64,
     size: usize,
     ctrl: Register,
@@ -303,4 +305,3 @@ impl IxgbeBarRegion for IxgbeBar {
         }
     }
 }
-
