@@ -1,6 +1,6 @@
 use alloc::string::String;
 use alloc::string::ToString;
-use core::cell::RefCell;
+//use core::cell::RefCell;
 use log::{debug,info,trace};
 use x86::bits64::paging::{PAddr, VAddr, BASE_PAGE_SIZE, BASE_PAGE_SHIFT};
 use crate::arch::vspace::{VSpace, MapAction, ResourceType};
@@ -10,7 +10,7 @@ use super::super::memory::{paddr_to_kernel_vaddr};
 use crate::thread::Thread;
 use alloc::sync::Arc; 
 use spin::Mutex;
-use alloc::rc::Rc;
+//use alloc::rc::Rc;
 use spin::Once;
 
 macro_rules! round_up {
@@ -44,7 +44,7 @@ pub struct Domain {
 }
 
 pub struct DomainThreads {
-    head: Option<Rc<RefCell<Thread>>>, 
+    head: Option<Arc<Mutex<Thread>>>, 
 }
 
 unsafe impl Send for DomainThreads {}
@@ -73,11 +73,11 @@ impl Domain {
     /// We explicitly avoid using another lock, but the assumption 
     /// is that it's imposible to access the domain without holding 
     /// a lock on the domain data structure
-    pub fn add_thread(&mut self, t: Rc<RefCell<Thread>>) {
+    pub fn add_thread(&mut self, t: Arc<Mutex<Thread>>) {
         let previous_head = self.threads.head.take(); 
         
         if let Some(node) = previous_head {
-            t.borrow_mut().next_domain = Some(node);
+            t.lock().next_domain = Some(node);
         }
 
         self.threads.head = Some(t);

@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::string::ToString;
 use core::cell::RefCell;
-use alloc::rc::Rc;
+//use alloc::rc::Rc;
 use crate::halt;
 use crate::interrupt::{disable_irq, enable_irq};
 use spin::Mutex;
@@ -27,13 +27,13 @@ static SCHED: RefCell<Scheduler> = RefCell::new(Scheduler::new());
 
 /// Per-CPU current thread
 #[thread_local]
-static CURRENT: RefCell<Option<Rc<RefCell<Thread>>>> = RefCell::new(None); 
+static CURRENT: RefCell<Option<Arc<Mutex<Thread>>>> = RefCell::new(None); 
 
 static mut REBALANCE_FLAGS: RebalanceFlags = RebalanceFlags::new();
 static REBALANCE_QUEUES: Mutex<RebalanceQueues> = Mutex::new(RebalanceQueues::new());
 
 type Priority = usize;
-pub type Link = Option<Rc<RefCell<Thread>>>;
+pub type Link = Option<Arc<Mutex<Thread>>>;
 
 
 #[repr(align(64))]
@@ -106,26 +106,26 @@ impl RebalanceQueues {
     }
 }
 
-fn rb_push_thread(queue: usize, thread: Rc<RefCell<Thread>>) {
+fn rb_push_thread(queue: usize, thread: Arc<Mutex<Thread>>) {
     let mut rb_lock = REBALANCE_QUEUES.lock();
 
     let previous_head = rb_lock.queues[queue].take();
 
     if let Some(node) = previous_head {
-        thread.borrow_mut().next = Some(node);
+        thread.lock().next = Some(node);
     } else {
-        thread.borrow_mut().next = None; 
+        thread.lock().next = None; 
     }
     rb_lock.queues[queue] = Some(thread);
 }
 
 
-fn rb_pop_thread(queue: usize) -> Option<Rc<RefCell<Thread>>> {
+fn rb_pop_thread(queue: usize) -> Option<Arc<Mutex<Thread>>> {
     let mut rb_lock = REBALANCE_QUEUES.lock(); 
     let previous_head = rb_lock.queues[queue].take();
 
     if let Some(node) = previous_head {
-        rb_lock.queues[queue] = node.borrow_mut().next.take();
+        rb_lock.queues[queue] = node.lock().next.take();
         return Some(node);
     } else {
         return None;
@@ -156,10 +156,10 @@ fn rb_check_signal(queue: usize) -> bool {
 // We push thread on the rebalance queue (at the moment it's not 
 // on the scheduling queue of this CPU), and signal rebalance request
 // for the target CPU
-fn rebalance_thread(t: Rc<RefCell<Thread>>) {
+fn rebalance_thread(t: Arc<Mutex<Thread>>) {
     // AB: TODO: treat affinity in a standard way as a bitmask
     // not as CPU number, yes I'm vomiting too
-    let cpu_id = t.borrow().affinity;
+    let cpu_id = t.lock().affinity;
     
     rb_push_thread(cpu_id as usize, t);
     rb_queue_signal(cpu_id as usize); 
@@ -204,9 +204,9 @@ pub struct Thread {
     // Next thread in the scheduling queue
     next: Link,
     // Next thread on the domain list 
-    pub next_domain: Option<Rc<RefCell<Thread>>>,
+    pub next_domain: Option<Arc<Mutex<Thread>>>,
     // Next thread on the interrupt wait queue list 
-    pub next_iwq: Option<Rc<RefCell<Thread>>>,
+    pub next_iwq: Option<Arc<Mutex<Thread>>>,
 
 }
 
@@ -285,23 +285,23 @@ impl  SchedulerQueue {
         }
     }
 
-    fn push_thread(&mut self, queue: usize, thread: Rc<RefCell<Thread>>) {
+    fn push_thread(&mut self, queue: usize, thread: Arc<Mutex<Thread>>) {
         let previous_head = self.prio_queues[queue].take();
 
         if let Some(node) = previous_head {
-            thread.borrow_mut().next = Some(node);
+            thread.lock().next = Some(node);
         } else {
-            thread.borrow_mut().next = None; 
+            thread.lock().next = None; 
         }
 
         self.prio_queues[queue] = Some(thread);
     }
 
-    pub fn pop_thread(&mut self, queue: usize) -> Option<Rc<RefCell<Thread>>> {
+    pub fn pop_thread(&mut self, queue: usize) -> Option<Arc<Mutex<Thread>>> {
         let previous_head = self.prio_queues[queue].take();
 
         if let Some(node) = previous_head {
-            self.prio_queues[queue] = node.borrow_mut().next.take();
+            self.prio_queues[queue] = node.lock().next.take();
             Some(node)
         } else {
             None
@@ -309,8 +309,8 @@ impl  SchedulerQueue {
     }
 
     // Add thread to the queue that matches thread's priority
-    pub fn put_thread(&mut self, thread: Rc<RefCell<Thread>>) {
-        let prio = thread.borrow_mut().priority;
+    pub fn put_thread(&mut self, thread: Arc<Mutex<Thread>>) {
+        let prio = thread.lock().priority;
    
         self.push_thread(prio, thread); 
 
@@ -322,7 +322,7 @@ impl  SchedulerQueue {
 
     
     // Try to get the thread with the highest priority
-    pub fn get_highest(&mut self) -> Option<Rc<RefCell<Thread>>> {
+    pub fn get_highest(&mut self) -> Option<Arc<Mutex<Thread>>> {
         loop {
             match self.pop_thread(self.highest) {
                 None => {
@@ -351,7 +351,7 @@ impl  Scheduler {
         }
     }
 
-    pub fn put_thread_in_passive(&mut self, thread: Rc<RefCell<Thread>>) {
+    pub fn put_thread_in_passive(&mut self, thread: Arc<Mutex<Thread>>) {
         /* put thread in the currently passive queue */
         if !self.active {
             self.active_queue.put_thread(thread)
@@ -360,7 +360,7 @@ impl  Scheduler {
         }
     }
 
-    fn get_next_active(&mut self) -> Option<Rc<RefCell<Thread>>> {
+    fn get_next_active(&mut self) -> Option<Arc<Mutex<Thread>>> {
         if self.active {
             //println!("get highest from active");
             self.active_queue.get_highest()
@@ -371,7 +371,7 @@ impl  Scheduler {
     }
 
     
-    pub fn get_next(&mut self) -> Option<Rc<RefCell<Thread>>> {
+    pub fn get_next(&mut self) -> Option<Arc<Mutex<Thread>>> {
         return self.get_next_active();
     }   
 
@@ -385,7 +385,7 @@ impl  Scheduler {
         }
     }
     
-    pub fn next(&mut self) -> Option<Rc<RefCell<Thread>>> {
+    pub fn next(&mut self) -> Option<Arc<Mutex<Thread>>> {
         if let Some(t) = self.get_next() {
             return Some(t);
         }
@@ -408,10 +408,10 @@ impl  Scheduler {
         loop{
             if let Some(thread) = rb_pop_thread(cpu_id) {
 
-                println!("cpu({}): found rb thread: {}", cpuid(), thread.borrow().name);
+                println!("cpu({}): found rb thread: {}", cpuid(), thread.lock().name);
 
                 {
-                    thread.borrow_mut().rebalance = false; 
+                    thread.lock().rebalance = false; 
                 }
 
                 self.put_thread_in_passive(thread); 
@@ -493,16 +493,16 @@ pub unsafe fn switch(prev: *mut Thread, next: *mut Thread) {
     asm!("mov rbp, $0" : : "r"((*next).context.rbp) : "memory" : "intel", "volatile");
 }
 
-fn set_current(t: Rc<RefCell<Thread>>) {
+fn set_current(t: Arc<Mutex<Thread>>) {
     CURRENT.replace(Some(t)); 
 }
 
-fn get_current() -> Option<Rc<RefCell<Thread>>> {
+fn get_current() -> Option<Arc<Mutex<Thread>>> {
     CURRENT.replace(None)
 }
 
 /// Return rc into the current thread
-pub fn get_current_ref() -> Rc<RefCell<Thread>> {
+pub fn get_current_ref() -> Arc<Mutex<Thread>> {
 
     let rc_t = CURRENT.borrow().as_ref().unwrap().clone(); 
     rc_t
@@ -513,7 +513,7 @@ pub fn get_current_ref() -> Rc<RefCell<Thread>> {
 fn get_domain_of_current() -> Arc<Mutex<Domain>> {
 
     let rc_t = CURRENT.borrow().as_ref().unwrap().clone(); 
-    let arc_d = rc_t.borrow().domain.as_ref().unwrap().clone();
+    let arc_d = rc_t.lock().domain.as_ref().unwrap().clone();
 
     arc_d
 }
@@ -543,18 +543,18 @@ pub fn schedule() {
         };
 
         // Need to rebalance this thread, send it to another CPU
-        if next_thread.borrow().rebalance {
+        if next_thread.lock().rebalance {
             rebalance_thread(next_thread); 
             continue; 
         }
 
         {
-            let state = next_thread.borrow().state; 
+            let state = next_thread.lock().state; 
 
             // The thread is not runnable, put it back into the passive queue
             match state {
                 ThreadState::Waiting => {
-                    s.put_thread_in_passive(next_thread); 
+                    s.put_thread_in_passive(next_thread.clone()); 
                     continue; 
                 },
                 _ => {}
@@ -572,16 +572,23 @@ pub fn schedule() {
 
     trace_sched!("cpu({}): switch to {}", cpuid(), next_thread.borrow().name); 
 
-    let prev = c.as_ptr(); 
-    let next = next_thread.as_ptr(); 
-
     // Make next thread current
-    set_current(next_thread); 
+    set_current(next_thread.clone()); 
 
     // put the old thread back in the scheduling queue
-    s.put_thread_in_passive(c);
+    s.put_thread_in_passive(c.clone());
 
     drop(s); 
+
+    let prev = unsafe {
+        core::mem::transmute::<*mut Thread, &mut Thread>(&mut *c.lock())
+    }; 
+    let next = unsafe {
+       core::mem::transmute::<*mut Thread, &mut Thread>(&mut *next_thread.lock())
+    }; 
+
+    drop(c);
+    drop(next_thread); 
 
     unsafe {
         switch(prev, next);
@@ -603,19 +610,19 @@ pub extern fn idle() {
 pub fn create_thread (name: &str, func: extern fn()) -> Box<PThread> {
     let mut s = SCHED.borrow_mut();
 
-    let t = Rc::new(RefCell::new(Thread::new(name, func)));
-    let pt = Box::new(PThread::new(Rc::clone(&t)));
+    let t = Arc::new(Mutex::new(Thread::new(name, func)));
+    let pt = Box::new(PThread::new(Arc::clone(&t)));
    
     s.put_thread_in_passive(t);
     return pt; 
 }
 
 pub struct PThread {
-    pub thread: Rc<RefCell<Thread>>
+    pub thread: Arc<Mutex<Thread>>
 }
 
 impl PThread {
-    pub const fn new(t:Rc<RefCell<Thread>>) -> PThread {
+    pub const fn new(t:Arc<Mutex<Thread>>) -> PThread {
         PThread {
             thread: t,
         }
@@ -630,13 +637,13 @@ impl syscalls::Thread for PThread {
 
         if affinity as usize >= crate::tls::active_cpus() {
             println!("Error: trying to set affinity:{} for {} but only {} cpus are active", 
-                affinity, self.thread.borrow().name, crate::tls::active_cpus());
+                affinity, self.thread.lock().name, crate::tls::active_cpus());
             enable_irq();
             return; 
         }
 
         {
-            let mut thread = self.thread.borrow_mut(); 
+            let mut thread = self.thread.lock(); 
         
             println!("Setting affinity:{} for {}", affinity, thread.name);
             thread.affinity = affinity; 
@@ -651,13 +658,13 @@ impl syscalls::Thread for PThread {
 
         if prio as usize > MAX_PRIO {
             println!("Error: trying to set priority:{} for {} but MAX_PRIO is only {}", 
-                prio, self.thread.borrow().name, MAX_PRIO);
+                prio, self.thread.lock().name, MAX_PRIO);
             enable_irq();
             return; 
         }
 
         {
-            let mut thread = self.thread.borrow_mut(); 
+            let mut thread = self.thread.lock(); 
         
             println!("Setting priority:{} for {}", prio, thread.name);
             thread.priority = prio as usize; 
@@ -670,7 +677,7 @@ impl syscalls::Thread for PThread {
         disable_irq(); 
 
         {
-            let mut thread = self.thread.borrow_mut(); 
+            let mut thread = self.thread.lock(); 
         
             println!("Setting state:{:#?} for {}", state, thread.name);
             match state {
@@ -695,11 +702,11 @@ impl syscalls::Thread for PThread {
 }
 
 pub fn init_threads() {
-    let idle = Rc::new(RefCell::new(Thread::new("idle", idle)));
+    let idle = Arc::new(Mutex::new(Thread::new("idle", idle)));
     
     let kernel_domain = KERNEL_DOMAIN.r#try().expect("Kernel domain is not initialized");
 
-    idle.borrow_mut().domain = Some(kernel_domain.clone());
+    idle.lock().domain = Some(kernel_domain.clone());
 
     // Make idle the current thread
     set_current(idle);   

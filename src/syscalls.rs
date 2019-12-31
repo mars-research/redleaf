@@ -55,7 +55,7 @@ impl PDomain {
         let mut d = self.domain.lock();
         d.add_thread(t); 
 
-        println!("Created thread {} for domain {}", pt.thread.borrow().name, d.name); 
+        println!("Created thread {} for domain {}", pt.thread.lock().name, d.name); 
         pt   
     }
 }
@@ -131,7 +131,7 @@ impl syscalls::Syscall for PDomain {
 
         let tid = {
             let current = crate::thread::get_current_ref(); 
-            let tid = current.borrow().id;
+            let tid = current.lock().id;
             tid
         };
         enable_irq(); 
@@ -236,7 +236,7 @@ impl syscalls::Interrupt for Interrupt {
         // AB: XXX: for now just mark it as WAITING later we'll 
         // implement a real doubly-linked list and take it out
         let t = crate::thread::get_current_ref(); 
-        t.borrow_mut().state = crate::thread::ThreadState::Waiting;
+        t.lock().state = crate::thread::ThreadState::Waiting;
 
         crate::waitqueue::add_interrupt_thread(int as usize, t);
         
