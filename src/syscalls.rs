@@ -137,7 +137,6 @@ impl syscalls::Syscall for PDomain {
         enable_irq(); 
         tid
     }
-
 }
 
 impl syscalls::CreatePCI for PDomain {

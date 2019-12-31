@@ -62,7 +62,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
 
     println!("thread id:{}", sys_get_thread_id()); 
     
-    let t = sys_create_thread("xv6_kernel_test_th", xv6_kernel_test_th); 
+    let t = sys_create_thread("xv6_kernel_test_th", xv6_kernel_test_th);
     //t.set_affinity(2);
 
     println!("Mark the thread as waiting for a bit"); 
