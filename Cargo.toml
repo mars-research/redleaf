@@ -30,6 +30,7 @@ log = "0.4"
 custom_error = { git = "https://github.com/gz/custom_error.git" }
 pcid = { path = "./lib/pcid" }
 elfloader = { path = "./lib/rust-elfloader" }
+pci_driver = { path = "./sys/interfaces/dev/pci/pci_driver", version = "0.1.0" }
 
 [dependencies.lazy_static]
 version = "1.3.0"

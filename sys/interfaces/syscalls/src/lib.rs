@@ -32,7 +32,7 @@ pub trait Thread {
 
 /// RedLeaf PCI bus driver interface
 pub trait PCI {
-    fn pci_register_driver(&self, pci_driver: &dyn pci_driver::PciDriver);// -> bar_regions::BarRegions; 
+    fn pci_register_driver(&self, pci_driver: &mut dyn pci_driver::PciDriver);// -> bar_regions::BarRegions; 
     /// Boxed trait objects cannot be cloned trivially!
     /// https://users.rust-lang.org/t/solved-is-it-possible-to-clone-a-boxed-trait-object/1714/6
     fn pci_clone(&self) -> Box<dyn PCI>;
@@ -64,8 +64,10 @@ pub trait Xv6 {
 }   
 
 pub trait CreatePCI {
-    fn create_domain_pci(&self, pci_resource: Box<dyn PciResource>) -> (Box<dyn Domain>, Box<dyn PCI>);
+    fn create_domain_pci(&self, pci_resource: Box<dyn PciResource>,
+                         pci_bar: Box<dyn PciBar>) -> (Box<dyn Domain>, Box<dyn PCI>);
     fn get_pci_resource(&self) -> Box<dyn PciResource>;
+    fn get_pci_bar(&self) -> Box<dyn PciBar>;
 }
 
 pub trait CreateAHCI {
@@ -105,4 +107,8 @@ pub trait PciResource {
     fn write(&self, bus: u8, dev: u8, func: u8, offset: u8, value: u32);
 }
 
+pub trait PciBar {
+    fn get_bar_region(&self, base: u64, size: usize,
+                            pci_driver: pci_driver::PciDrivers) ->  pci_driver::BarRegions;
 
+}
