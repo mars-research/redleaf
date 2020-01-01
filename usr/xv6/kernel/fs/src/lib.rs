@@ -23,10 +23,8 @@ extern crate syscalls;
 extern crate tls;
 
 use alloc::boxed::Box;
-use alloc::vec::Vec;
 use console::println;
 use core::panic::PanicInfo;
-use libsyscalls::syscalls::{sys_alloc, sys_create_thread, sys_println};
 use syscalls::Syscall;
 
 mod bcache;

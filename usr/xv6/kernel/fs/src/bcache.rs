@@ -106,7 +106,7 @@ pub struct BufferCache {
 impl BufferCache {
     fn new() -> BufferCache {
         let mut list = list2::List::<Buffer>::new();
-        for i in 0..NBUF {
+        for _ in 0..NBUF {
             list.push_back(Buffer::new());
         }
         BufferCache {

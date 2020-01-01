@@ -36,7 +36,7 @@ fn read_superblock(dev: u32) -> SuperBlock {
     // TODO: ensure the encoding is intel's encoding
     SuperBlock {
         size: params::FSSIZE as usize,
-        nblocks: nlog as u32,
+        nblocks: nblocks as u32,
         ninodes: NINODES as u32,
         nlog: nlog as u32,
         logstart: 2,

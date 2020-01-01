@@ -1,8 +1,6 @@
 use crate::icache::{ICache, INode, Stat};
 use crate::params;
 use alloc::sync::Arc;
-use core::mem::{MaybeUninit, swap};
-use alloc::vec::Vec;
 
 #[derive(Debug)]
 pub enum FileType {

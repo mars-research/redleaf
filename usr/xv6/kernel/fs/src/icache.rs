@@ -4,14 +4,13 @@ use core::convert::TryInto;
 use core::mem::MaybeUninit;
 use core::ops::Drop;
 use core::sync::atomic::{AtomicBool, Ordering};
-use spin::{Mutex, MutexGuard, Once};
+use spin::{Mutex, MutexGuard};
 use libsyscalls::syscalls::sys_println;
 
 use crate::bcache::{BufferBlock, BCACHE};
 use crate::block::Block;
 use crate::directory::DirectoryEntry;
 use crate::fs::{SUPER_BLOCK, block_num_for_node};
-use crate::log::{Log, LOG};
 use crate::params;
 
 #[derive(Debug)]
@@ -125,7 +124,7 @@ impl INodeDataGuard<'_> {
             let buffer = bguard.lock();
 
             let mut chunks_iter = buffer.data.chunks_exact(core::mem::size_of::<u32>());
-            for j in 0..params::NINDIRECT {
+            for _ in 0..params::NINDIRECT {
                 if let chunk = chunks_iter.next().unwrap() {
                     let block = u32::from_ne_bytes(chunk.try_into().unwrap());
                     if block != 0 {
@@ -184,7 +183,7 @@ impl INodeDataGuard<'_> {
             }
 
             let mut bguard = BCACHE.read(self.node.meta.device, address);
-            let mut buffer = bguard.lock();
+            let buffer = bguard.lock();
 
             // get 4-byte slice from offset block_number * 4
             let mut address = {
@@ -583,7 +582,7 @@ impl ICache {
     }
 
     pub fn namei(path: &str) -> Option<Arc<INode>> {
-        Self::namex(path, false).map(|(inode, name)| inode)
+        Self::namex(path, false).map(|(inode, _)| inode)
     }
 
     pub fn nameiparent(path: &str) -> Option<(Arc<INode>, &str)> {

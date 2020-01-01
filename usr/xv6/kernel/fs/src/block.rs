@@ -1,5 +1,5 @@
 use crate::params;
-use crate::bcache::{BCACHE, BufferBlock};
+use crate::bcache::{BCACHE};
 use crate::fs::{block_num_for_node, SUPER_BLOCK};
 
 pub struct Block {}

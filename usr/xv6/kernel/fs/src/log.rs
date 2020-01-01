@@ -209,7 +209,7 @@ impl Log {
         //  Else, add the new block to the log
         let current_blocks = &self.logheader.block_nums[0..self.logheader.n as usize];
         let i = current_blocks.iter().position(|&x| x == buffer.block_number());
-        i.map(|i| {
+        i.map(|_| {
             buffer.pin();
             self.logheader.n += 1;
         });
