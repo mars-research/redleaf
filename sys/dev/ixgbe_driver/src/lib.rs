@@ -12,6 +12,10 @@
     maybe_uninit_extra
 )]
 
+mod device;
+mod dma;
+mod ixgbe_desc;
+
 extern crate malloc;
 extern crate alloc;
 use alloc::boxed::Box;
@@ -23,6 +27,7 @@ use console::println;
 use pci_driver::BarRegions;
 use ixgbe::IxgbeBarRegion;
 use core::mem::MaybeUninit;
+pub use libsyscalls::errors::Result;
 
 struct Ixgbe {
     vendor_id: u16,

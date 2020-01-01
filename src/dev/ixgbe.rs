@@ -59,6 +59,7 @@ pub struct IxgbeBar {
     rdrxctl: Register,
     rxpbsize: ArrayRegister,
     rxctrl: Register,
+    dca_rxctrl: ArrayRegister,
     dtxmxszrq: Register,
     dmatxctl: Register,
     rttdcs: Register,
@@ -107,6 +108,7 @@ impl IxgbeBar {
     const RDRXCTL: u64 = 0x02F00;
     const RXPBSIZE: u64 = 0x03C00;
     const RXCTRL: u64 = 0x03000;
+    const DCA_RXCTRL: u64 = 0x0100C;
 
     const DTXMXSZRQ: u64 = 0x08100;
     const DMATXCTL: u64 = 0x04A80;
@@ -155,6 +157,7 @@ impl IxgbeBar {
             rdt: reg_ixgbe_mult!(RDT, 64, 0x40),
             rxdctl: reg_ixgbe_mult!(RXDCTL, 64, 0x40),
             srrctl: reg_ixgbe_mult!(SRRCTL, 64, 0x40),
+            dca_rxctrl: reg_ixgbe_mult!(DCA_RXCTRL, 64, 0x40),
 
             rdrxctl: reg_ixgbe!(RDRXCTL),
             rxpbsize: reg_ixgbe_mult!(RXPBSIZE, 8, 0x4),
@@ -223,6 +226,7 @@ impl IxgbeBarRegion for IxgbeBar {
             IxgbeArrayRegs::Rdh => { reg = self.rdh },
             IxgbeArrayRegs::Rdt => { reg = self.rdt },
             IxgbeArrayRegs::Rxdctl => { reg = self.rxdctl },
+            IxgbeArrayRegs::DcaRxctrl => { reg = self.dca_rxctrl },
             IxgbeArrayRegs::Srrctl => { reg = self.srrctl },
             IxgbeArrayRegs::Rxpbsize => { reg = self.rxpbsize },
             IxgbeArrayRegs::Tdbal => { reg = self.tdbal },
@@ -285,6 +289,7 @@ impl IxgbeBarRegion for IxgbeBar {
             IxgbeArrayRegs::Rdh => { reg = self.rdh },
             IxgbeArrayRegs::Rdt => { reg = self.rdt },
             IxgbeArrayRegs::Rxdctl => { reg = self.rxdctl },
+            IxgbeArrayRegs::DcaRxctrl => { reg = self.dca_rxctrl },
             IxgbeArrayRegs::Srrctl => { reg = self.srrctl },
             IxgbeArrayRegs::Rxpbsize => { reg = self.rxpbsize },
             IxgbeArrayRegs::Tdbal => { reg = self.tdbal },

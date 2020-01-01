@@ -1,5 +1,6 @@
 #![no_std]
 
+#[derive(Copy, Clone)]
 pub enum IxgbeRegs {
     Ctrl,
     Status,
@@ -26,6 +27,7 @@ pub enum IxgbeRegs {
     Eiac,
 }
 
+#[derive(Copy, Clone)]
 pub enum IxgbeArrayRegs {
     Rdbal,
     Rdbah,
@@ -33,6 +35,7 @@ pub enum IxgbeArrayRegs {
     Rdh,
     Rdt,
     Rxdctl,
+    DcaRxctrl,
     Srrctl,
     Rxpbsize,
     Tdbal,
