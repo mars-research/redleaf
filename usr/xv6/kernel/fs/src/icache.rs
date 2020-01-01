@@ -431,7 +431,7 @@ pub struct ICache {
 }
 
 impl ICache {
-    fn new() -> ICache {
+    pub fn new() -> ICache {
         ICache {
             inodes: unsafe {
                 let mut arr = MaybeUninit::<[Arc<INode>; params::NINODE]>::uninit();

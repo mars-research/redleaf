@@ -105,12 +105,12 @@ pub struct BufferCache {
 }
 
 impl BufferCache {
-    fn new() -> BufferCache {
+    pub fn new() -> Self {
         let mut list = list2::List::<Buffer>::new();
         for _ in 0..NBUF {
             list.push_back(Buffer::new());
         }
-        BufferCache {
+        Self {
             list: Mutex::new(list),
         }
     }

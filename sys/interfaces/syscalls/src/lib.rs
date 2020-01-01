@@ -45,6 +45,7 @@ pub trait VFS {
 /// RedLeaf block device interface
 pub trait BDev {
 }
+pub type BDevPtr = Box<dyn BDev>;
 
 /// RedLeaf network interface
 pub trait Net {

@@ -1,10 +1,10 @@
 // See https://github.com/mit-pdos/xv6-public/blob/master/log.c
 
 use core::mem::size_of;
-
-use spin::Once;
-
 use utils::bytearray;
+use spin::Once;
+use syscalls::BDevPtr;
+
 use crate::fs::SuperBlock;
 use crate::params;
 use crate::bcache::{BCACHE, BufferBlock, BufferGuard};
