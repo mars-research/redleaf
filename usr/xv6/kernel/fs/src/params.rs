@@ -1,6 +1,6 @@
 // https://github.com/mit-pdos/xv6-public/blob/master/param.h
 use core::mem;
-use crate::fs;
+use crate::icache;
 
 pub const NPROC: usize =        64;     // maximum number of processes
 pub const KSTACKSIZE: usize = 4096;     // size of per-process kernel stack
@@ -26,7 +26,7 @@ pub const NINDIRECT: usize =    BSIZE / mem::size_of::<u32>();
 pub const MAXFILE: usize =      NDIRECT + NINDIRECT;
 
 // Inodes per block.
-pub const IPB: usize =           BSIZE / mem::size_of::<fs::DINode>();
+pub const IPB: usize =           BSIZE / mem::size_of::<icache::DINode>();
 
 // Directory is a file containing a sequence of dirent structures.
 pub const DIRSIZ: usize =       14;

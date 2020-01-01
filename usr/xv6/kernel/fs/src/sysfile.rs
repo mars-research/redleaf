@@ -10,7 +10,7 @@ use alloc::vec::Vec;
 use tls::ThreadLocal;
 use crate::params;
 use crate::file::{File, FileType};
-use crate::fs::{ICache, INode, INodeFileType};
+use crate::icache::{ICache, INode, INodeFileType};
 
 lazy_static! {
     static ref FD_TABLE: ThreadLocal<Vec<Option<Box<File>>>> = ThreadLocal::new(Vec::new);

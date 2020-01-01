@@ -1,4 +1,4 @@
-use crate::fs::{ICache, INode, Stat};
+use crate::icache::{ICache, INode, Stat};
 use crate::params;
 use alloc::sync::Arc;
 use core::mem::{MaybeUninit, swap};

@@ -34,6 +34,7 @@ mod block;
 mod directory;
 mod file;
 mod fs;
+mod icache;
 mod log;
 mod params;
 mod sysfile;
