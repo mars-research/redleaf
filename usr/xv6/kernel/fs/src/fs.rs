@@ -691,7 +691,6 @@ fn read_superblock(dev: u32) -> SuperBlock {
 }
 
 pub fn fsinit(dev: u32) {
-    sys_println("fsinit");
     SUPER_BLOCK.call_once(|| read_superblock(dev));
     LOG.call_once(|| {
         Log::new(dev, SUPER_BLOCK.r#try().unwrap())

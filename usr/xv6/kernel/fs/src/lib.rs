@@ -53,10 +53,16 @@ impl syscalls::VFS for VFS {}
 pub fn init(s: Box<dyn Syscall + Send + Sync>, bdev: Box<dyn syscalls::BDev>) -> Box<dyn syscalls::VFS> {
     libsyscalls::syscalls::init(s);
 
-
     println!("init xv6 filesystem");
+    fs::fsinit(0);
+    println!("finish init xv6 filesystem");
+    ls("/");
 
     Box::new(VFS::new()) 
+}
+
+fn ls(path: &str) {
+    println!("ls: {:?}", sysfile::sys_open("/", sysfile::FileMode::Read));
 }
 
 // This function is called on panic.
