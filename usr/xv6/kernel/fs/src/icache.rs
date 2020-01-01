@@ -5,7 +5,6 @@ use core::mem::MaybeUninit;
 use core::ops::Drop;
 use core::sync::atomic::{AtomicBool, Ordering};
 use spin::{Mutex, MutexGuard};
-use libsyscalls::syscalls::sys_println;
 
 use crate::bcache::{BufferBlock, BCACHE};
 use crate::block::Block;
