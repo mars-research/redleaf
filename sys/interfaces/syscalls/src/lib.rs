@@ -1,4 +1,5 @@
 #![no_std]
+#![feature(associated_type_defaults)]
 
 extern crate alloc;
 use alloc::boxed::Box;
@@ -44,6 +45,8 @@ pub trait VFS {
 
 /// RedLeaf block device interface
 pub trait BDev {
+    fn read(self, block: u32, data: &mut [u8; 512]);
+    fn write(self, block: u32, data: &[u8; 512]);
 }
 pub type BDevPtr = Box<dyn BDev>;
 

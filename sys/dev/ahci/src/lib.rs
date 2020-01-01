@@ -36,7 +36,10 @@ impl AHCI {
     }
 }
 
-impl syscalls::BDev for AHCI {}
+impl syscalls::BDev for AHCI {
+    fn read(self, block: u32, data: &mut [u8; 512]) { unimplemented!() }
+    fn write(self, block: u32, data: &[u8; 512]) { unimplemented!() }
+}
 
 
 #[no_mangle]
