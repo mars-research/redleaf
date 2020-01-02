@@ -23,10 +23,8 @@ extern crate syscalls;
 extern crate tls;
 
 use alloc::boxed::Box;
-use alloc::vec::Vec;
 use console::println;
 use core::panic::PanicInfo;
-use libsyscalls::syscalls::{sys_alloc, sys_create_thread, sys_println};
 use syscalls::Syscall;
 
 mod bcache;
@@ -34,6 +32,7 @@ mod block;
 mod directory;
 mod file;
 mod fs;
+mod icache;
 mod log;
 mod params;
 mod sysfile;
@@ -50,13 +49,19 @@ impl syscalls::VFS for VFS {}
 
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>, bdev: Box<dyn syscalls::BDev>) -> Box<dyn syscalls::VFS> {
+pub fn init(s: Box<dyn Syscall + Send + Sync>, bdev: syscalls::BDevPtr) -> Box<dyn syscalls::VFS> {
     libsyscalls::syscalls::init(s);
 
-
     println!("init xv6 filesystem");
+    let xv6fs = fs::FileSystem::new(bdev);
+    println!("finish init xv6 filesystem");
+    ls("/");
 
     Box::new(VFS::new()) 
+}
+
+fn ls(path: &str) {
+    println!("ls: {:?}", sysfile::sys_open("/", sysfile::FileMode::Read));
 }
 
 // This function is called on panic.

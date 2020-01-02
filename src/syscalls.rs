@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use spin::Mutex;
 use alloc::sync::Arc; 
 use crate::domain::domain::{Domain}; 
-use syscalls::{Thread,PciResource};
+use syscalls::{Thread,PciResource, PciBar};
 
 //use crate::domain::domain::BOOTING_DOMAIN; 
 
@@ -140,9 +140,11 @@ impl syscalls::Syscall for PDomain {
 }
 
 impl syscalls::CreatePCI for PDomain {
-    fn create_domain_pci(&self, pci_resource: Box<dyn syscalls::PciResource>) -> (Box<dyn syscalls::Domain>, Box<dyn syscalls::PCI>) {
+    fn create_domain_pci(&self, pci_resource: Box<dyn syscalls::PciResource>,
+                         pci_bar: Box<dyn syscalls::PciBar>)
+                    -> (Box<dyn syscalls::Domain>, Box<dyn syscalls::PCI>) {
         disable_irq();
-        let r = crate::domain::create_domain::create_domain_pci(pci_resource);
+        let r = crate::domain::create_domain::create_domain_pci(pci_resource, pci_bar);
         enable_irq();
         r
     }
@@ -153,6 +155,14 @@ impl syscalls::CreatePCI for PDomain {
         let pci_r = Box::new(PCI_RESOURCE);
         enable_irq();
         pci_r
+    }
+
+    fn get_pci_bar(&self) -> Box<dyn PciBar> {
+        use crate::dev::pci_resource::PciDevice;
+        disable_irq();
+        let pci_dev = Box::new(PciDevice::new());
+        enable_irq();
+        pci_dev
     }
 }
 

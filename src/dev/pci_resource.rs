@@ -1,4 +1,6 @@
 use syscalls::PciResource;
+use syscalls::PciBar;
+use alloc::boxed::Box;
 
 #[derive(Copy, Clone)]
 pub struct PciConfig {
@@ -33,6 +35,27 @@ impl PciResource for PciConfig {
             asm!("mov dx, $1
               out dx, eax"
               : : "{eax}"(value), "r"(self.data_port) : "dx" : "intel", "volatile");
+        }
+    }
+}
+
+pub struct PciDevice {
+}
+
+impl PciDevice {
+    pub fn new() -> PciDevice {
+        PciDevice {}
+    }
+}
+
+impl PciBar for PciDevice {
+    fn get_bar_region(&self, base: u64, size: usize,
+                        pci_device: pci_driver::PciDrivers) -> pci_driver::BarRegions {
+        use crate::dev::ixgbe::IxgbeBar;
+        match pci_device {
+            IxgbeDriver => {
+                pci_driver::BarRegions::Ixgbe(Box::new(IxgbeBar::new(base, size)))
+            },
         }
     }
 }

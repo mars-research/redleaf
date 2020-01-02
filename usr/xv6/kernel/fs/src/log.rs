@@ -1,10 +1,10 @@
 // See https://github.com/mit-pdos/xv6-public/blob/master/log.c
 
 use core::mem::size_of;
-
-use spin::Once;
-
 use utils::bytearray;
+use spin::Once;
+use syscalls::BDevPtr;
+
 use crate::fs::SuperBlock;
 use crate::params;
 use crate::bcache::{BCACHE, BufferBlock, BufferGuard};
@@ -209,7 +209,7 @@ impl Log {
         //  Else, add the new block to the log
         let current_blocks = &self.logheader.block_nums[0..self.logheader.n as usize];
         let i = current_blocks.iter().position(|&x| x == buffer.block_number());
-        i.map(|i| {
+        i.map(|_| {
             buffer.pin();
             self.logheader.n += 1;
         });

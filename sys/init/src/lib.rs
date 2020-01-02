@@ -106,7 +106,9 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
 
     let pci_resource = create_pci.get_pci_resource();
 
-    let (dom_pci, pci) = create_pci.create_domain_pci(pci_resource);
+    let pci_bar = create_pci.get_pci_bar();
+
+    let (dom_pci, pci) = create_pci.create_domain_pci(pci_resource, pci_bar);
 
     let pci2 = pci.pci_clone();
 
