@@ -1,7 +1,7 @@
 .PHONY: all
 all:
 	make -C pci
-	make -C ixgbe_driver
+#	make -C ixgbe_driver
 	make -C ahci
 
 .PHONY: clean
