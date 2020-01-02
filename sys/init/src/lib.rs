@@ -83,6 +83,14 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
     t.set_priority(10);
 
 
+    let start = libsyscalls::time::get_ns_time();
+    println!("current time {}, waiting for 100 ms", start);
+
+    libsyscalls::time::sys_ns_sleep(100_000_000); 
+
+    let end = libsyscalls::time::get_ns_time();
+    println!("current time {}, waited for {} ms", end, (end - start) / 1_000_000);
+
     /*
 
     let t = sys_create_thread("init_thread", test_init_thread); 

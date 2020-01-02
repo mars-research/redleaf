@@ -1,6 +1,7 @@
 #![no_std]
 pub mod syscalls;
 pub mod errors;
+pub mod time; 
 
 #[cfg(test)]
 mod tests {
