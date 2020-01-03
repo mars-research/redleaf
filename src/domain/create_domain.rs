@@ -369,6 +369,9 @@ pub unsafe fn load_domain(name: &str, binary_range: (*const u8, *const u8)) -> (
     println!("domain/{}: Entry point at {:x}", 
         name, loader.offset + domain_elf.entry_point());
 
+    println!("domain/{}: .text starts at {:x}", 
+        name, loader.offset + domain_elf.file.find_section_by_name(".text").unwrap().address());
+
     let user_ep: *const() = {
         let mut entry: *const u8 = (*loader).offset.as_ptr();
         entry = entry.offset(domain_elf.entry_point() as isize);
