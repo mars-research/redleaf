@@ -18,13 +18,17 @@ domain_list := sys/init/build/init \
 	sys/dev/pci/build/pci \
 	sys/dev/ahci/build/ahci \
 	sys/dev/ixgbe_driver/build/ixgbe_driver \
-	usr/xv6/usr/shell/build/shell
+	usr/xv6/usr/shell/build/shell \
+	usr/rump/kernel/core/build/rumprt
 
 qemu_common := -m 512m -vga std -s
 qemu_common := $(qemu_common) -cdrom $(iso)
 qemu_common := $(qemu_common) -no-reboot -no-shutdown -d int,cpu_reset
 qemu_common := $(qemu_common) -drive file=$(xv6fs_img),index=0,media=disk,format=raw
 qemu_common := $(qemu_common) -smp 4
+QEMU := qemu-system-x86_64
+QEMU_KVM := sudo qemu-system-x86_64
+qemu_kvm_args := $(qemu_common) --enable-kvm
 
 # https://superuser.com/a/1412150
 qemu_nox := -nographic -chardev stdio,id=char0,mux=on,logfile=serial.log,signal=off -serial chardev:char0 -mon chardev=char0
@@ -53,28 +57,36 @@ run-nox: qemu-nox
 
 .PHONY: qemu
 qemu: $(iso) $(xv6fs_img)
-	qemu-system-x86_64 $(qemu_common) $(qemu_x)
+	${QEMU} $(qemu_common) $(qemu_x)
+
+.PHONY: qemu-kvm
+qemu-kvm: $(iso) $(xv6fs_img)
+	${QEMU_KVM} $(qemu_kvm_args) $(qemu_x)
+
+.PHONY: qemu-kvm-gdb
+qemu-kvm-gdb: $(iso) $(xv6fs_img)
+	${QEMU_KVM} $(qemu_kvm_args) $(qemu_x) -S
 
 .PHONY: qemu-gdb
 qemu-gdb: $(iso) $(xv6fs_img)
-	qemu-system-x86_64 $(qemu_common) $(qemu_x) -S
+	${QEMU} $(qemu_common) $(qemu_x) -S
 
 .PHONY: qemu-gdb-nox
 qemu-gdb-nox: $(iso) $(xv6fs_img)
-	qemu-system-x86_64 $(qemu_common) $(qemu_nox) -S
+	${QEMU} $(qemu_common) $(qemu_nox) -S
 
 .PHONY: qemu-nox
 qemu-nox: $(iso) $(xv6fs_img)
-	qemu-system-x86_64 $(qemu_common) $(qemu_nox)
+	${QEMU} $(qemu_common) $(qemu_nox)
 
 .PHONY: qemu-nox-cloudlab
 qemu-nox-cloudlab: $(iso)
 	$(eval pciflag := $(shell sudo ./rebind-82599es.sh))
-	sudo qemu-system-x86_64 $(qemu_common) $(qemu_nox) $(pciflag)
+	${QEMU} $(qemu_common) $(qemu_nox) $(pciflag)
 
 .PHONY: qemu-efi-nox
 qemu-efi-nox: $(iso) $(xv6fs_img) ovmf-code
-	qemu-system-x86_64 $(qemu_common) $(qemu_nox) -bios OVMF_CODE.fd
+	${QEMU} $(qemu_common) $(qemu_nox) -bios OVMF_CODE.fd
 
 $(xv6fs_img):
 	make -C usr/mkfs 
@@ -94,7 +106,7 @@ $(iso): $(kernel) $(grub_cfg)
 	@rm -r build/isofiles
 
 $(kernel): kernel $(rust_os) bootblock entryother entry $(linker_script) init
-	ld -n --gc-sections -T $(linker_script) -o $(kernel) build/entry.o build/boot.o build/multiboot_header.o $(rust_os) -b binary build/entryother.bin $(domain_list) --no-gc-sections usr/rump/kernel/core/build/rumprt
+	ld -n --gc-sections -T $(linker_script) -o $(kernel) build/entry.o build/boot.o build/multiboot_header.o $(rust_os) -b binary build/entryother.bin $(domain_list)
 
 .PHONY: init
 init:
