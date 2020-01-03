@@ -251,6 +251,8 @@ impl  Thread {
         /* set the stack pointer to point to die() */
         //self.context.rsp = s.mem[s.mem.len() - 1].as_ptr(); 
         self.context.rsp = &(s.mem[s.mem.len() - 1]) as *const usize as usize;
+        println!("starting thread {} with stack: {:x} -- {:x}",  
+            self.name, self.context.rsp - (STACK_SIZE_IN_LINES - 1)*core::mem::size_of::<usize>(), self.context.rsp); 
     }
 
     pub fn new(name: &str, func: extern fn()) -> Thread  {
