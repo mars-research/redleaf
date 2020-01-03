@@ -92,7 +92,11 @@ pub trait CreateXv6 {
                                 create_xv6fs: Box<dyn CreateXv6FS>, 
                                 create_xv6usr: Box<dyn CreateXv6Usr>,
                                 bdev: Box<dyn BDev>) -> Box<dyn Domain>;
-}   
+}
+
+pub trait CreateRump {
+    fn create_domain_rumpkernel(&self) -> Box<dyn Domain>;
+}
 
 pub static IRQ_TIMER: u8 = 32; 
 

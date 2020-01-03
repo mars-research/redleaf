@@ -94,10 +94,11 @@ $(iso): $(kernel) $(grub_cfg)
 	@rm -r build/isofiles
 
 $(kernel): kernel $(rust_os) bootblock entryother entry $(linker_script) init
-	ld -n --gc-sections -T $(linker_script) -o $(kernel) build/entry.o build/boot.o build/multiboot_header.o $(rust_os) -b binary build/entryother.bin $(domain_list) 
+	ld -n --gc-sections -T $(linker_script) -o $(kernel) build/entry.o build/boot.o build/multiboot_header.o $(rust_os) -b binary build/entryother.bin $(domain_list) --no-gc-sections usr/rump/kernel/core/build/rumprt
 
 .PHONY: init
 init:
+	make -C usr/rump
 	make -C usr/xv6
 	make -C sys
 

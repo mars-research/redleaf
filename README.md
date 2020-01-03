@@ -28,6 +28,12 @@ sudo apt-get install nasm
 apt-get install grub-pc-bin
 ```
 
+* Install dependencies to compile rumpkernel
+
+```
+apt-get install zlib1g-dev make gcc build-essential
+```
+
 ### Run
 
 ```

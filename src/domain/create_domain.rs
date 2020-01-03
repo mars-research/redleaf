@@ -91,6 +91,20 @@ pub fn create_domain_xv6kernel(ints: Box<dyn syscalls::Interrupt>,
                             create_xv6fs, create_xv6usr, bdev)
 }
 
+pub fn create_domain_rumpkernel() -> Box<dyn syscalls::Domain> {
+    extern "C" {
+        fn _binary_usr_rump_kernel_core_build_rumprt_start();
+        fn _binary_usr_rump_kernel_core_build_rumprt_end();
+    }
+
+    let binary_range = (
+        _binary_usr_rump_kernel_core_build_rumprt_start as *const u8,
+        _binary_usr_rump_kernel_core_build_rumprt_end as *const u8
+    );
+
+    build_domain_rumpkernel("rumpkernel", binary_range)
+}
+
 pub fn create_domain_xv6fs(bdev: Box<dyn BDev>) ->(Box<dyn syscalls::Domain>, Box<dyn VFS>) {
 
     extern "C" {
@@ -155,7 +169,8 @@ pub fn build_domain_init(name: &str,
                          Box<dyn syscalls::CreateXv6Usr>,
                          Box<dyn syscalls::CreatePCI>,
                          Box<dyn syscalls::CreateIxgbe>,
-                         Box<dyn syscalls::CreateAHCI>);
+                         Box<dyn syscalls::CreateAHCI>,
+                         Box<dyn syscalls::CreateRump>);
 
     let (dom, entry) = unsafe { 
         load_domain(name, binary_range)
@@ -169,6 +184,7 @@ pub fn build_domain_init(name: &str,
     enable_irq();
     user_ep(Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(Interrupt::new()),
+            Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(PDomain::new(Arc::clone(&dom))),
@@ -311,6 +327,30 @@ pub fn build_domain_xv6kernel(name: &str,
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     user_ep(pdom, ints, create_xv6fs, create_xv6usr, bdev); 
+    disable_irq(); 
+
+    println!("domain/{}: returned from entry point", name);
+    Box::new(PDomain::new(Arc::clone(&dom)))
+}
+
+pub fn build_domain_rumpkernel(name: &str, 
+    binary_range: (*const u8, *const u8)) -> Box<dyn syscalls::Domain> 
+{
+    type UserInit = fn(Box<dyn Syscall>);
+
+    let (dom, entry) = unsafe {
+        load_domain(name, binary_range)
+    };
+
+    let user_ep: UserInit = unsafe{
+        transmute::<*const(), UserInit>(entry)
+    };
+
+    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+
+    // Enable interrupts on exit to user so it can be preempted
+    enable_irq();
+    user_ep(pdom); 
     disable_irq(); 
 
     println!("domain/{}: returned from entry point", name);

@@ -200,6 +200,15 @@ impl syscalls::CreateXv6 for PDomain {
     }
 }   
 
+impl syscalls::CreateRump for PDomain {
+    fn create_domain_rumpkernel(&self) -> Box<dyn syscalls::Domain> {
+        disable_irq();
+        let r = crate::domain::create_domain::create_domain_rumpkernel();
+        enable_irq();
+        r
+    }
+}
+
 impl syscalls::CreateXv6FS for PDomain {
     fn create_domain_xv6fs(&self, bdev: Box<dyn syscalls::BDev>) ->(Box<dyn syscalls::Domain>, Box<dyn syscalls::VFS>) {
         disable_irq();

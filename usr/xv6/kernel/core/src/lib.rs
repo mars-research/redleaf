@@ -42,7 +42,7 @@ extern fn timer_thread() {
     
     loop {
          sys_recv_int(syscalls::IRQ_TIMER);
-         println!("xv6: got a timer interrupt"); 
+         //println!("xv6: got a timer interrupt"); 
     }
 }
 
