@@ -45,8 +45,8 @@ pub trait VFS {
 
 /// RedLeaf block device interface
 pub trait BDev {
-    fn read(self, block: u32, data: &mut [u8; 512]);
-    fn write(self, block: u32, data: &[u8; 512]);
+    fn read(&mut self, block: u32, data: &mut [u8; 512]);
+    fn write(&mut self, block: u32, data: &[u8; 512]);
 }
 pub type BDevPtr = Box<dyn BDev>;
 
