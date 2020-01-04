@@ -1,6 +1,8 @@
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use byteorder::{ByteOrder, LittleEndian};
 use core::convert::TryInto;
+use core::mem;
 use core::mem::MaybeUninit;
 use core::ops::Drop;
 use core::sync::atomic::{AtomicBool, Ordering};
@@ -34,9 +36,34 @@ pub struct INodeData {
     // Number of links to inode in file system
     pub nlink: i16,
     // Size of file (bytes)
-    pub size: usize,
+    pub size: u32,
     // Data block addresses
     pub addresses: [u32; params::NDIRECT + 1],
+}
+
+impl INodeData {
+    pub fn to_bytes(&self, bytes: &mut [u8]) {
+        let mut offset: usize = 0;
+        LittleEndian::write_u16(&mut bytes[offset..], self.file_type as u16);
+        offset += mem::size_of_val(&self.file_type);
+
+        LittleEndian::write_i16(&mut bytes[offset..], self.major);
+        offset += mem::size_of_val(&self.major);
+        
+        LittleEndian::write_i16(&mut bytes[offset..], self.minor);
+        offset += mem::size_of_val(&self.minor);
+
+        LittleEndian::write_i16(&mut bytes[offset..], self.nlink);
+        offset += mem::size_of_val(&self.nlink);
+
+        LittleEndian::write_u32(&mut bytes[offset..], self.size);
+        offset += mem::size_of_val(&self.size);
+
+        for a in &self.addresses {
+            LittleEndian::write_u32(&mut bytes[offset..], *a);
+            offset += mem::size_of_val(a);
+        }
+    }
 }
 
 pub type DINode = INodeData;
@@ -85,20 +112,11 @@ impl INodeDataGuard<'_> {
             self.node.meta.device,
             block_num_for_node(self.node.meta.inum, &super_block),
         );
-        let buffer = bguard.lock();
+        let mut buffer = bguard.lock();
 
-        // TODO: work around unsafe
-        let mut dinode = unsafe {
-            &mut *(&buffer.data as *const BufferBlock as *mut BufferBlock as *mut DINode)
-                .offset((self.node.meta.inum % params::IPB as u32) as isize)
-        };
-
-        dinode.file_type = self.data.file_type;
-        dinode.major = self.data.major;
-        dinode.minor = self.data.minor;
-        dinode.nlink = self.data.nlink;
-        dinode.size = self.data.size;
-        dinode.addresses.copy_from_slice(&self.data.addresses);
+        const DINODE_SIZE: usize = mem::size_of::<DINode>();
+        let dinode_offset = (self.node.meta.inum as usize % params::IPB) * DINODE_SIZE;
+        self.data.to_bytes(&mut buffer.data[dinode_offset..dinode_offset + DINODE_SIZE]);
 
         // TODO: log_write
 
@@ -269,12 +287,12 @@ impl INodeDataGuard<'_> {
     pub fn read(&mut self, user_buffer: &mut [u8], mut offset: usize) -> Option<usize> {
         let mut bytes_to_read = user_buffer.len();
 
-        if offset > self.data.size || offset.checked_add(bytes_to_read).is_none() {
+        if offset as u32 > self.data.size || offset.checked_add(bytes_to_read).is_none() {
             return None;
         }
 
-        if offset + bytes_to_read > self.data.size {
-            bytes_to_read = self.data.size - offset;
+        if offset + bytes_to_read > self.data.size as usize {
+            bytes_to_read = self.data.size as usize - offset;
         }
 
         let mut total = 0usize;
@@ -309,7 +327,7 @@ impl INodeDataGuard<'_> {
     pub fn write(&mut self, user_buffer: &mut [u8], mut offset: usize) -> Option<usize> {
         let bytes_to_write = user_buffer.len();
 
-        if offset > self.data.size || offset.checked_add(bytes_to_write).is_none() {
+        if offset as u32 > self.data.size || offset.checked_add(bytes_to_write).is_none() {
             return None;
         }
 
@@ -343,9 +361,7 @@ impl INodeDataGuard<'_> {
         }
 
         if bytes_to_write > 0 {
-            if offset > self.data.size {
-                self.data.size = offset;
-            }
+            self.data.size = core::cmp::max(offset as u32, self.data.size);
             // write the node back to disk even if size didn't change, because block_map
             // could have added a new block to self.addresses
             self.update()
