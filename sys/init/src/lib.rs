@@ -94,13 +94,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
     t.set_priority(10);
 
     #[cfg(feature = "test_sleep")]
-    {
-        test_sleep();
-    }
-    /*
-     * if cfg!(test_sleep) {
-        test_sleep();
-    } */
+    test_sleep();
 
     /*
 
