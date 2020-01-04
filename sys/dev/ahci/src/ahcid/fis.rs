@@ -1,4 +1,4 @@
-use super::mmio::Mmio;
+use libdma::Mmio;
 
 #[repr(u8)]
 pub enum FisType {

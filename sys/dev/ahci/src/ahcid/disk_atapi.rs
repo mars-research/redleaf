@@ -4,10 +4,12 @@ use core::ptr;
 
 use byteorder::{ByteOrder, BigEndian};
 
-use super::dma::Dma;
 use libsyscalls::errors::{Result, EBADF, Error};
 
-use super::hba::{HbaPort, HbaCmdTable, HbaCmdHeader};
+use libdma::Dma;
+use super::hba::HbaPort;
+use libdma::ahci::{HbaCmdTable, HbaCmdHeader};
+use libdma::ahci::allocate_dma;
 use super::Disk;
 
 const SCSI_READ_CAPACITY: u8 = 0x25;
@@ -27,19 +29,19 @@ pub struct DiskATAPI {
 
 impl DiskATAPI {
     pub fn new(id: usize, port: &'static mut HbaPort) -> Result<Self> {
-        let mut clb = Dma::zeroed()?;
+        let mut clb = allocate_dma()?;
         let mut ctbas = [
-            Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
-            Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
-            Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
-            Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
-            Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
-            Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
-            Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
-            Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
+            allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
+            allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
+            allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
+            allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
+            allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
+            allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
+            allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
+            allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
         ];
-        let mut fb = Dma::zeroed()?;
-        let buf = Dma::zeroed()?;
+        let mut fb = allocate_dma()?;
+        let buf = allocate_dma()?;
 
         port.init(&mut clb, &mut ctbas, &mut fb);
 

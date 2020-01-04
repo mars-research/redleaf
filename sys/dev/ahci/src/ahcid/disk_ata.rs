@@ -1,10 +1,12 @@
 use core::ptr;
 
-use super::dma::Dma;
 use libsyscalls::errors::Result;
 use libsyscalls::syscalls::sys_yield;
 
-use super::hba::{HbaPort, HbaCmdTable, HbaCmdHeader};
+use libdma::Dma;
+use libdma::ahci::{HbaCmdTable, HbaCmdHeader};
+use libdma::ahci::allocate_dma;
+use super::hba::HbaPort;
 use super::Disk;
 
 enum BufferKind<'a> {
@@ -32,19 +34,19 @@ pub struct DiskATA {
 
 impl DiskATA {
     pub fn new(id: usize, port: &'static mut HbaPort) -> Result<Self> {
-        let mut clb = Dma::zeroed()?;
+        let mut clb = allocate_dma()?;
         let mut ctbas = [
-            Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
-            Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
-            Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
-            Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
-            Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
-            Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
-            Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
-            Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
+            allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
+            allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
+            allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
+            allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
+            allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
+            allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
+            allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
+            allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
         ];
-        let mut fb = Dma::zeroed()?;
-        let buf = Dma::zeroed()?;
+        let mut fb = allocate_dma()?;
+        let buf = allocate_dma()?;
 
         port.init(&mut clb, &mut ctbas, &mut fb);
 

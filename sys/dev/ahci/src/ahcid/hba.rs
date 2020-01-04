@@ -3,10 +3,8 @@ use core::ops::DerefMut;
 use core::{ptr, u32};
 use alloc::string::String;
 
-// use syscall::io::{Dma, Io, Mmio};
-use super::mmio::Mmio;
-use super::io::Io;
-use super::dma::Dma;
+use libdma::{Mmio, Dma};
+use libdma::ahci::{HbaPrdtEntry, HbaCmdTable, HbaCmdHeader};
 
 use libsyscalls::errors::{Error, Result, EIO};
 use libsyscalls::syscalls::sys_yield;
@@ -383,44 +381,4 @@ impl HbaMem {
             self.cap.read(), self.ghc.read(), self.is.read(), self.pi.read(),
             self.vs.read(), self.cap2.read(), self.bohc.read());
     }
-}
-
-#[repr(packed)]
-pub struct HbaPrdtEntry {
-    dba: Mmio<u64>, // Data base address
-    _rsv0: Mmio<u32>, // Reserved
-    dbc: Mmio<u32>, // Byte count, 4M max, interrupt = 1
-}
-
-#[repr(packed)]
-pub struct HbaCmdTable {
-    // 0x00
-    cfis: [Mmio<u8>; 64], // Command FIS
-
-    // 0x40
-    acmd: [Mmio<u8>; 16], // ATAPI command, 12 or 16 bytes
-
-    // 0x50
-    _rsv: [Mmio<u8>; 48], // Reserved
-
-    // 0x80
-    prdt_entry: [HbaPrdtEntry; 65536], // Physical region descriptor table entries, 0 ~ 65535
-}
-
-#[repr(packed)]
-pub struct HbaCmdHeader {
-    // DW0
-    cfl: Mmio<u8>, /* Command FIS length in DWORDS, 2 ~ 16, atapi: 4, write - host to device: 2, prefetchable: 1 */
-    _pm: Mmio<u8>, // Reset - 0x80, bist: 0x40, clear busy on ok: 0x20, port multiplier
-
-    prdtl: Mmio<u16>, // Physical region descriptor table length in entries
-
-    // DW1
-    _prdbc: Mmio<u32>, // Physical region descriptor byte count transferred
-
-    // DW2, 3
-    ctba: Mmio<u64>, // Command table descriptor base address
-
-    // DW4 - 7
-    _rsv1: [Mmio<u32>; 4], // Reserved
 }

@@ -5,7 +5,6 @@ use libsyscalls::errors::Result;
 use self::disk_ata::DiskATA;
 use self::disk_atapi::DiskATAPI;
 use self::hba::{HbaMem, HbaPortType};
-use self::io::Io;
 
 use console::print;
 
@@ -13,10 +12,6 @@ pub mod disk_ata;
 pub mod disk_atapi;
 pub mod fis;
 pub mod hba;
-
-mod mmio;
-mod io;
-mod dma;
 
 pub trait Disk {
     fn id(&self) -> usize;
