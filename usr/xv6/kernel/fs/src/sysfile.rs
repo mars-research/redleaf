@@ -68,6 +68,15 @@ pub fn sys_write(fd: usize, buffer: &[u8]) -> Option<usize> {
     })
 }
 
+pub fn sys_close(fd: usize) -> Option<()> {
+    FD_TABLE.with(|fdtable| {
+        fdtable
+            .get_mut(fd)?
+            .take()
+            .map(|f| f.close())
+    })
+}
+
 pub fn sys_open(path: &str, mode: FileMode) -> Option<usize> {
     // TODO: log begin_op here
     let inode: Option<Arc<INode>> = match mode {
