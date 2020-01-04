@@ -14,7 +14,10 @@ use crate::domain::domain::{Domain, KERNEL_DOMAIN};
 use crate::tls::cpuid; 
 use core::sync::atomic::{AtomicU64, Ordering};
 use crate::memory::VSPACE;
-use crate::arch::memory::BASE_PAGE_SIZE;
+use crate::arch::memory::{BASE_PAGE_SIZE, PAddr};
+use core::alloc::Layout;
+use crate::memory::buddy::BUDDY;
+use crate::memory::{PhysicalAllocator, Frame};
 
 /// This should be a cryptographically secure number, for now 
 /// just sequential ID
@@ -176,7 +179,6 @@ pub enum ThreadState {
 }
 
 const STACK_SIZE_IN_PAGES: usize  = 4096;
-//const STACK_SIZE_IN_PAGES: usize  = 2047;
 
 pub struct Context {
   r15: usize,
@@ -237,13 +239,30 @@ impl  Thread {
 
         /* push die() on the stack where the switch will pick 
          * it up with the ret instruction */
-        let ref mut vspace = *VSPACE.lock();
-        let stack_u8 = vspace.alloc_stack_guarded(STACK_SIZE_IN_PAGES).as_mut_ptr::<u8>();
+
+        let layout = Layout::from_size_align(STACK_SIZE_IN_PAGES * BASE_PAGE_SIZE, BASE_PAGE_SIZE).unwrap();
+
+        let mut frame: Frame = Frame::new(PAddr::from(0), 0);
+
+        if let Some(ref mut fmanager) = *BUDDY.lock() {
+            unsafe {
+                frame = fmanager.allocate(layout).unwrap()
+            };
+        };
+
+        let stack_u8 = frame.kernel_vaddr().as_mut_ptr::<u8>();
+
         let die_return = unsafe {
             stack_u8.offset((STACK_SIZE_IN_PAGES * BASE_PAGE_SIZE - core::mem::size_of::<*const usize>()) as isize) as *mut usize
         };
+
         unsafe { *die_return = die as usize; }
         self.stack = stack_u8 as *mut u64;
+
+        {
+            let ref mut vspace = *VSPACE.lock();
+            vspace.set_guard_page(frame.kernel_vaddr());
+        }
 
         /* set the stack pointer to point to die() */
         //self.context.rsp = s.mem[s.mem.len() - 1].as_ptr(); 
