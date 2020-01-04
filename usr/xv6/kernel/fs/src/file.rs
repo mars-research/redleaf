@@ -22,7 +22,7 @@ impl File {
     pub fn new(file_type: FileType, readable: bool, writable: bool) -> File {
         File {
             file_type,
-            ref_cnt: AtomicU32::new(0),
+            ref_cnt: AtomicU32::new(1),
             readable,
             writable
         }
