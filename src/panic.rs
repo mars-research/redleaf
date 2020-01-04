@@ -172,6 +172,17 @@ fn backtrace_format(
 
 #[inline(always)]
 pub fn backtrace() {
+
+    let elf_data = match ELF_DATA.r#try() {
+        Some(t) => t,
+        None => {
+            println!("ELF_DATA was not initialized");  
+            backtrace_no_resolve(); 
+            return;
+        }
+    };
+ 
+
     println!("Backtrace:");
 
     let elf_data = ELF_DATA.r#try().expect("ELF_DATA was not initialized");  
