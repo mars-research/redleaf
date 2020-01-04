@@ -6,6 +6,7 @@ use core::mem;
 use core::mem::MaybeUninit;
 use core::ops::Drop;
 use core::sync::atomic::{AtomicBool, Ordering};
+use num_traits::FromPrimitive;
 use spin::{Mutex, MutexGuard};
 
 use crate::bcache::{BufferBlock, BCACHE};
@@ -42,6 +43,48 @@ pub struct INodeData {
 }
 
 impl INodeData {
+    pub fn new() -> Self {
+        Self {
+            file_type: INodeFileType::Unitialized,
+            major: 0,
+            minor: 0,
+            nlink: 0,
+            size: 0,
+            addresses: [0; params::NDIRECT + 1],
+        }
+    }
+
+    // TODO: A lot copying, fix it in the future
+    pub fn copy_from_bytes(&mut self, bytes: &[u8]) {
+        let mut offset: usize = 0;
+        let file_type = LittleEndian::read_u16(&bytes[offset..]);
+        self.file_type = FromPrimitive::from_u16(file_type).unwrap();
+        offset += mem::size_of_val(&self.file_type);
+
+        self.major = LittleEndian::read_i16(&bytes[offset..]);
+        offset += mem::size_of_val(&self.major);
+        
+        self.minor = LittleEndian::read_i16(&bytes[offset..]);
+        offset += mem::size_of_val(&self.minor);
+
+        self.nlink = LittleEndian::read_i16(&bytes[offset..]);
+        offset += mem::size_of_val(&self.nlink);
+
+        self.size = LittleEndian::read_u32(&bytes[offset..]);
+        offset += mem::size_of_val(&self.size);
+
+        for a in &mut self.addresses {
+            *a = LittleEndian::read_u32(&bytes[offset..]);
+            offset += mem::size_of_val(a);
+        }
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        let mut dinode = Self::new();
+        dinode.copy_from_bytes(bytes);
+        dinode
+    }
+
     pub fn to_bytes(&self, bytes: &mut [u8]) {
         let mut offset: usize = 0;
         LittleEndian::write_u16(&mut bytes[offset..], self.file_type as u16);
@@ -74,7 +117,7 @@ pub struct INodeDataGuard<'a> {
 }
 
 #[repr(u16)]
-#[derive(PartialEq, Copy, Clone, Debug)]
+#[derive(PartialEq, Copy, Clone, Debug, FromPrimitive)]
 pub enum INodeFileType {
     // This is not a file type; it indicates that the inode is not initialized
     Unitialized,
@@ -411,25 +454,16 @@ impl INode {
             );
             let buffer = bguard.lock();
 
-            // TODO: work around unsafe
-            let dinode = unsafe {
-                &*(&buffer.data as *const BufferBlock as *mut BufferBlock as *mut DINode)
-                    .offset((self.meta.inum % params::IPB as u32) as isize)
-            };
-
-            data.file_type = dinode.file_type;
-            data.major = dinode.major;
-            data.minor = dinode.minor;
-            data.nlink = dinode.nlink;
-            data.size = dinode.size;
-            data.addresses.copy_from_slice(&dinode.addresses);
+            const DINODE_SIZE: usize = mem::size_of::<DINode>();
+            let dinode_offset = (self.meta.inum as usize % params::IPB) * DINODE_SIZE;
+            data.copy_from_bytes(&buffer.data[dinode_offset..dinode_offset + DINODE_SIZE]);
 
             drop(buffer);
             BCACHE.release(&mut bguard);
 
             self.meta.valid.store(true, Ordering::Relaxed);
 
-            if dinode.file_type == INodeFileType::Unitialized {
+            if data.file_type == INodeFileType::Unitialized {
                 // TODO: better error handling here
                 panic!("ilock: no type");
             }
@@ -467,21 +501,21 @@ impl ICache {
         let super_block = SUPER_BLOCK.r#try().expect("fs not initialized");
         for inum in 1..super_block.ninodes {
             let mut bguard = BCACHE.read(device, block_num_for_node(inum, super_block));
-            let buffer = bguard.lock();
+            let mut buffer = bguard.lock();
 
-            // TODO: work around unsafe
-            let mut dinode = unsafe {
-                &mut *(&buffer.data as *const BufferBlock as *mut BufferBlock as *mut DINode)
-                    .offset((inum % params::IPB as u32) as isize)
-            };
+            // Okay, there're a lot of copying happening here but we don't have time to make it nice.
+            const DINODE_SIZE: usize = mem::size_of::<DINode>();
+            let dinode_offset = (inum as usize % params::IPB) * DINODE_SIZE;
+            let mut dinode_slice = &mut buffer.data[dinode_offset..dinode_offset + DINODE_SIZE];
+            let mut dinode = DINode::from_bytes(dinode_slice);
+
             if dinode.file_type == INodeFileType::Unitialized {
                 // free inode
                 // memset to 0
-                unsafe {
-                    core::ptr::write_bytes(dinode as *const DINode as *mut DINode, 0, 1);
-                }
+                dinode = DINode::new();
                 // setting file_type marks it as used
                 dinode.file_type = file_type;
+                dinode.to_bytes(dinode_slice);
                 // TODO: log_write here
                 drop(buffer);
                 BCACHE.release(&mut bguard);

@@ -19,6 +19,8 @@ extern crate malloc;
 extern crate spin;
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate num_derive;
 extern crate byteorder;
 extern crate syscalls;
 extern crate tls;
