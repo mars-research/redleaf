@@ -94,6 +94,6 @@ SECTIONS {
   {
     KEEP(*(.stack_sizes));
   }
+  . = ALIGN(4K);
   __end = .;
-
 }

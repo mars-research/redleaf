@@ -26,7 +26,7 @@ pub fn init_buddy(bootinfo: BootInformation) {
     println!("Finding RAM regions");
     if let Some(memory_map_tag) = bootinfo.memory_map_tag() {
         for region in memory_map_tag.memory_areas() {
-            println!("{:?}", region);
+            println!("{:x?}", region);
             if region.typ() == 1 {
                 let mut base = region.start_address();
                 let size: usize = region.size() as usize;
