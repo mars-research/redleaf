@@ -4,10 +4,9 @@ curl https://sh.rustup.rs -sSf | sh
 rustup override add nightly
 rustup component add llvm-tools-preview
 cargo install cargo-xbuild
+cargo +nightly install stack-sizes
 rustup component add rust-src
-cargo xbuild --target x86_64-redleaf.json
 ```
-
 
 ### Prerequisites
 * Install Qemu
@@ -25,8 +24,15 @@ sudo apt-get install nasm
 * Install Grub
 
 ```
-apt-get install grub-pc-bin
+sudo apt-get install grub-pc-bin
 ```
+
+* Install Xorriso
+
+```
+sudo apt-get install xorriso
+```
+
 
 ### Run
 
@@ -70,11 +76,10 @@ root='hd0,1'
 ```
 set timeout=30
 menuentry "RedLeaf" {
-    insmod ext2
-    set root='hd0,1'
     set kernel='/boot/kernel.bin'
     echo "Loading ${kernel}..."
-    multiboot2 ${kernel} ${kernel}
+    multiboot2 ${kernel}
+    module2 ${kernel}
     boot
 }
 ```
