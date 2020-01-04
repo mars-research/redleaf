@@ -1,8 +1,9 @@
 use alloc::sync::Arc;
 use core::sync::atomic::{AtomicU32, Ordering};
 
-use crate::icache::{ICache, INode, Stat};
+use crate::icache::{ICache, INode};
 use crate::params;
+use crate::sysfile::Stat;
 
 #[derive(Debug)]
 pub enum FileType {
