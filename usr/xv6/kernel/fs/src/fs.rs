@@ -24,29 +24,29 @@ pub struct SuperBlock {
     pub bmapstart: u32, // Block number of first free map block
 }
 
-pub struct FileSystem {
-    pub superblock: SuperBlock,
-    pub bcache: BufferCache,
-    pub log: Log,
-    pub icache: ICache,
-}
+// pub struct FileSystem {
+//     pub superblock: SuperBlock,
+//     pub bcache: BufferCache,
+//     pub log: Log,
+//     pub icache: ICache,
+// }
 
-impl FileSystem {
-    // We only support a single device for now
-    pub fn new(dev: BDevPtr) -> Self {
-        let superblock = read_superblock(dev);
-        let log = Log::new(1234, &superblock);
-        Self {
-            superblock,
-            bcache: BufferCache::new(),
-            log,
-            icache: ICache::new(),
-        }
-    }
-}
+// impl FileSystem {
+//     // We only support a single device for now
+//     pub fn new(dev: BDevPtr) -> Self {
+//         let superblock = read_superblock(dev);
+//         let log = Log::new(1234, &superblock);
+//         Self {
+//             superblock,
+//             bcache: BufferCache::new(),
+//             log,
+//             icache: ICache::new(),
+//         }
+//     }
+// }
 
 // TODO: load super block from disk
-fn read_superblock(dev: BDevPtr) -> SuperBlock {
+fn read_superblock(dev: u32) -> SuperBlock {
     const NINODES: usize = 200;
 
     let nbitmap = params::FSSIZE / (params::BSIZE * 8) + 1;
@@ -72,3 +72,10 @@ fn read_superblock(dev: BDevPtr) -> SuperBlock {
 pub fn block_num_for_node(inum: u32, super_block: &SuperBlock) -> u32 {
     return inum / params::IPB as u32 + super_block.inodestart;
 }
+
+pub fn fsinit(dev: u32) {	
+    SUPER_BLOCK.call_once(|| read_superblock(dev));	
+    LOG.call_once(|| {	
+        Log::new(dev, SUPER_BLOCK.r#try().unwrap())	
+    });	
+} 
