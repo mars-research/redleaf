@@ -93,6 +93,12 @@ pub fn init_allocator() {
     unsafe {
         println!("multibootv2 tag found at {:x}", _bootinfo as usize);
         let bootinfo = multibootv2::load(_bootinfo);
+
+        match bootinfo.command_line_tag() {
+            None => println!("No kernel command line specified"),
+            Some(cmdline) => println!("Command Line: {}", cmdline.cmdline()),
+        }
+
         println!("Tags: {:?}", bootinfo);
         init_buddy(bootinfo);
     }

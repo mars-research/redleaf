@@ -5,10 +5,12 @@ use core::fmt;
 use header::{Tag, TagIter};
 pub use boot_loader_name::BootLoaderNameTag;
 pub use memory_map::{MemoryMapTag, MemoryArea, MemoryAreaIter};
+pub use command_line::CommandLineTag;
 
 mod header;
 mod boot_loader_name;
 mod memory_map;
+mod command_line;
 
 pub unsafe fn load(address: usize) -> BootInformation {
     assert_eq!(0, address & 0b111);
@@ -59,6 +61,10 @@ impl BootInformation {
 
     pub fn boot_loader_name_tag<'a>(&'a self) -> Option<&'a BootLoaderNameTag> {
         self.get_tag(2).map(|tag| unsafe { &*(tag as *const Tag as *const BootLoaderNameTag) })
+    }
+
+    pub fn command_line_tag<'a>(&'a self) -> Option<&'a CommandLineTag> {
+        self.get_tag(1).map(|tag| unsafe { &*(tag as *const Tag as *const CommandLineTag) })
     }
 
     fn get(&self) -> &BootInformationInner {
