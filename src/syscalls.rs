@@ -126,6 +126,15 @@ impl syscalls::Syscall for PDomain {
         pt
     }
 
+    // Create a new thread
+    // TODO: this is probably incorrect and unsafe
+    fn sys_current_thread(&self) -> Box<dyn Thread> {
+        disable_irq();
+        let current = crate::thread::get_current_pthread();
+        enable_irq();
+        current
+    }
+
     fn get_thread_id(&self) -> u64 {
         disable_irq(); 
 

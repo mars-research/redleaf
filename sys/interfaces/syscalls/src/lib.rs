@@ -9,6 +9,7 @@ pub trait Syscall {
     fn sys_println(&self, s: &str);
     fn sys_yield(&self);
     fn sys_create_thread(&self, name: &str, func: extern fn()) -> Box<dyn Thread>;
+    fn sys_current_thread(&self) -> Box<dyn Thread>;
     fn sys_alloc(&self) -> *mut u8;
     fn sys_free(&self, p: *mut u8);
     fn sys_alloc_huge(&self, sz: u64) -> *mut u8;
