@@ -42,11 +42,11 @@ impl AHCI {
 }
 
 impl syscalls::BDev for AHCI {
-    fn read(&mut self, block: u32, data: &mut [u8; 512]) {
-        self.disk.read(block as u64, data);
+    fn read(&self, block: u32, data: &mut [u8; 512]) {
+        // self.disk.read(block as u64, data);
     }
-    fn write(&mut self, block: u32, data: &[u8; 512]) {
-        self.disk.write(block as u64, data);
+    fn write(&self, block: u32, data: &[u8; 512]) {
+        // self.disk.write(block as u64, data);
     }
 }
 
