@@ -13,6 +13,8 @@ use alloc::sync::Arc;
 use crate::domain::domain::{Domain, KERNEL_DOMAIN}; 
 use crate::tls::cpuid; 
 use core::sync::atomic::{AtomicU64, Ordering};
+use crate::memory::VSPACE;
+use crate::arch::memory::BASE_PAGE_SIZE;
 
 /// This should be a cryptographically secure number, for now 
 /// just sequential ID
@@ -173,12 +175,7 @@ pub enum ThreadState {
     Waiting = 3, 
 }
 
-const STACK_SIZE_IN_LINES: usize = 4096 * 4;
-const STACK_SIZE_IN_PAGES: usize  = 2346;
-
-struct Stack {
-    mem: [usize; STACK_SIZE_IN_LINES],
-}
+const STACK_SIZE_IN_PAGES: usize  = 4095;
 
 pub struct Context {
   r15: usize,
@@ -200,7 +197,7 @@ pub struct Thread {
     affinity: u64,
     rebalance: bool, 
     context: Context,
-    stack: RefCell<Box<Stack>>,
+    stack: *mut u64,
     domain: Option<Arc<Mutex<Domain>>>,
     // Next thread in the scheduling queue
     next: Link,
@@ -222,13 +219,6 @@ pub struct Scheduler {
     passive_queue: SchedulerQueue,
 }
 
-impl Stack {
-
-    pub fn new() -> Stack {
-        Stack{mem: [0; STACK_SIZE_IN_LINES]}
-    }
-
-}
 
 impl Context {
 
@@ -246,12 +236,17 @@ impl  Thread {
 
         /* push die() on the stack where the switch will pick 
          * it up with the ret instruction */
-        let mut s = &mut **self.stack.borrow_mut(); 
-        s.mem[s.mem.len() - 1] = die as usize;
+        let ref mut vspace = *VSPACE.lock();
+        let stack_u8 = vspace.alloc_stack_guarded(STACK_SIZE_IN_PAGES).as_mut_ptr::<u8>();
+        let die_return = unsafe {
+            stack_u8.offset((STACK_SIZE_IN_PAGES * BASE_PAGE_SIZE - core::mem::size_of::<*const usize>()) as isize) as *mut usize
+        };
+        unsafe { *die_return = die as usize; }
+        self.stack = stack_u8 as *mut u64;
 
         /* set the stack pointer to point to die() */
         //self.context.rsp = s.mem[s.mem.len() - 1].as_ptr(); 
-        self.context.rsp = &(s.mem[s.mem.len() - 1]) as *const usize as usize;
+        self.context.rsp = die_return as usize;
     }
 
     pub fn new(name: &str, func: extern fn()) -> Thread  {
@@ -263,7 +258,7 @@ impl  Thread {
             affinity: 0,
             rebalance: false,
             context: Context::new(),
-            stack: RefCell::new(Box::new(Stack::new())),
+            stack: 0 as *mut _, 
             domain: None, 
             next: None, 
             next_domain: None,
