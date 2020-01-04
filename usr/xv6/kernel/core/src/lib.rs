@@ -1,4 +1,5 @@
 #![no_std]
+#![forbid(unsafe_code)]
 #![feature(abi_x86_interrupt)]
 #![feature(
     asm,
