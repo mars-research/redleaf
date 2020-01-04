@@ -29,10 +29,10 @@ impl File {
     }
 
     pub fn close(&self) {
-        match self.file_type {
+        match &self.file_type {
             FileType::INode { inode, .. } | FileType::Device { inode, .. } => {
                 // TODO: log begin_op here
-                ICache::put(inode);
+                ICache::put(inode.clone());
                 // TODO: log end_op here
             },
             // TODO: pipe
