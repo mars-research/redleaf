@@ -23,6 +23,7 @@ extern crate alloc;
 mod ahcid;
 
 use core::panic::PanicInfo;
+use core::cell::RefCell;
 use syscalls::{Syscall};
 use libsyscalls::syscalls::{sys_print, sys_alloc};
 use console::println;
@@ -30,23 +31,23 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 struct AHCI {
-    disk: Box<dyn self::ahcid::Disk>,
+    disk: RefCell<Box<dyn self::ahcid::Disk>>,
 }
 
 impl AHCI {
     fn new(disk: Box<dyn self::ahcid::Disk>) -> AHCI {
         AHCI {
-            disk: disk,
+            disk: RefCell::new(disk),
         }
     }
 }
 
 impl syscalls::BDev for AHCI {
     fn read(&self, block: u32, data: &mut [u8; 512]) {
-        // self.disk.read(block as u64, data);
+        self.disk.borrow_mut().read(block as u64, data);
     }
     fn write(&self, block: u32, data: &[u8; 512]) {
-        // self.disk.write(block as u64, data);
+        self.disk.borrow_mut().write(block as u64, data);
     }
 }
 
@@ -59,6 +60,11 @@ pub fn ahci_init(s: Box<dyn Syscall + Send + Sync>,
     let (hba, mut disks) = self::ahcid::disks(0xfebf1000, "meow");
 
     println!("ahci_init: Started AHCI domain");
+
+    for disk in disks.iter_mut() {
+        println!("Disk: {}", disk.size());
+    }
+
     Box::new(AHCI::new(disks.remove(0))) 
 }
 
