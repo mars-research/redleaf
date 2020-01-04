@@ -1,6 +1,9 @@
 use syscalls::PciResource;
 use syscalls::PciBar;
 use alloc::boxed::Box;
+use crate::memory::VSPACE;
+use crate::arch::vspace::MapAction;
+use crate::arch::memory::PAddr;
 
 #[derive(Copy, Clone)]
 pub struct PciConfig {
@@ -54,6 +57,12 @@ impl PciBar for PciDevice {
         use crate::dev::ixgbe::IxgbeBar;
         match pci_device {
             IxgbeDriver => {
+                let ref mut vspace = *VSPACE.lock();
+
+                // identity map the bar region
+                vspace.map_identity(PAddr::from(base), PAddr::from(base + size as u64),
+                                     MapAction::ReadWriteExecuteKernel);
+
                 pci_driver::BarRegions::Ixgbe(Box::new(IxgbeBar::new(base, size)))
             },
         }

@@ -65,7 +65,8 @@ impl Intel8259x {
             bar,
         };
 
-       // module.init();
+        println!("Calling module.init for ixgbe");
+        module.init();
 
         Ok(module)
     }
@@ -179,7 +180,7 @@ impl Intel8259x {
         self.set_promisc(true);
 
         // wait some time for the link to come up
-        //self.wait_for_link();
+        self.wait_for_link();
     }
 
     /// Returns the mac address of this device.

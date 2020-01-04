@@ -28,6 +28,7 @@ use pci_driver::BarRegions;
 use ixgbe::IxgbeBarRegion;
 use core::mem::MaybeUninit;
 pub use libsyscalls::errors::Result;
+use crate::device::Intel8259x;
 
 struct Ixgbe {
     vendor_id: u16,
@@ -69,6 +70,7 @@ impl pci_driver::PciDriver for Ixgbe {
                 unsafe {
                     ixgbe_bar.write(ixgbebar);
                 }
+                Intel8259x::new(bar);
             }
             _ => { println!("Got unknown bar region") }
         }
