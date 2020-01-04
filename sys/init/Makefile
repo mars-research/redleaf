@@ -8,6 +8,8 @@ linker_script := linker.ld
 target ?= $(arch)-init
 lib := target/$(target)/debug/libinit.a
 
+#FEATURES = --features "test_sleep"
+
 .PHONY: all
 all: $(bin)
 
@@ -25,6 +27,6 @@ $(bin): lib $(linker_script) checkstack
 
 .PHONY: lib
 lib:
-	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo xbuild --target x86_64-init.json
+	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo xbuild --target x86_64-init.json $(FEATURES)
 
 include $(root)/checkstack.mk
