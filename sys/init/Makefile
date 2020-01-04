@@ -1,5 +1,5 @@
-
 root := ../../
+
 arch ?= x86_64
 bin := build/init
 
@@ -19,10 +19,12 @@ clean:
 	rm -rf build
 	cargo clean
 
-$(bin): lib $(linker_script)
+$(bin): lib $(linker_script) checkstack
 	mkdir -p build	
 	ld -n -pie --no-dynamic-linker --gc-sections -T $(linker_script) -o $(bin) $(lib) 
 
 .PHONY: lib
 lib:
-	@RUST_TARGET_PATH=$(shell pwd) cargo xbuild --target x86_64-init.json
+	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo xbuild --target x86_64-init.json
+
+include $(root)/checkstack.mk

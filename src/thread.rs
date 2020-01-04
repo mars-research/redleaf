@@ -174,6 +174,7 @@ pub enum ThreadState {
 }
 
 const STACK_SIZE_IN_LINES: usize = 4096 * 4;
+const STACK_SIZE_IN_PAGES: usize  = 2346;
 
 struct Stack {
     mem: [usize; STACK_SIZE_IN_LINES],

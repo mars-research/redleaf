@@ -1,7 +1,7 @@
-
 arch ?= x86_64
 kernel := build/kernel.bin
 iso := build/redleaf.iso
+root := ./
 
 linker_script := linker.ld
 grub_cfg := boot/grub.cfg
@@ -93,8 +93,25 @@ $(iso): $(kernel) $(grub_cfg)
 	grub-mkrescue -o $(iso) build/isofiles #2> /dev/null
 	@rm -r build/isofiles
 
-$(kernel): kernel $(rust_os) bootblock entryother entry $(linker_script) init
+$(kernel): kernel $(rust_os) bootblock entryother entry $(linker_script) init checkstack
 	ld -n --gc-sections -T $(linker_script) -o $(kernel) build/entry.o build/boot.o build/multiboot_header.o $(rust_os) -b binary build/entryother.bin $(domain_list) 
+
+.PHONY: checkstack
+checkstack: checkstackinfo
+	$(eval greater := $(shell if [ $(max_stack) -gt $(half_ukern_stack) ]; then echo fail; fi))
+	$(if $(greater), $(error "This domain uses stack of $(max_stack) bytes which is larger than half of the stack allocated by the microkernel ($(half_ukern_stack))))
+
+
+.PHONY: checkstackinfo
+checkstackinfo:
+	$(eval max_stack := $(shell stack-sizes $(kernel) | sort -k2 -nr | awk 'NR==1{print $$2}'))
+	$(eval half_ukern_stack := $(shell  grep STACK_SIZE_IN_PAGES src/thread.rs | grep -o '[[:digit:]]*' | awk '{print $$1*4096/2}'))
+	$(eval max_stacks := $(shell stack-sizes $(kernel) | sort -k2 -nr | head -n 1))
+	@echo "Max allocated stack used by this domain: $(max_stack), half of kernel stack: $(half_ukern_stack), function:" 
+	@echo -e $(max_stacks)
+	@echo "Use"
+	@echo "\>stack-sizes $(kernel)"
+	@echo "for more info"
 
 .PHONY: init
 init:
@@ -103,7 +120,7 @@ init:
 
 .PHONY: kernel
 kernel:
-	@RUST_TARGET_PATH=$(shell pwd) cargo xbuild --target x86_64-redleaf.json
+	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo xbuild --target x86_64-redleaf.json
 
 # compile assembly files for the exception entry code
 .PHONY: entry

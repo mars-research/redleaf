@@ -1,8 +1,8 @@
+root := ../../../
 
 bin_name := ahci
 arch ?= x86_64
 bin := build/$(bin_name)
-
 linker_script := linker.ld
 
 target ?= $(arch)-$(bin_name)
@@ -25,4 +25,6 @@ $(bin): lib $(linker_script)
 
 .PHONY: lib
 lib:
-	@RUST_TARGET_PATH=$(shell pwd) cargo xbuild --target x86_64-${bin_name}.json
+	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo xbuild --target x86_64-${bin_name}.json
+
+include $(root)/checkstack.mk
