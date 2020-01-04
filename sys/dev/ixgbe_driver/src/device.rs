@@ -9,6 +9,9 @@ use crate::Result;
 use ixgbe::{IxgbeRegs, IxgbeArrayRegs};
 use console::println;
 use core::mem;
+use libsyscalls::time::sys_ns_sleep;
+
+const ONE_MS_IN_NS: u64 = 100_0000;
 
 pub struct Intel8259x {
     //base: usize,
@@ -68,34 +71,22 @@ impl Intel8259x {
     }
 
     fn wait_clear_reg(&self, register: IxgbeRegs, value: u64) {
-        let mut counter: u32 = 0;
         loop {
-            //let _register = &register;
             let current = self.bar.read_reg(register);
             if (current & value) == 0 {
                 break;
             }
-            counter = counter + 1;
-            if counter % 1000_0000 == 0 {
-                println!("current: {} value: {}", current, value);
-                break;
-            }
+            sys_ns_sleep(ONE_MS_IN_NS * 100);
         }
     }
 
     fn wait_write_reg(&self, register: IxgbeRegs, value: u64) {
-        let mut counter: u32 = 0;
         loop {
             let current = self.bar.read_reg(register);
             if (current & value) == value {
                 break;
             }
-
-            counter = counter + 1;
-            if counter % 1000_0000 == 0 {
-                println!("current: {} value: {}", current, value);
-                break;
-            }
+            sys_ns_sleep(ONE_MS_IN_NS * 100);
         }
     }
 
@@ -105,7 +96,7 @@ impl Intel8259x {
             if (current & value) == value {
                 break;
             }
-            //thread::sleep(Duration::from_millis(100));
+            sys_ns_sleep(ONE_MS_IN_NS * 100);
         }
     }
 
@@ -135,7 +126,7 @@ impl Intel8259x {
         self.bar.write_reg(IxgbeRegs::Ctrl, IXGBE_CTRL_RST_MASK);
 
         self.wait_clear_reg(IxgbeRegs::Ctrl, IXGBE_CTRL_RST_MASK);
-        //thread::sleep(Duration::from_millis(10));
+        sys_ns_sleep(ONE_MS_IN_NS * 100);
 
         // section 4.6.3.1 - disable interrupts again after reset
         self.bar.write_reg(IxgbeRegs::Eimc, 0x7fff_ffff);
@@ -431,10 +422,11 @@ impl Intel8259x {
     /// Waits for the link to come up.
     fn wait_for_link(&self) {
         println!("   - waiting for link");
-        //let time = Instant::now();
         let mut speed = self.get_link_speed();
-        while speed == 0 {
-            //thread::sleep(Duration::from_millis(100));
+        let mut count = 0;
+        while speed == 0 && count < 100 {
+            count = count + 1;
+            sys_ns_sleep(ONE_MS_IN_NS * 100);
             speed = self.get_link_speed();
         }
         println!("   - link speed is {} Mbit/s", self.get_link_speed());
