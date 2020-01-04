@@ -19,7 +19,7 @@ clean:
 	rm -rf build
 	cargo clean
 
-$(bin): lib $(linker_script)
+$(bin): lib $(linker_script) checkstack
 	mkdir -p build
 	ld -n -pie --no-dynamic-linker --gc-sections -T $(linker_script) -o $(bin) $(lib)
 
