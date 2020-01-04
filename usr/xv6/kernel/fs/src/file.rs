@@ -1,6 +1,8 @@
+use alloc::sync::Arc;
+use core::sync::atomic::{AtomicU32, Ordering};
+
 use crate::icache::{ICache, INode, Stat};
 use crate::params;
-use alloc::sync::Arc;
 
 #[derive(Debug)]
 pub enum FileType {
@@ -11,6 +13,7 @@ pub enum FileType {
 
 pub struct File {
     pub file_type: FileType,
+    ref_cnt: AtomicU32,
     pub readable: bool,
     pub writable: bool,
 }
@@ -19,6 +22,7 @@ impl File {
     pub fn new(file_type: FileType, readable: bool, writable: bool) -> File {
         File {
             file_type,
+            ref_cnt: AtomicU32::new(1),
             readable,
             writable
         }
@@ -100,5 +104,11 @@ impl File {
             // TODO: device, pipe
             _ => unimplemented!()
         }
+    }
+
+    // Increment ref count 
+    // xv6 equivalent: fileup
+    pub fn dup(&mut self) {
+        assert!(self.ref_cnt.fetch_add(1, Ordering::Relaxed) > 0, "filedup");
     }
 }

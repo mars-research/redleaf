@@ -7,6 +7,7 @@ use crate::params::{NBUF, BSIZE};
 use alloc::sync::Arc;
 use console::println;
 use core::ops::Deref;
+use libsyscalls::sysbdev;
 use spin::{Mutex};
 use utils::list2;
 
@@ -171,7 +172,7 @@ impl BufferCache {
             if (guard.flags & B_VALID) == 0 {
                 // iderw will set the buffer to valid
                 // Note that this is different from xv6-risvc 
-                iderw(&mut guard, false);
+                sysbdev::sys_read(buffer.block_number(), &mut guard.data);
             }
         }
         return buffer;
@@ -179,8 +180,11 @@ impl BufferCache {
 
     // Write b's contents to disk 
     // Return a locked buf with the contents of the indicated block.
-    pub fn write(&self, buffer_data: &mut BufferData) {
-        iderw(buffer_data, true);
+    // This is not very safe since the user could pass in a `block_number` that
+    // doesn't match with the `buffer_data`.
+    // TODO: address the issue above by refactoring the `BufferGuard`
+    pub fn write(&self, block_number: u32, buffer_data: &mut BufferData) {
+        sysbdev::sys_write(block_number, &buffer_data.data);
     }
 
     // This is confusing since it doesn't match xv6's brelse exactly so there could be a bug.

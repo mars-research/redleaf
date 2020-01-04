@@ -81,7 +81,7 @@ impl Log {
             {
                 let mut locked_dbuf = dbuf.lock();
                 locked_dbuf.data = lbuf.lock().data;
-                BCACHE.write(&mut locked_dbuf);  // write dst to disk
+                BCACHE.write(dbuf.block_number(), &mut locked_dbuf);  // write dst to disk
             }
             // Pin this buffer if using the riscv one
             BCACHE.release(&mut lbuf);
@@ -104,7 +104,7 @@ impl Log {
         {
             let mut locked_buf = buf.lock();
             self.logheader.to_buffer_block(&mut locked_buf.data);
-            BCACHE.write(&mut locked_buf);
+            BCACHE.write(buf.block_number(), &mut locked_buf);
         }
         BCACHE.release(&mut buf);
     }
@@ -173,7 +173,7 @@ impl Log {
             {
                 let mut locked_to = to.lock();
                 locked_to.data = from.lock().data;
-                BCACHE.write(&mut locked_to);  // write the log
+                BCACHE.write(to.block_number(), &mut locked_to);  // write the log
             }
             BCACHE.release(&mut from);
             BCACHE.release(&mut to);

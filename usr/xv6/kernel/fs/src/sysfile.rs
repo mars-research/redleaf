@@ -40,7 +40,16 @@ impl FileMode {
     }
 }
 
-pub fn sys_open(path: &str, mode: FileMode) -> Option<usize> {
+pub fn sys_dup(fd: u32) -> Option<u32> {
+    FD_TABLE.with(|fdtable| {
+        fdtable[fd as usize]
+            .as_mut()
+            .map(|f| f.dup());
+        Some(fd)
+    })
+}
+
+pub fn sys_open(path: &str, mode: FileMode) -> Option<u32> {
     // TODO: log begin_op here
     let inode: Option<Arc<INode>> = match mode {
         FileMode::Create => {
@@ -97,7 +106,7 @@ pub fn sys_open(path: &str, mode: FileMode) -> Option<usize> {
     drop(iguard);
     // TODO: log end_op here
 
-    Some(fd)
+    Some(fd as u32)
 }
 
 // Allocate a file descriptor for the given file.

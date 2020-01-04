@@ -1,4 +1,5 @@
 #![no_std]
+#![forbid(unsafe_code)]
 #![feature(abi_x86_interrupt)]
 #![feature(
     asm,
@@ -19,6 +20,9 @@ extern crate malloc;
 extern crate spin;
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate num_derive;
+extern crate byteorder;
 extern crate syscalls;
 extern crate tls;
 
@@ -51,9 +55,10 @@ impl syscalls::VFS for VFS {}
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>, bdev: syscalls::BDevPtr) -> Box<dyn syscalls::VFS> {
     libsyscalls::syscalls::init(s);
+    libsyscalls::sysbdev::init(bdev);
 
     println!("init xv6 filesystem");
-    let xv6fs = fs::FileSystem::new(bdev);
+    fs::fsinit(0);
     println!("finish init xv6 filesystem");
     ls("/");
 
