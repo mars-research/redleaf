@@ -40,16 +40,35 @@ impl FileMode {
     }
 }
 
-pub fn sys_dup(fd: u32) -> Option<u32> {
+pub fn sys_dup(fd: usize) -> Option<usize> {
     FD_TABLE.with(|fdtable| {
-        fdtable[fd as usize]
+        fdtable
+            .get_mut(fd)?
             .as_mut()
             .map(|f| f.dup());
         Some(fd)
     })
 }
 
-pub fn sys_open(path: &str, mode: FileMode) -> Option<u32> {
+pub fn sys_read(fd: usize, buffer: &mut[u8]) -> Option<usize> {
+    FD_TABLE.with(|fdtable| {
+        fdtable
+            .get_mut(fd)?
+            .as_mut()
+            .map(|f| f.read(buffer))?
+    })
+}
+
+pub fn sys_write(fd: usize, buffer: &[u8]) -> Option<usize> {
+    FD_TABLE.with(|fdtable| {
+        fdtable
+            .get_mut(fd)?
+            .as_mut()
+            .map(|f| f.write(buffer))?
+    })
+}
+
+pub fn sys_open(path: &str, mode: FileMode) -> Option<usize> {
     // TODO: log begin_op here
     let inode: Option<Arc<INode>> = match mode {
         FileMode::Create => {
@@ -106,8 +125,9 @@ pub fn sys_open(path: &str, mode: FileMode) -> Option<u32> {
     drop(iguard);
     // TODO: log end_op here
 
-    Some(fd as u32)
+    Some(fd)
 }
+
 
 // Allocate a file descriptor for the given file.
 // Takes over file reference from caller on success.

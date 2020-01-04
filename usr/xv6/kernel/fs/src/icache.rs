@@ -367,7 +367,7 @@ impl INodeDataGuard<'_> {
     // Write data to inode
     // Returns number of bytes written, or None upon overflow
     // xv6 equivalent: writei
-    pub fn write(&mut self, user_buffer: &mut [u8], mut offset: usize) -> Option<usize> {
+    pub fn write(&mut self, user_buffer: &[u8], mut offset: usize) -> Option<usize> {
         let bytes_to_write = user_buffer.len();
 
         if offset as u32 > self.data.size || offset.checked_add(bytes_to_write).is_none() {
