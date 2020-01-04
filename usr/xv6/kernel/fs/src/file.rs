@@ -28,7 +28,7 @@ impl File {
         }
     }
 
-    pub fn close(self) {
+    pub fn close(&self) {
         match self.file_type {
             FileType::INode { inode, .. } | FileType::Device { inode, .. } => {
                 // TODO: log begin_op here
@@ -73,7 +73,7 @@ impl File {
     // Write bytes to file.
     // Returns number of bytes written, or None if lacking write permissions or upon overflow.
     // xv6 equivalent: filewrite
-    pub fn write(&mut self, user_buffer: &mut [u8]) -> Option<usize> {
+    pub fn write(&mut self, user_buffer: &[u8]) -> Option<usize> {
         if !self.writable {
             return None;
         }
@@ -88,7 +88,7 @@ impl File {
                     {
                         // TODO: log begin_op
                         let mut iguard = inode.lock();
-                        if let Some(bytes) = iguard.write(&mut user_buffer[i..i+bytes_to_write], *offset) {
+                        if let Some(bytes) = iguard.write(&user_buffer[i..i+bytes_to_write], *offset) {
                             *offset += bytes;
                             i += bytes;
                         }
