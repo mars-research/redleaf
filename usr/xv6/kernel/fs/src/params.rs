@@ -4,7 +4,7 @@ use crate::icache;
 // https://github.com/mit-pdos/xv6-public/blob/master/param.h
 pub const NOFILE: usize =       16;     // open files per process
 pub const NFILE: usize =       100;     // open files per system
-pub const NINODE: usize =       50;     // maximum number of active i-nodes
+pub const NINODE: usize =       32;     // maximum number of active i-nodes
 pub const NDEV: i16 =           10;     // maximum major device number
 pub const ROOTDEV: u32 =       1;     // device number of file system root disk
 pub const MAXOPBLOCKS: usize =  10;     // max # of blocks any FS op writes

@@ -420,6 +420,12 @@ pub struct INode {
     pub data: Mutex<INodeData>,
 }
 
+impl core::default::Default for INode {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl INode {
     fn new() -> INode {
         INode {
@@ -483,15 +489,7 @@ pub struct ICache {
 impl ICache {
     pub fn new() -> ICache {
         ICache {
-            inodes: unsafe {
-                let mut arr = MaybeUninit::<[Arc<INode>; params::NINODE]>::uninit();
-                for i in 0..params::NINODE {
-                    (arr.as_mut_ptr() as *mut Arc<INode>)
-                        .add(i)
-                        .write(Arc::new(INode::new()));
-                }
-                arr.assume_init()
-            },
+            inodes: core::default::Default::default(),
         }
     }
 
