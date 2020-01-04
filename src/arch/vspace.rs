@@ -400,6 +400,127 @@ impl VSpace {
         }
     }
 
+    pub(crate) fn alloc_stack_guarded(
+        &mut self,
+        num_pages: usize,
+    ) -> VAddr {
+        // Allocate num_pages + 1 for the guard page
+        let stack_region = VSpace::allocate_pages(num_pages + 1, ResourceType::Memory);
+
+        // unmap the first page to make it a guard page
+        self.set_guard_page(paddr_to_kernel_vaddr(stack_region));
+
+        paddr_to_kernel_vaddr(stack_region)
+    }
+
+    /// Changes permission bits for a range of pages
+    pub(crate) fn map_change_prot_range(
+        &mut self,
+        vbase: VAddr,
+        size: usize,
+        rights: MapAction,
+    ) -> bool {
+        assert!(size % BASE_PAGE_SIZE == 0, "size is not page aligned");
+        assert!(vbase % BASE_PAGE_SIZE == 0, "addr is not page aligned");
+
+        let num_pages: usize = size / BASE_PAGE_SIZE;
+
+        for p in 0..num_pages {
+            let done = self.map_change_prot(vbase + p * BASE_PAGE_SIZE, rights);
+            if !done {
+                return done;
+            }
+        }
+        true
+    }
+
+    /// Changes permission bits for a page
+    pub(crate) fn set_guard_page(
+        &mut self,
+        vbase: VAddr,
+    ) -> bool {
+
+        let pml4_idx = pml4_index(vbase);
+        if !self.pml4[pml4_idx].is_present() {
+            trace!("Mapping not found! Forgot to map? {:?} @ PML4[{}]", vbase, pml4_idx);
+            return false;
+        }
+
+        let pdpt = self.get_pdpt(self.pml4[pml4_idx]);
+        let pdpt_idx = pdpt_index(vbase);
+
+        // TODO: if we support None mappings, this is if not good enough:
+        if !pdpt[pdpt_idx].is_present() {
+            trace!("Mapping not found! Forgot to map? {:?} @ PDPT[{}]", vbase, pdpt_idx);
+            return false;
+        }
+
+        let pd = self.get_pd(pdpt[pdpt_idx]);
+        let mut pd_idx = pd_index(vbase);
+
+        if !pd[pd_idx].is_present() {
+            trace!("Mapping not found! Forgot to map? {:?} @ PD[{}]", vbase, pd_idx);
+            return false;
+        }
+
+        let pt = self.get_pt(pd[pd_idx]);
+        let mut pt_idx = pt_index(vbase);
+
+        if !pt[pt_idx].is_present() {
+            trace!("Mapping not found! Forgot to map? {:?} @ PT[{}]", vbase, pt_idx);
+            return false;
+        }
+
+        let pt_addr = pt[pt_idx].address();
+        let pt_entry = PTEntry::new(pt_addr, (MapAction::None).to_pt_rights());
+        pt[pt_idx] = pt_entry;
+        return true;
+    }
+
+    /// Changes permission bits for a page
+    pub(crate) fn map_change_prot(
+        &mut self,
+        vbase: VAddr,
+        rights: MapAction,
+    ) -> bool {
+
+        let pml4_idx = pml4_index(vbase);
+        if !self.pml4[pml4_idx].is_present() {
+            trace!("Mapping not found! Forgot to map? {:?} @ PML4[{}]", vbase, pml4_idx);
+            return false;
+        }
+
+        let pdpt = self.get_pdpt(self.pml4[pml4_idx]);
+        let pdpt_idx = pdpt_index(vbase);
+
+        // TODO: if we support None mappings, this is if not good enough:
+        if !pdpt[pdpt_idx].is_present() {
+            trace!("Mapping not found! Forgot to map? {:?} @ PDPT[{}]", vbase, pdpt_idx);
+            return false;
+        }
+
+        let pd = self.get_pd(pdpt[pdpt_idx]);
+        let mut pd_idx = pd_index(vbase);
+
+        if !pd[pd_idx].is_present() {
+            trace!("Mapping not found! Forgot to map? {:?} @ PD[{}]", vbase, pd_idx);
+            return false;
+        }
+
+        let pt = self.get_pt(pd[pd_idx]);
+        let mut pt_idx = pt_index(vbase);
+
+        if !pt[pt_idx].is_present() {
+            trace!("Mapping not found! Forgot to map? {:?} @ PT[{}]", vbase, pt_idx);
+            return false;
+        }
+
+        let pt_addr = pt[pt_idx].address();
+        let pt_entry = PTEntry::new(pt_addr, PTFlags::P | rights.to_pt_rights());
+        pt[pt_idx] = pt_entry;
+        return true;
+    }
+
     /// A simple wrapper function for allocating just one page.
     pub(crate) fn allocate_one_page() -> PAddr {
         VSpace::allocate_pages(1, ResourceType::PageTable)
