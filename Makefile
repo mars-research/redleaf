@@ -108,7 +108,7 @@ checkstackinfo:
 	$(eval half_ukern_stack := $(shell  grep STACK_SIZE_IN_PAGES src/thread.rs | grep -o '[[:digit:]]*' | awk '{print $$1*4096/2}'))
 	$(eval max_stacks := $(shell stack-sizes $(kernel) | sort -k2 -nr | head -n 1))
 	@echo "Max allocated stack used by this domain: $(max_stack), half of kernel stack: $(half_ukern_stack), function:" 
-	@echo -e $(max_stacks)
+	@echo "-e $(max_stacks)"
 	@echo "Use"
 	@echo "\>stack-sizes $(kernel)"
 	@echo "for more info"

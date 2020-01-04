@@ -175,7 +175,8 @@ pub enum ThreadState {
     Waiting = 3, 
 }
 
-const STACK_SIZE_IN_PAGES: usize  = 4095;
+const STACK_SIZE_IN_PAGES: usize  = 4096;
+//const STACK_SIZE_IN_PAGES: usize  = 2047;
 
 pub struct Context {
   r15: usize,
