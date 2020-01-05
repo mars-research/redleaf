@@ -12,13 +12,15 @@
     panic_info_message
 )]
 
+pub mod sleep;
+pub mod sleeplock;
+
 extern crate malloc;
 extern crate alloc;
 use alloc::boxed::Box;
-use alloc::vec::Vec;
 use core::panic::PanicInfo;
 use syscalls::{Syscall};
-use libsyscalls::syscalls::{sys_create_thread, sys_yield, sys_recv_int, sys_get_thread_id};
+use libsyscalls::syscalls::{sys_create_thread, sys_current_thread, sys_yield, sys_recv_int};
 use console::println;
 
 struct Xv6Syscalls {}
@@ -33,7 +35,7 @@ impl syscalls::Xv6 for Xv6Syscalls {}
 
 extern fn xv6_kernel_test_th() {
    loop {
-        println!("xv6_kernel_test_th, tid: {}", sys_get_thread_id()); 
+        println!("xv6_kernel_test_th, tid: {}", sys_current_thread().get_id());
         sys_yield(); 
    }
 }
@@ -77,12 +79,12 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
 
     println!("init xv6/core");
 
-    println!("thread id:{}", sys_get_thread_id()); 
+    println!("thread id:{}", sys_current_thread().get_id());
 
 
     #[cfg(feature = "test_threads")]
-    test_threads(); 
-  
+    test_threads();
+
     let (dom_xv6fs, vfs)  = create_xv6fs.create_domain_xv6fs(bdev);
     
     let xv6 = Box::new(Xv6Syscalls::new()); 

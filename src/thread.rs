@@ -544,7 +544,6 @@ pub fn get_current_ref() -> Arc<Mutex<Thread>> {
     rc_t
 }
 
-
 /// Return domain of the current thread
 fn get_domain_of_current() -> Arc<Mutex<Domain>> {
 
@@ -552,6 +551,10 @@ fn get_domain_of_current() -> Arc<Mutex<Domain>> {
     let arc_d = rc_t.lock().domain.as_ref().unwrap().clone();
 
     arc_d
+}
+
+pub fn get_current_pthread() -> Box<PThread> {
+    Box::new(PThread::new(get_current_ref().clone()))
 }
 
 // Kicked from the timer IRQ
@@ -648,7 +651,7 @@ pub fn create_thread (name: &str, func: extern fn()) -> Box<PThread> {
 
     let t = Arc::new(Mutex::new(Thread::new(name, func)));
     let pt = Box::new(PThread::new(Arc::clone(&t)));
-   
+
     s.put_thread_in_passive(t);
     return pt; 
 }
@@ -666,7 +669,14 @@ impl PThread {
 }
 
 impl syscalls::Thread for PThread {
-
+    fn get_id(&self) -> u64 {
+        disable_irq();
+        let tid = {
+            self.thread.lock().id
+        };
+        enable_irq();
+        tid
+    }
 
     fn set_affinity(&self, affinity: u64) {
         disable_irq(); 
