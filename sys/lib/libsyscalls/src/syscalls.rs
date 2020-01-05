@@ -63,3 +63,8 @@ pub fn sys_get_thread_id() -> u64 {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
     return scalls.get_thread_id();
 }
+
+pub fn sys_backtrace() {
+    let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
+    return scalls.sys_backtrace();
+}

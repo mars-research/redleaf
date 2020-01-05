@@ -14,6 +14,7 @@ pub trait Syscall {
     fn sys_alloc_huge(&self, sz: u64) -> *mut u8;
     fn sys_free_huge(&self, p: *mut u8);
     fn get_thread_id(&self) -> u64;
+    fn sys_backtrace(&self);
 }
 
 #[derive(Clone,Copy,Debug)]

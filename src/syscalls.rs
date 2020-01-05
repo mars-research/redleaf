@@ -137,6 +137,13 @@ impl syscalls::Syscall for PDomain {
         enable_irq(); 
         tid
     }
+
+    fn sys_backtrace(&self) {
+        use crate::panic::backtrace;
+        disable_irq();
+        backtrace();
+        enable_irq();
+    }
 }
 
 impl syscalls::CreatePCI for PDomain {

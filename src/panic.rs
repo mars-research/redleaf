@@ -171,7 +171,7 @@ fn backtrace_format(
                 }
             }
         } else {
-            println!(" - <unknown>");
+            //println!(" - <unknown>");
         }
         println!("");
     });

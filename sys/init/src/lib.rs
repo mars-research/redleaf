@@ -16,7 +16,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::panic::PanicInfo;
-use libsyscalls::syscalls::{sys_create_thread, sys_yield, sys_recv_int};
+use libsyscalls::syscalls::{sys_create_thread, sys_yield, sys_recv_int, sys_backtrace};
 use console::println;
 
 extern fn timer_thread() {
@@ -128,5 +128,6 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
 // This function is called on panic.
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
+    sys_backtrace();
     loop {}
 }
