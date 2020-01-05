@@ -65,7 +65,7 @@ impl syscalls::PCI for PCI {
                 _ => 0 as u32,
             };
             let pci_bar = PCI_BAR.r#try().expect("System call interface is not initialized.");
-            let bar_region = pci_bar.get_bar_region(bar0 as u64, 512 * 1024 as usize, pci_driver::PciDrivers::IxgbeDriver);  
+            let bar_region = pci_bar.get_bar_region(bar0 as u64, 512 * 1024 as usize, pci_driver.get_driver_type());
             pci_driver.probe(bar_region);
         };
     }

@@ -8,6 +8,7 @@ pub trait PciDriver {
     fn probe(&mut self, bar_region: BarRegions);
     fn get_vid(&self) -> u16;
     fn get_did(&self) -> u16;
+    fn get_driver_type(&self) -> PciDrivers;
 }
 
 pub enum BarRegions {
@@ -16,6 +17,7 @@ pub enum BarRegions {
     None
 }
 
+#[derive(Copy, Clone)]
 pub enum PciDrivers {
     IxgbeDriver,
     AhciDriver

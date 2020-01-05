@@ -30,9 +30,11 @@ use core::mem::MaybeUninit;
 pub use libsyscalls::errors::Result;
 use crate::device::Intel8259x;
 
+#[derive(Copy, Clone)]
 struct Ixgbe {
     vendor_id: u16,
     device_id: u16,
+    driver: pci_driver::PciDrivers,
 }
 
 struct IxgbeBar<'a> {
@@ -44,6 +46,7 @@ impl Ixgbe {
         Ixgbe {
             vendor_id: 0x8086,
             device_id: 0x154D,
+            driver: pci_driver::PciDrivers::IxgbeDriver,
         }
     }
 }
@@ -82,6 +85,10 @@ impl pci_driver::PciDriver for Ixgbe {
 
     fn get_did(&self) -> u16 {
         self.device_id
+    }
+
+    fn get_driver_type(&self) -> pci_driver::PciDrivers {
+        self.driver
     }
 }
 
