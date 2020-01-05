@@ -14,6 +14,7 @@ use crate::block::Block;
 use crate::directory::DirectoryEntry;
 use crate::fs::{SUPER_BLOCK, block_num_for_node};
 use crate::params;
+use crate::sysfile::Stat;
 
 #[derive(Debug)]
 pub struct INodeMeta {
@@ -129,13 +130,6 @@ pub enum INodeFileType {
     Device,
 }
 
-pub struct Stat {
-    pub device: u32,
-    pub inum: u32,
-    pub file_type: INodeFileType,
-    pub nlink: i16,
-    pub size: u64,
-}
 
 impl<'a> Drop for INodeDataGuard<'a> {
     fn drop<'b>(&'b mut self) {

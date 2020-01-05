@@ -24,6 +24,15 @@ pub enum FileMode {
     Create
 }
 
+
+pub struct Stat {
+    pub device: u32,
+    pub inum: u32,
+    pub file_type: INodeFileType,
+    pub nlink: i16,
+    pub size: u64,
+}
+
 impl FileMode {
     fn readable(self) -> bool {
         match self {
@@ -65,6 +74,24 @@ pub fn sys_write(fd: usize, buffer: &[u8]) -> Option<usize> {
             .get_mut(fd)?
             .as_mut()
             .map(|f| f.write(buffer))?
+    })
+}
+
+pub fn sys_close(fd: usize) -> Option<()> {
+    FD_TABLE.with(|fdtable| {
+        fdtable
+            .get_mut(fd)?
+            .take()
+            .map(|f| f.close())
+    })
+}
+
+pub fn sys_fstat(fd: usize) -> Option<Stat> {
+    FD_TABLE.with(|fdtable| {
+        fdtable
+            .get_mut(fd)?
+            .as_mut()
+            .map(|f| f.stat())?
     })
 }
 
