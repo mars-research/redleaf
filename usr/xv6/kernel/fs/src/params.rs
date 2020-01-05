@@ -15,7 +15,7 @@ pub const BPB: usize =          BSIZE * 8; // bits per block
 pub const FSSIZE: usize =       1000;   // size of file system in blocks
 
 // https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/fs.h
-pub const ROOTINO: u32   =      1;      // root i-number
+pub const ROOTINO: u16   =      1;      // root i-number
 pub const FSMAGIC: usize =      0x10203040;
 pub const NDIRECT: usize =      12;
 pub const NINDIRECT: usize =    BSIZE / mem::size_of::<u32>();

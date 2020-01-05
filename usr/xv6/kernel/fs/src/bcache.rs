@@ -14,12 +14,6 @@ use utils::list2;
 const B_DIRTY: u32 = 1 << 0;
 const B_VALID: u32 = 1 << 1;
 
-fn iderw(buffer: &mut BufferData, write: bool) {
-    if write {
-        buffer.data[0] = 2;
-    }
-}
-
 pub type BufferBlock = [u8; BSIZE];
 
 pub struct BufferData {
@@ -165,7 +159,7 @@ impl BufferCache {
     // This is okay because the buffer will become valid only if it is a reused buffer.
     // We can also merge `bread` with `bget` since `bget` is only a helper for `bread`
     pub fn read(&self, device: u32, block_number: u32) -> BufferGuard {
-        println!("bread dev{} block{}", device, block_number);
+        println!("bread dev#{} block#{}", device, block_number);
         let buffer = self.get(device, block_number);
         {
             let mut guard = buffer.lock();
@@ -174,6 +168,7 @@ impl BufferCache {
                 // Note that this is different from xv6-risvc 
                 sysbdev::sys_read(buffer.block_number(), &mut guard.data);
             }
+            // println!("bread block#{}: {:X?}", block_number, &guard.data[..]);
         }
         return buffer;
     }

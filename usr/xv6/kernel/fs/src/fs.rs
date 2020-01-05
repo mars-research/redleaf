@@ -72,8 +72,8 @@ fn read_superblock(dev: u32) -> SuperBlock {
 }
 
 // TODO: better name and place
-pub fn block_num_for_node(inum: u32, super_block: &SuperBlock) -> u32 {
-    return inum / params::IPB as u32 + super_block.inodestart;
+pub fn block_num_for_node(inum: u16, super_block: &SuperBlock) -> u32 {
+    return inum as u32 / params::IPB as u32 + super_block.inodestart;
 }
 
 pub fn fsinit(dev: u32) {	

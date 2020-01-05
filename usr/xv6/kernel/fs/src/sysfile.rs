@@ -27,7 +27,7 @@ pub enum FileMode {
 
 pub struct Stat {
     pub device: u32,
-    pub inum: u32,
+    pub inum: u16,
     pub file_type: INodeFileType,
     pub nlink: i16,
     pub size: u64,

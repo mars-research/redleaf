@@ -10,7 +10,7 @@ impl Block {
     pub fn free(device: u32, block: u32) {
         let super_block = SUPER_BLOCK.r#try().expect("fs not initialized");
 
-        let mut bguard = BCACHE.read(device, block_num_for_node(block, &super_block));
+        let mut bguard = BCACHE.read(device, block_num_for_node(block as u16, &super_block));
         let mut buffer = bguard.lock();
         let bi = (block as usize) % params::BPB;
         let m = 1 << (bi % 8);
@@ -30,7 +30,7 @@ impl Block {
         let super_block = SUPER_BLOCK.r#try().expect("fs not initialized");
 
         for b in (0..super_block.size).step_by(params::BPB) {
-            let mut bguard = BCACHE.read(device, block_num_for_node(b as u32, &super_block));
+            let mut bguard = BCACHE.read(device, block_num_for_node(b as u16, &super_block));
             let mut buffer = bguard.lock();
 
             let mut bi = 0;

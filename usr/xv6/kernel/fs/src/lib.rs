@@ -82,7 +82,7 @@ fn ls(path: &str) -> Result<(), String> {
             // Assuming DIRENT_SIZE > 0
             while sysfile::sys_read(fd, &mut buffer[..]).unwrap_or(0) == DIRENT_SIZE {
                 let de = directory::DirectoryEntry::from_byte_array(&buffer[..]);
-                println!("ls de.inum: {:?}", de.inum);
+                println!("ls de.inum: {:?} de.name {:X?}", de.inum, de.name);
                 if de.inum == 0 {
                     continue;
                 }

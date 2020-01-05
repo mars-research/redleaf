@@ -21,7 +21,7 @@ pub struct INodeMeta {
     // Device number
     pub device: u32,
     // Inode number
-    pub inum: u32,
+    pub inum: u16,
     // inode has been read from disk?
     pub valid: AtomicBool,
 }
@@ -288,7 +288,7 @@ impl INodeDataGuard<'_> {
     }
 
     // Write a new directory entry (name, inum) into the directory.
-    pub fn dirlink(&mut self, name: &str, inum: u32) -> Result<(), &'static str> {
+    pub fn dirlink(&mut self, name: &str, inum: u16) -> Result<(), &'static str> {
         // check that the name is not present
         if let Some(inode) = self.dirlookup(name) {
             ICache::put(inode);
@@ -471,6 +471,7 @@ impl INode {
             }
         }
 
+        // console::println!("ilock inode#{}: {:?}", self.meta.inum, data);
         INodeDataGuard {
             node: &self,
             data: data,
@@ -493,7 +494,7 @@ impl ICache {
     // Looks for a free inode on disk, marks it as used
     pub fn alloc(&mut self, device: u32, file_type: INodeFileType) -> Option<Arc<INode>> {
         let super_block = SUPER_BLOCK.r#try().expect("fs not initialized");
-        for inum in 1..super_block.ninodes {
+        for inum in 1..super_block.ninodes as u16 {
             let mut bguard = BCACHE.read(device, block_num_for_node(inum, super_block));
             let mut buffer = bguard.lock();
 
@@ -522,7 +523,7 @@ impl ICache {
     }
 
     // Get in-memory inode matching device and inum. Does not read from disk.
-    pub fn get(&mut self, device: u32, inum: u32) -> Option<Arc<INode>> {
+    pub fn get(&mut self, device: u32, inum: u16) -> Option<Arc<INode>> {
         let mut empty: Option<&mut Arc<INode>> = None;
         for inode in self.inodes.iter_mut() {
             if Arc::strong_count(inode) == 1
