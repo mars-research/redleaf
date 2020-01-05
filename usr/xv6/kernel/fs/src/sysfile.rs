@@ -139,7 +139,7 @@ pub fn sys_open(path: &str, mode: FileMode) -> Option<usize> {
     }
 
     let file: Box<File> = match iguard.data.file_type {
-        Device => {
+        INodeFileType::Device => {
             Box::new(File::new(FileType::Device { inode: inode.clone(), major: iguard.data.major }, mode.readable(), mode.writable()))
         },
         _ => {
