@@ -57,7 +57,7 @@ pub fn ahci_init(s: Box<dyn Syscall + Send + Sync>,
                  pci: Box<dyn syscalls::PCI>) -> Box<dyn syscalls::BDev> {
     libsyscalls::syscalls::init(s);
 
-    let (hba, mut disks) = self::ahcid::disks(0xfebf1000, "meow");
+    let (hba, mut disks) = self::ahcid::disks(0xFEBB1000, "meow");
 
     println!("ahci_init: Started AHCI domain");
 

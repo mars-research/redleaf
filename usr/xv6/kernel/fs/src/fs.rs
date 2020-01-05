@@ -1,15 +1,18 @@
+use byteorder::{ByteOrder, LittleEndian};
+use libsyscalls::sysbdev;
 use spin::Once;
 use syscalls::BDevPtr;
 
 use crate::params;
 use crate::log::{Log, LOG};
 use crate::icache::ICache;
-use crate::bcache::BufferCache;
+use crate::bcache::{BCACHE, BufferCache};
 
 pub static SUPER_BLOCK: Once<SuperBlock> = Once::new();
 
+#[derive(Debug)]
 pub struct SuperBlock {
-    pub size: usize,
+    pub size: u32,
     // Size of file system image (blocks)
     pub nblocks: u32,
     // Number of data blocks
@@ -22,6 +25,20 @@ pub struct SuperBlock {
     pub inodestart: u32,
     // Block number of first inode block
     pub bmapstart: u32, // Block number of first free map block
+}
+
+impl SuperBlock {
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        Self {
+            size: LittleEndian::read_u32(&bytes[0..4]),
+            nblocks: LittleEndian::read_u32(&bytes[4..8]),
+            ninodes: LittleEndian::read_u32(&bytes[8..12]),
+            nlog: LittleEndian::read_u32(&bytes[12..16]),
+            logstart: LittleEndian::read_u32(&bytes[16..20]),
+            inodestart: LittleEndian::read_u32(&bytes[20..24]),
+            bmapstart: LittleEndian::read_u32(&bytes[24..28]),
+        }
+    }
 }
 
 // pub struct FileSystem {
@@ -47,30 +64,16 @@ pub struct SuperBlock {
 
 // TODO: load super block from disk
 fn read_superblock(dev: u32) -> SuperBlock {
-    const NINODES: usize = 200;
-
-    let nbitmap = params::FSSIZE / (params::BSIZE * 8) + 1;
-    let ninodeblocks = NINODES / params::IPB + 1;
-    let nlog = params::LOGSIZE;
-
-    // 1 fs block = 1 disk sector
-    let nmeta = 2 + nlog + ninodeblocks + nbitmap;
-    let nblocks = params::FSSIZE - nmeta;
-    // TODO: ensure the encoding is intel's encoding
-    SuperBlock {
-        size: params::FSSIZE as usize,
-        nblocks: nblocks as u32,
-        ninodes: NINODES as u32,
-        nlog: nlog as u32,
-        logstart: 2,
-        inodestart: 2 + nlog as u32,
-        bmapstart: (2 + nlog + ninodeblocks) as u32,
-    }
+    let mut buffer = BCACHE.read(dev, 1);
+    let superblock = SuperBlock::from_bytes(&buffer.lock().data);
+    BCACHE.release(&mut buffer);
+    console::println!("Superblock read from disk: {:?}", superblock);
+    superblock
 }
 
 // TODO: better name and place
-pub fn block_num_for_node(inum: u32, super_block: &SuperBlock) -> u32 {
-    return inum / params::IPB as u32 + super_block.inodestart;
+pub fn block_num_for_node(inum: u16, super_block: &SuperBlock) -> u32 {
+    return inum as u32 / params::IPB as u32 + super_block.inodestart;
 }
 
 pub fn fsinit(dev: u32) {	

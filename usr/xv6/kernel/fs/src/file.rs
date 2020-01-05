@@ -12,6 +12,7 @@ pub enum FileType {
     Device { inode: Arc<INode>, major: i16 },
 }
 
+#[derive(Debug)]
 pub struct File {
     pub file_type: FileType,
     ref_cnt: AtomicU32,
