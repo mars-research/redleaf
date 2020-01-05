@@ -76,12 +76,13 @@ fn ls(path: &str) -> Result<(), String> {
     let mut buffer = [0 as u8; DIRENT_SIZE];
     match &stat.file_type {
         icache::INodeFileType::File => {
-            println!("{} {:?} {} {}", path, stat.file_type, stat.inum, stat.size);
+            println!("ls path:{} type:{:?} inum:{} size:{}", path, stat.file_type, stat.inum, stat.size);
         },
         icache::INodeFileType::Directory => {
             // Assuming DIRENT_SIZE > 0
-            while sysfile::sys_read(fd, &mut buffer[..]).unwrap_or(0) < DIRENT_SIZE {
+            while sysfile::sys_read(fd, &mut buffer[..]).unwrap_or(0) == DIRENT_SIZE {
                 let de = directory::DirectoryEntry::from_byte_array(&buffer[..]);
+                println!("ls de.inum: {:?}", de.inum);
                 if de.inum == 0 {
                     continue;
                 }
@@ -94,7 +95,7 @@ fn ls(path: &str) -> Result<(), String> {
                                 .ok_or(alloc::format!("ls: cannot open {}", file_path))?;
                 let file_stat = sysfile::sys_fstat(file_fd)
                                 .ok_or(alloc::format!("ls: cannot stat {}", file_path))?;
-                println!("{} {:?} {} {}", file_path, file_stat.file_type, file_stat.inum, file_stat.size);
+                println!("ls path:{} type:{:?} inum:{} size:{}", file_path, file_stat.file_type, file_stat.inum, file_stat.size);
             }
         }
         _ => unimplemented!(),
@@ -103,9 +104,14 @@ fn ls(path: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn yeet() {
+
+}
+
 // This function is called on panic.
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
+    yeet();
     println!("xv6fs panic: {:?}", info);
     loop {}
 }
