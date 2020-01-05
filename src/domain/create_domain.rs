@@ -46,13 +46,13 @@ pub fn create_domain_pci(pci_resource: Box<dyn PciResource>,
 pub fn create_domain_ahci(pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn BDev>) {
 
     extern "C" {
-        fn _binary_sys_dev_ahci_build_ahci_start();
-        fn _binary_sys_dev_ahci_build_ahci_end();
+        fn _binary_sys_dev_ahci_driver_build_ahci_driver_start();
+        fn _binary_sys_dev_ahci_driver_build_ahci_driver_end();
     }
 
     let binary_range = (
-        _binary_sys_dev_ahci_build_ahci_start as *const u8,
-        _binary_sys_dev_ahci_build_ahci_end as *const u8
+        _binary_sys_dev_ahci_driver_build_ahci_driver_start as *const u8,
+        _binary_sys_dev_ahci_driver_build_ahci_driver_end as *const u8
     );
 
     create_domain_bdev("ahci", binary_range, pci)

@@ -1,5 +1,5 @@
 [package]
-name = "ahci"
+name = "ahci_driver"
 version = "0.1.0"
 authors = ["RedLeaf Team"]
 edition = "2018"

@@ -18,7 +18,7 @@ domain_list := sys/init/build/init \
 	usr/xv6/kernel/core/build/xv6kernel \
 	usr/xv6/kernel/fs/build/xv6fs \
 	sys/dev/pci/build/pci \
-	sys/dev/ahci/build/ahci \
+	sys/dev/ahci_driver/build/ahci_driver \
 	sys/dev/ixgbe_driver/build/ixgbe_driver \
 	usr/xv6/usr/shell/build/shell
 

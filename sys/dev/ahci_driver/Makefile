@@ -1,6 +1,6 @@
 root := ../../../
 
-bin_name := ahci
+bin_name := ahci_driver
 arch ?= x86_64
 bin := build/$(bin_name)
 linker_script := linker.ld
