@@ -9,6 +9,8 @@ linker_script := linker.ld
 target ?= $(arch)-$(bin_name)
 lib := target/$(target)/debug/lib$(bin_name).a
 
+#FEATURES = --features "test_threads"
+
 .PHONY: all
 all: $(bin)
 
@@ -26,6 +28,6 @@ $(bin): lib $(linker_script) checkstack
 
 .PHONY: lib
 lib:
-	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo xbuild --target x86_64-$(bin_name).json
+	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo xbuild --target x86_64-$(bin_name).json $(FEATURES)
 
 include $(root)/checkstack.mk
