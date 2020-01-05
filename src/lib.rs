@@ -73,24 +73,24 @@ macro_rules! round_up {
     };
 }
 
-/// Stack size for the kernel main thread
 // Note, the bootstrap CPU runs on a statically allocated
 // stack that is defined in boot.asm
 // AB TODO: fix this (i.e., switch to the dynamically allocated stack)
-const KERNEL_STACK_SIZE: usize = 4096 * 128;
 
 // Init AP cpus
 pub fn init_ap_cpus() {
     for cpu in 1..4 {
-        let ap_cpu_stack = unsafe { alloc::alloc::alloc(
-                    Layout::from_size_align_unchecked(KERNEL_STACK_SIZE, 4096)) } as u32;
+        let ap_cpu_stack = unsafe { crate::thread::alloc_stack() } as u32;
 
         println!("Waking up CPU{} with stack: {:x}--{:x}",
-            cpu, ap_cpu_stack, ap_cpu_stack + KERNEL_STACK_SIZE as u32);
+            cpu, ap_cpu_stack, 
+            ap_cpu_stack + (crate::thread::STACK_SIZE_IN_PAGES * BASE_PAGE_SIZE) as u32);
 
         unsafe {
             ap_entry_running = true;
-            interrupt::init_cpu(cpu, ap_cpu_stack + KERNEL_STACK_SIZE as u32, rust_main_ap as u64);
+            interrupt::init_cpu(cpu,
+                ap_cpu_stack + (crate::thread::STACK_SIZE_IN_PAGES * BASE_PAGE_SIZE) as u32,
+                rust_main_ap as u64);
         }
 
         while unsafe { ap_entry_running } {}

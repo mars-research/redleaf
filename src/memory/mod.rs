@@ -277,7 +277,7 @@ impl<'a> PageProvider<'a> for BespinSlabsProvider {
     }
 
     fn release_page(&mut self, _p: &'a mut ObjectPage<'a>) {
-        println!("TODO!");
+        trace_allocnl!("TODO!");
     }
 }
 

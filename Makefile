@@ -8,8 +8,9 @@ grub_cfg := boot/grub.cfg
 #assembly_source_files := $(wildcard src/*.asm)
 #assembly_object_files := $(patsubst src/%.asm, build/%.o, $(assembly_source_files))
 
-#FEATURES = --features "smp"
 FEATURES =
+FEATURES += --features "smp"
+
 target ?= $(arch)-redleaf
 rust_os := target/$(target)/debug/libredleaf.a
 xv6fs_img = usr/mkfs/build/fs.img

@@ -25,6 +25,7 @@ static THREAD_ID: AtomicU64 = AtomicU64::new(0);
 
 const MAX_PRIO: usize = 15;
 const MAX_CPUS: usize = 64;
+const NULL_RETURN_MARKER: usize = 0x0000_0000;
 
 /// Per-CPU scheduler
 #[thread_local]
@@ -178,7 +179,7 @@ pub enum ThreadState {
     Waiting = 3, 
 }
 
-const STACK_SIZE_IN_PAGES: usize  = 4096;
+pub const STACK_SIZE_IN_PAGES: usize  = 4096;
 
 pub struct Context {
   r15: usize,
@@ -230,42 +231,57 @@ impl Context {
     }
 }
 
+pub unsafe fn alloc_stack() -> *mut u8 { 
+
+    let layout = Layout::from_size_align(STACK_SIZE_IN_PAGES * BASE_PAGE_SIZE, BASE_PAGE_SIZE).unwrap();
+
+    let mut frame: Frame = Frame::new(PAddr::from(0), 0);
+
+    if let Some(ref mut fmanager) = *BUDDY.lock() {
+        unsafe {
+            frame = fmanager.allocate(layout).unwrap()
+        };
+    };
+
+    {
+        let ref mut vspace = *VSPACE.lock();
+        vspace.set_guard_page(frame.kernel_vaddr());
+    }
+
+
+    let stack_u8 = frame.kernel_vaddr().as_mut_ptr::<u8>();
+    stack_u8
+}
+
 impl  Thread {
   
     fn init_stack(&mut self, func: extern fn()) {
        
-        /* die() takes one argument lets pass it via r15 and prey */
+        /* AB: XXX: die() takes one argument lets pass it via r15 and hope 
+         * it will stay there */
         self.context.r15 = func as usize;
+
+        let stack_u8 = unsafe { alloc_stack() };
+
+        /* push 0x0 as the return address for die() so the backtrace 
+         * terminates correctly */
+        unsafe {
+            let null_return = stack_u8.offset((STACK_SIZE_IN_PAGES * BASE_PAGE_SIZE - core::mem::size_of::<*const usize>()) as isize) as *mut usize;
+            *null_return = NULL_RETURN_MARKER; 
+        };
 
         /* push die() on the stack where the switch will pick 
          * it up with the ret instruction */
-
-        let layout = Layout::from_size_align(STACK_SIZE_IN_PAGES * BASE_PAGE_SIZE, BASE_PAGE_SIZE).unwrap();
-
-        let mut frame: Frame = Frame::new(PAddr::from(0), 0);
-
-        if let Some(ref mut fmanager) = *BUDDY.lock() {
-            unsafe {
-                frame = fmanager.allocate(layout).unwrap()
-            };
-        };
-
-        let stack_u8 = frame.kernel_vaddr().as_mut_ptr::<u8>();
-
         let die_return = unsafe {
-            stack_u8.offset((STACK_SIZE_IN_PAGES * BASE_PAGE_SIZE - core::mem::size_of::<*const usize>()) as isize) as *mut usize
+            stack_u8.offset((STACK_SIZE_IN_PAGES * BASE_PAGE_SIZE - 2*core::mem::size_of::<*const usize>()) as isize) as *mut usize
         };
 
-        unsafe { *die_return = die as usize; }
+        unsafe { 
+            *die_return = die as usize; 
+        }
         self.stack = stack_u8 as *mut u64;
 
-        {
-            let ref mut vspace = *VSPACE.lock();
-            vspace.set_guard_page(frame.kernel_vaddr());
-        }
-
         /* set the stack pointer to point to die() */
-        //self.context.rsp = s.mem[s.mem.len() - 1].as_ptr(); 
         self.context.rsp = die_return as usize;
     }
 
@@ -447,7 +463,7 @@ impl  Scheduler {
 extern "C" fn die(/*func: extern fn()*/) {
     let func: extern fn();
 
-    /* For now prey its still in r15 */
+    /* AB: XXX: We assume that the funciton pointer is still in r15 */
     unsafe{
         asm!("mov $0, r15" : "=r"(func) : : "memory" : "intel", "volatile");
     };

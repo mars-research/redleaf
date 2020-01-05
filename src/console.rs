@@ -69,4 +69,16 @@ macro_rules! trace_wq {
     ($( $args:expr ),*) => {()}
 }
 
+// The debug version
+#[cfg(trace_alloc)]
+macro_rules! trace_allocnl {
+    ($( $args:expr ),*) => { println!( $( $args ),* ); }
+}
+
+// Non-debug version
+#[cfg(not(trace_alloc))]
+macro_rules! trace_allocnl {
+    ($( $args:expr ),*) => {()}
+}
+
 
