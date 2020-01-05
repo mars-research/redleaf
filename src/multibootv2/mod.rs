@@ -5,11 +5,13 @@ use core::fmt;
 use header::{Tag, TagIter};
 pub use boot_loader_name::BootLoaderNameTag;
 pub use memory_map::{MemoryMapTag, MemoryArea, MemoryAreaIter};
+pub use module::{ModuleTag, ModuleIter};
 pub use command_line::CommandLineTag;
 
 mod header;
 mod boot_loader_name;
 mod memory_map;
+mod module;
 mod command_line;
 
 pub unsafe fn load(address: usize) -> BootInformation {
@@ -57,6 +59,10 @@ impl BootInformation {
 
     pub fn memory_map_tag<'a>(&'a self) -> Option<&'a MemoryMapTag> {
         self.get_tag(6).map(|tag| unsafe { &*(tag as *const Tag as *const MemoryMapTag) })
+    }
+
+    pub fn module_tags(&self) -> ModuleIter {
+        module::module_iter(self.tags())
     }
 
     pub fn boot_loader_name_tag<'a>(&'a self) -> Option<&'a BootLoaderNameTag> {
@@ -109,6 +115,12 @@ impl fmt::Debug for BootInformation {
                 writeln!(f, "    S: {:#010X}, E: {:#010X}, L: {:#010X}",
                     area.start_address(), area.end_address(), area.size())?;
             }
+        }
+
+        writeln!(f, "module tags:")?;
+        for mt in self.module_tags() {
+            writeln!(f, "    name: {:15}, s: {:#010x}, e: {:#010x}",
+                mt.name(), mt.start_address(), mt.end_address())?;
         }
 
         Ok(())
