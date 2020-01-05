@@ -19,12 +19,13 @@ use core::panic::PanicInfo;
 use libsyscalls::syscalls::{sys_create_thread, sys_yield, sys_recv_int, sys_backtrace};
 use console::println;
 
+#[cfg(feature = "test_timer_thread")]
 extern fn timer_thread() {
     println!("Registering timer thread"); 
     
     loop {
          sys_recv_int(syscalls::IRQ_TIMER);
-         println!("init: got a timer interrupt"); 
+         //println!("init: got a timer interrupt"); 
     }
 }
 
@@ -90,24 +91,29 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
 
     //println!("init userland print works");
 
-    let t = sys_create_thread("init_int[timer]", timer_thread); 
-    t.set_priority(10);
+
+    #[cfg(feature = "test_timer_thread")]
+    {
+        let t = sys_create_thread("init_int[timer]", timer_thread); 
+        t.set_priority(10);
+    }
 
     #[cfg(feature = "test_sleep")]
     test_sleep();
 
-    /*
+    
+    #[cfg(feature = "test_threads")]
+    {
+        let t = sys_create_thread("init_thread", test_init_thread); 
+        t.set_affinity(1); 
 
-    let t = sys_create_thread("init_thread", test_init_thread); 
-    t.set_affinity(1); 
+        let t2 = sys_create_thread("init_thread_2", test_init_thread2); 
+        t2.set_affinity(0); 
 
-    let t2 = sys_create_thread("init_thread_2", test_init_thread2); 
-    t2.set_affinity(0); 
+        drop(t); 
+        drop(t2); 
+    }
 
-    drop(t); 
-    drop(t2); 
-
-    */
 
     let pci_resource = create_pci.get_pci_resource();
 

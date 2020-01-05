@@ -8,7 +8,9 @@ linker_script := linker.ld
 target ?= $(arch)-init
 lib := target/$(target)/debug/libinit.a
 
-#FEATURES = --features "test_sleep"
+FEATURES = --features "test_sleep"
+FEATURES += --features "test_timer_thread" 
+FEATURES += --features "test_threads" 
 
 .PHONY: all
 all: $(bin)

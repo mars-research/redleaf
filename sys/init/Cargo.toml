@@ -31,3 +31,5 @@ default-features = false
 
 [features]
 test_sleep = [ ]
+test_timer_thread = [ ]
+test_threads = [ ]
