@@ -345,7 +345,6 @@ impl INodeDataGuard<'_> {
 
             let start = offset % params::BSIZE;
             let bytes_read = core::cmp::min(bytes_to_read - total, params::BSIZE - start);
-            console::println!("iread: start:{} offset:{} bytes_read{} bytes_to_read{}", start, offset, bytes_read, bytes_to_read);
 
             user_buffer[user_offset..(user_offset + bytes_read)].copy_from_slice(&buffer.data[start..(start + bytes_read)]);
 
