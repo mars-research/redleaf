@@ -39,19 +39,20 @@ impl SerialPort {
                     while (self.get_lsts() & 0x20) == 0 {}
                     outb(self.base_port, 8);
                     while (self.get_lsts() & 0x20) == 0 {}
-                    outb(self.base_port, b' '); 
+                    outb(self.base_port, b' ');
                     while (self.get_lsts() & 0x20) == 0 {}
                     outb(self.base_port, 8);
                 }
-		0xA => {
+                /// Handle newline
+                0xA => {
+                    /// \n translates to \r\n
                     while (self.get_lsts() & 0x20) == 0 {}
-                    // print \r
-                    outb(self.base_port, 0xD);
-                    // print \n
+                    // write \r
+                    outb(self.base_port, b'\r');
                     while (self.get_lsts() & 0x20) == 0 {}
-                    outb(self.base_port, 0xA); 
-
-		}
+                    // write \n
+                    outb(self.base_port, b'\n');
+                }
                 _ => {
                     while (self.get_lsts() & 0x20) == 0 {}
                     outb(self.base_port, data);
