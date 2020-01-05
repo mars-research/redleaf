@@ -21,7 +21,7 @@ impl SerialPort {
             outb(self.base_port+1, 0x00); // 
             outb(self.base_port+3, 0x03); // 8 bits, no parity, one stop bit
             outb(self.base_port+2, 0xC7); // Enable FIFO, clear them, with 14-byte threshold
-            outb(self.base_port+4, 0x00); // Enable IRQs, RTS/DSR set
+            outb(self.base_port+4, 0x03); // Enable IRQs, RTS/DSR set
             outb(self.base_port+1, 0x00); // Disable Interrupts
         }
     }
@@ -43,6 +43,15 @@ impl SerialPort {
                     while (!self.get_lsts() & 1) == 0 {}
                     outb(self.base_port, 8);
                 }
+		0xA => {
+                    while (!self.get_lsts() & 1) == 0 {}
+                    // print \r
+                    outb(self.base_port, 0xD);
+                    // print \n
+                    while (!self.get_lsts() & 1) == 0 {}
+                    outb(self.base_port, 0xA); 
+
+		}
                 _ => {
                     while (!self.get_lsts() & 1) == 0 {}
                     outb(self.base_port, data);
