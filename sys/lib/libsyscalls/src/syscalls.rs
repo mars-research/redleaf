@@ -39,6 +39,11 @@ pub fn sys_create_thread(name: &str, func: extern fn()) -> Box<dyn Thread> {
     return scalls.sys_create_thread(name, func);
 }
 
+pub fn sys_current_thread() -> Box<dyn Thread> {
+    let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
+    return scalls.sys_current_thread();
+}
+
 pub fn sys_alloc() -> *mut u8 {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
     return scalls.sys_alloc();
@@ -57,11 +62,6 @@ pub fn sys_alloc_huge(sz: u64) -> *mut u8 {
 pub fn sys_free_huge(p: *mut u8) {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
     return scalls.sys_free_huge(p);
-}
-
-pub fn sys_get_thread_id() -> u64 {
-    let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
-    return scalls.get_thread_id();
 }
 
 pub fn sys_backtrace() {
