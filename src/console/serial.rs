@@ -36,24 +36,24 @@ impl SerialPort {
         unsafe {
             match data {
                 8 | 0x7F => {
-                    while (!self.get_lsts() & 0x20) == 0 {}
+                    while (self.get_lsts() & 0x20) == 0 {}
                     outb(self.base_port, 8);
-                    while (!self.get_lsts() & 0x20) == 0 {}
+                    while (self.get_lsts() & 0x20) == 0 {}
                     outb(self.base_port, b' '); 
-                    while (!self.get_lsts() & 0x20) == 0 {}
+                    while (self.get_lsts() & 0x20) == 0 {}
                     outb(self.base_port, 8);
                 }
 		0xA => {
-                    while (!self.get_lsts() & 0x20) == 0 {}
+                    while (self.get_lsts() & 0x20) == 0 {}
                     // print \r
                     outb(self.base_port, 0xD);
                     // print \n
-                    while (!self.get_lsts() & 0x20) == 0 {}
+                    while (self.get_lsts() & 0x20) == 0 {}
                     outb(self.base_port, 0xA); 
 
 		}
                 _ => {
-                    while (!self.get_lsts() & 0x20) == 0 {}
+                    while (self.get_lsts() & 0x20) == 0 {}
                     outb(self.base_port, data);
                 }
             }
