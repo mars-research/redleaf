@@ -7,12 +7,14 @@ use syscalls::Thread;
 
 pub struct WaitQueue {
     threads: Vec<Box<dyn Thread>>,
+    intr_mutex: Arc<Mutex<()>>,
 }
 
 impl WaitQueue {
     pub fn new() -> WaitQueue {
         WaitQueue {
             threads: Vec::new(),
+            intr_mutex: Arc::new(Mutex::new(())),
         }
     }
 
@@ -28,24 +30,25 @@ impl WaitQueue {
 pub fn sys_sleep(wait_queue: &Mutex<WaitQueue>) {
     let mut wait_queue_guard = wait_queue.lock();
 
-    let thread = sys_current_thread();
+    let intr_mutex = wait_queue_guard.intr_mutex.clone();
+    let intr_guard = intr_mutex.lock();
 
-    wait_queue_guard.push_thread(thread);
+    wait_queue_guard.push_thread(sys_current_thread());
+    sys_current_thread().sleep(intr_guard);
 
     drop(wait_queue_guard);
-    // TODO: in between these two lines, a wakeup could be called, which this thread would miss
-    // TODO: 'thread' variable above is moved into waitqueue, so we have to call sys_current_thread() again
-    sys_current_thread().set_state(syscalls::ThreadState::Waiting);
-
-    sys_yield();
 }
 
 pub fn sys_wakeup(wait_queue: &Mutex<WaitQueue>) {
     let mut wait_queue_guard = wait_queue.lock();
 
+    let intr_mutex = wait_queue_guard.intr_mutex.clone();
+    let intr_guard = intr_mutex.lock();
+
     while let Some(thread) = wait_queue_guard.pop_thread() {
         thread.set_state(syscalls::ThreadState::Runnable);
     }
 
+    drop(intr_guard);
     drop(wait_queue_guard);
 }

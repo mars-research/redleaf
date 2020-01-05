@@ -8,7 +8,7 @@ use core::cell::RefCell;
 //use alloc::rc::Rc;
 use crate::halt;
 use crate::interrupt::{disable_irq, enable_irq};
-use spin::Mutex;
+use spin::{Mutex, MutexGuard};
 use alloc::sync::Arc; 
 use crate::domain::domain::{Domain, KERNEL_DOMAIN}; 
 use crate::tls::cpuid; 
@@ -745,6 +745,20 @@ impl syscalls::Thread for PThread {
         enable_irq(); 
     }
 
+    fn sleep(&self, guard: MutexGuard<()>) {
+        disable_irq();
+
+        {
+            let mut thread = self.thread.lock();
+            thread.state = ThreadState::Waiting;
+            drop(thread);
+        }
+
+        drop(guard);
+        do_yield();
+
+        enable_irq();
+    }
 }
 
 pub fn init_threads() {

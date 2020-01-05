@@ -3,6 +3,7 @@
 
 extern crate alloc;
 use alloc::boxed::Box;
+use spin::MutexGuard;
 
 pub trait Syscall {
     fn sys_print(&self, s: &str);
@@ -30,6 +31,7 @@ pub trait Thread {
     fn set_affinity(&self, affinity: u64);
     fn set_priority(&self, prio: u64);
     fn set_state(&self, state: ThreadState);
+    fn sleep(&self, guard: MutexGuard<()>);
 }
 
 /// RedLeaf PCI bus driver interface
