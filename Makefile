@@ -23,7 +23,9 @@ domain_list := sys/init/build/init \
 qemu_common := -m 512M -vga std -s
 qemu_common := $(qemu_common) -cdrom $(iso)
 qemu_common := $(qemu_common) -no-reboot -no-shutdown -d int,cpu_reset
-qemu_common := $(qemu_common) -drive file=$(xv6fs_img),index=0,media=disk,format=raw
+qemu_common := $(qemu_common) -drive id=satadisk,file=$(xv6fs_img),if=none
+qemu_common := $(qemu_common) -device ahci,id=ahci
+qemu_common := $(qemu_common) -device ide-drive,drive=satadisk,bus=ahci.0
 qemu_common := $(qemu_common) -smp 4
 
 # https://superuser.com/a/1412150
