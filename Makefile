@@ -8,6 +8,8 @@ grub_cfg := boot/grub.cfg
 #assembly_source_files := $(wildcard src/*.asm)
 #assembly_object_files := $(patsubst src/%.asm, build/%.o, $(assembly_source_files))
 
+#FEATURES = --features "smp"
+FEATURES =
 target ?= $(arch)-redleaf
 rust_os := target/$(target)/debug/libredleaf.a
 xv6fs_img = usr/mkfs/build/fs.img
@@ -107,7 +109,8 @@ init:
 
 .PHONY: kernel
 kernel:
-	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo xbuild --target x86_64-redleaf.json
+	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo xbuild --target x86_64-redleaf.json $(FEATURES)
+
 
 # compile assembly files for the exception entry code
 .PHONY: entry

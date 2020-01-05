@@ -26,22 +26,18 @@ pub fn backtrace_exception_no_resolve(pt_regs:&mut PtRegs) {
 pub fn backtrace_exception(pt_regs:&mut PtRegs) {
     println!("Backtrace:");
 
-    let elf_data = match ELF_DATA.r#try() {
+    let context = match ELF_CONTEXT.r#try() {
         Some(t) => t,
         None => {
-            println!("ELF_DATA was not initialized");  
-            backtrace_exception_no_resolve(pt_regs); 
+            println!("ELF_CONTEXT was not initialized");
+            backtrace_exception_no_resolve(pt_regs);
             return;
         }
     };
-        
+
     let relocated_offset = RELOCATED_OFFSET;
-    let elf_binary =
-        elfloader::ElfBinary::new("kernel", &elf_data).expect("Can't parse kernel binary.");
-    let context = new_ctxt(&elf_binary);
-
-
     let mut count = 0;
+
     backtracer::trace_from(backtracer::EntryPoint::new(pt_regs.rbp, pt_regs.rsp, pt_regs.rip), |frame| {
         count += 1;
         backtrace_format(context.as_ref(), relocated_offset, count, frame)
@@ -66,23 +62,40 @@ pub fn backtrace_no_resolve() {
         // Resolve this instruction pointer to a symbol name
         backtracer::resolve(__text_start, ip, |symbol| {
             if let Some(name) = symbol.name() {
-                println!("{}", name); 
+                println!("{}", name);
             }
             if let Some(filename) = symbol.filename() {
-                println!("{}", filename); 
+                println!("{}", filename);
             }
         });*/
-        println!("ip:{:?}", ip); 
+        println!("ip:{:?}", ip);
 
         true // keep going to the next frame
     });
 }
 
-static ELF_DATA:Once<&'static [u8]> = Once::new();  
-static RELOCATED_OFFSET: u64 = 0x100_000;
+static ELF_DATA:Once<&'static [u8]> = Once::new();
+#[thread_local]
+static ELF_CONTEXT: Once<Option<Context>> = Once::new();
+static ELF_BIN: Once<elfloader::ElfBinary> = Once::new();
+static RELOCATED_OFFSET: u64 = 0x0;
 
 pub fn init_backtrace(elf_data: &'static [u8]) {
     ELF_DATA.call_once(|| elf_data);
+}
+
+pub fn init_backtrace_context() {
+    ELF_BIN.call_once(|| {
+        let elf_data = ELF_DATA.r#try().expect("ELF_DATA was not initialized");
+        let elf_binary =
+                elfloader::ElfBinary::new("kernel", &elf_data).expect("Can't parse kernel binary.");
+        elf_binary
+    });
+
+    let elf_binary = ELF_BIN.r#try().expect("ELF_BIN was not initialized");
+    if let Some(context) = new_ctxt(&elf_binary) {
+        ELF_CONTEXT.call_once(|| Some(context));
+    }
 }
 
 fn new_ctxt(file: &elfloader::ElfBinary) -> Option<Context> {
@@ -173,23 +186,18 @@ fn backtrace_format(
 #[inline(always)]
 pub fn backtrace() {
 
-    let elf_data = match ELF_DATA.r#try() {
+    let context = match ELF_CONTEXT.r#try() {
         Some(t) => t,
         None => {
-            println!("ELF_DATA was not initialized");  
-            backtrace_no_resolve(); 
+            println!("ELF_CONTEXT was not initialized");
+            backtrace_no_resolve();
             return;
         }
     };
- 
 
     println!("Backtrace:");
 
-    let elf_data = ELF_DATA.r#try().expect("ELF_DATA was not initialized");  
     let relocated_offset = RELOCATED_OFFSET;
-    let elf_binary =
-        elfloader::ElfBinary::new("kernel", &elf_data).expect("Can't parse kernel binary.");
-    let context = new_ctxt(&elf_binary);
 
     let mut count = 0;
     backtracer::trace(|frame| {
@@ -215,7 +223,5 @@ pub fn panic_impl(info: &PanicInfo) -> ! {
 
     backtrace();
 
-    crate::halt(); 
+    crate::halt();
 }
-
-

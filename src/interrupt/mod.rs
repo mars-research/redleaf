@@ -168,7 +168,7 @@ pub fn init_idt() {
     //IDT.dump(); 
 
     // Trigger breakpoint interrupt to see that IDT is ok
-    x86_64::instructions::interrupts::int3();
+    //x86_64::instructions::interrupts::int3();
 }
 
 pub fn init_irqs_local() {

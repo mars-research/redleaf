@@ -9,7 +9,7 @@ use crate::memory::buddy::BUDDY;
 
 const KERNEL_START: u64 = 0x10_0000;
 
-fn kernel_end() -> u64 {
+pub fn kernel_end() -> u64 {
     extern {
         /// The starting byte of the thread data segment
         static __end: u8;
@@ -20,7 +20,20 @@ fn kernel_end() -> u64 {
     }
 }
 
-pub fn init_buddy(bootinfo: BootInformation) {
+pub fn kernel_end_ptr() -> *const u8 {
+    extern {
+        /// The starting byte of the thread data segment
+        static __end: u8;
+    }
+
+    unsafe{
+        & __end as *const u8
+    }
+}
+
+pub static mut KERNEL_END: u64 = 0;
+
+pub fn init_buddy(bootinfo: &BootInformation) {
    // Find the physical memory regions available and add them to the physical memory manager
     crate::memory::buddy::BuddyFrameAllocator::init();
     println!("Finding RAM regions");
@@ -30,7 +43,7 @@ pub fn init_buddy(bootinfo: BootInformation) {
             if region.typ() == 1 {
                 let mut base = region.start_address();
                 let size: usize = region.size() as usize;
-                let kernel_end = kernel_end();
+                let kernel_end = unsafe { KERNEL_END };
 
                 if base >= KERNEL_START && base < kernel_end {
                     base = kernel_end;

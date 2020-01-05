@@ -6,6 +6,7 @@ use spin::Mutex;
 use slabmalloc::{ObjectPage, PageProvider, ZoneAllocator};
 use crate::memory::buddy::BUDDY;
 use log::{trace};
+use crate::arch::KERNEL_END;
 
 pub use self::buddy::BuddyFrameAllocator as PhysicalMemoryAllocator;
 pub use crate::arch::memory::{paddr_to_kernel_vaddr, PAddr, VAddr, BASE_PAGE_SIZE};
@@ -488,9 +489,11 @@ pub fn construct_pt() {
                     bss_end() as usize - bss_start() as usize),
                     MapAction::ReadWriteExecuteKernel);
 
+        let kernel_end = unsafe { KERNEL_END };
+
         vspace.map_generic(VAddr::from(tdata_start()),
                     (PAddr::from(tdata_start()),
-                    kernel_end() as usize - tdata_start() as usize),
+                    kernel_end as usize - tdata_start() as usize),
                     MapAction::ReadWriteExecuteKernel);
 
         let frame = {
