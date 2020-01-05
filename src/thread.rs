@@ -633,7 +633,14 @@ impl PThread {
 }
 
 impl syscalls::Thread for PThread {
-
+    fn get_id(&self) -> u64 {
+        disable_irq();
+        let tid = {
+            self.thread.lock().id
+        };
+        enable_irq();
+        tid
+    }
 
     fn set_affinity(&self, affinity: u64) {
         disable_irq(); 

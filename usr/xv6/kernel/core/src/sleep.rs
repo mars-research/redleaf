@@ -1,48 +1,51 @@
-use libsyscalls::syscalls::{sys_create_thread, sys_yield, sys_recv_int, sys_get_thread_id};
-use syscalls::Syscall;
+use libsyscalls::syscalls::{sys_yield, sys_current_thread};
 use alloc::vec::Vec;
 use alloc::sync::Arc;
+use alloc::boxed::Box;
 use spin::Mutex;
+use syscalls::Thread;
 
 pub struct WaitQueue {
-    queue: Vec<u64>, // thread_ids
+    threads: Vec<Box<dyn Thread>>,
 }
 
 impl WaitQueue {
     pub fn new() -> WaitQueue {
         WaitQueue {
-            queue: Vec::new(),
+            threads: Vec::new(),
         }
     }
 
-    pub fn push_thread(&mut self, thread_id: u64) {
-        self.queue.push_back(thread_id);
+    pub fn push_thread(&mut self, thread: Box<dyn Thread>) {
+        self.threads.push(thread);
+    }
+
+    pub fn pop_thread(&mut self) -> Option<Box<dyn Thread>> {
+        self.threads.pop()
     }
 }
 
-pub fn sys_sleep(wait_queue: Arc<Mutex<WaitQueue>>) {
-    let wait_queue_guard = wait_queue.lock();
-
-    let thread_id = sys_get_thread_id();
-    wait_queue_guard.push_thread(thread_id);
+pub fn sys_sleep(wait_queue: &Mutex<WaitQueue>) {
+    let mut wait_queue_guard = wait_queue.lock();
 
     let thread = sys_current_thread();
-    thread.set_state(syscalls::ThreadState::Waiting);
+
+    wait_queue_guard.push_thread(thread);
 
     drop(wait_queue_guard);
+    // TODO: in between these two lines, a wakeup could be called, which this thread would miss
+    // TODO: 'thread' variable above is moved into waitqueue, so we have to call sys_current_thread() again
+    sys_current_thread().set_state(syscalls::ThreadState::Waiting);
 
     sys_yield();
 }
 
-pub fn sys_wakeup(wait_queue: Arc<Mutex<WaitQueue>>) {
-    let wait_queue_guard = wait_queue.lock();
+pub fn sys_wakeup(wait_queue: &Mutex<WaitQueue>) {
+    let mut wait_queue_guard = wait_queue.lock();
 
-    for thread_id in wait_queue_guard.queue {
-        // let thread = sys_get_thread(thread_id);
-        // thread.set_state(syscalls::ThreadState::Runnable);
+    while let Some(thread) = wait_queue_guard.pop_thread() {
+        thread.set_state(syscalls::ThreadState::Runnable);
     }
-
-    wait_queue_guard.threads.clear();
 
     drop(wait_queue_guard);
 }

@@ -1,9 +1,8 @@
 #![no_std]
 
 use hashbrown::HashMap;
-use core::hash::Hash;
 use spin::Mutex;
-use libsyscalls::syscalls::sys_get_thread_id;
+use libsyscalls::syscalls::sys_current_thread;
 
 pub struct ThreadLocal<T> {
     values: Mutex<HashMap<u64, T>>,
@@ -19,9 +18,9 @@ impl<T> ThreadLocal<T> {
     }
 
     pub fn with<F, R>(&self, f: F) -> R where F: FnOnce(&mut T) -> R {
-        let key = sys_get_thread_id();
+        let thread_id = sys_current_thread().get_id();
         let mut values = self.values.lock();
-        let value = values.entry(key).or_insert_with(self.init);
+        let value = values.entry(thread_id).or_insert_with(self.init);
         f(value)
     }
 }
