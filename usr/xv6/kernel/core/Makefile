@@ -12,7 +12,7 @@ lib := target/$(target)/debug/lib$(bin_name).a
 #FEATURES = --features "test_threads"
 
 .PHONY: all
-all: $(bin)
+all: $(bin) checkstack
 
 .PHONY: release
 release: $(releaseinit)
@@ -22,7 +22,7 @@ clean:
 	rm -rf build
 	cargo clean
 
-$(bin): lib $(linker_script) checkstack
+$(bin): lib $(linker_script)
 	mkdir -p build	
 	ld -n -pie --no-dynamic-linker --gc-sections -T $(linker_script) -o $(bin) $(lib)
 

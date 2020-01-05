@@ -179,6 +179,10 @@ pub enum ThreadState {
     Waiting = 3, 
 }
 
+// AB: Watch out! if you change format of this line 
+// you need to update the grep arguments in checkstack.mk
+// Right now we have it as: 
+//    grep "^pub const STACK_SIZE_IN_PAGES"
 pub const STACK_SIZE_IN_PAGES: usize  = 4096;
 
 pub struct Context {

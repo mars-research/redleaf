@@ -41,7 +41,7 @@ qemu_nox := -nographic -chardev stdio,id=char0,mux=on,logfile=serial.log,signal=
 qemu_x := -serial file:serial.log
 
 .PHONY: all
-all: $(bin)
+all: $(bin) checkstack
 
 .PHONY: release
 release: $(releaseKernel)
@@ -111,7 +111,7 @@ $(iso): $(bin) $(grub_cfg)
 	grub-mkrescue -o $(iso) build/isofiles #2> /dev/null
 	@rm -r build/isofiles
 
-$(bin): kernel $(rust_os) bootblock entryother entry $(linker_script) init checkstack
+$(bin): kernel $(rust_os) bootblock entryother entry $(linker_script) init
 	ld -n --gc-sections -T $(linker_script) -o $(bin) build/entry.o build/boot.o build/multiboot_header.o $(rust_os) -b binary build/entryother.bin $(domain_list) 
 
 include $(root)/checkstack.mk
