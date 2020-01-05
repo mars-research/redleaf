@@ -4,3 +4,7 @@ target remote localhost:1234
 echo + symbol-file kernel\n
 symbol-file build/kernel.bin
 #add-symbol-file sys/init/build/init 0x228000
+
+define btall
+	thread apply all backtrace
+end
