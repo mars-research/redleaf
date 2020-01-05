@@ -27,6 +27,7 @@ extern crate syscalls;
 extern crate tls;
 
 use alloc::boxed::Box;
+use alloc::string::String;
 use console::println;
 use core::panic::PanicInfo;
 use syscalls::Syscall;
@@ -65,12 +66,46 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, bdev: syscalls::BDevPtr) -> Box<d
     Box::new(VFS::new()) 
 }
 
-fn ls(path: &str) {
-    println!("ls: {:?}", sysfile::sys_open("/", sysfile::FileMode::Read));
+fn ls(path: &str) -> Result<(), String> {
+    let fd = sysfile::sys_open("/", sysfile::FileMode::Read)
+        .ok_or(alloc::format!("ls: cannot open {}", path))?;
+    let stat = sysfile::sys_fstat(fd)
+        .ok_or(alloc::format!("ls: cannot stat {}", path))?;
+
+    const DIRENT_SIZE: usize = core::mem::size_of::<directory::DirectoryEntryDisk>();
+    let mut buffer = [0 as u8; DIRENT_SIZE];
+    match &stat.file_type {
+        icache::INodeFileType::File => {
+            println!("{} {:?} {} {}", path, stat.file_type, stat.inum, stat.size);
+        },
+        icache::INodeFileType::Directory => {
+            // Assuming DIRENT_SIZE > 0
+            while sysfile::sys_read(fd, &mut buffer[..]).unwrap_or(0) < DIRENT_SIZE {
+                let de = directory::DirectoryEntry::from_byte_array(&buffer[..]);
+                if de.inum == 0 {
+                    continue;
+                }
+                // null-terminated string to String
+                let filename = &de.name[..de.name.iter().position(|&c| c == 0).unwrap_or(de.name.len() - 1)];
+                let filename = String::from_utf8(filename.to_vec())
+                                .map_err(|_| String::from("ls: cannot convert filename to utf8 string"))?;
+                let file_path = alloc::format!("{}/{}", path, filename);
+                let file_fd = sysfile::sys_open(&file_path, sysfile::FileMode::Read)
+                                .ok_or(alloc::format!("ls: cannot open {}", file_path))?;
+                let file_stat = sysfile::sys_fstat(file_fd)
+                                .ok_or(alloc::format!("ls: cannot stat {}", file_path))?;
+                println!("{} {:?} {} {}", file_path, file_stat.file_type, file_stat.inum, file_stat.size);
+            }
+        }
+        _ => unimplemented!(),
+    }
+
+    Ok(())
 }
 
 // This function is called on panic.
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo) -> ! {
+    println!("xv6fs panic: {:?}", info);
     loop {}
 }
