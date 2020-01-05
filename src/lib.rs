@@ -260,7 +260,7 @@ pub extern "C" fn rust_main_ap() -> ! {
 
         // We initialized kernel domain, it's safe to start
         // other CPUs
-        #[cfg(features="smp")]
+        #[cfg(feature="smp")]
         init_ap_cpus();
     }
 
