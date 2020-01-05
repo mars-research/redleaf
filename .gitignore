@@ -2,6 +2,7 @@
 **/build/
 **/*.rs.bk
 *.swp
+*.sw*
 Cargo.lock
 serial.log
 build/*
