@@ -18,7 +18,9 @@ use alloc::boxed::Box;
 use core::panic::PanicInfo;
 use syscalls::{Syscall};
 use libsyscalls::syscalls::{sys_create_thread, sys_current_thread, sys_yield, sys_recv_int};
+use libsyscalls::time::sys_ns_sleep;
 use console::println;
+use sleeplock::sleeplock::SleepLock;
 
 struct Xv6Syscalls {}
 
@@ -63,6 +65,34 @@ fn test_threads() {
 
 }
 
+#[cfg(feature = "test_sleeplock")]
+fn test_sleeplock() {
+    const ONE_MS_IN_NS: u64 = 1_000_000;
+
+    let sleeplock = SleepLock::new();
+
+    let threads = (0..3)
+        .map({ |i|
+            sys_create_thread("xv6_kernel_test_sleeplock", {
+                loop {
+                    println!("[{}]: about to acquire sleeplock", i);
+                    sleeplock.acquire();
+                    println!("[{}]: start of my turn", i);
+                    sys_ns_sleep(ONE_MS_IN_NS * 100);
+                    println!("[{}]: end of my turn", i);
+                    sleeplock.release();
+                    println!("[{}]: released sleeplock", i);
+                }
+            })
+        });
+
+    sys_ns_sleep(ONE_MS_IN_NS * 5_000);
+
+    for thread in threads {
+        thread.set_state(syscalls::ThreadState::Waiting);
+    }
+}
+
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>,
             ints: Box<dyn syscalls::Interrupt + Send + Sync>,
@@ -81,6 +111,9 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
 
     #[cfg(feature = "test_threads")]
     test_threads();
+
+    #[cfg(feature = "test_sleeplock")]
+    test_sleeplock();
 
     let (dom_xv6fs, vfs)  = create_xv6fs.create_domain_xv6fs(bdev);
     

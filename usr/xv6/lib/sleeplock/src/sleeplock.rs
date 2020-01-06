@@ -1,5 +1,4 @@
 use spin::Mutex;
-use alloc::sync::Arc;
 use crate::sleep::{sys_sleep, sys_wakeup, WaitQueue};
 
 pub struct SleepLock {

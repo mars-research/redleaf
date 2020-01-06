@@ -4,6 +4,11 @@ version = "0.1.0"
 authors = ["RedLeaf Team"]
 edition = "2018"
 
+[features]
+default = []
+test_threads = []
+test_sleeplock = []
+
 [lib]
 crate-type = ["staticlib"]
 
@@ -15,6 +20,7 @@ panic = "abort"
 
 [dependencies]
 x86 = "0.19.0"
+sleeplock = { path = "../../lib/sleeplock", version = "0.1.0" }
 syscalls = { path = "../../../../sys/interfaces/syscalls", version = "0.1.0" }
 libsyscalls = { path = "../../../../sys/lib/libsyscalls", version = "0.1.0" }
 console = { path = "../../../../sys/lib/console", version = "0.1.0" }
