@@ -10,6 +10,7 @@ grub_cfg := boot/grub.cfg
 
 FEATURES =
 FEATURES += --features "smp"
+#FEATURES += --features "trace_alloc"
 
 target ?= $(arch)-redleaf
 rust_os := target/$(target)/debug/libredleaf.a

@@ -42,3 +42,4 @@ default-features = false
 
 [features]
 smp = [ ]
+trace_alloc = [ ]
