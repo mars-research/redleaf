@@ -26,6 +26,7 @@ bit_field = "0.9.0"
 bitflags = "1.0.4"
 syscalls = { path = "sys/interfaces/syscalls", version = "0.1.0" }
 ixgbe = { path = "sys/interfaces/dev/ixgbe", version = "0.1.0" }
+ahci = { path = "sys/interfaces/dev/ahci", version = "0.1.0" }
 log = "0.4"
 custom_error = { git = "https://github.com/gz/custom_error.git" }
 pcid = { path = "./lib/pcid" }

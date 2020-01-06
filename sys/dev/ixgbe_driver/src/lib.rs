@@ -99,7 +99,7 @@ pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
 
     println!("ixgbe_init: starting ixgbe driver domain");
     let mut ixgbe = Ixgbe::new();
-    pci.pci_register_driver(&mut ixgbe);
+    pci.pci_register_driver(&mut ixgbe, 0);
     Box::new(ixgbe)
 }
 

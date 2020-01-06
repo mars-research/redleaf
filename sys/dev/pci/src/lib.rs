@@ -51,21 +51,26 @@ impl PCI {
 impl syscalls::PCI for PCI {
 
     //-> bar_regions::BarRegions
-    fn pci_register_driver(&self, pci_driver: &mut dyn pci_driver::PciDriver) {
+    fn pci_register_driver(&self, pci_driver: &mut dyn pci_driver::PciDriver, bar_index: usize) {
         let vendor_id = pci_driver.get_vid();
         let device_id = pci_driver.get_did();
         // match vid, dev_id with the registered pci devices we have and
         // typecast the barregion to the appropriate one for this device
         let pci_dev = PciDevice::new(vendor_id, device_id);
         if let Some(bars) = PCI_MAP.lock().get(&pci_dev) {
-            println!("Device found {:x?} {:?}", pci_dev, bars[0]);
-            let bar0 = match bars[0] {
+            assert!(bar_index < bars.len());
+
+            println!("Device found {:x?} {:?}", pci_dev, bars[bar_index]);
+
+            let bar = match bars[bar_index] {
                 bar::PciBar::Memory(addr) => addr,
                 bar::PciBar::Port(port) => port as u32,
                 _ => 0 as u32,
             };
             let pci_bar = PCI_BAR.r#try().expect("System call interface is not initialized.");
-            let bar_region = pci_bar.get_bar_region(bar0 as u64, 512 * 1024 as usize, pci_driver.get_driver_type());
+
+            let bar_region = pci_bar.get_bar_region(bar as u64, 512 * 1024 as usize, pci_driver.get_driver_type());
+
             pci_driver.probe(bar_region);
         };
     }

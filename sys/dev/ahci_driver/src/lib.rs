@@ -27,27 +27,76 @@ use core::cell::RefCell;
 use syscalls::{Syscall};
 use libsyscalls::syscalls::{sys_print, sys_alloc};
 use console::println;
+use pci_driver::BarRegions;
+use ahci::AhciBarRegion;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
+use spin::Once;
 
-struct AHCI {
-    disk: RefCell<Box<dyn self::ahcid::Disk>>,
+use self::ahcid::Disk;
+
+struct Ahci {
+    vendor_id: u16,
+    device_id: u16,
+    driver: pci_driver::PciDrivers,
+    baropt: Option<Box<dyn AhciBarRegion>>,
+    disks: RefCell<Vec<Box<dyn Disk>>>,
+    // disk: RefCell<Box<dyn self::ahcid::Disk>>,
 }
 
-impl AHCI {
-    fn new(disk: Box<dyn self::ahcid::Disk>) -> AHCI {
-        AHCI {
-            disk: RefCell::new(disk),
+impl Ahci {
+    fn new() -> Ahci {
+        Ahci {
+            vendor_id: 0x8086,
+            device_id: 0x2922,
+            driver: pci_driver::PciDrivers::AhciDriver,
+            baropt: None,
+            disks: RefCell::new(Vec::new()),
+            // disk: RefCell::new(disk),
         }
     }
 }
 
-impl syscalls::BDev for AHCI {
+impl pci_driver::PciDriver for Ahci {
+    fn probe(&mut self, bar_region: BarRegions) {
+        println!("probe() called");
+
+        match bar_region {
+            BarRegions::Ahci(bar) => {
+                self.baropt = Some(bar);
+            }
+            _ => { panic!("Got unknown BAR region"); }
+        }
+
+        let bar = self.baropt.as_ref().unwrap();
+
+        println!("Initializing with base = {:x}", bar.get_base());
+
+        let (hba, mut disks) = self::ahcid::disks(bar.get_base() as usize, "meow");
+        self.disks = RefCell::new(disks);
+
+        println!("probe() finished");
+    }
+
+    fn get_vid(&self) -> u16 {
+        self.vendor_id
+    }
+
+    fn get_did(&self) -> u16 {
+        self.device_id
+    }
+
+    fn get_driver_type(&self) -> pci_driver::PciDrivers {
+        self.driver
+    }
+}
+
+impl syscalls::BDev for Ahci {
     fn read(&self, block: u32, data: &mut [u8; 512]) {
-        self.disk.borrow_mut().read(block as u64, data);
+        self.disks.borrow_mut()[0].read(block as u64, data);
     }
     fn write(&self, block: u32, data: &[u8; 512]) {
-        self.disk.borrow_mut().write(block as u64, data);
+        self.disks.borrow_mut()[0].write(block as u64, data);
     }
 }
 
@@ -57,15 +106,10 @@ pub fn ahci_init(s: Box<dyn Syscall + Send + Sync>,
                  pci: Box<dyn syscalls::PCI>) -> Box<dyn syscalls::BDev> {
     libsyscalls::syscalls::init(s);
 
-    let (hba, mut disks) = self::ahcid::disks(0xFEBB1000, "meow");
+    let mut ahci = Ahci::new();
+    pci.pci_register_driver(&mut ahci, 1);
 
-    println!("ahci_init: Started AHCI domain");
-
-    for disk in disks.iter_mut() {
-        println!("Disk: {}", disk.size());
-    }
-
-    Box::new(AHCI::new(disks.remove(0))) 
+    Box::new(ahci)
 }
 
 // This function is called on panic.

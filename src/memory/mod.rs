@@ -526,12 +526,6 @@ pub fn construct_pt() {
         );
 
         vspace.map_identity(
-            PAddr(0xFEBB1000),
-            PAddr(0xFEBB1000 + BASE_PAGE_SIZE as u64),
-            MapAction::ReadWriteExecuteKernel,
-        );
-
-        vspace.map_identity(
             PAddr(0xfee0_0000u64),
             PAddr(0xfee0_0000u64 + BASE_PAGE_SIZE as u64),
             MapAction::ReadWriteExecuteKernel,

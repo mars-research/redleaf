@@ -3,6 +3,7 @@
 extern crate alloc;
 use alloc::boxed::Box;
 use ixgbe::IxgbeBarRegion;
+use ahci::AhciBarRegion;
 
 pub trait PciDriver {
     fn probe(&mut self, bar_region: BarRegions);
@@ -12,13 +13,13 @@ pub trait PciDriver {
 }
 
 pub enum BarRegions {
-    //Ahci(Box <dyn AhciBarRegion>),
+    Ahci(Box <dyn AhciBarRegion>),
     Ixgbe(Box <dyn IxgbeBarRegion>),
     None
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum PciDrivers {
     IxgbeDriver,
-    AhciDriver
+    AhciDriver,
 }
