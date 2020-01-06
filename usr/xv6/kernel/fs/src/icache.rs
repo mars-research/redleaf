@@ -279,7 +279,13 @@ impl INodeDataGuard<'_> {
             if dirent.inum == 0 {
                 continue;
             }
-            if dirent.name == name.as_bytes() {
+            let dirent_name = utils::cstr::to_string(dirent.name);
+            if dirent_name.is_err() {
+                console::println!("dirlookup: warning. invalid filename");
+                return None;
+            }
+            let dirent_name = dirent_name.unwrap();
+            if dirent_name == name {
                 return ICACHE.lock().get(self.node.meta.device, dirent.inum);
             }
         }
