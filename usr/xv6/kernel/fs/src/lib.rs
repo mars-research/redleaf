@@ -104,14 +104,10 @@ fn ls(path: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn yeet() {
-
-}
-
 // This function is called on panic.
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    yeet();
     println!("xv6fs panic: {:?}", info);
+    libsyscalls::syscalls::sys_backtrace();
     loop {}
 }
