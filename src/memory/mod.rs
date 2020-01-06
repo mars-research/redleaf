@@ -511,12 +511,18 @@ pub fn construct_pt() {
             }
         };
 
-        // Map the regions held by buddy allocator
-        vspace.map_identity(
-            frame.base,
-            frame.base + frame.size as u64,
-            MapAction::ReadWriteExecuteKernel,
-        );
+        assert!((frame.size % BASE_PAGE_SIZE) == 0);
+
+        let num_4k_pages = frame.size / BASE_PAGE_SIZE;
+
+        for page in 0..num_4k_pages {
+            // Map the regions held by buddy allocator as 4k pages
+            vspace.map_identity(
+                frame.base + page * BASE_PAGE_SIZE,
+                frame.base + (page + 1) * BASE_PAGE_SIZE,
+                MapAction::ReadWriteExecuteKernel,
+                );
+        }
 
         // Map LAPIC regions
         vspace.map_identity(
