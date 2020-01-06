@@ -38,6 +38,8 @@ pub mod gdt;
 
 mod multibootv2;
 mod memory;
+
+#[macro_use]
 mod prelude;
 pub mod arch;
 
@@ -57,7 +59,7 @@ use crate::memory::{construct_pt, construct_ap_pt};
 use crate::pci::scan_pci_devs;
 use core::ptr;
 use crate::arch::memory::BASE_PAGE_SIZE;
-use crate::arch::{KERNEL_END, kernel_end_ptr, kernel_end};
+use crate::arch::{KERNEL_END, kernel_end};
 use crate::panic::{init_backtrace, init_backtrace_context};
 use crate::multibootv2::BootInformation;
 
@@ -67,12 +69,6 @@ pub const MAX_CPUS: u32 = 4;
 extern "C" {
     #[no_mangle]
     static _bootinfo: usize;
-}
-
-macro_rules! round_up {
-    ($num:expr, $s:expr) => {
-        (($num + $s - 1) / $s) * $s
-    };
 }
 
 // Note, the bootstrap CPU runs on a statically allocated

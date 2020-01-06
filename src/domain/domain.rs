@@ -12,18 +12,8 @@ use alloc::sync::Arc;
 use spin::Mutex;
 //use alloc::rc::Rc;
 use spin::Once;
+use crate::{round_up, is_page_aligned};
 
-macro_rules! round_up {
-    ($num:expr, $s:expr) => {
-        (($num + $s - 1) / $s) * $s
-    };
-}
-
-macro_rules! is_page_aligned {
-    ($num:expr) => {
-        $num % BASE_PAGE_SIZE as u64 == 0
-    };
-}
 
 /// Global Domain list
 pub static KERNEL_DOMAIN: Once<Arc<Mutex<Domain>>> = Once::new();

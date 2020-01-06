@@ -20,17 +20,6 @@ pub fn kernel_end() -> u64 {
     }
 }
 
-pub fn kernel_end_ptr() -> *const u8 {
-    extern {
-        /// The starting byte of the thread data segment
-        static __end: u8;
-    }
-
-    unsafe{
-        & __end as *const u8
-    }
-}
-
 pub static mut KERNEL_END: u64 = 0;
 
 pub fn init_buddy(bootinfo: &BootInformation) {

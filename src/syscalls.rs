@@ -9,16 +9,12 @@ use spin::Mutex;
 use alloc::sync::Arc; 
 use crate::domain::domain::{Domain}; 
 use syscalls::{Thread,PciResource, PciBar};
+use crate::round_up;
 
 //use crate::domain::domain::BOOTING_DOMAIN; 
 
 extern crate syscalls; 
 
-macro_rules! round_up {
-    ($num:expr, $s:expr) => {
-        (($num + $s - 1) / $s) * $s
-    };
-}
 
 //pub static BOOT_SYSCALL: BootSyscall = BootSyscall {
 //    sys_boot_syscall,

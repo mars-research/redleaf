@@ -8,20 +8,17 @@ pub use memory_map::{MemoryMapTag, MemoryArea, MemoryAreaIter};
 pub use module::{ModuleTag, ModuleIter};
 pub use command_line::CommandLineTag;
 
+use crate::round_up;
+
+
 mod header;
 mod boot_loader_name;
 mod memory_map;
 mod module;
 mod command_line;
 
-use crate::arch::{kernel_end, kernel_end_ptr, KERNEL_END};
+use crate::arch::{kernel_end, KERNEL_END};
 use crate::arch::memory::BASE_PAGE_SIZE;
-
-macro_rules! round_up {
-    ($num:expr, $s:expr) => {
-        (($num + $s - 1) / $s) * $s
-    };
-}
 
 pub unsafe fn load(address: usize) -> BootInformation {
     assert_eq!(0, address & 0b111);
@@ -35,7 +32,7 @@ pub unsafe fn load(address: usize) -> BootInformation {
     let new_end = kernel_end() + multiboot.total_size as u64;
     KERNEL_END = round_up!(new_end, BASE_PAGE_SIZE as u64);
 
-    let kernel_end_ptr = kernel_end_ptr();
+    let kernel_end_ptr = kernel_end() as *const u64 as *const u8;
     let _multiboot = &*(kernel_end_ptr as *const BootInformationInner);
 
     BootInformation { inner: _multiboot, offset: 0 }
