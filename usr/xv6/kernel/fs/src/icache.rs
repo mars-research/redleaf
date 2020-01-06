@@ -11,7 +11,7 @@ use spin::{Mutex, MutexGuard};
 
 use crate::bcache::{BufferBlock, BCACHE};
 use crate::block::Block;
-use crate::directory::DirectoryEntry;
+use crate::directory::{DirectoryEntry, DirectoryEntryDisk};
 use crate::fs::{SUPER_BLOCK, block_num_for_node};
 use crate::params;
 use crate::sysfile::Stat;
@@ -269,7 +269,7 @@ impl INodeDataGuard<'_> {
             panic!("dirlookup not DIR");
         }
 
-        const SIZE_OF_DIRENT: usize = core::mem::size_of::<DirectoryEntry>();
+        const SIZE_OF_DIRENT: usize = core::mem::size_of::<DirectoryEntryDisk>();
         for offset in (0usize..self.data.size as usize).step_by(SIZE_OF_DIRENT) {
             let mut buffer = [0; SIZE_OF_DIRENT];
             if self.read(&mut buffer[..], offset).is_none() {
