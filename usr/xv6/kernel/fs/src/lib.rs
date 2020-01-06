@@ -61,7 +61,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, bdev: syscalls::BDevPtr) -> Box<d
     println!("init xv6 filesystem");
     fs::fsinit(0);
     println!("finish init xv6 filesystem");
-    ls("/");
+    ls("/").unwrap();
 
     Box::new(VFS::new()) 
 }
@@ -87,8 +87,7 @@ fn ls(path: &str) -> Result<(), String> {
                     continue;
                 }
                 // null-terminated string to String
-                let filename = &de.name[..de.name.iter().position(|&c| c == 0).unwrap_or(de.name.len() - 1)];
-                let filename = String::from_utf8(filename.to_vec())
+                let filename = utils::cstr::to_string(de.name)
                                 .map_err(|_| String::from("ls: cannot convert filename to utf8 string"))?;
                 let file_path = alloc::format!("{}/{}", path, filename);
                 let file_fd = sysfile::sys_open(&file_path, sysfile::FileMode::Read)
