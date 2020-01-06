@@ -14,12 +14,31 @@ mod memory_map;
 mod module;
 mod command_line;
 
+use crate::arch::{kernel_end, kernel_end_ptr, KERNEL_END};
+use crate::arch::memory::BASE_PAGE_SIZE;
+
+macro_rules! round_up {
+    ($num:expr, $s:expr) => {
+        (($num + $s - 1) / $s) * $s
+    };
+}
+
 pub unsafe fn load(address: usize) -> BootInformation {
     assert_eq!(0, address & 0b111);
     let multiboot = &*(address as *const BootInformationInner);
+
     assert_eq!(0, multiboot.total_size & 0b111);
     assert!(multiboot.has_valid_end_tag());
-    BootInformation { inner: multiboot, offset: 0 }
+
+    // put the multibootv2 header after kernel end
+    core::ptr::copy(address as *const usize as *const u8, kernel_end() as *mut u8, multiboot.total_size as usize);
+    let new_end = kernel_end() + multiboot.total_size as u64;
+    KERNEL_END = round_up!(new_end, BASE_PAGE_SIZE as u64);
+
+    let kernel_end_ptr = kernel_end_ptr();
+    let _multiboot = &*(kernel_end_ptr as *const BootInformationInner);
+
+    BootInformation { inner: _multiboot, offset: 0 }
 }
 
 pub unsafe fn load_with_offset(address: usize, offset: usize) -> BootInformation {

@@ -121,12 +121,13 @@ pub fn init_backtrace_kernel_elf(bootinfo: &BootInformation) {
                     let kelf = (tag.start_address(), tag.end_address());
                     let ksize = (kelf.1 - kelf.0) as usize;
                     println!("Found kernel image at: {:x} end : {:x}", kelf.0, kelf.1);
-                    ptr::copy(kelf.0 as *const u8, kernel_end() as *mut u8, ksize);
+                    ptr::copy(kelf.0 as *const u8, KERNEL_END as *mut u64 as *mut u8, ksize);
 
-                    let new_end = kernel_end() + ksize as u64;
+                    let kernel_elf = KERNEL_END;
+                    let new_end = KERNEL_END + ksize as u64;
                     KERNEL_END = round_up!(new_end, BASE_PAGE_SIZE as u64);
                     println!("Old kernel_end: {:x} New kernel_end: {:x}", kernel_end(), new_end);
-                    init_backtrace(core::slice::from_raw_parts(kernel_end_ptr(), ksize));
+                    init_backtrace(core::slice::from_raw_parts(kernel_elf as *const usize as *const u8, ksize));
                     break;
                 },
                 _ => { println!("Kernel image not found. Backtrace will be without symbols"); }
