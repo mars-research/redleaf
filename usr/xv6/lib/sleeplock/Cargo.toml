@@ -1,0 +1,10 @@
+[package]
+name = "sleeplock"
+version = "0.1.0"
+edition = "2018"
+
+
+[dependencies]
+spin = "0.5.2"
+libsyscalls = { path = "../../../../sys/lib/libsyscalls", version = "0.1.0" }
+syscalls = { path = "../../../../sys/interfaces/syscalls", version = "0.1.0" }

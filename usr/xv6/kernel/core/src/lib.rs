@@ -12,9 +12,6 @@
     panic_info_message
 )]
 
-pub mod sleep;
-pub mod sleeplock;
-
 extern crate malloc;
 extern crate alloc;
 use alloc::boxed::Box;

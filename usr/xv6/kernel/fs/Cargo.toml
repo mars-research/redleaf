@@ -21,6 +21,7 @@ byteorder = { version = "1.2", default-features = false }
 num-traits = { version = "0.2", default-features = false }
 num-derive = { version = "0.3", default-features = false }
 syscalls = { path = "../../../../sys/interfaces/syscalls", version = "0.1.0" }
+sleeplock = { path = "../../lib/sleeplock", version = "0.1.0" }
 libsyscalls = { path = "../../../../sys/lib/libsyscalls", version = "0.1.0" }
 console = { path = "../../../../sys/lib/console", version = "0.1.0" }
 malloc = { path = "../../../../sys/lib/malloc", version = "0.1.0" }
