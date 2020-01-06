@@ -215,7 +215,7 @@ impl VSpace {
 
         let pml4_idx = pml4_index(vbase);
         if !self.pml4[pml4_idx].is_present() {
-            trace!("New PDPDT for {:?} @ PML4[{}]", vbase, pml4_idx);
+            trace_vspace!("New PDPDT for {:?} @ PML4[{}]", vbase, pml4_idx);
             self.pml4[pml4_idx] = self.new_pdpt();
         }
         assert!(
@@ -247,7 +247,7 @@ impl VSpace {
                         pbase + mapped,
                         PDPTFlags::P | PDPTFlags::PS | rights.to_pdpt_rights(),
                     );
-                    trace!(
+                    trace_vspace!(
                         "Mapped 1GiB range {:#x} -- {:#x} -> {:#x} -- {:#x}",
                         vbase + mapped,
                         (vbase + mapped) + HUGE_PAGE_SIZE,
@@ -260,12 +260,12 @@ impl VSpace {
                 }
 
                 if mapped < psize {
-                    trace!(
+                    trace_vspace!(
                         "map_generic recurse from 1 GiB map to finish {:#x} -- {:#x} -> {:#x} -- {:#x}",
                         vbase + mapped,
                         vbase + (psize - mapped),
                         (pbase + mapped),
-                        pbase + (psize - mapped),
+                        pbase + (psize - mapped)
                     );
                     return self.map_generic(
                         vbase + mapped,
@@ -278,7 +278,7 @@ impl VSpace {
                     return Ok(());
                 }
             } else {
-                trace!(
+                trace_vspace!(
                     "Mapping 0x{:x} -- 0x{:x} is smaller than 1 GiB, going deeper.",
                     vbase,
                     vbase + psize
@@ -319,7 +319,7 @@ impl VSpace {
                         pbase + mapped,
                         PDFlags::P | PDFlags::PS | rights.to_pd_rights(),
                     );
-                    trace!(
+                    trace_vspace!(
                         "Mapped 2 MiB region {:#x} -- {:#x} -> {:#x} -- {:#x}",
                         vbase + mapped,
                         (vbase + mapped) + LARGE_PAGE_SIZE,
@@ -332,12 +332,12 @@ impl VSpace {
                 }
 
                 if mapped < psize {
-                    trace!(
+                    trace_vspace!(
                         "map_generic recurse from 2 MiB map to finish {:#x} -- {:#x} -> {:#x} -- {:#x}",
                         vbase + mapped,
                         vbase + (psize - mapped),
                         (pbase + mapped),
-                        pbase + (psize - mapped),
+                        pbase + (psize - mapped)
                     );
                     return self.map_generic(
                         vbase + mapped,
@@ -350,7 +350,7 @@ impl VSpace {
                     return Ok(());
                 }
             } else {
-                trace!(
+                trace_vspace!(
                     "Mapping 0x{:x} -- 0x{:x} is smaller than 2 MiB, going deeper.",
                     vbase,
                     vbase + psize
@@ -386,12 +386,12 @@ impl VSpace {
 
         // Need go to different PD/PDPT/PML4 slot
         if mapped < psize {
-            trace!(
+            trace_vspace!(
                 "map_generic recurse from 4 KiB map to finish {:#x} -- {:#x} -> {:#x} -- {:#x}",
                 vbase + mapped,
                 vbase + (psize - mapped),
                 (pbase + mapped),
-                pbase + (psize - mapped),
+                pbase + (psize - mapped)
             );
             return self.map_generic(vbase + mapped, ((pbase + mapped), psize - mapped), rights);
         } else {
@@ -442,7 +442,7 @@ impl VSpace {
 
         let pml4_idx = pml4_index(vbase);
         if !self.pml4[pml4_idx].is_present() {
-            trace!("Mapping not found! Forgot to map? {:?} @ PML4[{}]", vbase, pml4_idx);
+            trace_vspace!("Mapping not found! Forgot to map? {:?} @ PML4[{}]", vbase, pml4_idx);
             return false;
         }
 
@@ -451,7 +451,7 @@ impl VSpace {
 
         // TODO: if we support None mappings, this is if not good enough:
         if !pdpt[pdpt_idx].is_present() {
-            trace!("Mapping not found! Forgot to map? {:?} @ PDPT[{}]", vbase, pdpt_idx);
+            trace_vspace!("Mapping not found! Forgot to map? {:?} @ PDPT[{}]", vbase, pdpt_idx);
             return false;
         }
 
@@ -459,7 +459,7 @@ impl VSpace {
         let mut pd_idx = pd_index(vbase);
 
         if !pd[pd_idx].is_present() {
-            trace!("Mapping not found! Forgot to map? {:?} @ PD[{}]", vbase, pd_idx);
+            trace_vspace!("Mapping not found! Forgot to map? {:?} @ PD[{}]", vbase, pd_idx);
             return false;
         }
 
@@ -467,13 +467,15 @@ impl VSpace {
         let mut pt_idx = pt_index(vbase);
 
         if !pt[pt_idx].is_present() {
-            trace!("Mapping not found! Forgot to map? {:?} @ PT[{}]", vbase, pt_idx);
+            trace_vspace!("Mapping not found! Forgot to map? {:?} @ PT[{}]", vbase, pt_idx);
             return false;
         }
 
         let pt_addr = pt[pt_idx].address();
         let pt_entry = PTEntry::new(pt_addr, (MapAction::None).to_pt_rights());
         pt[pt_idx] = pt_entry;
+
+        unsafe { x86::tlb::flush_all(); }
         return true;
     }
 
@@ -486,7 +488,7 @@ impl VSpace {
 
         let pml4_idx = pml4_index(vbase);
         if !self.pml4[pml4_idx].is_present() {
-            trace!("Mapping not found! Forgot to map? {:?} @ PML4[{}]", vbase, pml4_idx);
+            trace_vspace!("Mapping not found! Forgot to map? {:?} @ PML4[{}]", vbase, pml4_idx);
             return false;
         }
 
@@ -495,7 +497,7 @@ impl VSpace {
 
         // TODO: if we support None mappings, this is if not good enough:
         if !pdpt[pdpt_idx].is_present() {
-            trace!("Mapping not found! Forgot to map? {:?} @ PDPT[{}]", vbase, pdpt_idx);
+            trace_vspace!("Mapping not found! Forgot to map? {:?} @ PDPT[{}]", vbase, pdpt_idx);
             return false;
         }
 
@@ -503,7 +505,7 @@ impl VSpace {
         let mut pd_idx = pd_index(vbase);
 
         if !pd[pd_idx].is_present() {
-            trace!("Mapping not found! Forgot to map? {:?} @ PD[{}]", vbase, pd_idx);
+            trace_vspace!("Mapping not found! Forgot to map? {:?} @ PD[{}]", vbase, pd_idx);
             return false;
         }
 
@@ -511,13 +513,15 @@ impl VSpace {
         let mut pt_idx = pt_index(vbase);
 
         if !pt[pt_idx].is_present() {
-            trace!("Mapping not found! Forgot to map? {:?} @ PT[{}]", vbase, pt_idx);
+            trace_vspace!("Mapping not found! Forgot to map? {:?} @ PT[{}]", vbase, pt_idx);
             return false;
         }
 
         let pt_addr = pt[pt_idx].address();
         let pt_entry = PTEntry::new(pt_addr, PTFlags::P | rights.to_pt_rights());
         pt[pt_idx] = pt_entry;
+
+        unsafe { x86::tlb::flush_all(); }
         return true;
     }
 
@@ -574,11 +578,11 @@ impl VSpace {
 
         // Free unused top and bottom regions again:
         {
-            trace!("NYI free");
+            trace_vspace!("NYI free");
         }
 
         {
-            trace!("NYI free");
+            trace_vspace!("NYI free");
         }
 
         PAddr::from(aligned_paddr)

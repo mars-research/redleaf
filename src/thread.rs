@@ -267,6 +267,12 @@ impl  Thread {
 
         let stack_u8 = unsafe { alloc_stack() };
 
+        println!("creating thread {} with stack: {:x}--{:x}",
+            self.name, stack_u8 as u64, 
+            stack_u8 as u64 + (crate::thread::STACK_SIZE_IN_PAGES * BASE_PAGE_SIZE) as u64);
+
+
+
         /* push 0x0 as the return address for die() so the backtrace 
          * terminates correctly */
         unsafe {

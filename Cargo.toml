@@ -44,3 +44,4 @@ default-features = false
 [features]
 smp = [ ]
 trace_alloc = [ ]
+trace_vspace = []

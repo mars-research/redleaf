@@ -9,8 +9,9 @@ grub_cfg := boot/grub.cfg
 #assembly_object_files := $(patsubst src/%.asm, build/%.o, $(assembly_source_files))
 
 FEATURES =
-FEATURES += --features "smp"
 #FEATURES += --features "trace_alloc"
+#FEATURES += --features "smp"
+FEATURES += --features "trace_vspace"
 
 target ?= $(arch)-redleaf
 rust_os := target/$(target)/debug/libredleaf.a

@@ -62,6 +62,7 @@ use crate::panic::{init_backtrace, init_backtrace_context};
 use crate::multibootv2::BootInformation;
 
 pub static mut ap_entry_running: bool = true;
+pub const MAX_CPUS: u32 = 4;
 
 extern "C" {
     #[no_mangle]
@@ -80,7 +81,7 @@ macro_rules! round_up {
 
 // Init AP cpus
 pub fn init_ap_cpus() {
-    for cpu in 1..4 {
+    for cpu in 1..MAX_CPUS {
         let ap_cpu_stack = unsafe { crate::thread::alloc_stack() } as u32;
 
         println!("Waking up CPU{} with stack: {:x}--{:x}",
@@ -165,7 +166,6 @@ fn start_init_thread() {
 }
 
 
-const MAX_CPUS: u32 = 32;
 
 #[no_mangle]
 pub extern "C" fn rust_main() -> ! {

@@ -19,6 +19,15 @@ use core::panic::PanicInfo;
 use libsyscalls::syscalls::{sys_create_thread, sys_yield, sys_recv_int, sys_backtrace};
 use console::println;
 
+#[cfg(feature = "test_guard_page")]
+fn test_stack_exhaustion() -> u64 {
+   
+    let mut t: [u64; 4096] = [0; 4096];
+    t[0] = t[1] + test_stack_exhaustion();
+    t[0]
+}
+
+
 #[cfg(feature = "test_timer_thread")]
 extern fn timer_thread() {
     println!("Registering timer thread"); 
@@ -91,6 +100,13 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
 
     //println!("init userland print works");
 
+
+    #[cfg(feature = "test_guard_page")]
+    {
+        println!("start the test guard page test"); 
+        let foo =  test_stack_exhaustion();
+        println!("test guard page: {}", foo); 
+    }
 
     #[cfg(feature = "test_timer_thread")]
     {

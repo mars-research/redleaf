@@ -6,6 +6,7 @@ use x86::cpuid::CpuId;
 use crate::{gdt, println, entryother};
 use crate::drivers::Driver;
 use crate::redsys::IRQRegistrar;
+use crate::console::unlock_console; 
 
 mod lapic;
 mod ioapic;
@@ -100,6 +101,7 @@ lazy_static! {
 
         idt.general_protection_fault.set_handler_fn(general_protection);
         
+        #[cfg(not(feature="page_fault_on_ist"))]
         idt.page_fault.set_handler_fn(page_fault);
         
         idt.x87_floating_point.set_handler_fn(coprocessor_error);
@@ -109,6 +111,15 @@ lazy_static! {
         idt.simd_floating_point.set_handler_fn(simd_coprocessor_error);
         idt.virtualization.set_handler_fn(virtualization);
         //idt.security_exception.set_handler_fn(security_exception_handler);
+
+        /* Page fault hanler executes on the IST stack */
+        #[cfg(feature="page_fault_on_ist")]
+        unsafe {
+            idt.page_fault
+               .set_handler_fn(page_fault)
+               .set_stack_index(gdt::PAGE_FAULT_IST_INDEX); 
+        }
+
 
         /* NMI fault hanler executes on the IST stack */
         unsafe {
@@ -209,82 +220,60 @@ fn detect_apic() -> bool {
     }
 }
 
-
-
-// 0: Divide by zero
-extern "x86-interrupt" fn divide_by_zero_handler(stack_frame: &mut InterruptStackFrame) {
-    println!("Divide by zero exception:\n{:#?}", stack_frame); 
-}
-
 #[no_mangle]
 extern fn do_divide_error(pt_regs: &mut PtRegs) {
+    unlock_console(); 
     println!("Debug exception:\n{:#?}", pt_regs); 
+    crate::panic::backtrace_exception(pt_regs);
+    crate::halt();
 }
 
 // 1: Debug
-extern "x86-interrupt" fn debug_handler(stack_frame: &mut InterruptStackFrame) {
-    println!("Debug exception:\n{:#?}", stack_frame); 
-}
-
 #[no_mangle]
 extern fn do_debug(pt_regs: &mut PtRegs) {
+    unlock_console(); 
     println!("Debug exception:\n{:#?}", pt_regs); 
+    crate::panic::backtrace_exception(pt_regs);
+    crate::halt();
 }
 
 // 2: NMI
-extern "x86-interrupt" fn nmi_handler(stack_frame: &mut InterruptStackFrame) {
-    println!("NMI exception:\n{:#?}", stack_frame); 
-}
-
 #[no_mangle]
 extern fn do_nmi(pt_regs: &mut PtRegs) {
+    unlock_console(); 
     println!("NMI exception:\n{:#?}", pt_regs); 
 }
 
 // 3: Breakpoint
 #[no_mangle]
 extern fn do_int3(pt_regs: &mut PtRegs) {
+    unlock_console(); 
     println!("Breakpoint exception:\n{:#?}", pt_regs);
-
     crate::panic::backtrace_exception(pt_regs);
 }
 
-// 3: Breakpoint
-extern "x86-interrupt" fn breakpoint_handler(stack_frame: &mut InterruptStackFrame) {
-    println!("Breakpoint exception:\n{:#?}", stack_frame);
-}
-
 // 4: Overflow
-extern "x86-interrupt" fn overflow_handler(stack_frame: &mut InterruptStackFrame) {
-    println!("Overflow exception:\n{:#?}", stack_frame);
-}
-
 #[no_mangle]
 extern fn do_overflow(pt_regs: &mut PtRegs) {
+    unlock_console(); 
     println!("Overflow exception:\n{:#?}", pt_regs);
-}
-
-
-// 5: Bound range 
-extern "x86-interrupt" fn bound_range_handler(stack_frame: &mut InterruptStackFrame) {
-    println!("Bound range exception:\n{:#?}", stack_frame);
+    crate::panic::backtrace_exception(pt_regs);
     crate::halt();
 }
 
+// 5: Bound range 
 #[no_mangle]
 extern fn do_bounds(pt_regs: &mut PtRegs) {
+    unlock_console(); 
     println!("Bound range exception:\n{:#?}", pt_regs);
+    crate::panic::backtrace_exception(pt_regs);
     crate::halt();
 }
 
 // 6: Invalid opcode
-extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: &mut InterruptStackFrame) {
-    println!("Invalid opcode exception:\n{:#?}", stack_frame);
-    crate::halt();
-}
-
 #[no_mangle]
 extern fn do_invalid_op(pt_regs: &mut PtRegs) {
+    unlock_console(); 
     println!("Invalid opcode exception:\n{:#?}", pt_regs);
     crate::panic::backtrace_exception(pt_regs);
     crate::halt();
@@ -292,118 +281,72 @@ extern fn do_invalid_op(pt_regs: &mut PtRegs) {
 
 
 // 7: Device not available
-extern "x86-interrupt" fn device_not_avail_handler(stack_frame: &mut InterruptStackFrame) {
-    println!("Device not available exception:\n{:#?}", stack_frame);
-    crate::halt();
-}
-
 #[no_mangle]
 extern fn do_device_not_available(pt_regs: &mut PtRegs) {
+    unlock_console(); 
     println!("Device not available exception:\n{:#?}", pt_regs);
+    crate::panic::backtrace_exception(pt_regs);
     crate::halt();
 }
 
 // 8: Double fault
-extern "x86-interrupt" fn double_fault_handler(
-    stack_frame: &mut InterruptStackFrame,
-    _error_code: u64,
-) {
-    println!("double fault:\n{:#?}", stack_frame);
-    crate::halt(); 
-}
-
 #[no_mangle]
 extern fn do_double_fault(pt_regs: &mut PtRegs) {
+    unlock_console(); 
     println!("double fault:\n{:#?}", pt_regs);
+    crate::panic::backtrace_exception(pt_regs);
     crate::halt(); 
 }
 
 // 9: Old coprocessor error
 #[no_mangle]
 extern fn do_coprocessor_segment_overrun(pt_regs: &mut PtRegs) {
+    unlock_console(); 
     println!("old coprocessor segment overrun fault:\n{:#?}", pt_regs);
+    crate::panic::backtrace_exception(pt_regs);
     crate::halt(); 
 }
 
 // 10: Invalid TSS
-extern "x86-interrupt" fn invalid_tss_handler(
-    stack_frame: &mut InterruptStackFrame,
-    error_code: u64,
-) {
-    println!("Invalid TSS exception:\n{:#?}\nerror_code:{}", stack_frame, error_code);
-    crate::halt();
-}
-
 #[no_mangle]
 extern fn do_invalid_TSS(pt_regs: &mut PtRegs) {
+    unlock_console(); 
     println!("Invalid TSS exception:\n{:#?}", pt_regs);
+    crate::panic::backtrace_exception(pt_regs);
     crate::halt();
 }
 
 // 11: Segment not present
-extern "x86-interrupt" fn segment_not_present_handler(
-    stack_frame: &mut InterruptStackFrame,
-    _error_code: u64,
-) {
-    println!("segment not present:\n{:#?}", stack_frame);
-    crate::halt(); 
-}
-
 #[no_mangle]
 extern fn do_segment_not_present(pt_regs: &mut PtRegs) {
+    unlock_console(); 
     println!("segment not present:\n{:#?}", pt_regs);
+    crate::panic::backtrace_exception(pt_regs);
     crate::halt(); 
 }
 
 // 12: #SS
-extern "x86-interrupt" fn stack_segment_fault_handler(
-    stack_frame: &mut InterruptStackFrame,
-    _error_code: u64,
-) {
-    println!("stack segment fault:\n{:#?}", stack_frame);
-    crate::halt(); 
-}
-
 #[no_mangle]
 extern fn do_stack_segment(pt_regs: &mut PtRegs) {
+    unlock_console(); 
     println!("stack segment fault:\n{:#?}", pt_regs);
+    crate::panic::backtrace_exception(pt_regs);
     crate::halt(); 
 }
 
 // 13: General protection
-extern "x86-interrupt" fn general_protection_fault_handler(
-    stack_frame: &mut InterruptStackFrame,
-    _error_code: u64,
-) {
-    println!("general protection fault:\n{:#x?}", stack_frame);
-    crate::halt(); 
-}
-
 #[no_mangle]
 extern fn do_general_protection(pt_regs: &mut PtRegs) {
+    unlock_console(); 
     println!("general protection fault:\n{:#?}", pt_regs);
-
     crate::panic::backtrace_exception(pt_regs);
-
     crate::halt(); 
 }
 
 // 14: Page fault 
-extern "x86-interrupt" fn page_fault_handler(
-    stack_frame: &mut InterruptStackFrame,
-    error_code: PageFaultErrorCode,
-) {
-    use x86_64::registers::control::Cr2;
-
-    println!("EXCEPTION: PAGE FAULT");
-    println!("Accessed Address: {:?}", Cr2::read());
-    println!("Error Code: {:?}", error_code);
-    println!("{:#?}", stack_frame);
-    crate::halt();
-}
-
 #[no_mangle]
 extern fn do_page_fault(pt_regs: &mut PtRegs) {
+    unlock_console(); 
     use x86_64::registers::control::Cr2;
 
     println!("EXCEPTION: PAGE FAULT");
@@ -412,89 +355,63 @@ extern fn do_page_fault(pt_regs: &mut PtRegs) {
     println!("{:#?}", pt_regs);
 
     crate::panic::backtrace_exception(pt_regs);
-
     crate::halt();
 }
 
 // 16: x87 Floating-Point Exception
-extern "x86-interrupt" fn x87_floating_point_handler(
-    stack_frame: &mut InterruptStackFrame,
-) {
-    println!("x87 floating point exception:\n{:#?}", stack_frame);
-    crate::halt(); 
-}
-
 #[no_mangle]
 extern fn do_coprocessor_error(pt_regs: &mut PtRegs) {
+    unlock_console(); 
     println!("x87 floating point exception:\n{:#?}", pt_regs);
+    crate::panic::backtrace_exception(pt_regs);
     crate::halt(); 
 }
 
 // 17: Alignment check
-extern "x86-interrupt" fn alignment_check_handler(
-    stack_frame: &mut InterruptStackFrame,
-    error_code: u64
-) {
-    println!("Alignment check exception:\n{:#?}\nerror_code:{}", stack_frame, error_code);
-    crate::halt(); 
-}
-
 #[no_mangle]
 extern fn do_alignment_check(pt_regs: &mut PtRegs) {
+    unlock_console(); 
     println!("Alignment check exception:\n{:#?}", pt_regs);
+    crate::panic::backtrace_exception(pt_regs);
     crate::halt(); 
 }
 
 // 18: Machine check
-extern "x86-interrupt" fn machine_check_handler(stack_frame: &mut InterruptStackFrame) {
-    println!("Machine check exception:\n{:#?}", stack_frame);
-    crate::halt(); 
-}
-
 // Note, in entry_64.S Linux redefines the function to machine_check_vector(%rip)
 // We need to check what this means
 #[no_mangle]
 extern fn do_machine_check(pt_regs: &mut PtRegs) {
+    unlock_console(); 
     println!("Machine check exception:\n{:#?}", pt_regs);
+    crate::panic::backtrace_exception(pt_regs);
     crate::halt(); 
 }
 
 // 19: SIMD Floating-Point Exception
-extern "x86-interrupt" fn simd_floating_point_handler(stack_frame: &mut InterruptStackFrame) {
-    println!("SIMD Floating-Point Exception:\n{:#?}", stack_frame);
-    crate::halt(); 
-}
-
 #[no_mangle]
 extern fn do_simd_coprocessor_error(pt_regs: &mut PtRegs) {
+    unlock_console(); 
     println!("SIMD Floating-Point Exception:\n{:#?}", pt_regs);
+    crate::panic::backtrace_exception(pt_regs);
     crate::halt(); 
 }
 
 // 20: Virtualization
-extern "x86-interrupt" fn virtualization_handler(stack_frame: &mut InterruptStackFrame) {
-    println!("Virtualization exception:\n{:#?}", stack_frame);
-    crate::halt(); 
-}
-
 #[no_mangle]
 extern fn do_virtualization(pt_regs: &mut PtRegs) {
+    unlock_console(); 
     println!("Virtualization exception:\n{:#?}", pt_regs);
+    crate::panic::backtrace_exception(pt_regs);
     crate::halt(); 
 }
 
 
 // 30: Security 
-extern "x86-interrupt" fn security_exception_handler(
-    stack_frame: &mut InterruptStackFrame,
-    error_code: u64) {
-    println!("Security exception:\n{:#?}\nerror_code:{}", stack_frame, error_code);
-    crate::halt(); 
-}
-
 #[no_mangle]
 extern fn do_security(pt_regs: &mut PtRegs) {
+    unlock_console(); 
     println!("Security exception:\n{:#?}", pt_regs);
+    crate::panic::backtrace_exception(pt_regs);
     crate::halt(); 
 }
 

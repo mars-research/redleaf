@@ -8,6 +8,7 @@ use x86_64::structures::tss::TaskStateSegment;
 use x86_64::VirtAddr;
 */
 
+use x86_64::VirtAddr;
 use core::mem;
 //use x86::current::segmentation::set_cs;
 use x86::current::task::TaskStateSegment;
@@ -27,16 +28,20 @@ use x86_64::PrivilegeLevel::{Ring0};
 //use crate::paging::PAGE_SIZE;
 pub const PAGE_SIZE: usize = 4096;
 
-pub const DOUBLE_FAULT_IST_INDEX: u16 = 0;
-pub const NMI_IST_INDEX: u16 = 1;
+pub const PAGE_FAULT_IST_INDEX: u16 = 1;
+pub const DOUBLE_FAULT_IST_INDEX: u16 = 2;
+pub const NMI_IST_INDEX: u16 = 3;
 
-pub const STACK_SIZE: usize = PAGE_SIZE*16;
-
-#[thread_local]
-pub static mut IST_DF_STACK: [u8; STACK_SIZE] = [0; STACK_SIZE];
+pub const IST_STACK_SIZE: usize = PAGE_SIZE*4096;
 
 #[thread_local]
-pub static mut IST_NMI_STACK: [u8; STACK_SIZE] = [0; STACK_SIZE];
+pub static mut IST_PF_STACK: [u8; IST_STACK_SIZE] = [0; IST_STACK_SIZE];
+
+#[thread_local]
+pub static mut IST_DF_STACK: [u8; IST_STACK_SIZE] = [0; IST_STACK_SIZE];
+
+#[thread_local]
+pub static mut IST_NMI_STACK: [u8; IST_STACK_SIZE] = [0; IST_STACK_SIZE];
 
 /*
 lazy_static! {
@@ -244,6 +249,12 @@ pub unsafe fn init_percpu_gdt(tcb_offset: usize) {
 
     // Set the User TLS segment to the offset of the user TCB
     //set_tcb(0);
+
+    //TSS.ist[PAGE_FAULT_IST_INDEX as usize] = VirtAddr::from_ptr(unsafe { &IST_PF_STACK });
+
+    TSS.ist[PAGE_FAULT_IST_INDEX as usize] = &IST_PF_STACK as *const _ as u64;
+    TSS.ist[DOUBLE_FAULT_IST_INDEX as usize] = &IST_DF_STACK as *const _ as u64;
+    TSS.ist[NMI_IST_INDEX as usize] = &IST_NMI_STACK as *const _ as u64;
 
     // We can now access our TSS, which is a thread local
     GDT[GDT_TSS].set_offset(&TSS as *const _ as u32);

@@ -33,3 +33,4 @@ default-features = false
 test_sleep = [ ]
 test_timer_thread = [ ]
 test_threads = [ ]
+test_guard_page = [ ]

@@ -535,8 +535,6 @@ pub fn construct_pt() {
         unsafe {
             println!("=> Switching to new PageTable!");
             controlregs::cr3_write(vspace.pml4_address().into());
-            println!("Flushing TLB");
-            x86::tlb::flush_all();
         }
     }
     // We need the memory pointed to by vspace after exiting the scope

@@ -2,15 +2,36 @@
 mod serial;
 mod vga; 
 
+use x86::cpuid::CpuId;
 use core::fmt::{Write};
 use crate::console::vga::WRITER;
 use crate::console::serial::{SERIAL1, EMERGENCY_SERIAL1};
 
 pub static mut IN_A_CRASH: bool = false; 
 
+pub fn unlock_console() {
+    unsafe {
+        IN_A_CRASH = true;
+    };
+}
+
+pub fn cpuid() -> u32 {
+    let featureInfo = CpuId::new().get_feature_info()
+        .expect("CPUID unavailable");
+
+    let cpu_id: u32 = featureInfo.initial_local_apic_id() as u32;
+    cpu_id
+}
+
+#[macro_export]
+macro_rules! printcpu {
+    ($($arg:tt)*) => ($crate::console::_print(format_args!($($arg)*)));
+}
+
+
 #[macro_export]
 macro_rules! print {
-    ($($arg:tt)*) => ($crate::console::_print(format_args!($($arg)*)));
+    ($($arg:tt)*) => ($crate::printcpu!("cpu({}):{}", crate::console::cpuid(), format_args!($($arg)*)));
 }
 
 #[macro_export]
@@ -29,11 +50,9 @@ pub fn _print(args: core::fmt::Arguments) {
     }
 
     if x86_64::instructions::interrupts::are_enabled() {
-        unsafe {
-            IN_A_CRASH = true;
-        };
-
         crate::interrupt::disable_irq();
+
+        unlock_console(); 
 
         println!("Interrupts are enabled"); 
         x86_64::instructions::interrupts::int3();
@@ -46,25 +65,25 @@ pub fn _print(args: core::fmt::Arguments) {
 }
 
 // The debug version
-#[cfg(trace_sched)]
+#[cfg(feature = "trace_sched")]
 macro_rules! trace_sched {
     ($( $args:expr ),*) => { println!( $( $args ),* ); }
 }
 
 // Non-debug version
-#[cfg(not(trace_sched))]
+#[cfg(not(feature = "trace_sched"))]
 macro_rules! trace_sched {
     ($( $args:expr ),*) => {()}
 }
 
 // The debug version
-#[cfg(trace_wq)]
+#[cfg(feature = "trace_wq")]
 macro_rules! trace_wq {
     ($( $args:expr ),*) => { println!( $( $args ),* ); }
 }
 
 // Non-debug version
-#[cfg(not(trace_wq))]
+#[cfg(not(feature = "trace_wq"))]
 macro_rules! trace_wq {
     ($( $args:expr ),*) => {()}
 }
@@ -78,6 +97,18 @@ macro_rules! trace_alloc {
 // Non-debug version
 #[cfg(not(feature="trace_alloc"))]
 macro_rules! trace_alloc {
+    ($( $args:expr ),*) => {()}
+}
+
+// The debug version
+#[cfg(feature = "trace_vspace")]
+macro_rules! trace_vspace {
+    ($( $args:expr ),*) => { println!( $( $args ),* ); }
+}
+
+// Non-debug version
+#[cfg(not(feature = "trace_vspace"))]
+macro_rules! trace_vspace {
     ($( $args:expr ),*) => {()}
 }
 
