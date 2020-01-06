@@ -1,7 +1,7 @@
 // See https://github.com/mit-pdos/xv6-public/blob/master/log.c
 
 use core::mem::size_of;
-use utils::bytearray;
+use byteorder::{ByteOrder, LittleEndian};
 use spin::Once;
 use syscalls::BDevPtr;
 
@@ -22,22 +22,22 @@ struct LogHeader {
 impl LogHeader {
     fn from_buffer_block(&mut self, buffer: &BufferBlock) {
         let mut offset = 0;
-        self.n = bytearray::to_u32(&buffer[offset..offset+4]);
+        self.n = LittleEndian::read_u32(&buffer[offset..offset+4]);
         offset += 4;
 
         for block_num in &mut self.block_nums {
-            *block_num = bytearray::to_u32(&buffer[offset..offset+4]);
+            *block_num = LittleEndian::read_u32(&buffer[offset..offset+4]);
             offset += 4;
         }
     }
 
     fn to_buffer_block(&self, buffer: &mut BufferBlock) {
         let mut offset = 0;
-        bytearray::from_u32(&mut buffer[offset..offset+4], self.n);
+        LittleEndian::write_u32(&mut buffer[offset..offset+4], self.n);
         offset += 4;
 
         for block_num in &self.block_nums {
-            bytearray::from_u32(&mut buffer[offset..offset+4], *block_num);
+            LittleEndian::write_u32(&mut buffer[offset..offset+4], *block_num);
             offset += 4;
         }
     }
@@ -131,6 +131,20 @@ impl Log {
         }
         self.outstanding += 1;
         return true;
+    }
+
+    pub fn begin_op(&mut self) {
+        loop {
+            if self.committing {
+                // sleep
+            }
+            if self.logheader.n + (self.outstanding+1)*params::MAXOPBLOCKS as u32 > params::LOGSIZE as u32 {
+                // sleep
+            } else {
+                self.outstanding += 1;
+                break;
+            }
+        }
     }
 
     // called at the end of each FS system call.

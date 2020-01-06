@@ -3,5 +3,4 @@
 
 extern crate alloc;
 
-pub mod bytearray;
 pub mod list2;
