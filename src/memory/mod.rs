@@ -277,7 +277,7 @@ impl<'a> PageProvider<'a> for BespinSlabsProvider {
     }
 
     fn release_page(&mut self, _p: &'a mut ObjectPage<'a>) {
-        trace_allocnl!("TODO!");
+        //trace_alloc!("TODO!");
     }
 }
 
@@ -310,6 +310,10 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
 
             if let Some(ref mut fmanager) = *BUDDY.lock() {
                 let f = fmanager.allocate(layout);
+                match f {
+                    Some(frame) => trace_alloc!("Alloc {:x?}", frame),
+                    _ => { },
+                };
                 ptr = f.map_or(core::ptr::null_mut(), |mut region| {
                     region.zero();
                     region.kernel_vaddr().as_mut_ptr()
@@ -330,11 +334,14 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
         } else {
             use crate::arch::memory::{kernel_vaddr_to_paddr};
             if let Some(ref mut fmanager) = *BUDDY.lock() {
-                fmanager.deallocate(
-                    Frame::new(
+                let frame = Frame::new(
                         kernel_vaddr_to_paddr(VAddr::from_u64(ptr as u64)),
-                        layout.size(),
-                    ),
+                        layout.size());
+
+                trace_alloc!("Dealloc {:x?}", frame);
+
+                fmanager.deallocate(
+                    frame,
                     layout,
                 );
             } else {
