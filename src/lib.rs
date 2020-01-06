@@ -59,6 +59,7 @@ use core::ptr;
 use crate::arch::memory::BASE_PAGE_SIZE;
 use crate::arch::{KERNEL_END, kernel_end_ptr, kernel_end};
 use crate::panic::{init_backtrace, init_backtrace_context};
+use crate::multibootv2::BootInformation;
 
 pub static mut ap_entry_running: bool = true;
 
@@ -99,24 +100,20 @@ pub fn init_ap_cpus() {
     println!("Done initializing APs");
 }
 
-pub fn init_allocator() {
+pub fn init_allocator(bootinfo: &BootInformation) {
     unsafe {
-        println!("multibootv2 tag found at {:x}", _bootinfo as usize);
-        let bootinfo = multibootv2::load(_bootinfo);
-
         match bootinfo.command_line_tag() {
             None => println!("No kernel command line specified"),
             Some(cmdline) => println!("Command Line: {}", cmdline.cmdline()),
         }
 
         println!("Tags: {:?}", bootinfo);
-        init_buddy(&bootinfo);
+        init_buddy(bootinfo);
     }
 }
 
-pub fn init_backtrace_kernel_elf() {
+pub fn init_backtrace_kernel_elf(bootinfo: &BootInformation) {
     unsafe {
-        let bootinfo = multibootv2::load(_bootinfo);
         for tag in bootinfo.module_tags() {
             match tag.name() {
                 "redleaf_kernel" => {
@@ -193,10 +190,15 @@ pub extern "C" fn rust_main() -> ! {
     // we can see nice crash reports
     interrupt::init_idt();
 
-    init_backtrace_kernel_elf();
+    let bootinfo = unsafe {
+        println!("multibootv2 tag found at {:x}", _bootinfo as usize);
+        multibootv2::load(_bootinfo)
+    };
+
+    init_backtrace_kernel_elf(&bootinfo);
 
     // Init memory allocator (normal allocation should work after this)
-    init_allocator();
+    init_allocator(&bootinfo);
 
     // Init page table (code runs on a new page table after this call)
     construct_pt();
