@@ -23,7 +23,7 @@ struct Request {
 
 pub struct DiskATA {
     id: usize,
-    port: &'static mut HbaPort,
+    port: HbaPort,
     size: u64,
     request_opt: Option<Request>,
     clb: Dma<[HbaCmdHeader; 32]>,
@@ -33,7 +33,7 @@ pub struct DiskATA {
 }
 
 impl DiskATA {
-    pub fn new(id: usize, port: &'static mut HbaPort) -> Result<Self> {
+    pub fn new(id: usize, mut port: HbaPort) -> Result<Self> {
         let mut clb = allocate_dma()?;
         let mut ctbas = [
             allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
@@ -50,7 +50,7 @@ impl DiskATA {
 
         port.init(&mut clb, &mut ctbas, &mut fb);
 
-        let size = unsafe { port.identify(&mut clb, &mut ctbas).unwrap_or(0) };
+        let size = port.identify(&mut clb, &mut ctbas).unwrap_or(0);
 
         Ok(DiskATA {
             id: id,

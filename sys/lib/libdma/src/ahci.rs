@@ -71,6 +71,7 @@ zeroed_allocator!([HbaCmdHeader; 32]); // clb
 zeroed_allocator!(HbaCmdTable); // ctba
 zeroed_allocator!([u8; 256]); // fb
 zeroed_allocator!([u8; 256 * 512]); // buf
+zeroed_allocator!([u16; 256]); // identify
 
 pub fn allocate_dma<T>() -> Result<Dma<T>>
     where T: DmaAllocator
