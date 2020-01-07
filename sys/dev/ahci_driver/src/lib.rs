@@ -34,14 +34,13 @@ use alloc::vec::Vec;
 use spin::Once;
 
 use self::ahcid::Disk;
+use self::ahcid::hba::Hba;
 
 struct Ahci {
     vendor_id: u16,
     device_id: u16,
     driver: pci_driver::PciDrivers,
-    baropt: Option<Box<dyn AhciBarRegion>>,
     disks: RefCell<Vec<Box<dyn Disk>>>,
-    // disk: RefCell<Box<dyn self::ahcid::Disk>>,
 }
 
 impl Ahci {
@@ -50,9 +49,7 @@ impl Ahci {
             vendor_id: 0x8086,
             device_id: 0x2922,
             driver: pci_driver::PciDrivers::AhciDriver,
-            baropt: None,
             disks: RefCell::new(Vec::new()),
-            // disk: RefCell::new(disk),
         }
     }
 }
@@ -61,18 +58,16 @@ impl pci_driver::PciDriver for Ahci {
     fn probe(&mut self, bar_region: BarRegions) {
         println!("probe() called");
 
-        match bar_region {
+        let bar = match bar_region {
             BarRegions::Ahci(bar) => {
-                self.baropt = Some(bar);
+                bar
             }
             _ => { panic!("Got unknown BAR region"); }
-        }
-
-        let bar = self.baropt.as_ref().unwrap();
+        };
 
         println!("Initializing with base = {:x}", bar.get_base());
 
-        let (hba, mut disks) = self::ahcid::disks(bar.get_base() as usize, "meow");
+        let mut disks = self::ahcid::disks(bar);
         self.disks = RefCell::new(disks);
 
         println!("probe() finished");
