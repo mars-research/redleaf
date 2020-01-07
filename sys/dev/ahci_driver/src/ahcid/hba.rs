@@ -375,12 +375,6 @@ impl Hba {
         }
     }
 
-    pub fn uninit() -> Hba {
-        Hba {
-            bar: Box::new(DummyBarRegion {}),
-        }
-    }
-
     pub fn init(&self) {
         let bar = &self.bar;
 
