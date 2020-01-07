@@ -3,9 +3,11 @@ all:
 	make -C pci
 	make -C ixgbe_driver
 	make -C ahci_driver
+	make -C kvstore
 
 .PHONY: clean
 clean:
 	make -C pci clean
 	make -C ixgbe_driver clean
 	make -C ahci_driver clean
+	make -C kvstore clean

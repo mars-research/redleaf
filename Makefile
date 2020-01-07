@@ -24,7 +24,8 @@ domain_list := sys/init/build/init \
 	sys/dev/pci/build/pci \
 	sys/dev/ahci_driver/build/ahci_driver \
 	sys/dev/ixgbe_driver/build/ixgbe_driver \
-	usr/xv6/usr/shell/build/shell
+	usr/xv6/usr/shell/build/shell \
+	sys/dev/kvstore/build/kvstore
 
 qemu_common := -m 1024M -vga std -s
 qemu_common += -cdrom $(iso)

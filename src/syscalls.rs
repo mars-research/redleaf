@@ -182,6 +182,15 @@ impl syscalls::CreateIxgbe for PDomain {
     }
 }
 
+impl syscalls::CreateKvStore for PDomain {
+    fn create_domain_kvstore(&self, net: Box<dyn syscalls::Net>) -> Box<dyn syscalls::Domain> {
+        disable_irq();
+        let r = crate::domain::create_domain::create_domain_kvstore(net);
+        enable_irq();
+        r
+    }
+}
+
 impl syscalls::CreateXv6 for PDomain {
     fn create_domain_xv6kernel(&self,
                                 ints: Box<dyn syscalls::Interrupt>,

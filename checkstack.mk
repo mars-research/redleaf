@@ -12,5 +12,5 @@ checkstackinfo:
 	@echo "The largest stack is allocated by this function:" 
 	@echo "$(max_stacks)"
 	@echo "You can use this command for detailed info on stack usage in this domain"
-	@echo "    \>stack-sizes $(bin) | sort -k2 -nr"
+	@echo "    $ stack-sizes $(bin) | sort -k2 -nr"
 

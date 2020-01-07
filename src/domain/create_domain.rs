@@ -73,6 +73,21 @@ pub fn create_domain_ixgbe(pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box
     create_domain_net("ixgbe_driver", binary_range, pci)
 }
 
+pub fn create_domain_kvstore(net: Box<dyn Net>) -> Box<dyn syscalls::Domain> {
+
+    extern "C" {
+        fn _binary_sys_dev_kvstore_build_kvstore_start();
+        fn _binary_sys_dev_kvstore_build_kvstore_end();
+    }
+
+    let binary_range = (
+        _binary_sys_dev_kvstore_build_kvstore_start as *const u8,
+        _binary_sys_dev_kvstore_build_kvstore_end as *const u8
+    );
+
+    __create_domain_kvstore("kvstore", binary_range, net)
+}
+
 pub fn create_domain_xv6kernel(ints: Box<dyn syscalls::Interrupt>,
                                create_xv6fs: Box<dyn syscalls::CreateXv6FS>,
                                create_xv6usr: Box<dyn syscalls::CreateXv6Usr>,
@@ -133,7 +148,6 @@ pub fn create_domain_xv6usr(name: &str, xv6: Box<dyn syscalls::Xv6>) -> Box<dyn 
     build_domain_xv6usr(name, binary_range, xv6)
 }
 
-
 // AB: XXX: The following is is not supported in Rust at the moment
 //
 //pub fn init(s: Box<dyn syscalls::Syscall 
@@ -155,7 +169,9 @@ pub fn build_domain_init(name: &str,
                          Box<dyn syscalls::CreateXv6Usr>,
                          Box<dyn syscalls::CreatePCI>,
                          Box<dyn syscalls::CreateIxgbe>,
-                         Box<dyn syscalls::CreateAHCI>);
+                         Box<dyn syscalls::CreateAHCI>,
+                         Box<dyn syscalls::CreateKvStore>,
+                         );
 
     let (dom, entry) = unsafe { 
         load_domain(name, binary_range)
@@ -169,6 +185,7 @@ pub fn build_domain_init(name: &str,
     enable_irq();
     user_ep(Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(Interrupt::new()),
+            Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(PDomain::new(Arc::clone(&dom))),
@@ -258,6 +275,30 @@ pub fn create_domain_net(name: &str,
 
     println!("domain/{}: returned from entry point", name);
     (Box::new(PDomain::new(Arc::clone(&dom))), net)
+}
+
+pub fn __create_domain_kvstore(name: &str,
+                                 binary_range: (*const u8, *const u8),
+                                 net: Box<dyn Net>) -> Box<dyn syscalls::Domain> {
+    type UserInit = fn(Box<dyn Syscall>, Box<dyn Net>);
+
+    let (dom, entry) = unsafe {
+        load_domain(name, binary_range)
+    };
+
+    let user_ep: UserInit = unsafe {
+        transmute::<*const(), UserInit>(entry)
+    };
+
+    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+
+    // Enable interrupts on exit to user so it can be preempted
+    enable_irq();
+    user_ep(pdom, net);
+    disable_irq();
+
+    println!("domain/{}: returned from entry point", name);
+    Box::new(PDomain::new(Arc::clone(&dom)))
 }
 
 pub fn build_domain_fs(name: &str, 
