@@ -3,7 +3,7 @@ use alloc::boxed::Box;
 use libsyscalls::errors::Result;
 
 use self::disk_ata::DiskATA;
-use self::hba::{HbaMem, HbaPortType};
+use self::hba::HbaPortType;
 use self::hba::{Hba, HbaPort};
 
 use alloc::sync::Arc;
