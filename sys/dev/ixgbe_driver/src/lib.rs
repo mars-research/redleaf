@@ -18,6 +18,7 @@ mod ixgbe_desc;
 
 extern crate malloc;
 extern crate alloc;
+
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::panic::PanicInfo;
@@ -29,12 +30,17 @@ use ixgbe::IxgbeBarRegion;
 use core::mem::MaybeUninit;
 pub use libsyscalls::errors::Result;
 use crate::device::Intel8259x;
+use core::cell::RefCell;
+use protocol::UdpPacket;
+use alloc::sync::Arc;
+use spin::Mutex;
 
-#[derive(Copy, Clone)]
 struct Ixgbe {
     vendor_id: u16,
     device_id: u16,
     driver: pci_driver::PciDrivers,
+    device_initialized: bool,
+    device: RefCell<Option<Intel8259x>>
 }
 
 struct IxgbeBar<'a> {
@@ -47,7 +53,13 @@ impl Ixgbe {
             vendor_id: 0x8086,
             device_id: 0x154D,
             driver: pci_driver::PciDrivers::IxgbeDriver,
+            device_initialized: false,
+            device: RefCell::new(None)
         }
+    }
+
+    fn active(&self) -> bool {
+        self.device_initialized
     }
 }
 
@@ -62,6 +74,47 @@ impl<'a> IxgbeBar<'a> {
 }
 
 impl syscalls::Net for Ixgbe {
+    fn send(&self, buf: &[u8]) -> u32 {
+        if self.device_initialized == false {
+            0
+        } else {
+            if self.active() {
+                if let Some(mut device) = self.device.borrow_mut().as_mut() {
+                    let dev: &mut Intel8259x = device;
+                    if let Ok(Some(opt)) = dev.write(buf) {
+                        opt as u32
+                    } else {
+                        0
+                    }
+                } else {
+                    0
+                }
+            } else {
+                0
+            }
+        }
+    }
+
+    fn send_udp(&self, packet: Arc<Mutex<UdpPacket>>) -> u32 {
+         if self.device_initialized == false {
+            0
+        } else {
+            if self.active() {
+                if let Some(mut device) = self.device.borrow_mut().as_mut() {
+                    let dev: &mut Intel8259x = device;
+                    if let Ok(Some(opt)) = dev.write(packet.lock().as_slice()) {
+                        opt as u32
+                    } else {
+                        0
+                    }
+                } else {
+                    0
+                }
+            } else {
+                0
+            }
+        }
+    }
 }
 
 impl pci_driver::PciDriver for Ixgbe {
@@ -73,7 +126,10 @@ impl pci_driver::PciDriver for Ixgbe {
                 unsafe {
                     ixgbe_bar.write(ixgbebar);
                 }
-                Intel8259x::new(bar);
+                if let Ok(ixgbe_dev) = Intel8259x::new(bar) {
+                    self.device_initialized = true;
+                    self.device.replace(Some(ixgbe_dev));
+                }
             }
             _ => { println!("Got unknown bar region") }
         }

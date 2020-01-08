@@ -58,21 +58,21 @@ pub const IXGBE_RXD_STAT_EOP: u64               = 0x02; /* End of Packet */
 pub const IXGBE_RXDADV_STAT_DD: u64             = IXGBE_RXD_STAT_DD; /* Done */
 pub const IXGBE_RXDADV_STAT_EOP: u64            = IXGBE_RXD_STAT_EOP; /* End of Packet */
 
-pub const IXGBE_ADVTXD_PAYLEN_SHIFT: u64        = 14; /* Adv desc PAYLEN shift */
-pub const IXGBE_TXD_CMD_EOP: u64                = 0x01000000; /* End of Packet */
-pub const IXGBE_ADVTXD_DCMD_EOP: u64            = IXGBE_TXD_CMD_EOP; /* End of Packet */
-pub const IXGBE_TXD_CMD_RS: u64                 = 0x08000000; /* Report Status */
-pub const IXGBE_ADVTXD_DCMD_RS: u64             = IXGBE_TXD_CMD_RS; /* Report Status */
-pub const IXGBE_TXD_CMD_IFCS: u64               = 0x02000000; /* Insert FCS (Ethernet CRC) */
-pub const IXGBE_ADVTXD_DCMD_IFCS: u64           = IXGBE_TXD_CMD_IFCS; /* Insert FCS */
-pub const IXGBE_TXD_CMD_DEXT: u64               = 0x20000000; /* Desc extension (0 = legacy) */
-pub const IXGBE_ADVTXD_DTYP_DATA: u64           = 0x00300000; /* Adv Data Descriptor */
-pub const IXGBE_ADVTXD_DCMD_DEXT: u64           = IXGBE_TXD_CMD_DEXT; /* Desc ext 1=Adv */
-pub const IXGBE_TXD_STAT_DD: u64                = 0x00000001; /* Descriptor Done */
-pub const IXGBE_ADVTXD_STAT_DD: u64             = IXGBE_TXD_STAT_DD; /* Descriptor Done */
+pub const IXGBE_ADVTXD_PAYLEN_SHIFT: u32        = 14; /* Adv desc PAYLEN shift */
+pub const IXGBE_TXD_CMD_EOP: u32                = 0x01000000; /* End of Packet */
+pub const IXGBE_ADVTXD_DCMD_EOP: u32            = IXGBE_TXD_CMD_EOP; /* End of Packet */
+pub const IXGBE_TXD_CMD_RS: u32                 = 0x08000000; /* Report Status */
+pub const IXGBE_ADVTXD_DCMD_RS: u32             = IXGBE_TXD_CMD_RS; /* Report Status */
+pub const IXGBE_TXD_CMD_IFCS: u32               = 0x02000000; /* Insert FCS (Ethernet CRC) */
+pub const IXGBE_ADVTXD_DCMD_IFCS: u32           = IXGBE_TXD_CMD_IFCS; /* Insert FCS */
+pub const IXGBE_TXD_CMD_DEXT: u32               = 0x20000000; /* Desc extension (0 = legacy) */
+pub const IXGBE_ADVTXD_DTYP_DATA: u32           = 0x00300000; /* Adv Data Descriptor */
+pub const IXGBE_ADVTXD_DCMD_DEXT: u32           = IXGBE_TXD_CMD_DEXT; /* Desc ext 1=Adv */
+pub const IXGBE_TXD_STAT_DD: u32                = 0x00000001; /* Descriptor Done */
+pub const IXGBE_ADVTXD_STAT_DD: u32             = IXGBE_TXD_STAT_DD; /* Descriptor Done */
 
-pub const IXGBE_IVAR_ALLOC_VAL: u64             = 0x80; /* Interrupt Allocation valid */
-pub const IXGBE_EICR_RTX_QUEUE: u64             = 0x0000FFFF; /* RTx Queue Interrupt */
+pub const IXGBE_IVAR_ALLOC_VAL: u32             = 0x80; /* Interrupt Allocation valid */
+pub const IXGBE_EICR_RTX_QUEUE: u32             = 0x0000FFFF; /* RTx Queue Interrupt */
 
 #[derive(Debug, Copy, Clone)]
 #[repr(packed)]

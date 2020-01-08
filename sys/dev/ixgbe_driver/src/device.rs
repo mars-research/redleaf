@@ -8,7 +8,7 @@ use crate::ixgbe_desc::*;
 use crate::Result;
 use ixgbe::{IxgbeRegs, IxgbeArrayRegs};
 use console::println;
-use core::mem;
+use core::{mem, slice, cmp};
 use libsyscalls::time::sys_ns_sleep;
 
 const ONE_MS_IN_NS: u64 = 100_0000;
@@ -27,6 +27,10 @@ pub struct Intel8259x {
     next_id: usize,
     bar: Box<dyn IxgbeBarRegion>,
     //pub handles: BTreeMap<usize, usize>,
+}
+
+fn wrap_ring(index: usize, ring_size: usize) -> usize {
+    (index + 1) & (ring_size - 1)
 }
 
 impl Intel8259x {
@@ -432,4 +436,60 @@ impl Intel8259x {
         }
         println!("   - link speed is {} Mbit/s", self.get_link_speed());
     }
+
+    pub fn write(&mut self, buf: &[u8]) -> Result<Option<usize>> {
+        if self.transmit_ring_free == 0 {
+            loop {
+                let desc = unsafe {
+                    &*(self.transmit_ring.as_ptr().add(self.transmit_clean_index)
+                        as *const ixgbe_adv_tx_desc)
+                };
+
+                if (unsafe { desc.wb.status } & IXGBE_ADVTXD_STAT_DD as u32) != 0 {
+                    self.transmit_clean_index =
+                        wrap_ring(self.transmit_clean_index, self.transmit_ring.len());
+                    self.transmit_ring_free += 1;
+                } else if self.transmit_ring_free > 0 {
+                    break;
+                }
+
+                if self.transmit_ring_free >= self.transmit_ring.len() {
+                    break;
+                }
+            }
+        }
+
+        let desc = unsafe {
+            &mut *(self.transmit_ring.as_ptr().add(self.transmit_index) as *mut ixgbe_adv_tx_desc)
+        };
+
+        let data = unsafe {
+            slice::from_raw_parts_mut(
+                self.transmit_buffer[self.transmit_index].as_ptr() as *mut u8,
+                cmp::min(buf.len(), self.transmit_buffer[self.transmit_index].len()) as usize,
+            )
+        };
+
+        let i = cmp::min(buf.len(), data.len());
+        data[..i].copy_from_slice(&buf[..i]);
+
+        unsafe {
+            desc.read.cmd_type_len = IXGBE_ADVTXD_DCMD_EOP
+                | IXGBE_ADVTXD_DCMD_RS
+                | IXGBE_ADVTXD_DCMD_IFCS
+                | IXGBE_ADVTXD_DCMD_DEXT
+                | IXGBE_ADVTXD_DTYP_DATA
+                | buf.len() as u32;
+
+            desc.read.olinfo_status = (buf.len() as u32) << IXGBE_ADVTXD_PAYLEN_SHIFT;
+        }
+
+        self.transmit_index = wrap_ring(self.transmit_index, self.transmit_ring.len());
+        self.transmit_ring_free -= 1;
+
+        self.bar.write_reg_idx(IxgbeArrayRegs::Tdt, 0, self.transmit_index as u64);
+
+        Ok(Some(i))
+    }
+
 }
