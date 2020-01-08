@@ -62,16 +62,21 @@ impl syscalls::PCI for PCI {
 
             println!("Device found {:x?} {:?}", pci_dev, bars[bar_index]);
 
-            let bar = match bars[bar_index] {
-                bar::PciBar::Memory(addr) => addr,
-                bar::PciBar::Port(port) => port as u32,
-                _ => 0 as u32,
-            };
-            let pci_bar = PCI_BAR.r#try().expect("System call interface is not initialized.");
+            match bars[bar_index] {
+                Some(bar) => {
+                    let bar = match bar {
+                        bar::PciBar::Memory(addr) => addr,
+                        bar::PciBar::Port(port) => port as u32,
+                        _ => 0 as u32,
+                    };
+                    let pci_bar = PCI_BAR.r#try().expect("System call interface is not initialized.");
 
-            let bar_region = pci_bar.get_bar_region(bar as u64, 512 * 1024 as usize, pci_driver.get_driver_type());
+                    let bar_region = pci_bar.get_bar_region(bar as u64, 512 * 1024 as usize, pci_driver.get_driver_type());
 
-            pci_driver.probe(bar_region);
+                    pci_driver.probe(bar_region);
+                }
+                None => panic!("BAR region is null")
+            }
         };
     }
 

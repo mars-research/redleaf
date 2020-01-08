@@ -10,7 +10,7 @@ use alloc::vec::Vec;
 use spin::Mutex;
 
 lazy_static! {
-    pub static ref PCI_MAP: Mutex<HashMap<PciDevice, Vec<PciBar>>> = {
+    pub static ref PCI_MAP: Mutex<HashMap<PciDevice, Vec<Option<PciBar>>>> = {
         let hmap = HashMap::new();
         Mutex::new(hmap)
     };
@@ -71,12 +71,15 @@ fn handle_parsed_header(pci: &Pci, bus_num: u8,
     }
 
 
-    for (i, bar) in header.bars().iter().enumerate() {
-        if !bar.is_none() {
-            if let Some(bar_vec) = PCI_MAP.lock().get_mut(&pci_device) {
-                bar_vec.push(*bar);
+    if let Some(bar_vec) = PCI_MAP.lock().get_mut(&pci_device) {
+        for (i, bar) in header.bars().iter().enumerate() {
+            if !bar.is_none() {
+                bar_vec.push(Some(*bar));
+                string.push_str(&format!(" {}={}", i, bar));
+            } else {
+                bar_vec.push(None);
+                string.push_str(&format!(" {}=NULL", i));
             }
-            string.push_str(&format!(" {}={}", i, bar));
         }
     }
 

@@ -102,13 +102,14 @@ pub fn ahci_init(s: Box<dyn Syscall + Send + Sync>,
     libsyscalls::syscalls::init(s);
 
     let mut ahci = Ahci::new();
-    pci.pci_register_driver(&mut ahci, 1);
+    pci.pci_register_driver(&mut ahci, 5);
 
     Box::new(ahci)
 }
 
 // This function is called on panic.
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo) -> ! {
+    println!("panicked: {:?}", info);
     loop {}
 }
