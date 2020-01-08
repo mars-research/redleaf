@@ -3,7 +3,9 @@
 
 extern crate alloc;
 use alloc::boxed::Box;
-use spin::MutexGuard;
+use spin::{MutexGuard, Mutex};
+use alloc::sync::Arc;
+use protocol::UdpPacket;
 
 pub trait Syscall {
     fn sys_print(&self, s: &str);
@@ -56,6 +58,8 @@ pub type BDevPtr = Box<dyn BDev + Send + Sync>;
 
 /// RedLeaf network interface
 pub trait Net {
+    fn send(&self, buf: &[u8]) -> u32;
+    fn send_udp(&self, packet: Arc<Mutex<UdpPacket>>) -> u32;
 }
 
 /// RedLeaf Domain interface
@@ -80,6 +84,10 @@ pub trait CreateAHCI {
 
 pub trait CreateIxgbe {
     fn create_domain_ixgbe(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net>);
+}
+
+pub trait CreateKvStore {
+    fn create_domain_kvstore(&self, net: Box<dyn Net>) -> Box<dyn Domain>;
 }
 
 pub trait CreateXv6FS {
