@@ -1,0 +1,10 @@
+[package]
+name = "rref"
+version = "0.1.0"
+authors = ["Dan Appel <appeld@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+spin = "0.5.2"
+hashbrown = "0.6"
+slabmalloc = { path = "../slabmalloc" }
