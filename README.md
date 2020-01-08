@@ -73,13 +73,16 @@ be done by adding this to the /etc/grub.d/40_custom. You might adjust the
 root='hd0,2' to reflect where your Linux root is on disk, e.g., maybe it's on
 root='hd0,1'
 
+In the future, we may append different modules to the grub menuentry.
+Currently,the backtrace initialization code searches for the 
+module parameter "redleaf_kernel" to parse the kernel binary.
 ```
 set timeout=30
 menuentry "RedLeaf" {
     set kernel='/boot/kernel.bin'
     echo "Loading ${kernel}..."
     multiboot2 ${kernel}
-    module2 ${kernel}
+    module2 ${kernel} redleaf_kernel
     boot
 }
 ```
