@@ -25,7 +25,7 @@ mod ahcid;
 use core::panic::PanicInfo;
 use core::cell::RefCell;
 use syscalls::{Syscall};
-use libsyscalls::syscalls::{sys_print, sys_alloc};
+use libsyscalls::syscalls::{sys_print, sys_alloc, sys_backtrace};
 use console::println;
 use pci_driver::BarRegions;
 use ahci::AhciBarRegion;
@@ -111,5 +111,6 @@ pub fn ahci_init(s: Box<dyn Syscall + Send + Sync>,
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     println!("panicked: {:?}", info);
+    sys_backtrace();
     loop {}
 }

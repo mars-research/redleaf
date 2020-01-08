@@ -31,7 +31,7 @@ mod parser;
 
 use core::panic::PanicInfo;
 use syscalls::{Syscall, PciResource, PciBar};
-use libsyscalls::syscalls::{sys_println};
+use libsyscalls::syscalls::{sys_println, sys_backtrace};
 use alloc::boxed::Box;
 use crate::parser::{PciDevice, PCI_MAP};
 use console::println;
@@ -102,6 +102,8 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
 
 // This function is called on panic.
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo) -> ! {
+    println!("panicked: {:?}", info);
+    sys_backtrace();
     loop {}
 }
