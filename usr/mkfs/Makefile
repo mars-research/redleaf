@@ -22,6 +22,11 @@ mkfs: mkfs.c fs.h
 
 FILES=\
 	README\
+	big_file\
+
+
+big_file:
+	fallocate -l 70K big_file
 
 fs.img: mkfs $(FILES)
 	mkdir -p build
@@ -31,4 +36,5 @@ clean:
 	rm -f *.o *.d
 	rm -rf build
 	rm -f ./mkfs
+	rm ./big_file
 
