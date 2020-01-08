@@ -1,5 +1,8 @@
+#![no_std]
 #[macro_use]
 extern crate bitfield;
+
+use core::convert::TryInto;
 
 mod headers;
 
@@ -7,24 +10,74 @@ pub use crate::headers::eth::EthernetHeader;
 pub use crate::headers::ipv4::IpV4Header;
 pub use crate::headers::udp::UdpHeader;
 
+pub const PAYLOAD_SZ: usize = 1472;
+pub const ETH_HDR_SZ: usize = 14;
+pub const IP_HDR_SZ: usize = 20;
+pub const UDP_HDR_SZ: usize = 8;
+pub const MTU_SZ: usize = 1514;
+
 #[repr(C)]
-pub struct UdpPacket<'p> {
-    eth_hdr: EthernetHeader<[u8;14]>,
-    ip_hdr: IpV4Header<[u8; 20]>,
-    udp_hdr: UdpHeader<[u8; 8]>,
-    payload: &'p [u8],
+pub struct UdpPacket {
+    eth_hdr: EthernetHeader<[u8; ETH_HDR_SZ]>,
+    ip_hdr: IpV4Header<[u8; IP_HDR_SZ]>,
+    udp_hdr: UdpHeader<[u8; UDP_HDR_SZ]>,
+    payload: [u8; PAYLOAD_SZ],
 }
 
-impl<'p> UdpPacket<'p> {
-    pub fn new(eth_hdr: EthernetHeader<[u8; 14]>,
-               ip_hdr: IpV4Header<[u8; 20]>,
-               udp_hdr: UdpHeader<[u8; 8]>,
-               payload: &'p [u8]) -> UdpPacket {
+use core::convert::AsMut;
+
+fn copy_into_array(slice: &[u8]) -> [u8; PAYLOAD_SZ]
+{
+    let mut a = [0u8; PAYLOAD_SZ];
+    unsafe {
+        core::ptr::copy(slice.as_ptr(), a.as_mut() as *mut _ as *mut u8, PAYLOAD_SZ);
+    }
+    a
+}
+
+impl From<[u8; MTU_SZ]> for UdpPacket {
+    fn from(buf: [u8; MTU_SZ]) -> UdpPacket {
+        UdpPacket {
+            eth_hdr: EthernetHeader(buf[0..ETH_HDR_SZ].try_into().expect("Could not convert")),
+            ip_hdr: IpV4Header(buf[ETH_HDR_SZ..(ETH_HDR_SZ+IP_HDR_SZ)].try_into().expect("Could not convert")),
+            udp_hdr: UdpHeader(buf[(ETH_HDR_SZ+IP_HDR_SZ)..(ETH_HDR_SZ+IP_HDR_SZ+UDP_HDR_SZ)].try_into().expect("Could not convert")),
+            payload: copy_into_array(&buf[(ETH_HDR_SZ+IP_HDR_SZ+UDP_HDR_SZ)..]),
+        }
+    }
+}
+
+impl UdpPacket {
+    pub fn new(eth_hdr: EthernetHeader<[u8; ETH_HDR_SZ]>,
+               ip_hdr: IpV4Header<[u8; IP_HDR_SZ]>,
+               udp_hdr: UdpHeader<[u8; UDP_HDR_SZ]>,
+               payload: [u8; PAYLOAD_SZ]) -> UdpPacket {
         UdpPacket {
             eth_hdr,
             ip_hdr,
             udp_hdr,
             payload,
+        }
+    }
+
+    pub fn new_raw(buf: [u8; MTU_SZ]) -> UdpPacket {
+        UdpPacket::from(buf)
+    }
+
+    pub fn new_zeroed() -> UdpPacket {
+        UdpPacket {
+            eth_hdr: EthernetHeader([0u8; ETH_HDR_SZ]),
+            ip_hdr: IpV4Header([0u8; IP_HDR_SZ]),
+            udp_hdr: UdpHeader([0u8; UDP_HDR_SZ]),
+            payload: [0u8; PAYLOAD_SZ],
+        }
+    }
+
+    pub fn as_slice(&self) -> &[u8] {
+        unsafe {
+            core::slice::from_raw_parts(
+                self as *const Self as *const u8,
+                core::mem::size_of::<Self>()
+            )
         }
     }
 }
