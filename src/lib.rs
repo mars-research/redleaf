@@ -66,6 +66,8 @@ use crate::multibootv2::BootInformation;
 pub static mut ap_entry_running: bool = true;
 pub const MAX_CPUS: u32 = 4;
 
+static mut elf_found: bool = false;
+
 extern "C" {
     #[no_mangle]
     static _bootinfo: usize;
@@ -124,9 +126,11 @@ pub fn init_backtrace_kernel_elf(bootinfo: &BootInformation) {
                     KERNEL_END = round_up!(new_end, BASE_PAGE_SIZE as u64);
                     println!("Old kernel_end: {:x} New kernel_end: {:x}", kernel_end(), new_end);
                     init_backtrace(core::slice::from_raw_parts(kernel_elf as *const usize as *const u8, ksize));
-                    break;
+                    elf_found = true;
                 },
-                _ => { println!("Kernel image not found. Backtrace will be without symbols"); }
+                _ => {
+                    println!("Kernel image not found. Backtrace will be without symbols");
+                }
             };
         }
     }
@@ -252,7 +256,9 @@ pub extern "C" fn rust_main_ap() -> ! {
         construct_ap_pt();
     }
 
-    init_backtrace_context();
+    if unsafe { elf_found } {
+        init_backtrace_context();
+    }
 
     if cpu_id == 0 {
         domain::domain::init_domains();
