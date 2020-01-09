@@ -19,7 +19,6 @@ use core::panic::PanicInfo;
 use syscalls::{Syscall};
 use libsyscalls::syscalls::{sys_create_thread, sys_current_thread, sys_yield, sys_recv_int};
 use libsyscalls::time::sys_ns_sleep;
-use rref::RRef;
 use console::println;
 use sleeplock::sleeplock::SleepLock;
 

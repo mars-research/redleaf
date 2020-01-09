@@ -2,7 +2,7 @@ use crate::interrupt::{disable_irq, enable_irq};
 use crate::thread::{do_yield, create_thread};
 use x86::bits64::paging::{PAddr, VAddr};
 use crate::arch::vspace::{VSpace, ResourceType};
-use crate::memory::paddr_to_kernel_vaddr;
+use crate::memory::{paddr_to_kernel_vaddr, MEM_PROVIDER};
 use x86::bits64::paging::BASE_PAGE_SIZE;
 use alloc::boxed::Box; 
 use spin::Mutex;
@@ -10,6 +10,7 @@ use alloc::sync::Arc;
 use crate::domain::domain::{Domain}; 
 use syscalls::{Thread,PciResource, PciBar};
 use crate::round_up;
+use core::alloc::{GlobalAlloc, Layout};
 
 //use crate::domain::domain::BOOTING_DOMAIN; 
 
@@ -134,6 +135,14 @@ impl syscalls::Syscall for PDomain {
         disable_irq();
         backtrace();
         enable_irq();
+    }
+
+    fn sys_alloc_heap(&self, layout: Layout) -> *mut u8 {
+        unsafe { MEM_PROVIDER.alloc(layout) }
+    }
+
+    fn sys_dealloc_heap(&self, ptr: *mut u8, layout: Layout) {
+        unsafe { MEM_PROVIDER.dealloc(ptr, layout) }
     }
 }
 

@@ -1,20 +1,11 @@
-#![no_std]
 #![feature(const_fn)]
-extern crate alloc;
 use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut, Drop};
-use core::cell::UnsafeCell;
 use alloc::boxed::Box;
 use spin::Mutex;
-
-use console::println;
+use syscalls::{SharedHeapObject, DomainId, HasDomainId};
 
 pub static rref_registry: RRefRegistry = RRefRegistry::new();
-
-type DomainId = u64;
-pub trait HasDomainId {
-    fn get_domain_id(&self) -> DomainId;
-}
 
 pub struct RRefRegistry {
     // type-erased list of pointers to shared heap memory objects
@@ -63,7 +54,7 @@ pub struct SharedHeapObject<T> where T: 'static + Send {
 
 impl<T> Drop for SharedHeapObject<T> where T: Send {
     fn drop(&mut self) {
-        println!("DROPPING SHARED HEAP OBJECT; VALUE []\n");
+//        println!("DROPPING SHARED HEAP OBJECT; VALUE []\n");
     }
 }
 
@@ -71,6 +62,11 @@ impl<T> HasDomainId for SharedHeapObject<T> where T: Send {
     fn get_domain_id(&self) -> DomainId {
         self.domain_id
     }
+}
+
+type DomainId = u64;
+pub trait HasDomainId {
+    fn get_domain_id(&self) -> DomainId;
 }
 
 // RRef (remote reference) has an unowned reference to an object on shared heap.

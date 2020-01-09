@@ -2,6 +2,7 @@ extern crate alloc;
 use spin::Once;
 use alloc::boxed::Box;
 use syscalls::{Syscall, Thread, Interrupt};
+use core::alloc::Layout;
 
 static SYSCALL: Once<Box<dyn Syscall + Send + Sync>> = Once::new();
 static INT: Once<Box<dyn Interrupt + Send + Sync>> = Once::new();
@@ -67,4 +68,14 @@ pub fn sys_free_huge(p: *mut u8) {
 pub fn sys_backtrace() {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
     return scalls.sys_backtrace();
+}
+
+pub fn sys_alloc_heap(layout: Layout) -> *mut u8 {
+    let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
+    return scalls.sys_alloc_heap(layout);
+}
+
+pub fn sys_dealloc_heap(ptr: *mut u8, layout: Layout) {
+    let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
+    scalls.sys_dealloc_heap(ptr, layout)
 }

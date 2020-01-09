@@ -4,6 +4,7 @@
 extern crate alloc;
 use alloc::boxed::Box;
 use spin::MutexGuard;
+use core::alloc::Layout;
 
 pub trait Syscall {
     fn sys_print(&self, s: &str);
@@ -16,6 +17,9 @@ pub trait Syscall {
     fn sys_alloc_huge(&self, sz: u64) -> *mut u8;
     fn sys_free_huge(&self, p: *mut u8);
     fn sys_backtrace(&self);
+    fn sys_alloc_heap(&self, layout: Layout) -> *mut u8;
+    // TODO: this is probably unsafe and open to attacks
+    fn sys_dealloc_heap(&self, ptr: *mut u8, layout: Layout);
 }
 
 #[derive(Clone,Copy,Debug)]
