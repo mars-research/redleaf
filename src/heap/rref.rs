@@ -3,7 +3,8 @@ use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut, Drop};
 use alloc::boxed::Box;
 use spin::Mutex;
-use syscalls::{SharedHeapObject, DomainId, HasDomainId};
+use crate::heap::alloc::move_object;
+use core::alloc::Layout;
 
 pub static rref_registry: RRefRegistry = RRefRegistry::new();
 
@@ -95,7 +96,11 @@ impl<T> RRef<T> where T: Send {
 
     pub fn move_to(&mut self, new_domain_id: DomainId) {
         // TODO: race here
-        unsafe { (*self.reference).domain_id = new_domain_id };
+        unsafe {
+            move_object((*self.reference).domain_id, new_domain_id, self.reference as *mut u8, Layout::new::<T>());
+            (*self.reference).domain_id = new_domain_id
+        };
+
     }
 }
 

@@ -11,6 +11,7 @@ use crate::domain::domain::{Domain};
 use syscalls::{Thread,PciResource, PciBar};
 use crate::round_up;
 use core::alloc::{GlobalAlloc, Layout};
+use crate::heap::alloc::{alloc_heap, dealloc_heap};
 
 //use crate::domain::domain::BOOTING_DOMAIN; 
 
@@ -138,11 +139,18 @@ impl syscalls::Syscall for PDomain {
     }
 
     fn sys_alloc_heap(&self, layout: Layout) -> *mut u8 {
-        unsafe { MEM_PROVIDER.alloc(layout) }
+        disable_irq();
+        let domain_id = self.domain.lock().id;
+        let ptr = alloc_heap(domain_id, layout);
+        enable_irq();
+        ptr
     }
 
     fn sys_dealloc_heap(&self, ptr: *mut u8, layout: Layout) {
-        unsafe { MEM_PROVIDER.dealloc(ptr, layout) }
+        disable_irq();
+        let domain_id = self.domain.lock().id;
+        dealloc_heap(domain_id, ptr, layout);
+        enable_irq();
     }
 }
 
