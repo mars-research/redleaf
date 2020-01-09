@@ -1,0 +1,210 @@
+start-symbol: start
+options: debug0
+module: Mugen.Air
+include: {{
+#include "mugen/ast/all.h"
+#include <map>
+#include "gc.h"
+typedef std::list<Ast::Section*> SectionList;
+}}
+code: {{
+template<class X>
+X as(const Value & value){
+    return (X) value.getValue();
+}
+
+std::string * toString(const Value & input){
+  std::ostringstream out;
+  for (Value::iterator it = input.getValues().begin(); it != input.getValues().end(); it++){
+    out << (char) (long) (*it).getValue();
+  }
+  std::string * object = new std::string(out.str());
+  GC::save(object);
+  return object;
+}
+
+Ast::String * makeString(std::string * str){
+    /* FIXME: fix line numbers here */
+    Ast::String * object = new Ast::String(-1, -1, str);
+    GC::save(object);
+    return object;
+}
+
+Ast::String * makeString(const Value & value){
+    /* FIXME: fix line numbers here */
+    Ast::String * object = new Ast::String(-1, -1, toString(value));
+    GC::save(object);
+    return object;
+}
+
+Ast::Section * makeSection(const Value & str){
+    Ast::Section * object = new Ast::Section(as<std::string*>(str));
+    GC::save(object);
+    return object;
+}
+
+Ast::Keyword * makeKeyword(const Value & value){
+    /* FIXME: fix line numbers here */
+    Ast::Keyword * object = new Ast::Keyword(-1, -1, as<char*>(value));
+    GC::save(object);
+    return object;
+}
+
+Ast::Value * makeValueList(const Value & n1, const Value & n2, const Value & n3, const Value & n4){
+    std::list<Ast::Value*> values;
+    values.push_back(as<Ast::Value*>(n1));
+    values.push_back(as<Ast::Value*>(n2));
+    values.push_back(as<Ast::Value*>(n3));
+    values.push_back(as<Ast::Value*>(n4));
+
+    Ast::ValueList * object = new Ast::ValueList(values);
+    GC::save(object);
+    return object;
+}
+
+Ast::Value * makeValueList(const Value & front, const Value & rest){
+    std::list<Ast::Value*> values;
+    values.push_back(as<Ast::Value*>(front));
+    for (Value::iterator it = rest.getValues().begin(); it != rest.getValues().end(); it++){
+        Ast::Value * value = as<Ast::Value*>(Value((*it).getValue()));
+        if (value == 0){
+            /* FIXME! replace empty with a new node */
+            value = makeKeyword(Value("empty"));
+            values.push_back(value);
+        } else {
+            values.push_back(value);
+        }
+    }
+    Ast::ValueList * object = new Ast::ValueList(values);
+    GC::save(object);
+    return object;
+}
+
+Ast::Value * makeNumber(const Value & sign, const Value & number){
+    double value = *(as<double*>(number));
+    if (sign.getValue() != 0 && strcmp(as<const char *>(sign), "-") == 0){
+        value = -value;
+    }
+
+    /* FIXME! replace empty with a new node */
+    Ast::Number * object = new Ast::Number(-1, -1, value);
+    GC::save(object);
+    return object;
+}
+
+double * parseDouble(const Value & value){
+    std::string * str = toString(value);
+    std::istringstream get(*str);
+    double * number = new double;
+    get >> *number;
+    GC::save(number);
+    return number;
+}
+
+std::string * makeHeader(const Value & begin, const Value & action, const Value & num){
+    std::ostringstream out;
+    out << as<char*>(begin) << " " << as<char*>(action) << " " << (as<Ast::Value*>(num))->toString();
+    std::string * object = new std::string(out.str());
+    GC::save(object);
+    return object;
+}
+
+SectionList * makeSectionList(){
+    SectionList * object = new SectionList();
+    GC::save(object);
+    return object;
+}
+
+Ast::Attribute * makeAttributeArray(Ast::Keyword * name, Ast::Value * index, Ast::Value * value){
+    /* FIXME! fix line numbers here */
+    Ast::AttributeArray * object = new Ast::AttributeArray(-1, -1, name, index, value);
+    GC::save(object);
+    return object;
+}
+
+void addSection(const Value & section_list_value, const Value & section_value){
+  SectionList * sections = (SectionList*) section_list_value.getValue();
+  Ast::Section * section = (Ast::Section*) section_value.getValue();
+  if (section == 0){
+    throw ParseException("Cannot add null section");
+  }
+  sections->push_back(section);
+}
+
+Ast::Attribute * makeAttributeKeyword(const Value & id, const Value & data){
+    /* FIXME: fix line numbers here */
+    Ast::AttributeKeyword * object = new Ast::AttributeKeyword(-1, -1, as<Ast::Keyword*>(id), as<Ast::Value*>(data));
+    GC::save(object);
+    return object;
+}
+
+Ast::Attribute * makeAttributeKeyword(const Value & id){
+    /* FIXME: fix line numbers here */
+    Ast::AttributeKeyword * object = new Ast::AttributeKeyword(-1, -1, as<Ast::Keyword*>(id));
+    GC::save(object);
+    return object;
+}
+
+}}
+
+rules:
+	start = current:{{ value = makeSectionList(); }} whitespace newline* (sn line(current) whitespace line_end?)* sn <eof> {{ value = current; GC::cleanup(as<SectionList*>(value)); }} <fail> {{ GC::cleanup(0); }}
+
+	line(current) = s comment
+	              | s action {{ addSection(current, $2); }}
+    action = action_start ast:{{value = makeSection($1); }} whitespace newline+ (action_line(ast) whitespace line_end)* {{ value = ast; }}
+    action_line(section) = s comment
+     
+	                     | s data:collision_default {{ as<Ast::Section*>(section)->addAttribute(as<Ast::Attribute*>(data)); }}
+	                     | s data:collision {{ as<Ast::Section*>(section)->addAttribute(as<Ast::Attribute*>(data)); }}
+                         | s data:valuelist {{ as<Ast::Section*>(section)->addValue(as<Ast::Value*>(data)); }}
+                         | s data:loopstart {{ as<Ast::Section*>(section)->addAttribute(as<Ast::Attribute*>(data)); }}
+                         | space s
+                         | line:<line> !(s action_start) (!line_end .)+ &line_end {{ std::cout << "Warning: ignoring input at line " << getCurrentLine(line) << " column " << getCurrentColumn(line) << std::endl; }}
+	              # | space+
+	line_end = newline+
+	         | &<eof> <void>
+	newline = "\n"
+	        | "\r"
+	loopstart = "loopstart"{case} ":"? {{ value = makeAttributeKeyword(Value(makeKeyword($1))); }}
+	whitespace = sw*
+    sn = space_newline*
+    space_newline = space
+                  | newline
+	sw = space
+	   | comment
+	inline s = space*
+	inline space = " "
+	             | "\t"
+                 | <ascii 255>
+	comment = ";" (!newline .)*
+	        | "=" (!newline .)*
+		    | "-" "-" (!newline .)*
+	collision_default = "Clsn2Default"{case} ":" s num:integer {{ value = makeAttributeKeyword(Value(makeKeyword($1)), num); }}
+	                  | "Clsn1Default"{case} ":" s num:integer {{ value = makeAttributeKeyword(Value(makeKeyword($1)), num); }}
+	                  | "Clsn2"{case} ":" s num:integer {{ value = makeAttributeKeyword(Value(makeKeyword($1)), num); }}
+			          | "Clsn1"{case} ":" s num:integer {{ value = makeAttributeKeyword(Value(makeKeyword($1)), num); }}
+
+    # change int,int,int,int to valuelist ?
+	collision = name:"Clsn2"{case} s "[" s index:integer s "]" s "=" s n1:integer s "," s n2:integer s "," s n3:integer s "," s n4:integer {{ value = makeAttributeArray(makeKeyword(name), as<Ast::Value*>(index), makeValueList(n1, n2, n3, n4)); }}
+	          | name:"Clsn1"{case} s "[" s index:integer s "]" s "=" s n1:integer s "," s n2:integer s "," s n3:integer s "," s n4:integer {{ value = makeAttributeArray(makeKeyword(name), as<Ast::Value*>(index), makeValueList(n1, n2, n3, n4)); }}
+
+	action_start = "[" s begin:"Begin"{case} s action:"Action"{case} s num:integer s (!"]" .)* "]" {{ value = makeHeader(begin, action, num); }}
+	inline digit = [0123456789]
+	integer = sign? digit+ {{ value = parseDouble($2); value = makeNumber($1,value); }}
+	inline sign = "-"
+	            | "+"
+	valuelist = value (s "," s value?)* {{ value = makeValueList($1,$2); }}
+
+    # FIXME: handle the integer values
+	value = integer
+          # Are all these things part of .air files?
+	      | "as"{case} integer "d"{case} integer {{ value = makeKeyword($1); }}
+	      | "a"{case} integer {{ value = makeKeyword($1); }}
+	      | "a"{case} {{ value = makeKeyword($1); }}
+	      | "s"{case} integer {{ value = makeKeyword($1); }}
+	      | "s"{case} {{ value = makeKeyword($1); }}
+	      | "vh"{case} {{ value = makeKeyword($1); }}
+	      | "hv"{case} {{ value = makeKeyword($1); }}
+	      | "v"{case} {{ value = makeKeyword($1); }}
+	      | "h"{case} {{ value = makeKeyword($1); }}

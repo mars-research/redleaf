@@ -1,0 +1,966 @@
+start-symbol: start
+options: debug0, error-length 20
+module: Mugen.Cmd
+include: {{
+#include "mugen/ast/all.h"
+#include <map>
+#include "gc.h"
+// #include "cmd-functions.h"
+typedef std::list<Ast::Section*> SectionList;
+}}
+
+code: {{
+
+Ast::Key * makeKeyModifier(Ast::Key * in, Ast::KeyModifier::ModifierType type, int ticks = 0);
+
+/* in cmd-functions.h */
+template<class X>
+X as(const Value & value){
+    return (X) value.getValue();
+}
+
+class KeyModifier{
+public:
+    virtual Ast::Key * apply(Ast::Key * in) = 0;
+    virtual ~KeyModifier(){
+    }
+};
+
+class ReleaseKeyModifier: public KeyModifier {
+public:
+    ReleaseKeyModifier(int ticks):
+    ticks(ticks){
+    }
+
+    virtual ~ReleaseKeyModifier(){
+    }
+
+    virtual Ast::Key * apply(Ast::Key * in){
+        return makeKeyModifier(in, Ast::KeyModifier::Release, ticks);
+    }
+
+protected:
+
+    int ticks;
+};
+
+class DirectionKeyModifier: public KeyModifier {
+public:
+    virtual Ast::Key * apply(Ast::Key * in){
+        return makeKeyModifier(in, Ast::KeyModifier::Direction);
+    }
+
+    virtual ~DirectionKeyModifier(){
+    }
+};
+
+class HeldDownKeyModifier: public KeyModifier {
+public:
+    virtual Ast::Key * apply(Ast::Key * in){
+        return makeKeyModifier(in, Ast::KeyModifier::MustBeHeldDown);
+    }
+
+    virtual ~HeldDownKeyModifier(){
+    }
+};
+
+class OnlyKeyModifier: public KeyModifier {
+public:
+    virtual Ast::Key * apply(Ast::Key * in){
+        return makeKeyModifier(in, Ast::KeyModifier::Only);
+    }
+
+    virtual ~OnlyKeyModifier(){
+    }
+};
+
+/* end in cmd-functions.h */
+
+std::string * toString(const Value & input){
+  std::ostringstream out;
+  for (Value::iterator it = input.getValues().begin(); it != input.getValues().end(); it++){
+    out << (char) (long) (*it).getValue();
+  }
+  std::string * object = new std::string(out.str());
+  GC::save(object);
+  return object;
+}
+
+std::string combineStrings(const Value & input){
+    std::ostringstream out;
+    for (Value::iterator it = input.getValues().begin(); it != input.getValues().end(); it++){
+        std::string * str = (std::string *) (*it).getValue();
+        out << *str;
+    }
+    return out.str();
+}
+
+std::string * toString(const char * x){
+    std::string * object = new std::string(x);
+    GC::save(object);
+    return object;
+}
+
+Ast::Value * makeInteger(int line, int column, const Value & sign, const Value & digits){
+    std::istringstream in(*toString(digits));
+    double value = 0;
+    in >> value;
+
+    if (sign.getValue() != 0){
+        value = -value;
+    }
+    
+    Ast::Number * object = new Ast::Number(line, column, value);
+    GC::save(object);
+    return object;
+}
+
+std::string * toString(char front, const Value & input){
+  std::string * str = toString(input);
+  str->insert(str->begin(), front);
+  return str;
+}
+
+Ast::String * makeString(const Value & value){
+    /* FIXME: fix line numbers here */
+    Ast::String * object = new Ast::String(-1, -1, toString(value));
+    GC::save(object);
+    return object;
+}
+
+SectionList * makeSectionList(){
+    SectionList * object = new SectionList();
+    GC::save(object);
+    return object;
+}
+
+/*
+Ast::Value * makeExpression(){
+    Ast::Value * object = new Ast::Expression();
+    GC::save(object);
+    return object;
+}
+*/
+
+Ast::Value * makeHelper(const Value & name, const Value & id){
+    /* FIXME: fix line numbers here */
+    Ast::Value * helper = new Ast::Helper(-1, -1, std::string(as<const char*>(name)), as<Ast::Value*>(id));
+    GC::save(helper);
+    return helper;
+}
+
+Ast::Value * makeKeyword(const char * name){
+    /* FIXME: fix line numbers here */
+    Ast::Value * keyword = new Ast::Keyword(-1, -1, name);
+    GC::save(keyword);
+    return keyword;
+}
+
+Ast::Value * makeExpressionInfix(Ast::ExpressionInfix::InfixType type, const Value & left, const Value & right){
+    /* FIXME: fix line numbers here */
+    Ast::Value * object = new Ast::ExpressionInfix(-1, -1, type, as<Ast::Value*>(left), as<Ast::Value*>(right));
+    GC::save(object);
+    return object;
+}
+
+Ast::Value * makeExpressionOr(const Value & left, const Value & right){
+    return makeExpressionInfix(Ast::ExpressionInfix::Or, left, right);
+}
+
+Ast::Value * makeExpressionBitwiseOr(const Value & left, const Value & right){
+    return makeExpressionInfix(Ast::ExpressionInfix::BitwiseOr, left, right);
+}
+
+Ast::Value * makeExpressionBitwiseXOr(const Value & left, const Value & right){
+    return makeExpressionInfix(Ast::ExpressionInfix::BitwiseXOr, left, right);
+}
+
+Ast::Value * makeExpressionBitwiseAnd(const Value & left, const Value & right){
+    return makeExpressionInfix(Ast::ExpressionInfix::BitwiseAnd, left, right);
+}
+
+Ast::Value * makeExpressionAssignment(const Value & left, const Value & right){
+    return makeExpressionInfix(Ast::ExpressionInfix::Assignment, left, right);
+}
+
+Ast::Value * makeExpressionEquals(const Value & left, const Value & right){
+    return makeExpressionInfix(Ast::ExpressionInfix::Equals, left, right);
+}
+
+Ast::Value * makeExpressionUnequals(const Value & left, const Value & right){
+    return makeExpressionInfix(Ast::ExpressionInfix::Unequals, left, right);
+}
+
+Ast::Value * makeExpressionGreaterThanEquals(const Value & left, const Value & right){
+    return makeExpressionInfix(Ast::ExpressionInfix::GreaterThanEquals, left, right);
+}
+
+Ast::Value * makeExpressionGreaterThan(const Value & left, const Value & right){
+    return makeExpressionInfix(Ast::ExpressionInfix::GreaterThan, left, right);
+}
+
+Ast::Value * makeExpressionLessThanEquals(const Value & left, const Value & right){
+    return makeExpressionInfix(Ast::ExpressionInfix::LessThanEquals, left, right);
+}
+
+Ast::Value * makeExpressionLessThan(const Value & left, const Value & right){
+    return makeExpressionInfix(Ast::ExpressionInfix::LessThan, left, right);
+}
+
+Ast::Value * makeExpressionXOr(const Value & left, const Value & right){
+    return makeExpressionInfix(Ast::ExpressionInfix::XOr, left, right);
+}
+
+Ast::Value * makeExpressionAnd(const Value & left, const Value & right){
+    return makeExpressionInfix(Ast::ExpressionInfix::And, left, right);
+}
+
+Ast::Value * makeExpressionAdd(const Value & left, const Value & right){
+    return makeExpressionInfix(Ast::ExpressionInfix::Add, left, right);
+}
+
+Ast::Value * makeExpressionSubtract(const Value & left, const Value & right){
+    return makeExpressionInfix(Ast::ExpressionInfix::Subtract, left, right);
+}
+
+Ast::Value * makeExpressionMultiply(const Value & left, const Value & right){
+    return makeExpressionInfix(Ast::ExpressionInfix::Multiply, left, right);
+}
+
+Ast::Value * makeExpressionDivide(const Value & left, const Value & right){
+    return makeExpressionInfix(Ast::ExpressionInfix::Divide, left, right);
+}
+
+Ast::Value * makeExpressionModulo(const Value & left, const Value & right){
+    return makeExpressionInfix(Ast::ExpressionInfix::Modulo, left, right);
+}
+
+Ast::Value * makeExpressionPower(const Value & left, const Value & right){
+    return makeExpressionInfix(Ast::ExpressionInfix::Power, left, right);
+}
+
+Ast::Value * negateExpression(const Value & exp){
+    Ast::Value * expression = as<Ast::Value*>(exp);
+    /* FIXME: fix line numbers here */
+    Ast::Value * negation = new Ast::ExpressionUnary(-1, -1, Ast::ExpressionUnary::Negation, expression);
+    GC::save(negation);
+    return negation;
+}
+
+Ast::Value * makeUnaryExpression(const Value & unaries, const Value & exp){
+    Ast::Value * expression = as<Ast::Value*>(exp);
+    for (Value::iterator it = unaries.getValues().begin(); it != unaries.getValues().end(); it++){
+        Ast::ExpressionUnary::UnaryType unary = (Ast::ExpressionUnary::UnaryType) (long) (*it).getValue();
+        /* FIXME: fix line numbers here */
+        expression = new Ast::ExpressionUnary(-1, -1, unary, expression);
+        GC::save(expression);
+    }
+    return expression;
+}
+
+Ast::Value * makeValueList(const Value & front, const Value & rest){
+    std::list<Ast::Value*> values;
+    values.push_back(as<Ast::Value*>(front));
+    for (Value::iterator it = rest.getValues().begin(); it != rest.getValues().end(); it++){
+        Ast::Value * value = as<Ast::Value*>(Value((*it).getValue()));
+        if (value == 0){
+            /* FIXME! replace empty with a new node */
+            value = makeKeyword("empty");
+            values.push_back(value);
+        } else {
+            values.push_back(value);
+        }
+    }
+
+    Ast::ValueList * object = new Ast::ValueList(values);
+    GC::save(object);
+    return object;
+}
+
+Ast::Value * makeValueList2(const Value & first, const Value & second){
+    std::list<Ast::Value*> values;
+    values.push_back(as<Ast::Value*>(first));
+    values.push_back(as<Ast::Value*>(second));
+    Ast::ValueList * object = new Ast::ValueList(values);
+    GC::save(object);
+    return object;
+}
+
+Ast::Value * makeFunction(const Value & name, const Value & arg1){
+    /* FIXME! fix line numbers here */
+    Ast::Value * function = new Ast::Function(-1, -1, std::string(as<const char*>(name)), as<Ast::ValueList*>(arg1));
+    GC::save(function);
+    return function;
+}
+
+Ast::Value * makeFunction(int line, int column, const Value & name, const Value & arg1){
+    Ast::Value * function = new Ast::Function(line, column, std::string(as<const char*>(name)), as<Ast::ValueList*>(arg1));
+    GC::save(function);
+    return function;
+}
+
+Ast::Value * makeFunction(const std::string & name, const Value & arg1){
+    /* FIXME: fix line numbers here */
+    Ast::Value * function = new Ast::Function(-1, -1, name, as<Ast::ValueList*>(arg1));
+    GC::save(function);
+    return function;
+}
+
+Ast::Value * makeFunction1(const Value & name, const Value & arg1){
+    return makeFunction(name, Value(makeValueList(arg1, Value())));
+}
+
+Ast::Value * makeFunction1(int line, int column, const Value & name, const Value & arg1){
+    return makeFunction(line, column, name, Value(makeValueList(arg1, Value())));
+}
+
+Ast::Value * makeFunction2(int line, int column, const Value & name, const Value & arg1, const Value & arg2){
+    return makeFunction(line, column, name, Value(makeValueList2(arg1, arg2)));
+}
+
+Ast::Value * makeFunction1(const std::string & name, const Value & arg1){
+    return makeFunction(name, Value(makeValueList(arg1, Value())));
+}
+
+std::string combine(const char * name, const Value & what){
+    if (what.getValue() != 0){
+        std::ostringstream out;
+        out << name << as<Ast::Number*>(what)->toString();
+        return out.str();
+    } else {
+        return std::string(name);
+    }
+}
+
+/*
+Ast::Value * makeFunction(const Value & name, const Value & arg1, const Value & arg2, const Value & arg3){
+    Ast::Value * function = new Ast::Function(std::string(as<const char*>(name)),
+                                              as<Ast::Value*>(arg1),
+                                              as<Ast::Value*>(arg2),
+                                              as<Ast::Value*>(arg3));
+    GC::save(function);
+    return function;
+}
+*/
+
+Ast::Value * makeRange(Ast::Range::RangeType type, const Value & low, const Value & high){
+    /* FIXME: fix line numbers here */
+    Ast::Value * range = new Ast::Range(-1, -1, type, as<Ast::Value*>(low), as<Ast::Value*>(high));
+    GC::save(range);
+    return range;
+}
+
+Ast::Identifier * makeIdentifier(int line, int column, const char * name){
+    Ast::Identifier * object = new Ast::SimpleIdentifier(line, column, std::string(name));
+    GC::save(object);
+    return object;
+}
+
+Ast::Identifier * makeIdentifier(int line, int column, const Value & front, const Value & rest){
+    std::list<std::string> ids;
+    ids.push_back(*as<std::string*>(front));
+    for (Value::iterator it = rest.getValues().begin(); it != rest.getValues().end(); it++){
+        /* this works becuase as() will coerce a void* into Value(void*) */
+        ids.push_back(*as<std::string*>(Value((*it).getValue())));
+    }
+    Ast::Identifier * object = new Ast::Identifier(line, column, ids);
+    GC::save(object);
+    return object;
+}
+
+Ast::Attribute * makeAttribute(int line, int column, const Value & id, const Value & data){
+    Ast::AttributeSimple * object = new Ast::AttributeSimple(line, column, as<Ast::Identifier*>(id), as<Ast::Value*>(data));
+    GC::save(object);
+    return object;
+}
+
+Ast::Attribute * makeAttribute(const Value & id, const Value & data){
+    Ast::AttributeSimple * object = new Ast::AttributeSimple(as<Ast::Identifier*>(id), as<Ast::Value*>(data));
+    GC::save(object);
+    return object;
+}
+
+Ast::Attribute * makeAttribute(const Value & id){
+    Ast::AttributeSimple * object = new Ast::AttributeSimple(as<Ast::Identifier*>(id));
+    GC::save(object);
+    return object;
+}
+
+Ast::Attribute * makeIndexedAttribute(const Value & id, const Value & index, const Value & data){
+    /* FIXME: fix line numbers here */
+    Ast::Attribute * object = new Ast::AttributeArray(-1, -1, as<Ast::Identifier*>(id), as<Ast::Value*>(index), as<Ast::Value*>(data));
+    GC::save(object);
+    return object;
+}
+
+Ast::Identifier * makeSimpleIdentifier(const Value & name){
+    Ast::Identifier * identifier = new Ast::SimpleIdentifier(as<const char *>(name));
+    GC::save(identifier);
+    return identifier;
+}
+
+Ast::Identifier * makeSimpleIdentifier(int line, int column, const char * name){
+    Ast::Identifier * identifier = new Ast::SimpleIdentifier(line, column, name);
+    GC::save(identifier);
+    return identifier;
+}
+
+Ast::Identifier * makeSimpleIdentifier(const char * name){
+    Ast::Identifier * identifier = new Ast::SimpleIdentifier(name);
+    GC::save(identifier);
+    return identifier;
+}
+
+
+double * parseDouble(const Value & value){
+    std::string * str = toString(value);
+    std::istringstream get(*str);
+    double * number = new double;
+    *number = 0;
+    get >> *number;
+    GC::save(number);
+    return number;
+}
+
+double * parseDouble(const Value & left, const Value & right){
+    std::string * str1 = toString(left);
+    std::string * str2 = toString(right);
+    std::istringstream get(*str1 + "." + *str2);
+    double * number = new double;
+    *number = 0;
+    get >> *number;
+    GC::save(number);
+    return number;
+}
+
+Ast::Identifier * makeSimpleIdentifier(int line, int column, const std::string & str){
+    Ast::Identifier * identifier = new Ast::SimpleIdentifier(line, column, str);
+    GC::save(identifier);
+    return identifier;
+}
+
+Ast::Attribute * makeAttribute(const char * name, const Value & data){
+    Ast::AttributeSimple * object = new Ast::AttributeSimple(makeSimpleIdentifier(-1, -1, std::string(name)), as<Ast::Value*>(data));
+    GC::save(object);
+    return object;
+}
+
+Ast::Attribute * makeAttribute(int line, int column, const char * name, const Value & data){
+    Ast::AttributeSimple * object = new Ast::AttributeSimple(makeSimpleIdentifier(line, column, std::string(name)), as<Ast::Value*>(data));
+    GC::save(object);
+    return object;
+}
+
+Ast::Value * makeNumber(double value){
+    /* FIXME: fix line numbers here */
+    Ast::Number * object = new Ast::Number(-1, -1, value);
+    GC::save(object);
+    return object;
+}
+
+Ast::Value * makeNumber(const Value & sign, const Value & number){
+    double value = *(as<double*>(number));
+    if (sign.getValue() != 0 && strcmp(as<const char *>(sign), "-") == 0){
+        value = -value;
+    }
+
+    /* FIXME: fix line numbers here */
+    Ast::Number * object = new Ast::Number(-1, -1, value);
+    GC::save(object);
+    return object;
+}
+
+void addSection(const Value & section_list_value, const Value & section_value){
+    SectionList * sections = (SectionList*) section_list_value.getValue();
+    Ast::Section * section = (Ast::Section*) section_value.getValue();
+    if (section == 0){
+        throw ParseException("Cannot add null section");
+    }
+    sections->push_back(section);
+}
+
+Ast::Value * copyValue(const Value & value){
+    Ast::Value * copied = (Ast::Value*) as<Ast::Value*>(value)->copy();
+    GC::save(copied);
+    return copied;
+}
+
+Ast::Section * makeSection(const Value & str, int line, int column){
+    Ast::Section * object = new Ast::Section(as<std::string*>(str), line, column);
+    GC::save(object);
+    return object;
+}
+
+Ast::Key * makeKeyModifier(Ast::Key * in, Ast::KeyModifier::ModifierType type, int ticks){
+    /* FIXME: fix line numbers here */
+    Ast::Key * modded = new Ast::KeyModifier(-1, -1, type, in, ticks);
+    GC::save(modded);
+    return modded;
+}
+
+Ast::Key * makeKeyCombined(const Value & left, const Value & right){
+    /* FIXME: fix line numbers here */
+    Ast::Key * key = new Ast::KeyCombined(-1, -1, as<Ast::Key*>(left), as<Ast::Key*>(right));
+    GC::save(key);
+    return key;
+}
+
+/* for commands with no keys listed */
+Ast::Key * makeEmptyKeyList(){
+    std::vector<Ast::Key*> all;
+    /* FIXME: fix line numbers here */
+    Ast::Key * object = new Ast::KeyList(-1, -1, all);
+    GC::save(object);
+    return object;
+}
+    
+Ast::Key * makeKeyList(const Value & first, const Value & rest){
+    std::vector<Ast::Key*> all;
+    all.push_back(as<Ast::Key*>(first));
+
+    for (Value::iterator it = rest.getValues().begin(); it != rest.getValues().end(); it++){
+        Ast::Key * key = (Ast::Key*) (*it).getValue();
+        all.push_back(key);
+    }
+
+    /* FIXME: fix line numbers here */
+    Ast::Key * object = new Ast::KeyList(-1, -1, all);
+    GC::save(object);
+    return object;
+}
+
+Ast::Key * makeKey(const Value & value){
+    /* FIXME: fix line numbers here */
+    Ast::Key * key = new Ast::KeySingle(-1, -1, as<const char *>(value));
+    GC::save(key);
+    return key;
+}
+
+Ast::Key * applyKeyModifiers(const Value & mods, Ast::Key * key){
+    for (Value::iterator it = mods.getValues().begin(); it != mods.getValues().end(); it++){
+        KeyModifier * modifier = (KeyModifier*) (*it).getValue();
+        key = modifier->apply(key);
+        delete modifier;
+    }
+    return key;
+}
+
+Ast::HitDefAttackAttribute * makeHitDefAttackAttribute(){
+    /* FIXME: fix line numbers here */
+    Ast::HitDefAttackAttribute * object = new Ast::HitDefAttackAttribute(-1, -1);
+    GC::save(object);
+    return object;
+}
+
+Ast::HitDefAttribute * makeHitDefAttribute(const Value & input){
+    std::ostringstream out;
+    for (Value::iterator it = input.getValues().begin(); it != input.getValues().end(); it++){
+        out << (char*) (*it).getValue();
+    }
+    /* FIXME: fix line numbers here */
+    Ast::HitDefAttribute * object = new Ast::HitDefAttribute(-1, -1, out.str());
+    GC::save(object);
+    return object;
+}
+
+Ast::Value * makeAnimElem(const Value & line, const Value & arg1, const Value & comparison, const Value & arg2){
+    /* animelemno == arg1 && animelemtime(arg1) compare arg2 */
+#if 0
+    Ast::Value * element;
+    Ast::Value * time;
+    element = makeExpressionEquals(Value(makeSimpleIdentifier(getCurrentLine(line), getCurrentColumn(line), "animelemno")), arg1);
+    /* make a copy of arg1 because values can only have one parent */
+    typedef Ast::Value * (*compare_func)(const Value &, const Value &);
+    time = as<compare_func>(comparison)(Value(makeFunction1(std::string("animelemtime"), Value(copyValue(arg1)))), arg2);
+    return makeExpressionAnd(Value(element), Value(time));
+#endif
+    typedef Ast::Value * (*compare_func)(const Value &, const Value &);
+    return as<compare_func>(comparison)(Value(makeFunction1(std::string("animelemtime"), Value(copyValue(arg1)))), arg2);
+}
+
+Ast::Value * makeAnimElem(const Value & line, const Value & arg1){
+    Value comparison = Value((void*) makeExpressionEquals);
+    Value arg2 = Value(makeNumber(0));
+    return makeAnimElem(line, arg1, comparison, arg2);
+}
+
+Ast::Value * makeProjectileExpression(const Value & line, const Value & name, const Value & id, const Value & arg1, const Value & compare, const Value & ticks){
+    Value finalId;
+    if (id.getValue() != NULL){
+        finalId = id;
+    } else {
+        finalId = makeNumber(0);
+    }
+    
+    Ast::Value * get = makeFunction2(getCurrentLine(line), getCurrentColumn(line), name, arg1, finalId);
+    /* check if the second form is used */
+    if (compare.getValue() != NULL){
+        typedef Ast::Value * (*compare_func)(const Value &, const Value &);
+        Ast::Value * comparison = as<compare_func>(compare)(Value(get), ticks);
+        return comparison;
+    } else {
+        Ast::Value * one = makeNumber(1);
+        Ast::Value * comparison = makeExpressionLessThan(Value(get), Value(one));
+        return comparison;
+    }
+}
+
+}}
+
+rules:
+    start = current:{{ value = makeSectionList(); }} whitespace newline* (sn line(current) whitespace line_end?)* sn <eof> {{ value = current; GC::cleanup(as<SectionList*>(value)); }} <fail> {{ GC::cleanup(0); }}
+    line(current) = s section {{ addSection(current, $2); }}
+                  | (!newline .)* newline
+    line_end = newline+
+             | &<eof> <void>
+    inline newline = "\n"
+                   | "\r"
+    whitespace = sw*
+    sw = space
+       | comment
+    inline s = space*
+    inline sn = space_newline*
+    inline space_newline = space
+                         | newline
+    inline s1 = space+
+    inline space = " "
+                 | "\t"
+    comment = ";" (!newline .)*
+            | "=" (!newline .)*
+            | "-" "-" (!newline .)*
+            | ":" ":" (!newline .)*
+    section = line:<line> name:section_title ast:{{ value = makeSection(name, getCurrentLine(line), getCurrentColumn(line)); }} whitespace (sn section_item(ast))* {{ value = ast; }}
+
+    section_item(ast) = s data:assignment whitespace line_end {{ as<Ast::Section*>(ast)->addAttribute(as<Ast::Attribute*>(data)); }}
+                      | line:<line> name:identifier s "=" fail:(!newline .)* line_end {{
+                        std::cout << "Warning: invalid line at " << getCurrentLine(line) << " '" << as<Ast::Identifier*>(name)->toString() << " =" << *toString(fail) << "'" << std::endl; }}
+                      | !(s section_title) (!newline .)+ line_end
+    section_title = "[" s name:(!"]" .)+ "]" {{ value = toString(name); }}
+    assignment = "command"{case} s "=" s all:keys {{ value = makeAttribute("command", all); }}
+               | line:<line> "guardsound"{case} s "=" s own:"s"{case}? item:expr_c s "," s group:expr_c {{
+                    if (own.getValue() != 0){
+                        value = makeAttribute("guardsound-own", Value(makeValueList2(item, group)));
+                    } else {
+                        value = makeAttribute("guardsound", Value(makeValueList2(item, group)));
+                    }
+               }}
+               | line:<line> "sparkno"{case} s "=" s own:"s"{case}? exp:expr {{
+                   /* TODO: handle own */
+                   value = makeAttribute("sparkno", exp);
+               }}
+               | line:<line> "anim"{case} s "=" s own:"s"{case}? exp:expr {{
+                   const char * name = "anim";
+                   if (own.getValue() != 0){
+                       name = "anim-own";
+                   }
+                   /* TODO: add line number information */
+
+                   value = makeAttribute(getCurrentLine(line), getCurrentColumn(line), name, exp);
+               }}
+               | line:<line> "hitsound"{case} s "=" s own:"s"{case}? exp1:expr_c s "," s exp2:expr {{
+                   const char * name = "hitsound";
+                   if (own.getValue() != 0){
+                       name = "hitsound-own";
+                   }
+                   value = makeAttribute(name, Value(makeValueList2(exp1, exp2)));
+               }}
+               | line:<line> name:identifier s "=" s exp:expr {{ value = makeAttribute(getCurrentLine(line), getCurrentColumn(line), name, exp); }}
+               | name:identifier s "!=" s exp:expr {{ value = makeAttribute(name, Value(negateExpression(exp))); }}
+               | name:identifier s "=" whitespace &line_end {{ value = makeAttribute(name); }}
+               | name:identifier s "(" s index:integer s ")" s "=" s exp:expr {{ value = makeIndexedAttribute(name, index, exp); }}
+               | "ctrl"{case} {{ value = makeAttribute(Value(makeSimpleIdentifier("ctrl")), Value(makeNumber(1))); }}
+    identifier = line:<line> first:name rest:("." name)* {{ value = makeIdentifier(getCurrentLine(line), getCurrentColumn(line), first, rest); }}
+    integer = line:<line> n1:sign? n2:digit+ {{ value = makeInteger(getCurrentLine(line), getCurrentColumn(line), n1, n2); }}
+    float = sign? left:digit* "." right:digit+ {{ value = makeNumber($1, Value(parseDouble(left,right))); }}
+          | sign? left:digit+ "." {{ value = makeNumber($1, Value(parseDouble(left))); }}
+    string = <quote> contents:(!<quote> !"\n" .)* <quote> {{ value = makeString(contents); }}
+    sign = "-"
+         | "+"
+    # [,] is inclusive
+    # (,) is exclusive
+    range = "[" s low:expr_c s "," s high:expr_c s "]" {{ value = makeRange(Ast::Range::AllInclusive, low, high); }}
+          | "(" s low:expr_c s "," s high:expr_c s ")" {{ value = makeRange(Ast::Range::AllExclusive, low, high); }}
+          | "(" s low:expr_c s "," s high:expr_c s "]" {{ value = makeRange(Ast::Range::LeftExclusiveRightInclusive, low, high); }}
+          | "[" s low:expr_c s "," s high:expr_c s ")" {{ value = makeRange(Ast::Range::LeftInclusiveRightExclusive, low, high); }}
+    name = letter alpha_digit* {{ value = toString((char)(long)$1.getValue(),$2); }}
+    letter = [abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_]
+    inline alpha_digit = letter
+                       | digit
+    digit = [0123456789]
+    
+    valuelist = first:expr_c rest:(s "," s expr_c)+ {{ value = makeValueList(first, rest); }}
+              | s "," s first:expr_c rest:(s "," s expr_c)* {{ value = makeValueList(first, rest); }}
+
+    expr = expr_c !(s ",") {{ value = $1; }}
+         | valuelist expr2_rest($1)
+
+    expr_c = left:expr2 expr_rest(left)
+           # I dont think this is right
+           # | expr2_rest
+    
+    # Increasing order of precedence
+    expr2 = left:expr3 expr2_rest(left)
+    expr3 = left:expr4 expr3_rest(left)
+    expr4 = left:expr5 expr4_rest(left)
+    expr5 = left:expr6 expr5_rest(left)
+    expr6 = left:expr7 expr6_rest(left)
+    expr7 = left:expr8 expr7_rest(left)
+    expr8 = left:expr9 expr8_rest(left)
+    expr9 = left:expr10 expr9_rest(left)
+    expr10 = left:expr11 expr10_rest(left)
+    expr11 = left:expr12 expr11_rest(left)
+    expr12 = left:expr13 expr12_rest(left)
+    expr13 = unary* s exp:expr13_real {{ value = makeUnaryExpression($1, exp); }}
+
+    expr_rest(left) = s "||" s right:expr2 new_left:{{ value = makeExpressionOr(left, right); }} expr_rest(new_left)
+                    | <void> {{ value = left; }}
+    expr2_rest(left) = s "^^" s right:expr3 new_left:{{ value = makeExpressionXOr(left, right); }} expr2_rest(new_left)
+                     | <void> {{ value = left; }}
+    expr3_rest(left) = s "&&" s right:expr4 new_left:{{ value = makeExpressionAnd(left, right); }} expr3_rest(new_left)
+                     | <void> {{ value = left; }}
+    expr4_rest(left) = s "|" s right:expr5 new_left:{{ value = makeExpressionBitwiseOr(left, right); }} expr4_rest(new_left)
+                     | <void> {{ value = left; }}
+    expr5_rest(left) = s "^" s right:expr6 new_left:{{ value = makeExpressionBitwiseXOr(left, right); }} expr5_rest(new_left)
+                     | <void> {{ value = left; }}
+    expr6_rest(left) = s "&" s right:expr7 new_left:{{ value = makeExpressionBitwiseAnd(left, right); }} expr6_rest(new_left)
+                     | <void> {{ value = left; }}
+    expr7_rest(left) = s ":=" s right:expr8 new_left:{{ value = makeExpressionAssignment(left, right); }} expr7_rest(new_left)
+                     | <void> {{ value = left; }}
+    # todo: fix expr8_rest
+    expr8_rest(left) = s "=" s right:expr9 new_left:{{ value = makeExpressionEquals(left, right); }} expr8_rest(new_left)
+                     | s "!=" s right:expr9 new_left:{{ value = makeExpressionUnequals(left, right); }} expr8_rest(new_left)
+                         # todo: intervals
+                         # but we have ranges.. dont need intervals
+                     | <void> {{ value = left; }}
+    expr9_rest(left) = s maker:compare s right:expr10 new_left:{{ {
+        typedef Ast::Value * (*compare_func)(const Value &, const Value &);
+        value = as<compare_func>(maker)(left, right);
+        }
+    }} expr9_rest(new_left)
+                     | <void> {{ value = left; }}
+    compare = "<=" {{ value = (void *) makeExpressionLessThanEquals; }}
+            | ">=" {{ value = (void *) makeExpressionGreaterThanEquals; }}
+            | "<" {{ value = (void *) makeExpressionLessThan; }}
+            | ">" {{ value = (void *) makeExpressionGreaterThan; }}
+    all_compare = compare
+                | compare_equal
+    expr10_rest(left) = s "+" s right:expr11 new_left:{{ value = makeExpressionAdd(left, right); }} expr10_rest(new_left)
+                      | s "-" s right:expr11 new_left:{{ value = makeExpressionSubtract(left, right); }} expr10_rest(new_left)
+                      | <void> {{ value = left; }}
+    expr11_rest(left) = s "*" s right:expr12 new_left:{{ value = makeExpressionMultiply(left, right); }} expr11_rest(new_left)
+                      | s "/" s right:expr12 new_left:{{ value = makeExpressionDivide(left, right); }} expr11_rest(new_left)
+                      | s "%" s right:expr12 new_left:{{ value = makeExpressionModulo(left, right); }} expr11_rest(new_left)
+                      | <void> {{ value = left; }}
+    expr12_rest(left) = s "**" s right:expr13 new_left:{{ value = makeExpressionPower(left, right); }} expr12_rest(new_left)
+                      | <void> {{ value = left; }}
+    inline unary = "!" {{ value = (void*) Ast::ExpressionUnary::Not; }}
+                 | "-" !digit {{ value = (void*) Ast::ExpressionUnary::Minus; }}
+                 | "~" {{ value = (void*) Ast::ExpressionUnary::Negation; }}
+          # | "~" !key !digit {{ value = (void*) Ast::ExpressionUnary::Negation; }}
+    expr13_real = helper
+                | function
+                | value
+                | "(" s e:expr s ")" {{ value = e; }}
+
+    function = name:function_name s "(" s args:args s ")" {{ value = makeFunction(name, args); }}
+             | name:"teammode"{case} s "=" s arg1:identifier {{
+                 value = makeFunction1(name, arg1);
+             }}
+             | name:"teammode"{case} s "!=" s arg1:identifier {{
+                 value = makeFunction1(std::string("teammode!="), arg1); 
+             }}
+             # FIXME: animelem is only supposed to allow '=' immediately after
+             # 'animelem' but some scripts use >= for some reason
+             # We just treat any comparison as if it had used = since thats the only
+             # one with a semantic meaning
+             | line:<line> "animelem"{case} s all_compare s arg1:integer s "," s comparison:all_compare? s arg2:integer {{
+                if (comparison.getValue() == NULL){
+                    comparison = (void*) makeExpressionEquals;
+                }
+                value = makeAnimElem(line, arg1, comparison, arg2);
+             }}
+             | line:<line> "animelem"{case} s all_compare s arg1:integer {{
+                value = makeAnimElem(line, arg1);
+             }}
+             #| name:"animelem"{case} s "=" s arg1:integer function_rest {{
+             #   /* FIXME: handle function rest */
+             #   value = makeFunction1(name, arg1);
+             #}}
+             #| name:"animelem"{case} s "<=" s arg1:integer function_rest {{
+             #   /* FIXME: handle function rest */
+             #   value = makeFunction1("animelem<=", arg1);
+             #}}
+             # FIXME: timemod always compares the last value with equality but some
+             # scripts write '= 5' explicitly as in
+             # trigger1 = TimeMod = 3, = 0
+             | line:<line> "timemod"{case} s compare:all_compare s mod:integer s "," s all_compare? s to:integer {{
+                 value = makeExpressionEquals(Value(makeExpressionModulo(Value(makeIdentifier(getCurrentLine(line), getCurrentColumn(line), "time")),
+                                                                   mod)),
+                                              to);
+             }}
+             # FIXME: can any integer follow the = or just positive integers?
+             | line:<line> name:projectile_trigger id:integer? s "=" s arg1:integer (s "," s compare:all_compare s ticks:value)? {{
+                value = Value(makeProjectileExpression(line, name, id, arg1, compare, ticks));
+             }}
+             | "hitdefattr"{case} s comparison:compare_equal s state:hitdef-attribute s "," s attributes:hitdef-attack-attribute {{
+                 typedef Ast::Value * (*compare_func)(const Value &, const Value &);
+                 Ast::Value * compare_state = as<compare_func>(comparison)(Value(makeSimpleIdentifier("hitdefattr:state")), state);
+                 Ast::Value * compare_attribute = as<compare_func>(comparison)(Value(makeSimpleIdentifier("hitdefattr:attribute")), attributes);
+                 value = makeExpressionAnd(Value(compare_state), Value(compare_attribute));
+             }}
+             | line:<line> "hitdefattr"{case} {{
+                   std::ostringstream error;
+                   error << "Invalid hitdefattr on line " << getCurrentLine(line) << " column " << getCurrentColumn(line);
+                   throw ParseException(error.str());
+               }}
+             # FIXME: handle hitdefattr with no attack-attributes listed
+    
+    projectile_trigger = "projhit"{case}
+                       | "projcontact"{case} 
+
+    compare_equal = "=" {{ value = (void*) makeExpressionEquals; }}
+                  | "!=" {{ value = (void*) makeExpressionUnequals; }}
+
+    hitdef-attack-attribute = attribute:{{ value = makeHitDefAttackAttribute(); }} hitdef-attack-attribute-item(attribute) (s "," s hitdef-attack-attribute-item(attribute))* {{ value = attribute; }}
+    hitdef-attack-attribute-item(attribute) = hitdef-attack-type hitdef-attack-movement {{
+        std::string * result = toString(as<const char *>($1));
+        std::string * other = toString(as<const char *>($2));
+        as<Ast::HitDefAttackAttribute*>(attribute)->addAttribute(*result + *other);
+    }}
+
+    hitdef-attack-type = "n"{case} # normal
+                       | "s"{case} # special
+                       | "h"{case} # hyper
+                       | "a"{case} # all of the above
+    hitdef-attack-movement = "a"{case} # attack
+                           | "t"{case} # throw
+                           | "p"{case} # projectile
+
+    hitdef-attribute = hitdef-attribute-item+ {{ value = makeHitDefAttribute($1); }}
+    hitdef-attribute-item = "s"{case}
+                          | "c"{case}
+                          | "a"{case}
+
+    args = expr1:expr_c expr_rest:(s "," s expr_c)* {{ value = makeValueList(expr1, expr_rest); }}
+    function_name = "abs"{case}
+                  | "const"{case}
+                  | "selfanimexist"{case}
+                  | "ifelse"{case}
+                  | "gethitvar"{case}
+                  | "floor"{case}
+                  | "ceil"{case}
+                  | "exp"{case}
+                  | "acos"{case}
+                  | "asin"{case}
+                  | "atan"{case}
+                  | "tan"{case}
+                  | "cos"{case}
+                  | "sin"{case}
+                  | "log"{case}
+                  | "ln"{case}
+                  | "sysfvar"{case}
+                  | "sysvar"{case}
+                  | "var"{case}
+                  | "numexplod"{case}
+                  | "numhelper"{case}
+                  | "numprojid"{case}
+                  | "fvar"{case}
+                  | "ishelper"{case}
+                  | "numtarget"{case}
+                  | "animelemtime"{case}
+                  | "animelemno"{case}
+                  | "animexist"{case}
+                  | "projguarded"{case}
+                  | "projcanceltime"{case}
+                  | "projhittime"{case}
+                  | "projcontacttime"{case}
+                  | "projcontact"{case}
+                  | "numhelper"{case}
+
+    function_rest = s "," s all_compare? s value
+                  | <void>
+
+    # Keys and key modifiers need their own AST structures
+    keys = key_value_list
+    key_value_list = first:key rest:(s "," s key)* (s ",")? {{ value = makeKeyList(first, rest); }}
+                   | <void> {{ value = makeEmptyKeyList(); }}
+    key = key_real ok:key_rest($1) !identifier {{ value = ok; }}
+    key_rest(left) = s "+" s another:key_real new_left:{{ value = makeKeyCombined(left, another); }} key_rest(new_left)
+                   | <void> {{ value = left; }}
+    key_real = mods:key_modifier* name:key_name {{ value = applyKeyModifiers(mods, makeKey(name)); }}
+    key_modifier = "~" num:digit* {{ value = new ReleaseKeyModifier((int) *parseDouble(num)); }}
+                 | "$" {{ value = new DirectionKeyModifier(); }}
+                 | "/" {{ value = new HeldDownKeyModifier(); }}
+                 | ">" {{ value = new OnlyKeyModifier(); }}
+    key_name = "DB"
+             | "B"
+             | "DF"
+             | "D"
+             | "F"
+             | "UF"
+             | "UB"
+             | "U"
+             | "a"
+             | "b"
+             | "c"
+             | "x"
+             | "y"
+             | "z"
+             | "s"
+
+    value = float
+          | integer
+          | keyword
+          | !keyword identifier
+          | range
+          | string
+          | hitflag
+        
+    helper = name:helper-name s helper-expression? s "," s id:helper-identifier {{
+        value = makeHelper(name, id);
+    }}
+
+    helper-expression = "(" s expr_c s ")"
+    helper-name = "parent"{case}
+                | "root"{case}
+                | "helper"{case}
+                | "target"{case}
+                | "partner"{case}
+                | "enemyNear"{case}
+                | "enemy"{case}
+                | "playerid"{case}
+    helper-identifier = function
+                      | keyword
+                      | !keyword identifier
+
+    # FIXME: return proper hitflag
+    hitflag = hitflag_char+ hitflag_modifier? !"." {{ value = makeSimpleIdentifier("A"); }}
+    hitflag_char = "A"
+                 | "M"
+                 | "F"
+                 | "D"
+
+    hitflag_modifier = "+"
+                     | "-"
+
+    keyword = keyword_real !alpha_digit {{ value = $1; }}
+    keyword_real = "vel"{case} s1 "y"{case} {{ value = makeKeyword("vel y"); }}
+                 | "vel"{case} s1 "x"{case} {{ value = makeKeyword("vel x"); }}
+                 | "pos"{case} s1 "y"{case} {{ value = makeKeyword("pos y"); }}
+                 | "pos"{case} s1 "x"{case} {{ value = makeKeyword("pos x"); }}
+                 | "p2dist"{case} s1 "x"{case} {{ value = makeKeyword("p2dist x"); }}
+                 | "p2dist"{case} s1 "y"{case} {{ value = makeKeyword("p2dist y"); }}
+                 | "p1dist"{case} s1 "x"{case} {{ value = makeKeyword("p1dist x"); }}
+                 | "p1dist"{case} s1 "y"{case} {{ value = makeKeyword("p1dist y"); }}
+                 | "p2bodydist"{case} s1 "x"{case} {{ value = makeKeyword("p2bodydist x"); }}
+                 | "p2bodydist"{case} s1 "y"{case} {{ value = makeKeyword("p2bodydist y"); }}
+                 | "p1bodydist"{case} s1 "x"{case} {{ value = makeKeyword("p1bodydist x"); }}
+                 | "p1bodydist"{case} s1 "y"{case} {{ value = makeKeyword("p1bodydist y"); }}
+                 | "parentdist"{case} s1 "x"{case} {{ value = makeKeyword("parentdist x"); }}
+                 | "screenpos"{case} s1 "x"{case} {{ value = makeKeyword("screenpos x"); }}
+                 | "screenpos"{case} s1 "y"{case} {{ value = makeKeyword("screenpos y"); }}
+                 | "parentdist"{case} s1 "x"{case} {{ value = makeKeyword("parentdist x"); }}
+                 | "parentdist"{case} s1 "y"{case} {{ value = makeKeyword("parentdist y"); }}
+                 | "rootdist"{case} s1 "x"{case} {{ value = makeKeyword("rootdist x"); }}
+                 | "rootdist"{case} s1 "y"{case} {{ value = makeKeyword("rootdist y"); }}
+                 | hitflag

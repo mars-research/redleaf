@@ -1,0 +1,6 @@
+.vscode
+*.o
+peg_peg.py
+compiler
+parser.cpp
+parser.h

@@ -1,0 +1,124 @@
+start-symbol: file
+
+include: {{
+    #include <algorithm>
+    #include <iterator>
+
+    #include "parse_data.h"
+}}
+
+code: {{
+    compiler::data global_data;
+    std::vector<std::string>& identifiers {global_data.identifiers};
+    std::vector<std::size_t>& allowed_types {global_data.allowed_types};
+    std::vector<std::size_t>& type_refs {global_data.type_refs};
+    std::vector<std::size_t>& init_signature {global_data.init_signature};
+
+    template<typename type>
+    type narrow(const void* ptr)
+    {
+        return static_cast<type>(reinterpret_cast<ptrdiff_t>(ptr));
+    }
+
+    std::size_t intern(std::string str)
+    {
+        const auto id_i = std::find(identifiers.begin(), identifiers.end(), str);
+        if (id_i == identifiers.end()) {
+            identifiers.push_back(str);
+            return identifiers.size() - 1;
+        }
+        else {
+            return std::distance(identifiers.begin(), id_i);
+        }
+    }
+}}
+
+rules:
+file = defined-type-list {{ value = &global_data; }}
+
+defined-type-list = space* defined-type defined-type-list | space* <eof>
+
+defined-type = copy-struct | trait | init-fn
+
+init-fn = "pub" wspace "fn" wspace "init" space* "(" init-arg-list space* ")" space* "->" space* init-trait space* ";"
+
+init-arg-list = space* init-arg init-arg-list-tail | <void>
+
+init-arg-list-tail = space* "," init-arg-list | <void>
+
+init-arg = identifier space* ":" space* init-trait
+
+init-trait = "Box<" space* "dyn" wspace id:identifier space* ">" {{ init_signature.push_back(narrow<std::size_t>(id.getValue())); }}
+
+copy-struct = "#[derive(Copy)]" space* "struct" wspace id:identifier space* "{" field* space* "}" {{ 
+        allowed_types.push_back(narrow<int>(id.getValue()));
+    }}
+
+field = space* identifier space* ":" space* field-type ";"
+
+field-type = rref-type | ref-type | simple-type
+
+trait = "trait" wspace identifier space* "{" fn* space* "}"
+
+fn = space* "fn" wspace identifier space* "(" arg-list space* ")" space* "->" space* arg-type space* ";"
+
+arg-list = argument arg-list-tail | <void>
+
+arg-list-tail = space* "," arg-list | <void>
+
+argument = space* identifier space* ":" space* arg-type
+
+arg-type = "Box<" space* type2 space* ">"
+    | rref-type
+    | simple-type
+
+rref-type = "RRef<" space* type2 space* ">"
+
+ref-type = "&" space* type2
+
+type2 = simple-type | id:identifier {{ type_refs.push_back(reinterpret_cast<std::size_t>(id.getValue())); }}
+
+simple-type = "char"
+    | "bool"
+    | "f64"
+    | "f32"
+    | "f64"
+    | "i8"
+    | "i16"
+    | "i32"
+    | "i64"
+    | "i128"
+    | "isize"
+    | "u8"
+    | "u16"
+    | "u32"
+    | "u64"
+    | "u128"
+    | "usize"
+
+identifier = "_" ch:tail-char+ {{
+        std::string id {"_"};
+        for (const auto val : ch.getValues()) {
+            const auto chr = narrow<char>(val.getValue());
+            id += chr;
+        }
+        
+        value = reinterpret_cast<void*>(intern(id));
+    }}
+    | hch:head-char ch:tail-char* {{
+        std::string id {narrow<char>(hch.getValue())};
+        for (const auto val : ch.getValues()) {
+            const auto chr = narrow<char>(val.getValue());
+            id += chr;
+        }
+
+        value = reinterpret_cast<void*>(intern(id));
+    }}
+
+head-char = [abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890]
+
+tail-char = [_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890]
+
+wspace = space+
+
+space = [\n\t\r ]

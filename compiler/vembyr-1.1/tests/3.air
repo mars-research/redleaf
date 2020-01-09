@@ -1,0 +1,8 @@
+; Standing Animation
+[Begin Action 0]
+Clsn2Default: 2
+Clsn2[0] = -13,  0, 16,-79
+Clsn2[1] =   5,-79, -7,-93
+0,0, 0,0, 10
+0,1, 0,0, 7
+0,2, 0,0, 7

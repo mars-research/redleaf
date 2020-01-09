@@ -1,0 +1,16 @@
+#[derive(Copy)]
+struct Foo {
+    f1: &isize;
+    f2: RRef<f32>;
+    f3: i32;
+}
+
+trait SomeTrait { 
+    fn test_1(a1: Box<Foo>, a2: RRef<Foo2>) -> i32;
+    fn test_2() -> i32;
+}
+
+#[derive(Copy)]
+struct Foo2 {}
+
+pub fn init(sys: Box<dyn SysCall>, cd: Box<dyn CreateDomain>) -> Box<dyn Hello>;

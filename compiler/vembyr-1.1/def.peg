@@ -1,0 +1,302 @@
+# mugen def parser
+# Can parse about 180kb/s on a 1.8ghz
+# Current status:
+#  95% done
+# TODO: create proper AST structure for filenames
+# There are some TODO's left in the code as well.
+start-symbol: start
+options: debug0, no-memo
+module: Mugen.Def
+include: {{
+#include "mugen/ast/all.h"
+#include <map>
+#include "gc.h"
+typedef std::list<Ast::Section*> SectionList;
+}}
+
+code: {{
+template<class X>
+X as(const Value & value){
+    return (X) value.getValue();
+}
+
+void addSection(const Value & section_list_value, const Value & section_value){
+  SectionList * sections = (SectionList*) section_list_value.getValue();
+  Ast::Section * section = (Ast::Section*) section_value.getValue();
+  if (section == 0){
+    throw ParseException("Cannot add null section");
+  }
+  sections->push_back(section);
+}
+
+Ast::Section * makeSection(const Value & str, int line, int column){
+    Ast::Section * object = new Ast::Section(as<std::string*>(str), line, column);
+    GC::save(object);
+    return object;
+}
+
+SectionList * makeSectionList(){
+    SectionList * object = new SectionList();
+    GC::save(object);
+    return object;
+}
+
+std::string * toString(const Value & input){
+  std::ostringstream out;
+  for (Value::iterator it = input.getValues().begin(); it != input.getValues().end(); it++){
+    out << (char) (long) (*it).getValue();
+  }
+  std::string * object = new std::string(out.str());
+  GC::save(object);
+  return object;
+}
+
+double * parseDouble(const Value & value){
+    std::string * str = toString(value);
+    std::istringstream get(*str);
+    double * number = new double;
+    get >> *number;
+    GC::save(number);
+    return number;
+}
+
+double * parseDouble(const Value & left, const Value & right){
+    std::string * str1 = toString(left);
+    std::string * str2 = toString(right);
+    std::istringstream get(*str1 + "." + *str2);
+    double * number = new double;
+    get >> *number;
+    GC::save(number);
+    return number;
+}
+
+std::string * toString(char front, const Value & input){
+  std::string * str = toString(input);
+  str->insert(str->begin(), front);
+  return str;
+}
+
+Ast::ValueAttribute * makeValueAttribute(const Value & attribute){
+    /* FIXME: fix line numbers here */
+    Ast::ValueAttribute * value = new Ast::ValueAttribute(-1, -1, as<Ast::Attribute*>(attribute));
+    GC::save(value);
+    return value;
+}
+
+Ast::Attribute * makeAttribute(const Value & line, const Value & id, const Value & data){
+    Ast::AttributeSimple * object = new Ast::AttributeSimple(getCurrentLine(line), getCurrentColumn(line), as<Ast::Identifier*>(id), as<Ast::Value*>(data));
+    GC::save(object);
+    return object;
+}
+
+Ast::Attribute * makeAttribute(const Value & id, const Value & data){
+    Ast::AttributeSimple * object = new Ast::AttributeSimple(as<Ast::Identifier*>(id), as<Ast::Value*>(data));
+    GC::save(object);
+    return object;
+}
+
+Ast::Attribute * makeAttributeWithInfo(const Value & line, const Value & id){
+    Ast::AttributeSimple * object = new Ast::AttributeSimple(getCurrentLine(line), getCurrentColumn(line), as<Ast::Identifier*>(id));
+    GC::save(object);
+    return object;
+}
+
+Ast::Attribute * makeAttribute(const Value & id){
+    Ast::AttributeSimple * object = new Ast::AttributeSimple(as<Ast::Identifier*>(id));
+    GC::save(object);
+    return object;
+}
+
+Ast::Attribute * makeAttributeFilename(const Value & id, const Value & data){
+    /* TODO */
+    throw ParseException("makeAttributeFilename not implemented");
+    // return makeAttribute(id, data);
+}
+
+Ast::Attribute * makeIndexedAttribute(const Value & id, const Value & index, const Value & data){
+    /* TODO: fix this */
+    throw ParseException("makeIndexedAttribute not implemented");
+    /*
+    Ast::Attribute * object = new Ast::Attribute(Ast::Attribute::None);
+    GC::save(object);
+    return object;
+    */
+}
+
+Ast::Keyword * makeKeyword(const Value & value){
+    /* FIXME: fix line numbers here */
+    Ast::Keyword * object = new Ast::Keyword(-1, -1, as<char*>(value));
+    GC::save(object);
+    return object;
+}
+
+Ast::Attribute * makeAttributes(const Value & id, const Value & data){
+    /* TODO */
+    throw ParseException("makeAttributes not implemented");
+    /*
+    Ast::Attribute * object = new Ast::Attribute(Ast::Attribute::None);
+    GC::save(object);
+    return object;
+    */
+}
+
+/* TODO */
+Ast::Value * makeValue(){
+    /* FIXME: fix line numbers here */
+    Ast::Number * object = new Ast::Number(-1, -1, 0);
+    GC::save(object);
+    return object;
+}
+
+Ast::Value * makeValueList(const Value & line, const Value & front, const Value & rest){
+    std::list<Ast::Value*> values;
+    values.push_back(as<Ast::Value*>(front));
+    for (Value::iterator it = rest.getValues().begin(); it != rest.getValues().end(); it++){
+        Ast::Value * value = as<Ast::Value*>(Value((*it).getValue()));
+        if (value == 0){
+            /* FIXME! replace empty with a new node */
+            value = makeKeyword(Value("empty"));
+            values.push_back(value);
+        } else {
+            values.push_back(value);
+        }
+    }
+
+    Ast::ValueList * object = new Ast::ValueList(getCurrentLine(line), getCurrentColumn(line), values);
+    GC::save(object);
+    return object;
+}
+
+Ast::Identifier * makeIdentifier(const Value & front, const Value & rest){
+    std::list<std::string> ids;
+    ids.push_back(*as<std::string*>(front));
+    for (Value::iterator it = rest.getValues().begin(); it != rest.getValues().end(); it++){
+        ids.push_back(*as<std::string*>(Value((*it).getValue())));
+    }
+    Ast::Identifier * object = new Ast::Identifier(ids);
+    GC::save(object);
+    return object;
+}
+
+Ast::Value * makeNumber(const Value & sign, const Value & number){
+    double value = *(as<double*>(number));
+    if (sign.getValue() != 0 && strcmp(as<const char *>(sign), "-") == 0){
+        value = -value;
+    }
+
+    /* FIXME: fix line numbers here */
+    Ast::Number * object = new Ast::Number(-1, -1, value);
+    GC::save(object);
+    return object;
+}
+
+Ast::String * makeString(const Value & value){
+    /* FIXME: fix line numbers here */
+    Ast::String * object = new Ast::String(-1, -1, toString(value));
+    GC::save(object);
+    return object;
+}
+
+Ast::Section * asSection(const Value & value){
+    return as<Ast::Section*>(value);
+}
+
+Ast::Attribute * asAttribute(const Value & value){
+    return as<Ast::Attribute*>(value);
+}
+
+Ast::Value * asValue(const Value & value){
+    return as<Ast::Value*>(value);
+}
+
+/* FIXME */
+Ast::Value * makeDate(const Value & month, const Value & day, const Value & year){
+    /* FIXME: fix line numbers here */
+    Ast::Number * object = new Ast::Number(-1, -1, 0);
+    GC::save(object);
+    return object;
+}
+
+}}
+
+rules:
+	start = current:{{ value = makeSectionList(); }} whitespace newline* (line(current) whitespace line_end?)* <eof> {{ value = current; GC::cleanup(as<SectionList*>(value)); }}
+
+            <fail> {{ GC::cleanup(0); }}
+    # start = current real_start($1)
+    # real_start(c) = blah ... <eof>
+    #               | {{ delete c; }} <error>
+    # or
+    # start = current{{..}} blah .. <eof> <fail>{{ delete current.getValue(); }}
+	line(current) = s comment
+	              | s section {{ addSection(current, $2); }}
+	     # | s characters
+	     #| s attribute {{ value = current; }}
+	     #| s valuelist {{ value = current; }}
+	     #| s loopstart {{ value = current; }}
+	              | space+
+	line_end = newline+
+	         | &<eof> <void>
+	inline newline = "\n"
+                   | "\r"
+	inline whitespace = sw*
+	inline sw = " "
+	          | "\t"
+	          | comment
+	inline s = space*
+	inline space = " "
+	             | "\t"
+	inline comment = ";" (!"\n" .)*
+	               | "=" (!"\n" .)*
+		           | "-" "-"+
+	section = line:<line> name:section_start ast:{{value = makeSection(name, getCurrentLine(line), getCurrentColumn(line)); }} whitespace newline+ (section_line(ast) whitespace line_end)* {{ value = ast; }}
+    section_line(section) = s comment
+                          | s data:attribute {{ asSection(section)->addAttribute(asAttribute(data)); }}
+                          | s data:loopstart {{ asSection(section)->addValue(asValue(data)); }}
+                          | s data:valuelist {{ asSection(section)->addValue(asValue(data)); }}
+                          | space+ !"["
+    section_start = "[" s data:(!"]" .)+ s "]" {{ value = toString(data); }}
+	loopstart = "loopstart"{case} {{ value = makeValue(); }}
+	name = letter alpha_digit* {{ value = toString((char)(long)$1.getValue(),$2); }}
+	inline letter = [abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_]
+	inline alpha_digit = letter
+                       | digit
+    line_end_or_comment = line_end
+                        | comment
+	# characters = name s "," s filename
+	filename = line:<line> !<quote> file:filename_char+ {{ value = new Ast::Filename(getCurrentLine(line), getCurrentColumn(line), toString(file)); GC::save(as<Ast::Filename*>(value)); }}
+	filename_char = !"," !"\n" !"[" !<ascii 13> !"=" !";" .
+	attribute = line:<line> id:identifier s "=" s &line_end_or_comment {{ value = makeAttributeWithInfo(line, id); }}
+              | line:<line> id:identifier s "=" s data:valuelist {{ value = makeAttribute(line, id, data); }}
+	          | line:<line> id:identifier s "=" s data:filename {{ value = makeAttribute(line, id, data); }}
+		      | id:identifier s "(" s index:number s ")" s "=" s data:valuelist {{ value = makeIndexedAttribute(id, index, data); }}
+		      # | id:identifier_list s "=" s data:valuelist {{ value = makeAttributes(id, data); }}
+    attribute_simple = id:identifier s "=" s data:value {{ value = makeAttribute(id, data); }}
+	identifier = name ("." name)* {{ value = makeIdentifier($1,$2); }}
+	# identifier_list = identifier (s "," s filename)+ !(s "=" s value)
+	identifier_list = identifier (s "," s filename)+
+	valuelist = line:<line> value (s "," s value?)* {{ value = makeValueList(line, $2,$3); }}
+	value = string
+	      | date
+	      | number !letter !"-" {{ value = $1; }}
+          | attribute_simple {{ value = makeValueAttribute($1); }}
+          | keyword !alpha_digit {{ value = makeKeyword($1); }}
+	      | "s"{case} !filename_char !"." {{ value = makeKeyword($1); }}
+	      | "h"{case} !filename_char !"." {{ value = makeKeyword($1); }}
+	      | "a"{case} number? !filename_char {{ value = makeKeyword($1); }}
+          | filename
+    keyword = "normal"
+            | "parallax"
+            | "addalpha"
+            | "add1"
+            | "add"
+            | "sub"
+	date = digit+ "." digit+ "." digit+ {{ value = makeDate($1,$3,$5); }}
+         | digit+ "/" digit+ "/" digit+ {{ value = makeDate($1,$3,$5); }}
+	string = <quote> data:(!<quote> !"\n" .)* <quote> {{ value = makeString(data); }}
+	number = sign? float_or_integer {{ value = makeNumber($1,$2); }}
+	inline sign = "+"
+	            | "-"
+	float_or_integer = left:digit* "." right:digit+ {{ value = parseDouble(left,right); }}
+	                 | digit+ !"." {{ value = parseDouble($1); }}
+	inline digit = [0123456789]
