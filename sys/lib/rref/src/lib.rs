@@ -7,6 +7,8 @@ use core::cell::UnsafeCell;
 use alloc::boxed::Box;
 use spin::Mutex;
 
+use console::println;
+
 pub static rref_registry: RRefRegistry = RRefRegistry::new();
 
 type DomainId = u64;
@@ -30,11 +32,11 @@ impl RRefRegistry {
         self.rrefs.lock().push(object as Box<dyn HasDomainId + Send>);
     }
 
-    pub fn unregister_rref<T>(&self, object: &Box<SharedHeapObject<T>>) where T: 'static + Send {
+    pub fn unregister_rref<T>(&self, pointer: *mut SharedHeapObject<T>) where T: 'static + Send {
 
-        self.rrefs.lock().retain(|obj2: &Box<dyn HasDomainId + Send>| {
-            let x = object.as_ref() as *const SharedHeapObject<T> as usize;
-            let y = obj2.as_ref() as *const (dyn HasDomainId + Send) as *const () as usize;
+        self.rrefs.lock().retain(|obj: &Box<dyn HasDomainId + Send>| {
+            let x = pointer as usize;
+            let y = obj.as_ref() as *const (dyn HasDomainId + Send) as *const () as usize;
 
             x != y
         })
@@ -59,6 +61,12 @@ pub struct SharedHeapObject<T> where T: 'static + Send {
     pub value: T,
 }
 
+impl<T> Drop for SharedHeapObject<T> where T: Send {
+    fn drop(&mut self) {
+        println!("DROPPING SHARED HEAP OBJECT; VALUE []\n");
+    }
+}
+
 impl<T> HasDomainId for SharedHeapObject<T> where T: Send {
     fn get_domain_id(&self) -> DomainId {
         self.domain_id
@@ -71,7 +79,7 @@ impl<T> HasDomainId for SharedHeapObject<T> where T: Send {
 //   which gives us the guarantee that the unowned reference will be safe to dereference as
 //   long as its domain is alive.
 pub struct RRef<T> where T: 'static + Send {
-    reference: Box<SharedHeapObject<T>>
+    reference: *mut SharedHeapObject<T>
 }
 
 impl<T> RRef<T> where T: Send {
@@ -80,26 +88,24 @@ impl<T> RRef<T> where T: Send {
 
         let ptr: *mut SharedHeapObject<T> = Box::into_raw(object);
 
-        let rref = RRef {
-            reference: unsafe { Box::from_raw(ptr) }
-        };
-
         // we get another reference to the pointer, which we will give to the registry.
         // the registry will clean it up when the domain dies
         rref_registry.register_rref(unsafe { Box::from_raw(ptr) });
 
-        rref
+        RRef {
+            reference: ptr
+        }
     }
 
     pub fn move_to(&mut self, new_domain_id: DomainId) {
         // TODO: race here
-        self.reference.domain_id = new_domain_id;
+        unsafe { (*self.reference).domain_id = new_domain_id };
     }
 }
 
 impl<T> Drop for RRef<T> where T: Send {
     fn drop(&mut self) {
-        rref_registry.unregister_rref(&self.reference);
+        rref_registry.unregister_rref(self.reference);
     }
 }
 
@@ -107,12 +113,12 @@ impl<T> Deref for RRef<T> where T: Send {
     type Target = T;
 
     fn deref(&self) -> &T {
-        &self.reference.value
+        unsafe { &(*self.reference).value }
     }
 }
 
 impl<T> DerefMut for RRef<T> where T: Send {
     fn deref_mut(&mut self) -> &mut T {
-        &mut self.reference.value
+        unsafe { &mut (*self.reference).value }
     }
 }

@@ -8,3 +8,4 @@ edition = "2018"
 spin = "0.5.2"
 hashbrown = "0.6"
 slabmalloc = { path = "../slabmalloc" }
+console = { path = "../console", version = "0.1.0" }
