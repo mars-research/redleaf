@@ -121,12 +121,12 @@ fn benchmark_ahci(bdev: &Box<dyn syscalls::BDev>) {
     println!("AHCI benchmark: reading {} blocks takes {} cycles", BLOCKS_TO_READ, end - start);
 
 
-    let start = libsyscalls::time::get_ns_time();
-    for i in 0..BLOCKS_TO_READ {
-        bdev.write(i, &buf);
-    }
-    let end = libsyscalls::time::get_ns_time();
-    println!("AHCI benchmark: writing {} blocks takes {} cycles", BLOCKS_TO_READ, end - start);
+    // let start = libsyscalls::time::get_ns_time();
+    // for i in 0..BLOCKS_TO_READ {
+    //     bdev.write(i, &buf);
+    // }
+    // let end = libsyscalls::time::get_ns_time();
+    // println!("AHCI benchmark: writing {} blocks takes {} cycles", BLOCKS_TO_READ, end - start);
 }
 
 // This function is called on panic.
