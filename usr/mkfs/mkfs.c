@@ -104,7 +104,6 @@ main(int argc, char *argv[])
 
   printf("nmeta %d (boot, super, log blocks %u inode blocks %u, bitmap blocks %u) blocks %d total %d\n",
          nmeta, nlog, ninodeblocks, nbitmap, nblocks, FSSIZE);
-
   freeblock = nmeta;     // the first free block that we can allocate
 
   for(i = 0; i < FSSIZE; i++)
@@ -214,7 +213,9 @@ rsect(uint sec, void *buf)
     perror("lseek");
     exit(1);
   }
-  if(read(fsfd, buf, BSIZE) != BSIZE){
+  int sz = read(fsfd, buf, BSIZE);
+  if(sz != BSIZE){
+    printf("%d\n", sz);
     perror("read");
     exit(1);
   }
@@ -240,14 +241,21 @@ balloc(int used)
   uchar buf[BSIZE];
   int i;
 
+  
   printf("balloc: first %d blocks have been allocated\n", used);
-  assert(used < BSIZE*8);
-  bzero(buf, BSIZE);
-  for(i = 0; i < used; i++){
-    buf[i/8] = buf[i/8] | (0x1 << (i%8));
+  assert(used < BPB*nbitmap);
+  for (int block_offset = 0; block_offset < nbitmap; block_offset++) {
+    if (used <= 0) return;
+    bzero(buf, BSIZE);
+    int bits_to_set_in_this_block = used > BPB ? BPB : used;
+    for(i = 0; i < bits_to_set_in_this_block; i++){
+      buf[i/8] = buf[i/8] | (0x1 << (i%8));
+    }
+    printf("balloc: write bitmap block at sector %d\n", sb.bmapstart+block_offset);
+    wsect(sb.bmapstart+block_offset, buf);
+    used -= BPB;
   }
-  printf("balloc: write bitmap block at sector %d\n", sb.bmapstart);
-  wsect(sb.bmapstart, buf);
+  exit(2);
 }
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -269,25 +277,47 @@ iappend(uint inum, void *xp, int n)
     fbn = off / BSIZE;
     assert(fbn < MAXFILE);
     if(fbn < NDIRECT){
+      // Direct
       if(xint(din.addrs[fbn]) == 0){
         din.addrs[fbn] = xint(freeblock++);
       }
       x = xint(din.addrs[fbn]);
     } else {
+      // Layer 1 indirect
       if(xint(din.addrs[NDIRECT]) == 0){
         din.addrs[NDIRECT] = xint(freeblock++);
       }
       rsect(xint(din.addrs[NDIRECT]), (char*)indirect);
-      if(indirect[fbn - NDIRECT] == 0){
-        indirect[fbn - NDIRECT] = xint(freeblock++);
+      uint indirect_block_number = fbn - NDIRECT;
+      // printf("indirect_block_number %d\n", indirect_block_number);
+      uint layer1_index = indirect_block_number / NINDIRECT;
+      // printf("layer1 index %d\n", layer1_index);
+      if(indirect[layer1_index] == 0){
+        indirect[layer1_index] = xint(freeblock++);
         wsect(xint(din.addrs[NDIRECT]), (char*)indirect);
       }
-      x = xint(indirect[fbn-NDIRECT]);
+      uint level2_bnum = xint(indirect[layer1_index]);
+      // printf("level2_bnum %d\n", level2_bnum);
+
+      // Layer 2 indirect
+      uint level2_indirect[NINDIRECT];
+      rsect(xint(level2_bnum), (char*)level2_indirect);
+      uint layer2_index = indirect_block_number - layer1_index * NINDIRECT;
+      // printf("layer2 index %d\n", layer2_index);
+      if(level2_indirect[layer2_index] == 0){
+        level2_indirect[layer2_index] = xint(freeblock++);
+        wsect(level2_bnum, (char*)level2_indirect);
+      }
+      uint actual_block_number = xint(level2_indirect[layer2_index]);
+      x = actual_block_number;
+      // printf("actual_block_number %d\n", actual_block_number);
     }
     n1 = min(n, (fbn + 1) * BSIZE - off);
     rsect(x, buf);
     bcopy(p, buf + off - (fbn * BSIZE), n1);
     wsect(x, buf);
+
+
     n -= n1;
     off += n1;
     p += n1;

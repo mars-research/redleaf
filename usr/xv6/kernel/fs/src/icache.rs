@@ -218,6 +218,7 @@ impl INodeDataGuard<'_> {
     pub fn block_map(&mut self, block_number: u32) -> u32 {
         let block_number = block_number as usize;
 
+        // From direct
         if block_number < params::NDIRECT {
             let mut address = self.data.addresses[block_number];
             if address == 0 {
@@ -227,39 +228,60 @@ impl INodeDataGuard<'_> {
             return address;
         }
 
+        // From a 2-layer indirect table
         let block_number = block_number - params::NDIRECT;
-
-        if block_number < params::NINDIRECT {
-            // Load indirect block, allocating if necessary.
-            let mut address = self.data.addresses[params::NDIRECT];
-            if address == 0 {
-                address = Block::alloc(self.node.meta.device).expect("Block::alloc out of blocks");
-                self.data.addresses[params::NDIRECT] = address;
-            }
-
-            let mut bguard = BCACHE.read(self.node.meta.device, address);
-            let buffer = bguard.lock();
-
-            // get 4-byte slice from offset block_number * 4
-            let mut address = {
-                let start_index = block_number * core::mem::size_of::<u32>();
-                let end_index = (block_number + 1) * core::mem::size_of::<u32>();
-                let chunk = &buffer.data[start_index..end_index];
-                u32::from_ne_bytes(chunk.try_into().unwrap())
-            };
-
-            if address == 0 {
-                address = Block::alloc(self.node.meta.device).expect("Block::alloc out of blocks");
-                // TODO: log_write here
-            }
-
-            drop(buffer);
-            BCACHE.release(&mut bguard);
-
-            return address;
+        assert!(block_number < params::NINDIRECT, "bmap: out of range");
+        // Load level 1 indirect block, allocating if necessary.
+        let mut address = self.data.addresses[params::NDIRECT];
+        if address == 0 {
+            address = Block::alloc(self.node.meta.device).expect("Block::alloc out of blocks");
+            self.data.addresses[params::NDIRECT] = address;
         }
 
-        panic!("bmap: out of range");
+        let mut bguard = BCACHE.read(self.node.meta.device, address);
+        let buffer = bguard.lock();
+
+        // The index of the level 1 table entry that this block belongs to
+        let table_index = block_number / params::NINDIRECT;
+        // get 4-byte slice from offset block_number * 4
+        let mut address = {
+            let start_index = table_index * core::mem::size_of::<u32>();
+            let end_index = (table_index + 1) * core::mem::size_of::<u32>();
+            let chunk = &buffer.data[start_index..end_index];
+            u32::from_ne_bytes(chunk.try_into().unwrap())
+        };
+
+        if address == 0 {
+            address = Block::alloc(self.node.meta.device).expect("Block::alloc out of blocks");
+            // TODO: log_write here
+        }
+
+        drop(buffer);
+        BCACHE.release(&mut bguard);
+
+        // Load level 2 indirect block, allocating if necessary.
+        let mut bguard = BCACHE.read(self.node.meta.device, address);
+        let buffer = bguard.lock();
+
+        // The index of the level 1 table entry that this block belongs to
+        let table_index = block_number - params::NINDIRECT * table_index;
+        // get 4-byte slice from offset block_number * 4
+        let mut address = {
+            let start_index = table_index * core::mem::size_of::<u32>();
+            let end_index = (table_index + 1) * core::mem::size_of::<u32>();
+            let chunk = &buffer.data[start_index..end_index];
+            u32::from_ne_bytes(chunk.try_into().unwrap())
+        };
+
+        if address == 0 {
+            address = Block::alloc(self.node.meta.device).expect("Block::alloc out of blocks");
+            // TODO: log_write here
+        }
+
+        drop(buffer);
+        BCACHE.release(&mut bguard);
+
+        return address;
     }
 
     // Look for a directory entry in a directory.

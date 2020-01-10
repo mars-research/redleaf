@@ -104,7 +104,21 @@ pub fn ahci_init(s: Box<dyn Syscall + Send + Sync>,
     let mut ahci = Ahci::new();
     pci.pci_register_driver(&mut ahci, 5);
 
-    Box::new(ahci)
+    let ahci: Box<dyn syscalls::BDev> = Box::new(ahci);
+    benchmark_ahci(&ahci);
+    ahci
+}
+
+fn benchmark_ahci(bdev: &Box<dyn syscalls::BDev>) {
+    const BLOCKS_TO_READ: u32 = 100;
+    let mut buf = [0 as u8; 512];
+
+    let start = libsyscalls::time::get_rdtsc();
+    for i in 0..BLOCKS_TO_READ {
+        bdev.read(i, &mut buf);
+    }
+    let end = libsyscalls::time::get_rdtsc();
+    println!("AHCI benchmark: reading {} blocks takes {} cycles", BLOCKS_TO_READ, end - start);
 }
 
 // This function is called on panic.

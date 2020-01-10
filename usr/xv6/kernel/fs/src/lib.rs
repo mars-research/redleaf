@@ -32,7 +32,7 @@ use alloc::vec::Vec;
 use console::println;
 use core::panic::PanicInfo;
 use syscalls::Syscall;
-use libsyscalls::time::get_ns_time;
+use libsyscalls::time::get_rdtsc;
 
 mod bcache;
 mod block;
@@ -63,13 +63,13 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, bdev: syscalls::BDevPtr) -> Box<d
     println!("init xv6 filesystem");
     fs::fsinit(0);
     println!("finish init xv6 filesystem");
-    // ls("/").unwrap();
+    ls("/").unwrap();
     fs_benchmark(512, "/big_file");
     Box::new(VFS::new()) 
 }
 
 fn fs_benchmark(buf_size: usize, path: &str) {
-    let start = get_ns_time();
+    let start = get_rdtsc();
     let fd = sysfile::sys_open(path, sysfile::FileMode::Read).unwrap();
     let mut buff = Vec::new();
     buff.resize(buf_size, 0 as u8);
@@ -81,7 +81,7 @@ fn fs_benchmark(buf_size: usize, path: &str) {
         }
     }
     sysfile::sys_close(fd);
-    let end = get_ns_time();
+    let end = get_rdtsc();
     println!("we read {} bytes at a time, in total {} bytes from {} using {} cycles", buf_size, bytes_read, path, end - start);
 }
 

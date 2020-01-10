@@ -1,4 +1,5 @@
 root := ../../../../
+include $(root)/common_flags.mk
 
 bin_name := xv6fs
 arch ?= x86_64
@@ -7,7 +8,7 @@ bin := build/$(bin_name)
 linker_script := linker.ld
 
 target ?= $(arch)-$(bin_name)
-lib := target/$(target)/debug/lib$(bin_name).a
+lib := target/$(target)/$(TARGET_SUB_DIR)/lib$(bin_name).a
 
 .PHONY: all
 all: $(bin) checkstack
@@ -26,6 +27,6 @@ $(bin): lib $(linker_script)
 
 .PHONY: lib
 lib:
-	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo xbuild --target x86_64-$(bin_name).json
+	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo xbuild ${CARGO_FLAGS} --target x86_64-$(bin_name).json
 
 include $(root)/checkstack.mk
