@@ -17,9 +17,6 @@ pub trait Syscall {
     fn sys_alloc_huge(&self, sz: u64) -> *mut u8;
     fn sys_free_huge(&self, p: *mut u8);
     fn sys_backtrace(&self);
-    fn sys_alloc_heap(&self, layout: Layout) -> *mut u8;
-    // TODO: this is probably unsafe and open to attacks
-    fn sys_dealloc_heap(&self, ptr: *mut u8, layout: Layout);
 }
 
 #[derive(Clone,Copy,Debug)]
@@ -66,6 +63,13 @@ pub trait Net {
 pub trait Domain {
 
 }   
+
+/// Shared heap interface
+pub trait Heap {
+    fn alloc(&self, domain_id: u64, layout: Layout) -> *mut u8;
+    fn dealloc(&self, domain_id: u64, ptr: *mut u8, layout: Layout);
+    fn change_domain(&self, from_domain_id: u64, to_domain_id: u64, ptr: *mut u8, layout: Layout);
+}
 
 /// Xv6 system calls
 pub trait Xv6 {

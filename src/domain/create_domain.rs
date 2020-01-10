@@ -6,7 +6,8 @@ use core::mem::transmute;
 use crate::interrupt::{disable_irq, enable_irq};
 use spin::Mutex;
 use alloc::sync::Arc; 
-use alloc::boxed::Box; 
+use alloc::boxed::Box;
+use crate::heap::PHeap;
 //use syscalls::BootSyscall;
 //use crate::domain::domain::BOOTING_DOMAIN; 
 //use crate::syscalls::BOOT_SYSCALL; 
@@ -150,6 +151,7 @@ pub fn build_domain_init(name: &str,
 {
     type UserInit = fn(Box<dyn syscalls::Syscall>, 
                          Box<dyn syscalls::Interrupt>,
+                         Box<dyn syscalls::Heap>,
                          Box<dyn syscalls::CreateXv6>,
                          Box<dyn syscalls::CreateXv6FS>,
                          Box<dyn syscalls::CreateXv6Usr>,
@@ -169,6 +171,7 @@ pub fn build_domain_init(name: &str,
     enable_irq();
     user_ep(Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(Interrupt::new()),
+            Box::new(PHeap::new()),
             Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(PDomain::new(Arc::clone(&dom))),
