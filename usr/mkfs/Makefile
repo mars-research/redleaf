@@ -25,7 +25,13 @@ FILES=\
 	big_file\
 
 big_file:
-	fallocate -l 4M big_file
+	-rm big_file
+	touch big_file
+	n=1
+	while [[ $n -le 1000 ]] ; do \
+		cat mkfs.c >> big_file ; \
+		(( n= n+1 )) ; \
+	done
 
 fs.img: mkfs $(FILES)
 	mkdir -p build

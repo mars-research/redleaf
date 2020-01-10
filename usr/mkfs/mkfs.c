@@ -289,28 +289,28 @@ iappend(uint inum, void *xp, int n)
       }
       rsect(xint(din.addrs[NDIRECT]), (char*)indirect);
       uint indirect_block_number = fbn - NDIRECT;
-      printf("indirect_block_number %d\n", indirect_block_number);
+      // printf("indirect_block_number %d\n", indirect_block_number);
       uint layer1_index = indirect_block_number / NINDIRECT;
-      printf("layer1 index %d\n", layer1_index);
+      // printf("layer1 index %d\n", layer1_index);
       if(indirect[layer1_index] == 0){
         indirect[layer1_index] = xint(freeblock++);
         wsect(xint(din.addrs[NDIRECT]), (char*)indirect);
       }
       uint level2_bnum = xint(indirect[layer1_index]);
-      printf("level2_bnum %d\n", level2_bnum);
+      // printf("level2_bnum %d\n", level2_bnum);
 
       // Layer 2 indirect
       uint level2_indirect[NINDIRECT];
       rsect(xint(level2_bnum), (char*)level2_indirect);
       uint layer2_index = indirect_block_number - layer1_index * NINDIRECT;
-      printf("layer2 index %d\n", layer2_index);
+      // printf("layer2 index %d\n", layer2_index);
       if(level2_indirect[layer2_index] == 0){
         level2_indirect[layer2_index] = xint(freeblock++);
         wsect(level2_bnum, (char*)level2_indirect);
       }
       uint actual_block_number = xint(level2_indirect[layer2_index]);
       x = actual_block_number;
-      printf("actual_block_number %d\n", actual_block_number);
+      // printf("actual_block_number %d\n", actual_block_number);
     }
     n1 = min(n, (fbn + 1) * BSIZE - off);
     rsect(x, buf);
