@@ -12,7 +12,7 @@ LDFLAGS += -m $(shell $(LD) -V | grep elf_i386 2>/dev/null | head -n 1)
 all: fs.img
 	
 mkfs: mkfs.c fs.h
-	gcc -Werror -Wall -o mkfs mkfs.c
+	gcc -Werror -Wall -g -o mkfs mkfs.c
 
 # Prevent deletion of intermediate files, e.g. cat.o, after first build, so
 # that disk image changes after first build are persistent until clean.  More
@@ -24,9 +24,8 @@ FILES=\
 	README\
 	big_file\
 
-
 big_file:
-	fallocate -l 70K big_file
+	fallocate -l 30M big_file
 
 fs.img: mkfs $(FILES)
 	mkdir -p build
