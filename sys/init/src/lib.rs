@@ -77,7 +77,7 @@ fn test_sleep() {
 #[no_mangle]
 pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
             ints: Box<dyn syscalls::Interrupt + Send + Sync>,
-            heap: Box<dyn syscalls::Heap>,
+            heap: Box<dyn syscalls::Heap + Send + Sync>,
             create_xv6: Box<dyn syscalls::CreateXv6>,
             create_xv6fs: Box<dyn syscalls::CreateXv6FS>,
             create_xv6usr: Box<dyn syscalls::CreateXv6Usr>,

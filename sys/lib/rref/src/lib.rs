@@ -6,9 +6,9 @@ use libsyscalls::heap::{sys_heap_alloc, sys_heap_dealloc, sys_change_domain};
 use core::alloc::Layout;
 
 // Shared heap allocated value, something like Box<SharedHeapObject<T>>
-pub struct SharedHeapObject<T> where T: 'static + Send {
-    pub domain_id: u64,
-    pub value: T,
+struct SharedHeapObject<T> where T: 'static + Send {
+    domain_id: u64,
+    value: T,
 }
 
 impl<T> Drop for SharedHeapObject<T> where T: Send {
@@ -27,22 +27,36 @@ pub struct RRef<T> where T: 'static + Send {
 }
 
 impl<T> RRef<T> where T: Send {
-    pub fn new(object: Box<SharedHeapObject<T>>) -> RRef<T> {
-        // `object` is a pointer to a value on the shared heap.
-        // we consume the box into a raw pointer, so that we can deallocate it under our own rules
-        // this will happen in two cases:
+    // TODO: we move the value into this. any better way of doing it?
+    pub fn new(domain_id: u64, value: T) -> RRef<T> {
+        // We allocate the shared heap memory by hand. It will be deallocated in one of two cases:
         //   1. RRef<T> gets dropped, and so the memory under it should be freed.
-        //   2. Domain owning the RRef dies, and so shared heap gets cleaned and the domain's
-        //        RRef's (including this one) are dropped.
+        //   2. The domain owning the RRef dies, and so the shared heap gets cleaned,
+        //        and the memory under this RRef is wiped.
+
+        let layout = Layout::new::<SharedHeapObject<T>>();
+        let memory = sys_heap_alloc(domain_id, layout);
+
+        let pointer = unsafe {
+            // reinterpret allocated bytes as this type
+            let ptr = core::mem::transmute::<*mut u8, *mut SharedHeapObject<T>>(memory);
+            // initialize the memory
+            (*ptr).domain_id = domain_id;
+            (*ptr).value = value;
+            ptr
+        };
+
         RRef {
-            pointer: Box::into_raw(object)
+            pointer
         }
     }
 
     pub fn move_to(&mut self, new_domain_id: u64) {
         // TODO: race here
         unsafe {
-            sys_change_domain((*self.pointer).domain_id, new_domain_id, self.pointer as *mut u8, Layout::new::<T>());
+            let from_domain = (*self.pointer).domain_id;
+            let layout = Layout::new::<SharedHeapObject<T>>();
+            sys_change_domain(from_domain, new_domain_id, self.pointer as *mut u8, layout);
             (*self.pointer).domain_id = new_domain_id
         };
     }
@@ -51,7 +65,8 @@ impl<T> RRef<T> where T: Send {
 impl<T> Drop for RRef<T> where T: Send {
     fn drop(&mut self) {
         unsafe {
-            sys_heap_dealloc((*self.pointer).domain_id, self.pointer as *mut u8, Layout::new::<T>());
+            let layout = Layout::new::<SharedHeapObject<T>>();
+            sys_heap_dealloc((*self.pointer).domain_id, self.pointer as *mut u8, Layout::new::<SharedHeapObject<T>>());
         }
     }
 }
