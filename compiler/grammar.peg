@@ -34,49 +34,53 @@ code: {{
 }}
 
 rules:
-file = defined-type-list {{ value = &global_data; }}
+file = space* item-list {{ value = &global_data; }}
 
-defined-type-list = space* defined-type defined-type-list | space* <eof>
+item-list = space* item item-list | <eof>
 
-defined-type = copy-struct | trait | init-fn
+item = trait | copy-struct | free-function | other
 
-init-fn = "pub" wspace "fn" wspace "init" space* "(" init-arg-list space* ")" space* "->" space* init-trait space* ";"
+copy-struct = space* "#[derive(Copy)]" space* accessible-copy-struct
 
-init-arg-list = space* init-arg init-arg-list-tail | <void>
+accessible-copy-struct = "pub" wspace copy-struct-body | copy-struct-body
 
-init-arg-list-tail = space* "," init-arg-list | <void>
+copy-struct-body = space* "struct" space* id:identifier space* "{" field-list space* "}" {{ allowed_types.push_back(narrow<std::size_t>(id.getValue())); }}
 
-init-arg = identifier space* ":" space* init-trait
+field-list = space* field field-list | <void>
 
-init-trait = "Box<" space* "dyn" wspace id:identifier space* ">" {{ init_signature.push_back(narrow<std::size_t>(id.getValue())); }}
+field = identifier space* ":" space* field-type space* ";"
 
-copy-struct = "#[derive(Copy)]" space* "struct" wspace id:identifier space* "{" field* space* "}" {{ 
-        allowed_types.push_back(narrow<int>(id.getValue()));
-    }}
+field-type = "RRef<" space* copy-type space* ">" | copy-type
 
-field = space* identifier space* ":" space* field-type ";"
+copy-type = "[" copy-type "]" | simple-type | id:identifier {{ type_refs.push_back(narrow<std::size_t>(id.getValue())); }}
 
-field-type = rref-type | ref-type | simple-type
+trait = space* "trait" wspace identifier space* "{" function-list space* "}"
 
-trait = "trait" wspace identifier space* "{" fn* space* "}"
+function-list = space* member-function function-list | <void>
 
-fn = space* "fn" wspace identifier space* "(" arg-list space* ")" space* "->" space* arg-type space* ";"
+free-function = space* accessible-function
 
-arg-list = argument arg-list-tail | <void>
+accessible-function = "pub" wspace free-function-body | free-function-body
 
-arg-list-tail = space* "," arg-list | <void>
+free-function-body = space* "fn" wspace identifier space* "(" arg-list space* ")" space* "->" space* arg-type space* ";"
 
-argument = space* identifier space* ":" space* arg-type
+member-function = space* "fn" wspace identifier space* "(" space* self-arg arg-list-tail space* ")" space* "->" space* arg-type space* ";"
 
-arg-type = "Box<" space* type2 space* ">"
-    | rref-type
-    | simple-type
+self-arg = "&" space* mut-marker? "self"
 
-rref-type = "RRef<" space* type2 space* ">"
+mut-marker = "mut" wspace
 
-ref-type = "&" space* type2
+arg-list = space* argument space* arg-list-tail
 
-type2 = simple-type | id:identifier {{ type_refs.push_back(reinterpret_cast<std::size_t>(id.getValue())); }}
+arg-list-tail = "," arg-list | <void>
+
+argument = identifier space* ":" space* arg-type
+
+arg-type = "RRef<" space* "dyn" wspace identifier space* ">" | field-type
+
+other = space* "//" any-char* eol
+
+eol = "\r\n" | "\n" | <eof>
 
 simple-type = "char"
     | "bool"
@@ -114,6 +118,8 @@ identifier = "_" ch:tail-char+ {{
 
         value = reinterpret_cast<void*>(intern(id));
     }}
+
+any-char = [_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()-=+{}\\|;':\",./<>? \t]
 
 head-char = [abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890]
 
