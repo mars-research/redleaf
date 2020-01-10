@@ -1,6 +1,6 @@
 use elfloader::ElfBinary;
 use super::Domain;
-use syscalls::{Syscall, BDev, PCI, VFS, PciResource, Net, PciBar};
+use syscalls::{Syscall, BDev, Heap, PCI, VFS, PciResource, Net, PciBar, Proxy};
 use crate::syscalls::{PDomain, Interrupt};
 use core::mem::transmute;
 use crate::interrupt::{disable_irq, enable_irq};
@@ -107,8 +107,7 @@ pub fn create_domain_xv6fs(bdev: Box<dyn BDev>) ->(Box<dyn syscalls::Domain>, Bo
     build_domain_fs("xv6fs", binary_range, bdev)
 }
 
- 
-// AB: We have to split ukern syscalls into some that are 
+// AB: We have to split ukern syscalls into some that are
 // accessible to xv6 user, e.g., memory management, and the rest 
 // which is hidden, e.g., create_thread, etc.
 pub fn create_domain_xv6usr(name: &str, xv6: Box<dyn syscalls::Xv6>) -> Box<dyn syscalls::Domain> {
@@ -134,6 +133,19 @@ pub fn create_domain_xv6usr(name: &str, xv6: Box<dyn syscalls::Xv6>) -> Box<dyn 
     build_domain_xv6usr(name, binary_range, xv6)
 }
 
+pub fn create_domain_proxy(heap: Box<dyn Heap>) -> (Box<dyn syscalls::Domain>, Box<dyn syscalls::Proxy>) {
+    extern "C" {
+        fn _binary_usr_proxy_build_proxy_start();
+        fn _binary_usr_proxy_build_proxy_end();
+    }
+
+    let binary_range = (
+        _binary_usr_proxy_build_proxy_start as *const u8,
+        _binary_usr_proxy_build_proxy_end as *const u8
+    );
+
+    build_domain_proxy("proxy", binary_range, heap)
+}
 
 // AB: XXX: The following is is not supported in Rust at the moment
 //
@@ -152,6 +164,7 @@ pub fn build_domain_init(name: &str,
     type UserInit = fn(Box<dyn syscalls::Syscall>, 
                          Box<dyn syscalls::Interrupt>,
                          Box<dyn syscalls::Heap>,
+                         Box<dyn syscalls::CreateProxy>,
                          Box<dyn syscalls::CreateXv6>,
                          Box<dyn syscalls::CreateXv6FS>,
                          Box<dyn syscalls::CreateXv6Usr>,
@@ -172,6 +185,7 @@ pub fn build_domain_init(name: &str,
     user_ep(Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(Interrupt::new()),
             Box::new(PHeap::new()),
+            Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(PDomain::new(Arc::clone(&dom))),
@@ -286,6 +300,31 @@ pub fn build_domain_fs(name: &str,
 
     println!("domain/{}: returned from entry point", name);
     (Box::new(PDomain::new(Arc::clone(&dom))), vfs)     
+}
+
+pub fn build_domain_proxy(name: &str,
+                          binary_range: (*const u8, *const u8),
+                          heap: Box<dyn Heap>) -> (Box<dyn syscalls::Domain>, Box<dyn Proxy>)
+{
+    type UserInit = fn(Box<dyn Syscall>, Box<dyn Heap>) -> Box<dyn Proxy>;
+
+    let (dom, entry) = unsafe {
+        load_domain(name, binary_range)
+    };
+
+    let user_ep: UserInit = unsafe {
+        transmute::<*const(), UserInit>(entry)
+    };
+
+    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+
+    // Enable interrupts on exit to user so it can be preempted
+    enable_irq();
+    let proxy = user_ep(pdom, heap);
+    disable_irq();
+
+    println!("domain/{}: returned from entry point", name);
+    (Box::new(PDomain::new(Arc::clone(&dom))), proxy)
 }
 
 pub fn build_domain_xv6kernel(name: &str, 

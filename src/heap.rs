@@ -5,6 +5,7 @@ use crate::interrupt::{disable_irq, enable_irq};
 use crate::memory::MEM_PROVIDER;
 use syscalls::Heap;
 
+// usize == *mut u8
 static allocations: Mutex<Vec<(u64, usize, Layout)>> = Mutex::new(Vec::new());
 
 pub struct PHeap();
@@ -59,6 +60,17 @@ fn change_domain(from_domain_id: u64, to_domain_id: u64, ptr: *mut u8, layout: L
     allocations.lock().iter_mut().map(|(a_domain_id, a_ptr, a_layout)| {
         if from_domain_id == *a_domain_id && ptr == *a_ptr as *mut u8 && layout == *a_layout {
             *a_domain_id = to_domain_id;
+        }
+    });
+}
+
+fn drop_domain(domain_id: u64) {
+    allocations.lock().retain(|(a_domain_id, a_ptr, a_layout)| {
+        if domain_id == *a_domain_id {
+            unsafe { MEM_PROVIDER.dealloc(*a_ptr as *mut u8, *a_layout) }
+            false
+        } else {
+            true
         }
     });
 }

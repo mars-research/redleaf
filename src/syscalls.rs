@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use spin::Mutex;
 use alloc::sync::Arc; 
 use crate::domain::domain::{Domain}; 
-use syscalls::{Thread,PciResource, PciBar};
+use syscalls::{Thread, PciResource, PciBar};
 use crate::round_up;
 
 //use crate::domain::domain::BOOTING_DOMAIN; 
@@ -216,6 +216,16 @@ impl syscalls::CreateXv6Usr for PDomain {
         r
     }
 }
+
+impl syscalls::CreateProxy for PDomain {
+    fn create_domain_proxy(&self, heap: Box<dyn syscalls::Heap>) -> (Box<dyn syscalls::Domain>, Box<dyn syscalls::Proxy>) {
+        disable_irq();
+        let r = crate::domain::create_domain::create_domain_proxy(heap);
+        enable_irq();
+        r
+    }
+}
+
 
 #[derive(Clone)]
 pub struct Interrupt {

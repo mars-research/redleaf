@@ -6,6 +6,7 @@ use alloc::boxed::Box;
 use spin::MutexGuard;
 use core::alloc::Layout;
 
+// TODO: get domain id syscall
 pub trait Syscall {
     fn sys_print(&self, s: &str);
     fn sys_println(&self, s: &str);
@@ -71,6 +72,12 @@ pub trait Heap {
     fn change_domain(&self, from_domain_id: u64, to_domain_id: u64, ptr: *mut u8, layout: Layout);
 }
 
+// TODO: any trait with RRef need to be moved to a seperate crate
+
+pub trait CreateProxy {
+    fn create_domain_proxy(&self, heap: Box<dyn Heap>) -> (Box<dyn Domain>, Box<dyn Proxy>);
+}
+
 /// Xv6 system calls
 pub trait Xv6 {
 }   
@@ -123,4 +130,8 @@ pub trait PciBar {
     fn get_bar_region(&self, base: u64, size: usize,
                             pci_driver: pci_driver::PciDrivers) ->  pci_driver::BarRegions;
 
+}
+
+pub trait Proxy {
+    fn foo(&self) -> usize;
 }

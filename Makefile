@@ -19,6 +19,7 @@ rust_os := target/$(target)/debug/libredleaf.a
 xv6fs_img = usr/mkfs/build/fs.img
 root := ./
 domain_list := sys/init/build/init \
+	usr/proxy/build/proxy \
 	usr/xv6/kernel/core/build/xv6kernel \
 	usr/xv6/kernel/fs/build/xv6fs \
 	sys/dev/pci/build/pci \
@@ -121,6 +122,7 @@ include $(root)/checkstack.mk
 
 .PHONY: init
 init:
+	make -C usr/proxy
 	make -C usr/xv6
 	make -C sys
 

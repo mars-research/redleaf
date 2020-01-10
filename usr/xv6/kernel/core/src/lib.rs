@@ -14,7 +14,6 @@
 
 extern crate malloc;
 extern crate alloc;
-use rref::RRef;
 use alloc::boxed::Box;
 use core::panic::PanicInfo;
 use syscalls::{Syscall};
