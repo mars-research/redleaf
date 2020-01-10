@@ -24,7 +24,7 @@ FILES=\
 	README\
 	big_file\
 
-big_file:
+big_file: Makefile
 	-rm big_file
 	touch big_file
 	n=1
