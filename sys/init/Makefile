@@ -7,7 +7,7 @@ bin := build/init
 linker_script := linker.ld
 
 target ?= $(arch)-init
-lib := target/$(target)/debug/libinit.a
+lib := target/$(target)/$(TARGET_SUB_DIR)/libinit.a
 
 FEATURES = 
 #FEATURES += --features "test_guard_page"

@@ -16,7 +16,7 @@ FEATURES += --features "trace_vspace"
 FEATURES += --features "page_fault_on_ist"
 
 target ?= $(arch)-redleaf
-rust_os := target/$(target)/debug/libredleaf.a
+rust_os := target/$(target)/$(TARGET_SUB_DIR)/libredleaf.a
 xv6fs_img = usr/mkfs/build/fs.img
 root := ./
 domain_list := sys/init/build/init \
