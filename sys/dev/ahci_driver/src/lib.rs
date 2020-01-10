@@ -43,11 +43,21 @@ struct Ahci {
     disks: RefCell<Vec<Box<dyn Disk>>>,
 }
 
+#[cfg(feature = "cloudlab")]
+const AHCI_DEVICE_ID: u16 = 0x8d62;
+#[cfg(feature = "cloudlab")]
+const DISK_INDEX: usize = 1;
+
+#[cfg(not(feature = "cloudlab"))]
+const AHCI_DEVICE_ID: u16 = 0x2922;
+#[cfg(not(feature = "cloudlab"))]
+const DISK_INDEX: usize = 0;
+
 impl Ahci {
     fn new() -> Ahci {
         Ahci {
             vendor_id: 0x8086,
-            device_id: 0x2922,
+            device_id: AHCI_DEVICE_ID,
             driver: pci_driver::PciDrivers::AhciDriver,
             disks: RefCell::new(Vec::new()),
         }
@@ -88,10 +98,10 @@ impl pci_driver::PciDriver for Ahci {
 
 impl syscalls::BDev for Ahci {
     fn read(&self, block: u32, data: &mut [u8; 512]) {
-        self.disks.borrow_mut()[0].read(block as u64, data);
+        self.disks.borrow_mut()[DISK_INDEX].read(block as u64, data);
     }
     fn write(&self, block: u32, data: &[u8; 512]) {
-        self.disks.borrow_mut()[0].write(block as u64, data);
+        self.disks.borrow_mut()[DISK_INDEX].write(block as u64, data);
     }
 }
 
