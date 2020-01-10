@@ -47,10 +47,22 @@ pub trait PCI {
 pub trait VFS {
 }
 
+pub enum BDevRequest {
+    Read(u32),
+    Write(u32),
+}
+
 /// RedLeaf block device interface
 pub trait BDev {
     fn read(&self, block: u32, data: &mut [u8; 512]);
     fn write(&self, block: u32, data: &[u8; 512]);
+
+    fn submit(&self, request: BDevRequest) -> u64 {
+        unimplemented!();
+    }
+    fn poll(&self, slot: u64, buf: &mut [u8; 512]) -> bool {
+        unimplemented!();
+    }
 }
 pub type BDevPtr = Box<dyn BDev + Send + Sync>;
 
