@@ -3,14 +3,14 @@ use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut, Drop};
 use alloc::boxed::Box;
 use spin::Mutex;
-use crate::heap::alloc::move_object;
+use crate::heap::alloc::{dealloc_heap, move_object};
 use core::alloc::Layout;
 
 pub static rref_registry: RRefRegistry = RRefRegistry::new();
 
 pub struct RRefRegistry {
     // type-erased list of pointers to shared heap memory objects
-    rrefs: Mutex<Vec<Box<dyn HasDomainId + Send>>>,
+    rrefs: Mutex<Vec<Box<dyn HasDomainIdAndLayout + Send>>>,
 }
 
 impl RRefRegistry {
@@ -21,28 +21,44 @@ impl RRefRegistry {
     }
 
     pub fn register_rref<T>(&self, object: Box<SharedHeapObject<T>>) where T: 'static + Send {
-        self.rrefs.lock().push(object as Box<dyn HasDomainId + Send>);
+        self.rrefs.lock().push(object as Box<dyn HasDomainIdAndLayout + Send>);
     }
 
     pub fn unregister_rref<T>(&self, pointer: *mut SharedHeapObject<T>) where T: 'static + Send {
+        let mut rrefs = self.rrefs.lock();
+        let mut index = 0usize;
+        while index < rrefs.len() {
+            let object: &Box<dyn HasDomainIdAndLayout + Send> = &rrefs[index];
+            let ptr = object.as_ref() as *const (dyn HasDomainIdAndLayout + Send) as *const () as usize;
 
-        self.rrefs.lock().retain(|obj: &Box<dyn HasDomainId + Send>| {
-            let x = pointer as usize;
-            let y = obj.as_ref() as *const (dyn HasDomainId + Send) as *const () as usize;
-
-            x != y
-        })
+            if pointer as usize == ptr {
+                self.dealloc_object(rrefs.remove(index));
+                break;
+            } else {
+                index += 1;
+            }
+        }
     }
 
     pub fn drop_rrefs(&self, domain_id: DomainId) {
-        self.rrefs.lock().retain(|object| {
+        let mut rrefs = self.rrefs.lock();
+        let mut index = 0usize;
+        while index < rrefs.len() {
+            let object: &Box<dyn HasDomainIdAndLayout + Send> = &rrefs[index];
+
             if object.get_domain_id() == domain_id {
-                drop(object);
-                false
+                self.dealloc_object(rrefs.remove(index));
             } else {
-                true
+                index += 1;
             }
-        });
+        }
+    }
+
+    fn dealloc_object(&self, object: Box<dyn HasDomainIdAndLayout + Send>) {
+        let domain_id = object.get_domain_id();
+        let layout = object.get_layout();
+        let ptr = Box::into_raw(object) as *mut u8;
+        dealloc_heap(domain_id, ptr, layout);
     }
 }
 
@@ -55,19 +71,24 @@ pub struct SharedHeapObject<T> where T: 'static + Send {
 
 impl<T> Drop for SharedHeapObject<T> where T: Send {
     fn drop(&mut self) {
-//        println!("DROPPING SHARED HEAP OBJECT; VALUE []\n");
-    }
-}
-
-impl<T> HasDomainId for SharedHeapObject<T> where T: Send {
-    fn get_domain_id(&self) -> DomainId {
-        self.domain_id
+        panic!("SharedHeapObject::drop should never be called.");
     }
 }
 
 type DomainId = u64;
-pub trait HasDomainId {
+pub trait HasDomainIdAndLayout {
     fn get_domain_id(&self) -> DomainId;
+    fn get_layout(&self) -> Layout;
+}
+
+impl<T> HasDomainIdAndLayout for SharedHeapObject<T> where T: Send {
+    fn get_domain_id(&self) -> DomainId {
+        self.domain_id
+    }
+
+    fn get_layout(&self) -> Layout {
+        Layout::new::<SharedHeapObject<T>>()
+    }
 }
 
 // RRef (remote reference) has an unowned reference to an object on shared heap.
@@ -100,7 +121,6 @@ impl<T> RRef<T> where T: Send {
             move_object((*self.reference).domain_id, new_domain_id, self.reference as *mut u8, Layout::new::<T>());
             (*self.reference).domain_id = new_domain_id
         };
-
     }
 }
 
