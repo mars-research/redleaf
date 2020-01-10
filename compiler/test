@@ -1,16 +1,16 @@
-#[derive(Copy)]
-struct Foo {
-    f1: &isize;
-    f2: RRef<f32>;
-    f3: i32;
-}
-
-trait SomeTrait { 
-    fn test_1(a1: Box<Foo>, a2: RRef<Foo2>) -> i32;
-    fn test_2() -> i32;
-}
+// GIVEN
 
 #[derive(Copy)]
-struct Foo2 {}
+struct String {
+    f1: u64;
+    f2: RRef<[u8]>;
+}
 
-pub fn init(sys: Box<dyn SysCall>, cd: Box<dyn CreateDomain>) -> Box<dyn Hello>;
+trait DomainAInterface {
+    fn read(&self, name: RRef<String>, bytes: usize) -> RRef<[u8]>;
+    fn write(&self, name: RRef<String>, bytes: RRef<[u8]>) -> usize;
+}
+
+fn perform_something_on_thing(object: RRef<dyn Thing>) -> u64;
+
+// END GIVEN
