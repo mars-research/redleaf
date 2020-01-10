@@ -24,14 +24,8 @@ FILES=\
 	README\
 	big_file\
 
-big_file: Makefile
-	-rm big_file
-	touch big_file
-	n=1
-	while [[ $n -le 1000 ]] ; do \
-		cat mkfs.c >> big_file ; \
-		(( n= n+1 )) ; \
-	done
+big_file: mk_large_file
+	./mk_large_file
 
 fs.img: mkfs $(FILES)
 	mkdir -p build
