@@ -72,7 +72,16 @@ pub const IXGBE_TXD_STAT_DD: u32                = 0x00000001; /* Descriptor Done
 pub const IXGBE_ADVTXD_STAT_DD: u32             = IXGBE_TXD_STAT_DD; /* Descriptor Done */
 
 pub const IXGBE_IVAR_ALLOC_VAL: u32             = 0x80; /* Interrupt Allocation valid */
-pub const IXGBE_EICR_RTX_QUEUE: u32             = 0x0000FFFF; /* RTx Queue Interrupt */
+pub const IXGBE_EICR_RTX_QUEUE: u64             = 0x0000FFFF; /* RTx Queue Interrupt */
+
+/* Interrupt clear mask */
+pub const IXGBE_IRQ_CLEAR_MASK: u64                                    = 0xFFFFFFFF;
+
+pub const IXGBE_GPIE_MSIX_MODE: u64                                    = 0x00000010; /* MSI-X mode */
+pub const IXGBE_GPIE_OCD: u64                                          = 0x00000020; /* Other Clear Disable */
+pub const IXGBE_GPIE_EIMEN: u64                                        = 0x00000040; /* Immediate Interrupt Enable */
+pub const IXGBE_GPIE_EIAME: u64                                        = 0x40000000;
+pub const IXGBE_GPIE_PBA_SUPPORT: u64                                  = 0x80000000;
 
 #[derive(Debug, Copy, Clone)]
 #[repr(packed)]

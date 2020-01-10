@@ -25,6 +25,10 @@ pub enum IxgbeRegs {
     Eims,
     Eimc,
     Eiac,
+    Gpie,
+    Txdgpc,
+    Txdgbch,
+    Txdgbcl,
 }
 
 #[derive(Copy, Clone)]
@@ -47,6 +51,8 @@ pub enum IxgbeArrayRegs {
     Txpbsize,
     Ral,
     Rah,
+    Ivar,
+    Eitr,
 }
 
 pub trait IxgbeBarRegion {

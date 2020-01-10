@@ -43,15 +43,15 @@ struct Ixgbe {
     device: RefCell<Option<Intel8259x>>
 }
 
-struct IxgbeBar<'a> {
+/*struct IxgbeBar<'a> {
     ixgbe_bar: &'a dyn IxgbeBarRegion,
-}
+}*/
 
 impl Ixgbe {
     fn new() -> Ixgbe {
         Ixgbe {
             vendor_id: 0x8086,
-            device_id: 0x154D,
+            device_id: 0x10fb,
             driver: pci_driver::PciDrivers::IxgbeDriver,
             device_initialized: false,
             device: RefCell::new(None)
@@ -62,7 +62,7 @@ impl Ixgbe {
         self.device_initialized
     }
 }
-
+/*
 static mut ixgbe_bar: MaybeUninit<IxgbeBar> = MaybeUninit::uninit();
 
 impl<'a> IxgbeBar<'a> {
@@ -72,7 +72,7 @@ impl<'a> IxgbeBar<'a> {
         }
     }
 }
-
+*/
 impl syscalls::Net for Ixgbe {
     fn send(&self, buf: &[u8]) -> u32 {
         if self.device_initialized == false {
@@ -121,11 +121,11 @@ impl pci_driver::PciDriver for Ixgbe {
     fn probe(&mut self, bar_region: BarRegions) {
         match bar_region {
             BarRegions::Ixgbe(bar) => {
-                let ixgbebar = IxgbeBar::new(bar.as_ref());
+                //let ixgbebar = IxgbeBar::new(bar.as_ref());
                 println!("got ixgbe bar region");
-                unsafe {
+                /*unsafe {
                     ixgbe_bar.write(ixgbebar);
-                }
+                }*/
                 if let Ok(ixgbe_dev) = Intel8259x::new(bar) {
                     self.device_initialized = true;
                     self.device.replace(Some(ixgbe_dev));

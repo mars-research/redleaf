@@ -65,7 +65,7 @@ impl PciBar for PciDevice {
 
                 // identity map the bar region
                 vspace.map_identity(PAddr::from(base), PAddr::from(base + size as u64),
-                                     MapAction::ReadWriteExecuteKernel);
+                                     MapAction::ReadWriteExecuteKernelNoCache);
 
                 pci_driver::BarRegions::Ixgbe(Box::new(IxgbeBar::new(base, size)))
             },
@@ -74,7 +74,7 @@ impl PciBar for PciDevice {
 
                 // identity map the bar region
                 vspace.map_identity(PAddr::from(base), PAddr::from(base + size as u64),
-                                     MapAction::ReadWriteExecuteKernel);
+                                     MapAction::ReadWriteExecuteKernelNoCache);
 
                 pci_driver::BarRegions::Ahci(Box::new(AhciBar::new(base, size)))
             },

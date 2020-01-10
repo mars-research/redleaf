@@ -41,6 +41,8 @@ pub enum MapAction {
     ReadWriteExecuteUser,
     /// Map region read-write-executable for kernel.
     ReadWriteExecuteKernel,
+    /// Map region read-write-executable for kernel (uncacheable)
+    ReadWriteExecuteKernelNoCache,
 }
 
 /// Type of resource we're trying to allocate
@@ -68,6 +70,7 @@ impl MapAction {
             ReadExecuteKernel => PDPTFlags::empty(),
             ReadWriteExecuteUser => PDPTFlags::RW | PDPTFlags::US,
             ReadWriteExecuteKernel => PDPTFlags::RW,
+            ReadWriteExecuteKernelNoCache => PDPTFlags::RW | PDPTFlags::PCD,
         }
     }
 
@@ -84,6 +87,7 @@ impl MapAction {
             ReadExecuteKernel => PDFlags::empty(),
             ReadWriteExecuteUser => PDFlags::RW | PDFlags::US,
             ReadWriteExecuteKernel => PDFlags::RW,
+            ReadWriteExecuteKernelNoCache => PDFlags::RW | PDFlags::PCD,
         }
     }
 
@@ -100,6 +104,7 @@ impl MapAction {
             ReadExecuteKernel => PTFlags::empty(),
             ReadWriteExecuteUser => PTFlags::RW | PTFlags::US,
             ReadWriteExecuteKernel => PTFlags::RW,
+            ReadWriteExecuteKernelNoCache => PTFlags::RW | PTFlags::PCD,
         }
     }
 }
@@ -117,6 +122,7 @@ impl fmt::Display for MapAction {
             ReadExecuteKernel => write!(f, "kR-X"),
             ReadWriteExecuteUser => write!(f, "uRWX"),
             ReadWriteExecuteKernel => write!(f, "kRWX"),
+            ReadWriteExecuteKernelNoCache => write!(f, "kRWXnC"),
         }
     }
 }

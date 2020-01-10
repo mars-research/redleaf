@@ -10,7 +10,7 @@ pub use crate::headers::eth::EthernetHeader;
 pub use crate::headers::ipv4::IpV4Header;
 pub use crate::headers::udp::UdpHeader;
 
-pub const PAYLOAD_SZ: usize = 1472;
+pub const PAYLOAD_SZ: usize = 18;
 pub const ETH_HDR_SZ: usize = 14;
 pub const IP_HDR_SZ: usize = 20;
 pub const UDP_HDR_SZ: usize = 8;
@@ -18,10 +18,10 @@ pub const MTU_SZ: usize = 1514;
 
 #[repr(C)]
 pub struct UdpPacket {
-    eth_hdr: EthernetHeader<[u8; ETH_HDR_SZ]>,
-    ip_hdr: IpV4Header<[u8; IP_HDR_SZ]>,
-    udp_hdr: UdpHeader<[u8; UDP_HDR_SZ]>,
-    payload: [u8; PAYLOAD_SZ],
+    pub eth_hdr: EthernetHeader<[u8; ETH_HDR_SZ]>,
+    pub ip_hdr: IpV4Header<[u8; IP_HDR_SZ]>,
+    pub udp_hdr: UdpHeader<[u8; UDP_HDR_SZ]>,
+    pub payload: [u8; PAYLOAD_SZ],
 }
 
 use core::convert::AsMut;

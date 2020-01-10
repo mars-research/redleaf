@@ -31,7 +31,8 @@ macro_rules! printcpu {
 
 #[macro_export]
 macro_rules! print {
-    ($($arg:tt)*) => ($crate::printcpu!("cpu({}):{}", crate::console::cpuid(), format_args!($($arg)*)));
+    //($($arg:tt)*) => ($crate::printcpu!("cpu({}):{}", crate::console::cpuid(), format_args!($($arg)*)));
+    ($($arg:tt)*) => ($crate::console::_print(format_args!($($arg)*)));
 }
 
 #[macro_export]

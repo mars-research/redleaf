@@ -33,10 +33,10 @@ qemu_common += -no-reboot -no-shutdown -d int,cpu_reset
 qemu_common += -drive id=satadisk,file=$(xv6fs_img),if=none
 qemu_common += -device ahci,id=ahci
 qemu_common += -device ide-drive,drive=satadisk,bus=ahci.0
-qemu_common += -smp 4
+qemu_common += -smp 4 -device vfio-pci,romfile=,host=06:00.1
 
-QEMU := qemu-system-x86_64
-QEMU_KVM := sudo qemu-system-x86_64
+QEMU := sudo qemu-system-x86_64
+QEMU_KVM := sudo /local/devel/qemu/x86_64-softmmu/qemu-system-x86_64
 qemu_kvm_args := $(qemu_common) --enable-kvm
 
 # https://superuser.com/a/1412150
@@ -78,7 +78,7 @@ qemu-gdb: $(iso) $(xv6fs_img)
 
 .PHONY: qemu-kvm-gdb
 qemu-kvm-gdb: $(iso) $(xv6fs_img)
-	${QEMU_KVM} $(qemu_kvm_args) $(qemu_x) -S
+	${QEMU_KVM} $(qemu_kvm_args) $(qemu_nox) -S
 
 
 .PHONY: qemu-gdb-nox

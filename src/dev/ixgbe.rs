@@ -76,6 +76,12 @@ pub struct IxgbeBar {
     eims: Register,
     eimc: Register,
     eiac: Register,
+    gpie: Register,
+    ivar: ArrayRegister,
+    eitr: ArrayRegister,
+    txdgpc: Register,
+    txdgbch: Register,
+    txdgbcl: Register,
 }
 
 impl IxgbeBar {
@@ -104,7 +110,7 @@ impl IxgbeBar {
     const RDH: u64 = 0x01010;
     const RDT: u64 = 0x01018;
     const RXDCTL: u64 = 0x01028;
-    const SRRCTL: u64 = 0x01014;
+    const SRRCTL: u64 = 0x02100;
     const RDRXCTL: u64 = 0x02F00;
     const RXPBSIZE: u64 = 0x03C00;
     const RXCTRL: u64 = 0x03000;
@@ -129,7 +135,13 @@ impl IxgbeBar {
     const EIMS: u64 = 0x00880;
     const EIMC: u64 = 0x00888;
     const EIAC: u64 = 0x00810;
+    const EITR: u64 = 0x00820;
+    const GPIE: u64 = 0x00898;
 
+    const IVAR: u64 =0x00900;
+    const TXDGPC: u64 = 0x087A0;
+    const TXDGBCL: u64 = 0x087A4;
+    const TXDGBCH: u64 = 0x087A8;
 
     pub fn new(base: u64, size: usize) -> IxgbeBar {
         IxgbeBar {
@@ -156,7 +168,7 @@ impl IxgbeBar {
             rdh: reg_ixgbe_mult!(RDH, 64, 0x40),
             rdt: reg_ixgbe_mult!(RDT, 64, 0x40),
             rxdctl: reg_ixgbe_mult!(RXDCTL, 64, 0x40),
-            srrctl: reg_ixgbe_mult!(SRRCTL, 64, 0x40),
+            srrctl: reg_ixgbe_mult!(SRRCTL, 16, 0x4),
             dca_rxctrl: reg_ixgbe_mult!(DCA_RXCTRL, 64, 0x40),
 
             rdrxctl: reg_ixgbe!(RDRXCTL),
@@ -180,7 +192,46 @@ impl IxgbeBar {
             eims: reg_ixgbe!(EIMS),
             eimc: reg_ixgbe!(EIMC),
             eiac: reg_ixgbe!(EIAC),
+            gpie: reg_ixgbe!(GPIE),
+            ivar: reg_ixgbe_mult!(IVAR, 64, 0x4),
+            eitr: reg_ixgbe_mult!(EITR, 24, 0x4),
+            txdgpc: reg_ixgbe!(TXDGPC),
+            txdgbch: reg_ixgbe!(TXDGBCH),
+            txdgbcl: reg_ixgbe!(TXDGBCL),
         }
+    }
+
+    #[inline]
+    fn get_offset(&self, reg_enum: IxgbeRegs) -> u64 {
+         match reg_enum {
+            IxgbeRegs::Ctrl => { self.ctrl.offset },
+            IxgbeRegs::Status => { self.status.offset },
+            IxgbeRegs::Ctrlext => { self.ctrl_ext.offset },
+            IxgbeRegs::Eec => { self.eec.offset },
+            IxgbeRegs::Autoc => { self.autoc.offset },
+            IxgbeRegs::Gprc => { self.gprc.offset },
+            IxgbeRegs::Gptc => { self.gptc.offset },
+            IxgbeRegs::Gorcl => { self.gorcl.offset },
+            IxgbeRegs::Gorch => { self.gorch.offset },
+            IxgbeRegs::Gotcl => { self.gotcl.offset },
+            IxgbeRegs::Gotch => { self.gotch.offset },
+            IxgbeRegs::Hlreg0 => { self.hlreg0.offset },
+            IxgbeRegs::Links => { self.links.offset },
+            IxgbeRegs::Fctrl => { self.fctrl.offset },
+            IxgbeRegs::Rdrxctl => { self.rdrxctl.offset },
+            IxgbeRegs::Rxctrl => { self.rxctrl.offset },
+            IxgbeRegs::Dtxmxszrq => { self.dtxmxszrq.offset },
+            IxgbeRegs::Dmatxctl => { self.dmatxctl.offset },
+            IxgbeRegs::Rttdcs => { self.rttdcs.offset },
+            IxgbeRegs::Eicr => { self.eicr.offset },
+            IxgbeRegs::Eims => { self.eims.offset },
+            IxgbeRegs::Eimc => { self.eimc.offset },
+            IxgbeRegs::Eiac => { self.eiac.offset },
+            IxgbeRegs::Gpie => { self.gpie.offset },
+            IxgbeRegs::Txdgpc => { self.txdgpc.offset },
+            IxgbeRegs::Txdgbch => { self.txdgbch.offset },
+            IxgbeRegs::Txdgbcl => { self.txdgbcl.offset },
+         }
     }
 }
 
@@ -211,9 +262,13 @@ impl IxgbeBarRegion for IxgbeBar {
             IxgbeRegs::Eims => { offset = self.eims.offset },
             IxgbeRegs::Eimc => { offset = self.eimc.offset },
             IxgbeRegs::Eiac => { offset = self.eiac.offset },
-        }
+            IxgbeRegs::Gpie => { offset = self.gpie.offset },
+            IxgbeRegs::Txdgpc => { offset = self.txdgpc.offset },
+            IxgbeRegs::Txdgbch => { offset = self.txdgbch.offset },
+            IxgbeRegs::Txdgbcl => { offset = self.txdgbcl.offset },
+        } 
         unsafe {
-            ptr::read_volatile((self.base + offset) as *const u64)
+            ptr::read_volatile((self.base + offset) as *const u64) & 0xFFFF_FFFF as u64
         }
     }
 
@@ -238,13 +293,15 @@ impl IxgbeBarRegion for IxgbeBar {
             IxgbeArrayRegs::Txpbsize => { reg = self.txpbsize },
             IxgbeArrayRegs::Ral => { reg = self.ral },
             IxgbeArrayRegs::Rah => { reg = self.rah },
+            IxgbeArrayRegs::Ivar => { reg = self.ivar },
+            IxgbeArrayRegs::Eitr => { reg = self.eitr },
         }
 
         if idx >= reg.num_regs {
             return 0;
         }
         unsafe {
-            ptr::read_volatile((self.base + reg.offset + reg.multiplier * idx) as *const u64)
+            ptr::read_volatile((self.base + reg.offset + reg.multiplier * idx) as *const u64) & 0xFFFF_FFFF as u64
         }
     }
 
@@ -274,9 +331,14 @@ impl IxgbeBarRegion for IxgbeBar {
             IxgbeRegs::Eims => { offset = self.eims.offset },
             IxgbeRegs::Eimc => { offset = self.eimc.offset },
             IxgbeRegs::Eiac => { offset = self.eiac.offset },
+            IxgbeRegs::Gpie => { offset = self.gpie.offset },
+            IxgbeRegs::Txdgpc => { offset = self.txdgpc.offset },
+            IxgbeRegs::Txdgbch => { offset = self.txdgbch.offset },
+            IxgbeRegs::Txdgbcl => { offset = self.txdgbcl.offset },
+
         }
         unsafe {
-            ptr::write_volatile((self.base + offset) as *mut u64, val);
+            ptr::write_volatile((self.base + offset) as *mut u32, val as u32);
         }
     }
 
@@ -301,11 +363,13 @@ impl IxgbeBarRegion for IxgbeBar {
             IxgbeArrayRegs::Txpbsize => { reg = self.txpbsize },
             IxgbeArrayRegs::Ral => { reg = self.ral },
             IxgbeArrayRegs::Rah => { reg = self.rah },
+            IxgbeArrayRegs::Ivar => { reg = self.ivar },
+            IxgbeArrayRegs::Eitr => { reg = self.eitr },
         }
 
         if idx < reg.num_regs {
             unsafe {
-                ptr::write_volatile((self.base + reg.offset + reg.multiplier * idx) as *mut u64, val)
+                ptr::write_volatile((self.base + reg.offset + reg.multiplier * idx) as *mut u32, val as u32)
             }
         }
     }
