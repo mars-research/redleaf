@@ -2,6 +2,7 @@ arch ?= x86_64
 bin := build/kernel.bin
 iso := build/redleaf.iso
 root := ./
+include $(root)/common_flags.mk
 
 linker_script := linker.ld
 grub_cfg := boot/grub.cfg
@@ -126,7 +127,7 @@ init:
 
 .PHONY: kernel
 kernel:
-	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo xbuild --target x86_64-redleaf.json $(FEATURES)
+	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo xbuild ${CARGO_FLAGS} --target x86_64-redleaf.json $(FEATURES)
 
 
 # compile assembly files for the exception entry code
