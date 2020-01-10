@@ -25,7 +25,7 @@ FILES=\
 	big_file\
 
 big_file:
-	fallocate -l 30M big_file
+	fallocate -l 4M big_file
 
 fs.img: mkfs $(FILES)
 	mkdir -p build
