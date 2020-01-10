@@ -63,7 +63,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, bdev: syscalls::BDevPtr) -> Box<d
     println!("init xv6 filesystem");
     fs::fsinit(0);
     println!("finish init xv6 filesystem");
-    // ls("/").unwrap();
+    ls("/").unwrap();
     fs_benchmark(512, "/big_file");
     Box::new(VFS::new()) 
 }
