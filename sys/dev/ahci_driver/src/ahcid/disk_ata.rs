@@ -9,7 +9,7 @@ use libdma::ahci::allocate_dma;
 use super::hba::HbaPort;
 use super::Disk;
 
-const MAX_SECTOR_PER_PRDTL: usize = 8192;
+pub const MAX_SECTOR_PER_PRDTL: usize = 8192;
 
 enum BufferKind<'a> {
     Read(&'a mut [u8]),
