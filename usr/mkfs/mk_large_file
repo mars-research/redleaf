@@ -2,7 +2,7 @@
 rm big_file
 touch big_file
 n=1 ; \
-while [ $n -le 1000 ] ; do \
+while [ $n -le 10 ] ; do \
     cat mkfs.c >> big_file ; \
     (( n= n+1 )) ; \
 done
