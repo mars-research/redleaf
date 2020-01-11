@@ -100,11 +100,9 @@ impl syscalls::BDev for Ahci {
     fn read(&self, block: u32, data: &mut [u8; 512]) {
         self.disks.borrow_mut()[DISK_INDEX].read(block as u64, data);
     }
-
     fn read_contig(&self, block: u32, data: &mut [u8]) {
         self.disks.borrow_mut()[DISK_INDEX].read(block as u64, data);
     }
-
     fn write(&self, block: u32, data: &[u8; 512]) {
         self.disks.borrow_mut()[DISK_INDEX].write(block as u64, data);
     }
@@ -120,20 +118,26 @@ pub fn ahci_init(s: Box<dyn Syscall + Send + Sync>,
     pci.pci_register_driver(&mut ahci, 5);
 
     let ahci: Box<dyn syscalls::BDev> = Box::new(ahci);
-    benchmark_ahci(&ahci);
+
+    benchmark_ahci(&ahci, 256, 1);
+    benchmark_ahci(&ahci, 256, 4);
+    benchmark_ahci(&ahci, 256, 64);
+    benchmark_ahci(&ahci, 256, 128);
+    benchmark_ahci(&ahci, 256, 256);
     ahci
 }
 
-fn benchmark_ahci(bdev: &Box<dyn syscalls::BDev>) {
-    const BLOCKS_TO_READ: u32 = 100;
-    let mut buf = [0 as u8; 512];
+fn benchmark_ahci(bdev: &Box<dyn syscalls::BDev>, blocks_to_read: u32, blocks_per_patch: u32) {
+    assert!(blocks_to_read % blocks_per_patch == 0);
+    assert!(blocks_per_patch <= 256);
+    let mut buf = alloc::vec![0 as u8; 512 * blocks_per_patch as usize];
 
     let start = libsyscalls::time::get_rdtsc();
-    for i in 0..BLOCKS_TO_READ {
-        bdev.read(i, &mut buf);
+    for i in 0..(blocks_to_read / blocks_per_patch) {
+        bdev.read_contig(i, &mut buf);
     }
     let end = libsyscalls::time::get_rdtsc();
-    println!("AHCI benchmark: reading {} blocks takes {} cycles", BLOCKS_TO_READ, end - start);
+    println!("AHCI benchmark: reading {} blocks, {} blocks at a time, takes {} cycles", blocks_to_read, blocks_per_patch, end - start);
 }
 
 // This function is called on panic.
