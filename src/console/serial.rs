@@ -84,7 +84,7 @@ lazy_static! {
             #[cfg(feature = "cloudlab")]
             let serial_port = SerialPort::new(COM2_PORT);
             #[cfg(not(feature = "cloudlab"))]
-            let serial_port = SerialPort::new(COM2_PORT);
+            let serial_port = SerialPort::new(COM1_PORT);
             serial_port.init();
             Mutex::new(serial_port)
         }
