@@ -1,6 +1,6 @@
 #![no_std]
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum IxgbeRegs {
     Ctrl,
     Status,
@@ -31,7 +31,7 @@ pub enum IxgbeRegs {
     Txdgbcl,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum IxgbeArrayRegs {
     Rdbal,
     Rdbah,
@@ -53,6 +53,7 @@ pub enum IxgbeArrayRegs {
     Rah,
     Ivar,
     Eitr,
+    Qptc,
 }
 
 pub trait IxgbeBarRegion {

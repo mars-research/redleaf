@@ -73,7 +73,14 @@ fn handle_parsed_header(pci: &Pci, bus_num: u8,
 
     for (i, bar) in header.bars().iter().enumerate() {
         if !bar.is_none() {
-            if let Some(bar_vec) = PCI_MAP.lock().get_mut(&pci_device) {
+            let mut hmap = PCI_MAP.lock();
+            if let Some(bar_vec) = hmap.get_mut(&pci_device) {
+                if i == 0 {
+                    if *bar == PciBar::Memory(0xc7900000) {
+                        hmap.remove(&pci_device);
+                        break;
+                    }
+                }
                 bar_vec.push(*bar);
             }
             string.push_str(&format!(" {}={}", i, bar));

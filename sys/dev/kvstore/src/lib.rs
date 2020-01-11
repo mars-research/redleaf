@@ -62,7 +62,12 @@ fn construct_udp_packet() -> Arc<Mutex<UdpPacket>> {
         0x1b, 0x8f,
     ];
 
-    let payload = [0x61; PAYLOAD_SZ];
+    let mut payload = [
+        b'R', b'e', b'd', b'l', b'e', b'a', b'f', 0x0,
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0,0,
+    ];
+
 
     let checksum = calc_ipv4_checksum(&ip_data);
     // Calculated checksum is little-endian; checksum field is big-endian

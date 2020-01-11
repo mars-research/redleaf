@@ -2,6 +2,7 @@ use core::ptr;
 use ixgbe::{IxgbeRegs, IxgbeArrayRegs, IxgbeBarRegion};
 use syscalls::PciBar;
 use alloc::boxed::Box;
+use crate::interrupt::{disable_irq, enable_irq};
 
 macro_rules! reg_ixgbe {
     ($off: ident) => {
@@ -82,6 +83,7 @@ pub struct IxgbeBar {
     txdgpc: Register,
     txdgbch: Register,
     txdgbcl: Register,
+    qptc: ArrayRegister,
 }
 
 impl IxgbeBar {
@@ -142,6 +144,7 @@ impl IxgbeBar {
     const TXDGPC: u64 = 0x087A0;
     const TXDGBCL: u64 = 0x087A4;
     const TXDGBCH: u64 = 0x087A8;
+    const QPTC: u64 = 0x06030;
 
     pub fn new(base: u64, size: usize) -> IxgbeBar {
         IxgbeBar {
@@ -198,6 +201,7 @@ impl IxgbeBar {
             txdgpc: reg_ixgbe!(TXDGPC),
             txdgbch: reg_ixgbe!(TXDGBCH),
             txdgbcl: reg_ixgbe!(TXDGBCL),
+            qptc: reg_ixgbe_mult!(QPTC, 16, 0x40),
         }
     }
 
@@ -238,6 +242,7 @@ impl IxgbeBar {
 impl IxgbeBarRegion for IxgbeBar {
     fn read_reg(&self, reg_enum: IxgbeRegs) -> u64 {
         let offset: u64;
+        disable_irq();
         match reg_enum {
             IxgbeRegs::Ctrl => { offset = self.ctrl.offset },
             IxgbeRegs::Status => { offset = self.status.offset },
@@ -267,13 +272,16 @@ impl IxgbeBarRegion for IxgbeBar {
             IxgbeRegs::Txdgbch => { offset = self.txdgbch.offset },
             IxgbeRegs::Txdgbcl => { offset = self.txdgbcl.offset },
         } 
-        unsafe {
+        let ret = unsafe {
             ptr::read_volatile((self.base + offset) as *const u64) & 0xFFFF_FFFF as u64
-        }
+        };
+        enable_irq();
+        ret
     }
 
     fn read_reg_idx(&self, reg_enum: IxgbeArrayRegs, idx: u64) -> u64 {
         let reg: ArrayRegister;
+        disable_irq();
         match reg_enum {
             IxgbeArrayRegs::Rdbal => { reg = self.rdbal },
             IxgbeArrayRegs::Rdbah => { reg = self.rdbah },
@@ -295,18 +303,22 @@ impl IxgbeBarRegion for IxgbeBar {
             IxgbeArrayRegs::Rah => { reg = self.rah },
             IxgbeArrayRegs::Ivar => { reg = self.ivar },
             IxgbeArrayRegs::Eitr => { reg = self.eitr },
+            IxgbeArrayRegs::Qptc => { reg = self.qptc },
         }
 
         if idx >= reg.num_regs {
             return 0;
         }
-        unsafe {
+        let ret = unsafe {
             ptr::read_volatile((self.base + reg.offset + reg.multiplier * idx) as *const u64) & 0xFFFF_FFFF as u64
-        }
+        };
+        enable_irq();
+        ret
     }
 
     fn write_reg(&self, reg_enum: IxgbeRegs, val: u64) {
         let offset: u64;
+        disable_irq();
         match reg_enum {
             IxgbeRegs::Ctrl => { offset = self.ctrl.offset },
             IxgbeRegs::Status => { offset = self.status.offset },
@@ -337,13 +349,16 @@ impl IxgbeBarRegion for IxgbeBar {
             IxgbeRegs::Txdgbcl => { offset = self.txdgbcl.offset },
 
         }
+        println!("Write to {:08x}", self.base + offset);
         unsafe {
             ptr::write_volatile((self.base + offset) as *mut u32, val as u32);
         }
+        enable_irq();
     }
 
     fn write_reg_idx(&self, reg_enum: IxgbeArrayRegs, idx: u64, val: u64) {
         let reg: ArrayRegister;
+        disable_irq();
         match reg_enum {
             IxgbeArrayRegs::Rdbal => { reg = self.rdbal },
             IxgbeArrayRegs::Rdbah => { reg = self.rdbah },
@@ -365,6 +380,7 @@ impl IxgbeBarRegion for IxgbeBar {
             IxgbeArrayRegs::Rah => { reg = self.rah },
             IxgbeArrayRegs::Ivar => { reg = self.ivar },
             IxgbeArrayRegs::Eitr => { reg = self.eitr },
+            IxgbeArrayRegs::Qptc => { reg = self.qptc },
         }
 
         if idx < reg.num_regs {
@@ -372,5 +388,6 @@ impl IxgbeBarRegion for IxgbeBar {
                 ptr::write_volatile((self.base + reg.offset + reg.multiplier * idx) as *mut u32, val as u32)
             }
         }
+        enable_irq();
     }
 }

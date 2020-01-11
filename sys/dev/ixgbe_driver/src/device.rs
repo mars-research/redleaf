@@ -195,7 +195,7 @@ impl Intel8259x {
         //self.enable_msix_interrupt(0);
 
         // enable promisc mode by default to make testing easier
-        self.set_promisc(true);
+        //self.set_promisc(true);
 
         // wait some time for the link to come up
         self.wait_for_link();
@@ -320,7 +320,7 @@ impl Intel8259x {
         self.write_flag(IxgbeRegs::Hlreg0, IXGBE_HLREG0_TXCRCEN | IXGBE_HLREG0_TXPADEN);
 
         // section 4.6.11.3.4 - set default buffer size allocations
-        self.bar.write_reg_idx(IxgbeArrayRegs::Txpbsize, 0, IXGBE_TXPBSIZE_40KB);
+        self.bar.write_reg_idx(IxgbeArrayRegs::Txpbsize, 0, 0xA0);
         for i in 1..8 {
             self.bar.write_reg_idx(IxgbeArrayRegs::Txpbsize, i, 0);
         }
@@ -514,9 +514,9 @@ impl Intel8259x {
         self.bar.write_reg_idx(IxgbeArrayRegs::Tdt, 0, self.transmit_index as u64);
 
         println!("Sending udp packet");
-        //self.dump_regs();
-        //core::mem::forget(buf);
         self.dump_regs();
+        //core::mem::forget(buf);
+        //self.dump_regs();
         Ok(Some(0))
     }
 
@@ -612,7 +612,7 @@ impl Intel8259x {
                                  self.bar.read_reg_idx(IxgbeArrayRegs::Tdt, 0) as u32,
                                  ));
 
-        string.push_str(&format!("Stats regs:\n\tGPRC {:08X} GPTC {:08X}\n\tGORCL {:08X} GORCH {:08X}\n\tGOTCL {:08X} GOTCH {:08X}\n\tTXDGPC {:08X} TXDGBCH {:08X} TXDGBCL {:08x}\n",
+        string.push_str(&format!("Stats regs:\n\tGPRC {:08X} GPTC {:08X}\n\tGORCL {:08X} GORCH {:08X}\n\tGOTCL {:08X} GOTCH {:08X}\n\tTXDGPC {:08X} TXDGBCH {:08X} TXDGBCL {:08X} QPTC(0) {:08X}\n",
                                 self.bar.read_reg(IxgbeRegs::Gprc) as u32,
                                 self.bar.read_reg(IxgbeRegs::Gptc) as u32,
                                 self.bar.read_reg(IxgbeRegs::Gorcl) as u32,
@@ -622,6 +622,7 @@ impl Intel8259x {
                                 self.bar.read_reg(IxgbeRegs::Txdgpc) as u32,
                                 self.bar.read_reg(IxgbeRegs::Txdgbch) as u32,
                                 self.bar.read_reg(IxgbeRegs::Txdgbcl) as u32,
+                                self.bar.read_reg_idx(IxgbeArrayRegs::Qptc, 0) as u32,
 
                                 ));
 
