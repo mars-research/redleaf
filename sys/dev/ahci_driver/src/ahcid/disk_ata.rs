@@ -1,3 +1,25 @@
+// Intel SATA AHCI v1.3.1
+// Section 9.3.1.1.5.1
+// Non-queued commands may use any command slot. The HBA guarantees that command issue order is
+// preserved, so software does not need to ensure any ordering of command slots.
+// To issue a non-queued command, the host should:
+// 1. Select an unused command slot
+// 2. Build the command table and command header
+// 3. Set PxFBS.DEV to the value of the Port Multiplier port field in the command header
+// 4. Set the bit in PxCI that corresponds to the command slot being used
+
+// One Port could have several devices attached to it if there's a multiplexer.
+// For now we can assume that there's only one device on a port.
+
+// Each port has a command list containing serveral(32) command header slots.
+//  This command list can be used by system software and the HBA even when non-queued commands
+//  need to be transferred. System software can still place multiple commands in the list, whether DMA, PIO,
+//  or ATAPI, and the HBA will walk the list transferring them.
+
+// Each command header points to a variable sized(up to 65,535) Physical Region Descriptor Table(PRDT)
+
+// Each entry(item) in PRDT contains a pointer(physical address) to the buffer(up to 4MB) that the device can DMA to
+
 use core::ptr;
 
 use libsyscalls::errors::Result;
