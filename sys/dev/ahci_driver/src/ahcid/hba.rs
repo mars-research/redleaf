@@ -231,7 +231,7 @@ impl HbaPort {
         }
     }
 
-    pub fn ata_dma(&mut self, block: u64, sectors: usize, write: bool, clb: &mut Dma<[HbaCmdHeader; 32]>, ctbas: &mut [Dma<HbaCmdTable>; 32], buf: &mut Dma<[u8; 512 * 512]>) -> Option<u32> {
+    pub fn ata_dma(&mut self, block: u64, sectors: usize, write: bool, clb: &mut Dma<[HbaCmdHeader; 32]>, ctbas: &mut [Dma<HbaCmdTable>; 32], buf: usize) -> Option<u32> {
         print!("AHCI {} DMA BLOCK: {:X} SECTORS: {} WRITE: {}\n", self.port, block, sectors, write);
 
         assert!(sectors > 0 && sectors < 512);
@@ -245,7 +245,7 @@ impl HbaPort {
             cmdheader.prdtl.write(1);
 
             let prdt_entry = &mut prdt_entries[0];
-            prdt_entry.dba.write(buf.physical() as u64);
+            prdt_entry.dba.write(buf as u64);
             prdt_entry.dbc.write(((sectors * 512) as u32) | 1);
 
             cmdfis.pm.write(1 << 7);

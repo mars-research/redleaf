@@ -9,6 +9,8 @@ use libdma::ahci::allocate_dma;
 use super::hba::HbaPort;
 use super::Disk;
 
+const MAX_SECTOR_PER_PRDTL: usize = 8192;
+
 enum BufferKind<'a> {
     Read(&'a mut [u8]),
     Write(&'a [u8]),
@@ -29,7 +31,6 @@ pub struct DiskATA {
     clb: Dma<[HbaCmdHeader; 32]>,
     ctbas: [Dma<HbaCmdTable>; 32],
     _fb: Dma<[u8; 256]>,
-    buf: Dma<[u8; 512 * 512]>
 }
 
 impl DiskATA {
@@ -46,7 +47,6 @@ impl DiskATA {
             allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
         ];
         let mut fb = allocate_dma()?;
-        let buf = allocate_dma()?;
 
         port.init(&mut clb, &mut ctbas, &mut fb);
 
@@ -60,15 +60,21 @@ impl DiskATA {
             clb: clb,
             ctbas: ctbas,
             _fb: fb,
-            buf: buf
         })
     }
 
     fn request(&mut self, block: u64, mut buffer_kind: BufferKind) -> Result<Option<usize>> {
         let (write, address, total_sectors) = match buffer_kind {
-            BufferKind::Read(ref buffer) => (false, buffer.as_ptr() as usize, buffer.len()/512),
-            BufferKind::Write(ref buffer) => (true, buffer.as_ptr() as usize, buffer.len()/512),
+            BufferKind::Read(ref buffer) => {
+                assert!(buffer.len()%512 == 0, "Must read a multiple of block size number of bytes");
+                (false, buffer.as_ptr() as usize, buffer.len()/512)
+            },
+            BufferKind::Write(ref buffer) => {
+                assert!(buffer.len()%512 == 0, "Must read a multiple of block size number of bytes");
+                (true, buffer.as_ptr() as usize, buffer.len()/512)
+            },
         };
+        assert!(total_sectors <= MAX_SECTOR_PER_PRDTL);
 
         //TODO: Go back to interrupt magic
         let use_interrupts = false;
@@ -109,10 +115,6 @@ impl DiskATA {
 
                 self.port.ata_stop(running.0)?;
 
-                if let BufferKind::Read(ref mut buffer) = buffer_kind {
-                    unsafe { ptr::copy(self.buf.as_ptr(), buffer.as_mut_ptr().add(request.sector * 512), running.1 * 512); }
-                }
-
                 request.sector += running.1;
             }
 
@@ -124,11 +126,7 @@ impl DiskATA {
                     request.total_sectors - request.sector
                 };
 
-                if let BufferKind::Write(ref buffer) = buffer_kind {
-                    unsafe { ptr::copy(buffer.as_ptr().add(request.sector * 512), self.buf.as_mut_ptr(), sectors * 512); }
-                }
-
-                if let Some(slot) = self.port.ata_dma(block + request.sector as u64, sectors, write, &mut self.clb, &mut self.ctbas, &mut self.buf) {
+                if let Some(slot) = self.port.ata_dma(block + request.sector as u64, sectors, write, &mut self.clb, &mut self.ctbas, address) {
                     request.running_opt = Some((slot, sectors));
                 }
 
