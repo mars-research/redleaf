@@ -9,6 +9,11 @@ linker_script := linker.ld
 target ?= $(arch)-$(bin_name)
 lib := target/$(target)/$(TARGET_SUB_DIR)/lib$(bin_name).a
 
+FEATURES =
+ifeq ($(CLOUDLAB),true)
+FEATURES += --features "cloudlab"
+endif
+
 .PHONY: all
 all: $(bin) checkstack
 
@@ -26,6 +31,6 @@ $(bin): lib $(linker_script)
 
 .PHONY: lib
 lib:
-	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo xbuild ${CARGO_FLAGS} --target x86_64-${bin_name}.json
+	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo xbuild ${CARGO_FLAGS} --target x86_64-${bin_name}.json $(FEATURES)
 
 include $(root)/checkstack.mk
