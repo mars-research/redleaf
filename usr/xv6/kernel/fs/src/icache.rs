@@ -230,7 +230,7 @@ impl INodeDataGuard<'_> {
 
         // From a 2-layer indirect table
         let block_number = block_number - params::NDIRECT;
-        assert!(block_number < params::NINDIRECT, "bmap: out of range");
+        assert!(block_number < params::NINDIRECT * params::NINDIRECT, "bmap: out of range");
         // Load level 1 indirect block, allocating if necessary.
         let mut address = self.data.addresses[params::NDIRECT];
         if address == 0 {
