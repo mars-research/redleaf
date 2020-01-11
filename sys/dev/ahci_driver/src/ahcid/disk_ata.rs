@@ -29,7 +29,7 @@ pub struct DiskATA {
     clb: Dma<[HbaCmdHeader; 32]>,
     ctbas: [Dma<HbaCmdTable>; 32],
     _fb: Dma<[u8; 256]>,
-    buf: Dma<[u8; 256 * 512]>
+    buf: Dma<[u8; 512 * 512]>
 }
 
 impl DiskATA {

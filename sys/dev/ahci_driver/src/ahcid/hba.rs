@@ -231,10 +231,10 @@ impl HbaPort {
         }
     }
 
-    pub fn ata_dma(&mut self, block: u64, sectors: usize, write: bool, clb: &mut Dma<[HbaCmdHeader; 32]>, ctbas: &mut [Dma<HbaCmdTable>; 32], buf: &mut Dma<[u8; 256 * 512]>) -> Option<u32> {
+    pub fn ata_dma(&mut self, block: u64, sectors: usize, write: bool, clb: &mut Dma<[HbaCmdHeader; 32]>, ctbas: &mut [Dma<HbaCmdTable>; 32], buf: &mut Dma<[u8; 512 * 512]>) -> Option<u32> {
         print!("AHCI {} DMA BLOCK: {:X} SECTORS: {} WRITE: {}\n", self.port, block, sectors, write);
 
-        assert!(sectors > 0 && sectors < 256);
+        assert!(sectors > 0 && sectors < 512);
 
         self.ata_start(clb, ctbas, |cmdheader, cmdfis, prdt_entries, _acmd| {
             if write {
