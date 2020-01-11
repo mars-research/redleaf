@@ -155,3 +155,11 @@ entryother: src/entryother.asm
 	ld -N -e start_others16 -Ttext 0x7000 -o build/entryother.out build/entryother.o
 	objcopy -S -O binary -j .text build/entryother.out build/entryother.bin
 
+.PHONY: cloudlab-deps
+cloudlab-deps:
+	sudo apt update
+	sudo apt install -y qemu nasm xorriso
+	curl https://sh.rustup.rs -sSf | bash -s -- --default-toolchain nightly -y
+	cargo install cargo-xbuild
+	cargo install stack-sizes
+	rustup component add rust-src
