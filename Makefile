@@ -14,6 +14,9 @@ FEATURES =
 #FEATURES += --features "smp"
 FEATURES += --features "trace_vspace"
 FEATURES += --features "page_fault_on_ist"
+ifeq ($(CLOUDLAB),true)
+FEATURES += --features "cloudlab"
+endif
 
 target ?= $(arch)-redleaf
 rust_os := target/$(target)/$(TARGET_SUB_DIR)/libredleaf.a

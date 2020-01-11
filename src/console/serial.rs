@@ -1,6 +1,7 @@
 use x86::io::{outb, inb};
 
-
+const COM1_PORT: u16 = 0x3F8;
+const COM2_PORT: u16 = 0x2F8;
 
 pub struct SerialPort {
     base_port: u16
@@ -80,7 +81,10 @@ pub static mut EMERGENCY_SERIAL1: SerialPort = SerialPort::new(0x3F8);
 lazy_static! {
     pub static ref SERIAL1: Mutex<SerialPort> = {
         unsafe {
-            let serial_port = SerialPort::new(0x3F8);
+            #[cfg(feature = "cloudlab")]
+            let serial_port = SerialPort::new(COM2_PORT);
+            #[cfg(not(feature = "cloudlab"))]
+            let serial_port = SerialPort::new(COM2_PORT);
             serial_port.init();
             Mutex::new(serial_port)
         }
