@@ -100,6 +100,11 @@ impl syscalls::BDev for Ahci {
     fn read(&self, block: u32, data: &mut [u8; 512]) {
         self.disks.borrow_mut()[DISK_INDEX].read(block as u64, data);
     }
+
+    fn read_contig(&self, block: u32, data: &mut [u8]) {
+        self.disks.borrow_mut()[DISK_INDEX].read(block as u64, data);
+    }
+
     fn write(&self, block: u32, data: &[u8; 512]) {
         self.disks.borrow_mut()[DISK_INDEX].write(block as u64, data);
     }

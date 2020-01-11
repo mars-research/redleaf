@@ -57,6 +57,8 @@ pub trait BDev {
     fn read(&self, block: u32, data: &mut [u8; 512]);
     fn write(&self, block: u32, data: &[u8; 512]);
 
+    fn read_contig(&self, block: u32, data: &mut [u8]);
+
     fn submit(&self, request: BDevRequest) -> u64 {
         unimplemented!();
     }
