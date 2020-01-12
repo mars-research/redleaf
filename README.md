@@ -39,6 +39,8 @@ sudo apt-get install xorriso
 ```
 make run
 ```
+Set `DEBUG=false` to build the project in release mode. Set `CLOUDLAB=true` to set up
+the correct hardware parameters for running it on d430 machine on cloudlab.
 
 If you see complains from the `grub-mkrescue`, install the `xorriso` package
 ```
