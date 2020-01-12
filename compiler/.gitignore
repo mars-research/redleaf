@@ -1,5 +1,6 @@
 .vscode
 *.o
+*.pyc
 peg_peg.py
 compiler
 parser.cpp
