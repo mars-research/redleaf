@@ -178,20 +178,22 @@ fn benchmark_ahci_async(bdev: &Box<dyn syscalls::BDev>, blocks_to_read: u32, blo
 
     let start = libsyscalls::time::get_rdtsc();
     for i in (0..blocks_to_read).step_by(blocks_per_patch as usize) {
-        println!("reading block {}", i);
         while buffers.is_empty() {
             assert!(!pending.is_empty());
-            println!("wait =ing for pending");
-            buffers.extend(
-                pending
-                    .iter()
-                    .filter_map(|slot| bdev.poll(*slot).unwrap())
-            )
+            pending = pending
+                .into_iter()
+                .filter(|slot|  {
+                    if let Some(buf) = bdev.poll(*slot).unwrap() {
+                        buffers.push(buf);
+                        return false;
+                    } else {
+                        return true;
+                    }
+                })
+                .collect();
         }
 
-        println!("about to submut");
         pending.push(bdev.submit(i as u64, false, buffers.pop().unwrap()).unwrap());
-        println!("after submit");
     }
 
     for p in pending {
