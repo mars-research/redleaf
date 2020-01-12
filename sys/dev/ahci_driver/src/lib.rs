@@ -135,14 +135,19 @@ pub fn ahci_init(s: Box<dyn Syscall + Send + Sync>,
     let ahci: Box<dyn syscalls::BDev> = Box::new(ahci);
 
     benchmark_ahci(&ahci, 256, 1);
-    benchmark_ahci(&ahci, 256, 4);
-    benchmark_ahci(&ahci, 256, 64);
+    benchmark_ahci_async(&ahci, 256, 1);
+    // benchmark_ahci(&ahci, 256, 4);
+    // benchmark_ahci(&ahci, 256, 64);
     benchmark_ahci(&ahci, 256, 128);
     benchmark_ahci(&ahci, 256, 256);
     benchmark_ahci(&ahci, 1024, 1024);
     benchmark_ahci(&ahci, 8192, 8192);
-    benchmark_ahci(&ahci, 32768, 32768);
-    benchmark_ahci(&ahci, 0xFFFF, 0xFFFF);
+    benchmark_ahci(&ahci, 8192 * 128, 8192);
+    benchmark_ahci_async(&ahci, 8192, 8192);
+    // benchmark_ahci_async(&ahci, 8192 * 128, 8192);
+    // benchmark_ahci(&ahci, 32768, 32768);
+    // benchmark_ahci(&ahci, 0xFFFF * 128, 0xFFFF);
+    // benchmark_ahci_async(&ahci, 0xFFFF * 128, 0xFFFF);
     ahci
 }
 
@@ -157,6 +162,45 @@ fn benchmark_ahci(bdev: &Box<dyn syscalls::BDev>, blocks_to_read: u32, blocks_pe
     }
     let end = libsyscalls::time::get_rdtsc();
     println!("AHCI benchmark: reading {} blocks, {} blocks at a time, takes {} cycles", blocks_to_read, blocks_per_patch, end - start);
+}
+
+fn benchmark_ahci_async(bdev: &Box<dyn syscalls::BDev>, blocks_to_read: u32, blocks_per_patch: u32) {
+    println!("starting bencharl async {}", blocks_to_read);
+
+    assert!(blocks_to_read % blocks_per_patch == 0);
+    assert!(blocks_per_patch <= 0xFFFF);
+    let mut buffers: Vec<Box<[u8]>> = Vec::new();
+    for _ in 0..32 {
+        let buf = alloc::vec![0 as u8; 512 * blocks_per_patch as usize];
+        buffers.push(buf.into_boxed_slice());
+    }
+    let mut pending = Vec::<u32>::new();
+
+    let start = libsyscalls::time::get_rdtsc();
+    for i in (0..blocks_to_read).step_by(blocks_per_patch as usize) {
+        println!("reading block {}", i);
+        while buffers.is_empty() {
+            assert!(!pending.is_empty());
+            println!("wait =ing for pending");
+            buffers.extend(
+                pending
+                    .iter()
+                    .filter_map(|slot| bdev.poll(*slot).unwrap())
+            )
+        }
+
+        println!("about to submut");
+        pending.push(bdev.submit(i as u64, false, buffers.pop().unwrap()).unwrap());
+        println!("after submit");
+    }
+
+    for p in pending {
+        while bdev.poll(p).unwrap().is_none() {
+            // spin
+        }
+    }
+    let end = libsyscalls::time::get_rdtsc();
+    println!("AHCI async benchmark: reading {} blocks, {} blocks at a time, takes {} cycles", blocks_to_read, blocks_per_patch, end - start);
 }
 
 // This function is called on panic.
