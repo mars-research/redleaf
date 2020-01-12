@@ -30,7 +30,7 @@ domain_list := sys/init/build/init \
 	sys/dev/ixgbe_driver/build/ixgbe_driver \
 	usr/xv6/usr/shell/build/shell
 
-qemu_common := -m 1024M -vga std -s
+qemu_common := -m 2048M -vga std -s
 qemu_common += -cdrom $(iso)
 qemu_common += -no-reboot -no-shutdown -d int,cpu_reset
 qemu_common += -drive id=satadisk,file=$(xv6fs_img),if=none
