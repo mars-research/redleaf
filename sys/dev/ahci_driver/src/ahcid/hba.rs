@@ -17,7 +17,9 @@ use libsyscalls::syscalls::sys_yield;
 
 use ahci::{AhciBarRegion, AhciRegs, AhciArrayRegs, AhciPortRegs, AhciPortArrayRegs};
 
-use console::print;
+use crate::ahcid::disk_ata::{MAX_SECTORS_PER_PRDT_ENTRY, MAX_BYTES_PER_PRDT_ENTRY};
+
+use console::{print, println};
 
 use super::fis::{FisType, FisRegH2D};
 
@@ -231,6 +233,8 @@ impl HbaPort {
         }
     }
 
+
+    #[deprecated]
     pub fn ata_dma(&mut self, block: u64, sectors: usize, write: bool, clb: &mut Dma<[HbaCmdHeader; 32]>, ctbas: &mut [Dma<HbaCmdTable>; 32], buf: usize) -> Option<u32> {
         print!("AHCI {} DMA BLOCK: {:X} SECTORS: {} WRITE: {}\n", self.port, block, sectors, write);
 
@@ -266,6 +270,52 @@ impl HbaPort {
             cmdfis.lba5.write((block >> 40) as u8);
 
             cmdfis.countl.write(sectors as u8);
+            cmdfis.counth.write((sectors >> 8) as u8);
+        })
+    }
+
+
+    pub fn a_brand_new_ata_dma(&mut self, block: u64, sectors: u16, write: bool, clb: &mut Dma<[HbaCmdHeader; 32]>, ctbas: &mut [Dma<HbaCmdTable>; 32], buf: &[u8]) -> Option<u32> {
+        println!("AHCI {} DMA BLOCK: {:X} SECTORS: {} WRITE: {}", self.port, block, sectors, write);
+        if (sectors > 0xFFFF) {
+            println!("Cannot R/W to more than {} sectors at a time", 0xFFFF);
+            return None;
+        }
+
+        self.ata_start(clb, ctbas, |cmdheader, cmdfis, prdt_entries, _acmd| {
+            if write {
+                let cfl = cmdheader.cfl.read();
+                cmdheader.cfl.write(cfl | 1 << 7 | 1 << 6)
+            }
+
+            let chuncks = buf.chunks(MAX_BYTES_PER_PRDT_ENTRY);
+            let num_chuncks = chuncks.len() as u16;
+            for (chunck, mut prdt_entry) in chuncks.zip(prdt_entries.iter_mut()) {
+                prdt_entry.dba.write(chunck.as_ptr() as u64);
+                prdt_entry.dbc.write((chunck.len() as u32) | 1);
+            }
+            
+            cmdheader.prdtl.write(num_chuncks);
+            println!("The buffer is splitted into {} chuncks", num_chuncks);
+
+            cmdfis.pm.write(1 << 7);
+            if write {
+                cmdfis.command.write(ATA_CMD_WRITE_DMA_EXT);
+            } else {
+                cmdfis.command.write(ATA_CMD_READ_DMA_EXT);
+            }
+
+            cmdfis.lba0.write(block as u8);
+            cmdfis.lba1.write((block >> 8) as u8);
+            cmdfis.lba2.write((block >> 16) as u8);
+
+            cmdfis.device.write(1 << 6);
+
+            cmdfis.lba3.write((block >> 24) as u8);
+            cmdfis.lba4.write((block >> 32) as u8);
+            cmdfis.lba5.write((block >> 40) as u8);
+
+            cmdfis.countl.write((sectors & 0xff) as u8);
             cmdfis.counth.write((sectors >> 8) as u8);
         })
     }

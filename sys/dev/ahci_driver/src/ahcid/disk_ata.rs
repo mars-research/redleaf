@@ -31,7 +31,14 @@ use libdma::ahci::allocate_dma;
 use super::hba::HbaPort;
 use super::Disk;
 
-pub const MAX_SECTOR_PER_PRDTL: usize = 8192;
+// Maximun number of sectors per PRDT entry
+pub const MAX_SECTORS_PER_PRDT_ENTRY: usize = 8192;
+// The size of a sector(some call it block) of the disk in bytes
+pub const SECTOR_SIZE: usize = 512;
+// Maximun number of bytes per PRDT entry
+pub const MAX_BYTES_PER_PRDT_ENTRY: usize = MAX_SECTORS_PER_PRDT_ENTRY * SECTOR_SIZE;
+// Maximun number of PRDT entries in a PRDTable
+pub const MAX_PRDT_ENTRIES: usize = 65_535;
 
 enum BufferKind<'a> {
     Read(&'a mut [u8]),
@@ -96,7 +103,7 @@ impl DiskATA {
                 (true, buffer.as_ptr() as usize, buffer.len()/512)
             },
         };
-        assert!(total_sectors <= MAX_SECTOR_PER_PRDTL);
+        assert!(total_sectors <= MAX_SECTORS_PER_PRDT_ENTRY);
 
         //TODO: Go back to interrupt magic
         let use_interrupts = false;
