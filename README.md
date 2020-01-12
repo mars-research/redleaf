@@ -90,7 +90,7 @@ menuentry "RedLeaf" {
 Update grub
 
 ```
-  sudo sudo update-grub2
+  sudo update-grub2
 ```
 
 Reboot and choose the "RedLeaf" entry. Make sure that you can see the grub menu
