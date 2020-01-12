@@ -22,8 +22,8 @@ pub mod hba;
 pub trait Disk {
     fn id(&self) -> usize;
     fn size(&mut self) -> u64;
-    fn read(&mut self, block: u64, buffer: &mut [u8]) -> Result<Option<usize>>;
-    fn write(&mut self, block: u64, buffer: &[u8]) -> Result<Option<usize>>;
+    fn read(&mut self, block: u64, buffer: &mut [u8]);
+    fn write(&mut self, block: u64, buffer: &[u8]);
     fn block_length(&mut self) -> Result<u32>;
 }
 

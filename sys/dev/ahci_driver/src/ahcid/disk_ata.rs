@@ -22,7 +22,10 @@
 
 use core::ptr;
 
+use alloc::boxed::Box;
+
 use libsyscalls::errors::Result;
+use libsyscalls::errors::{Error, EBUSY, EINVAL};
 use libsyscalls::syscalls::sys_yield;
 
 use libdma::Dma;
@@ -40,23 +43,19 @@ pub const MAX_BYTES_PER_PRDT_ENTRY: usize = MAX_SECTORS_PER_PRDT_ENTRY * SECTOR_
 // Maximun number of PRDT entries in a PRDTable
 pub const MAX_PRDT_ENTRIES: usize = 65_535;
 
-enum BufferKind<'a> {
-    Read(&'a mut [u8]),
-    Write(&'a [u8]),
-}
-
 struct Request {
     address: usize,
     total_sectors: usize,
     sector: usize,
-    running_opt: Option<(u32, usize)>,
+    buffer: Box<[u8]>,
 }
 
 pub struct DiskATA {
     id: usize,
     port: HbaPort,
     size: u64,
-    request_opt: Option<Request>,
+    requests_opt: [Option<Request>; 32],
+    // request_opt: Option<Request>,
     clb: Dma<[HbaCmdHeader; 32]>,
     ctbas: [Dma<HbaCmdTable>; 32],
     _fb: Dma<[u8; 256]>,
@@ -85,92 +84,47 @@ impl DiskATA {
             id: id,
             port: port,
             size: size,
-            request_opt: None,
+            // request_opt: None,
+            requests_opt: array_init::array_init(|_| None),
             clb: clb,
             ctbas: ctbas,
             _fb: fb,
         })
     }
 
-    fn request(&mut self, block: u64, mut buffer_kind: BufferKind) -> Result<Option<usize>> {
-        let (write, address, total_sectors) = match buffer_kind {
-            BufferKind::Read(ref buffer) => {
-                assert!(buffer.len()%512 == 0, "Must read a multiple of block size number of bytes");
-                (false, buffer.as_ptr() as usize, buffer.len()/512)
-            },
-            BufferKind::Write(ref buffer) => {
-                assert!(buffer.len()%512 == 0, "Must read a multiple of block size number of bytes");
-                (true, buffer.as_ptr() as usize, buffer.len()/512)
-            },
-        };
-        assert!(total_sectors <= MAX_SECTORS_PER_PRDT_ENTRY);
+    fn request_submit(&mut self, block: u64, write: bool, mut buffer: Box<[u8]>) -> Result<u32> {
+        assert!(buffer.len() % 512 == 0, "Must read a multiple of block size number of bytes");
 
-        //TODO: Go back to interrupt magic
-        let use_interrupts = false;
-        loop {
-            let mut request = match self.request_opt.take() {
-                Some(request) => if address == request.address && total_sectors == request.total_sectors {
-                    // Keep servicing current request
-                    request
-                } else {
-                    // Have to wait for another request to finish
-                    self.request_opt = Some(request);
-                    return Ok(None);
-                },
-                None => {
-                    // Create new request
-                    Request {
-                        address,
-                        total_sectors,
-                        sector: 0,
-                        running_opt: None,
-                    }
-                }
-            };
+        let address = &*buffer as *const [u8] as *const () as usize;
+        let total_sectors = buffer.len() / 512;
 
-            // Finish a previously running request
-            if let Some(running) = request.running_opt.take() {
-                if self.port.ata_running(running.0) {
-                    // Continue waiting for request
-                    request.running_opt = Some(running);
-                    self.request_opt = Some(request);
-                    if use_interrupts {
-                        return Ok(None);
-                    } else {
-                        sys_yield();
-                        continue;
-                    }
-                }
+        if let Some(slot) = self.port.a_brand_new_ata_dma(block, total_sectors as u16, write, &mut self.clb, &mut self.ctbas, &*buffer) {
+            // Submitted, create the corresponding Request in self.requests_opt
+            self.requests_opt[slot as usize] = Some(Request {
+                address,
+                total_sectors,
+                sector: 0,
+                buffer: buffer,
+            });
+            Ok(slot)
+        } else {
+            // Error
+            Err(Error::new(EBUSY))
+        }
+    }
 
-                self.port.ata_stop(running.0)?;
+    fn request_poll(&mut self, slot: u32) -> Result<bool> {
+        if let None = self.requests_opt[slot as usize] {
+            return Err(Error::new(EINVAL))
+        }
 
-                request.sector += running.1;
-            }
-
-            if request.sector < request.total_sectors {
-                // Start a new request
-                let sectors = if request.total_sectors - request.sector >= 255 {
-                    255
-                } else {
-                    request.total_sectors - request.sector
-                };
-
-                if let Some(slot) = self.port.ata_dma(block + request.sector as u64, sectors, write, &mut self.clb, &mut self.ctbas, address) {
-                    request.running_opt = Some((slot, sectors));
-                }
-
-                self.request_opt = Some(request);
-
-                if use_interrupts {
-                    return Ok(None);
-                } else {
-                    sys_yield();
-                    continue;
-                }
-            } else {
-                // Done
-                return Ok(Some(request.sector * 512));
-            }
+        if self.port.ata_running(slot) {
+            // Still running
+            Ok(false)
+        } else {
+            // Finished (errored or otherwise)
+            self.port.ata_stop(slot)?;
+            Ok(true)
         }
     }
 }
@@ -184,12 +138,21 @@ impl Disk for DiskATA {
         self.size
     }
 
-    fn read(&mut self, block: u64, buffer: &mut [u8]) -> Result<Option<usize>> {
-        self.request(block, BufferKind::Read(buffer))
+    fn read(&mut self, block: u64, buffer: &mut [u8]) {
+        // Synchronous read
+        if let Ok(slot) = self.request_submit(block, false, unsafe { Box::from_raw(buffer as *mut [u8]) }) {
+            while !self.request_poll(slot).unwrap() {}
+        } else {
+            panic!("You suck");
+        }
     }
 
-    fn write(&mut self, block: u64, buffer: &[u8]) -> Result<Option<usize>> {
-        self.request(block, BufferKind::Write(buffer))
+    fn write(&mut self, block: u64, buffer: &[u8]) {
+        if let Ok(slot) = self.request_submit(block, true, unsafe { Box::from_raw(buffer as *const [u8] as *mut [u8]) }) {
+            while !self.request_poll(slot).unwrap() {}
+        } else {
+            panic!("You suck");
+        }
     }
 
     fn block_length(&mut self) -> Result<u32> {

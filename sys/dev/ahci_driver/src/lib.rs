@@ -33,6 +33,8 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use spin::Once;
 
+use core::iter::Iterator;
+
 use self::ahcid::Disk;
 use self::ahcid::hba::Hba;
 
@@ -79,6 +81,10 @@ impl pci_driver::PciDriver for Ahci {
 
         let mut disks = self::ahcid::disks(bar);
         self.disks = RefCell::new(disks);
+
+        for (i, disk) in self.disks.borrow_mut().iter_mut().enumerate() {
+            println!("Disk {}: {}", i, disk.size());
+        }
 
         println!("probe() finished");
     }
