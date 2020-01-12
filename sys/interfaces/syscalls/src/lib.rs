@@ -47,11 +47,6 @@ pub trait PCI {
 pub trait VFS {
 }
 
-pub enum BDevRequest {
-    Read(u32),
-    Write(u32),
-}
-
 /// RedLeaf block device interface
 pub trait BDev {
     fn read(&self, block: u32, data: &mut [u8; 512]);
@@ -59,10 +54,10 @@ pub trait BDev {
 
     fn read_contig(&self, block: u32, data: &mut [u8]);
 
-    fn submit(&self, request: BDevRequest) -> u64 {
+    fn submit(&self, block: u64, write: bool, buf: Box<[u8]>) -> u64 {
         unimplemented!();
     }
-    fn poll(&self, slot: u64, buf: &mut [u8; 512]) -> bool {
+    fn poll(&self, slot: u64) -> Option<Box<[u8]>> {
         unimplemented!();
     }
 }
@@ -75,7 +70,7 @@ pub trait Net {
 /// RedLeaf Domain interface
 pub trait Domain {
 
-}   
+}
 
 /// Xv6 system calls
 pub trait Xv6 {
