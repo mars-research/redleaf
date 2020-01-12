@@ -7,9 +7,9 @@ main.o: main.cpp
 parser.o: parser.cpp
 	g++ -c -g parser.cpp -o parser.o
 
-main.cpp: parser.h
+main.cpp: parser.h parse_data.h
 
-parser.cpp: grammar.peg
+parser.cpp: grammar.peg parse_data.h
 	cd vembyr-1.1/; python2.7 peg.py ../grammar.peg --cpp > ../parser.cpp; cd ..
 
 parser.h: grammar.peg
