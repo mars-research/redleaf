@@ -132,6 +132,7 @@ impl Disk for DiskATA {
 
         if let Some(slot) = self.port.ata_dma(block, total_sectors as u16, write, &mut self.clb, &mut self.ctbas, &*buffer) {
             // Submitted, create the corresponding Request in self.requests_opt
+            self.port.set_slot_ready(slot, false);
             self.requests_opt[slot as usize] = Some(Request {
                 address,
                 total_sectors,
@@ -157,6 +158,7 @@ impl Disk for DiskATA {
             // Finished (errored or otherwise)
             self.port.ata_stop(slot)?;
             let opt = self.requests_opt[slot as usize].take().unwrap();
+            self.port.set_slot_ready(slot, true);
             Ok(Some(opt.buffer))
         }
     }

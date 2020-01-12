@@ -55,6 +55,7 @@ pub enum HbaPortType {
 pub struct HbaPort {
     hbaarc: Arc<Mutex<Hba>>,
     port: u64,
+    slotReady: [bool; 32],
 }
 
 impl HbaPort {
@@ -62,6 +63,7 @@ impl HbaPort {
         HbaPort {
             hbaarc: hbaarc,
             port: port,
+            slotReady: [true; 32],
         }
     }
 
@@ -82,6 +84,10 @@ impl HbaPort {
         } else {
             HbaPortType::None
         }
+    }
+
+    pub fn set_slot_ready(&mut self, slot: u32, ready: bool) {
+        self.slotReady[slot as usize] = ready;
     }
 
     fn start(&self, hba: &MutexGuard<Hba>) {
@@ -108,8 +114,8 @@ impl HbaPort {
         let slots = hba.bar.read_port_reg(self.port, AhciPortRegs::Sact) | hba.bar.read_port_reg(self.port, AhciPortRegs::Ci);
 
         for i in 0..32 {
-            if slots & 1 << i == 0 {
-                return Some(i);
+            if slots & 1 << i == 0 && self.slotReady[i] {
+                return Some(i as u32);
             }
         }
         None
