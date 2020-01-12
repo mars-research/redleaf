@@ -59,7 +59,7 @@ fn construct_udp_packet() -> Arc<Mutex<UdpPacket>> {
         0xb2, 0x6f, 0x14, 0x51,
         0x00,
         0x1a,
-        0x1b, 0x8f,
+        0x9c, 0xaf,
     ];
 
     let mut payload = [
@@ -89,9 +89,9 @@ pub fn kvstore_init(s: Box<dyn syscalls::Syscall + Send + Sync>, net: Box<dyn sy
     //let buf = [0, 1, 2];
     //net.send(&buf);
     let packet = construct_udp_packet();
-    for i in 0..32 {
-        net.send_udp(packet.clone());
-    }
+    //for i in 0..32 {
+        net.send_udp(packet);
+    //}
 }
 
 // This function is called on panic.

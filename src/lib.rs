@@ -197,6 +197,12 @@ pub extern "C" fn rust_main() -> ! {
     // Init memory allocator (normal allocation should work after this)
     init_allocator(&bootinfo);
 
+    unsafe {
+        // Enable NXE bit (11)
+        use x86::msr::{rdmsr, wrmsr, IA32_EFER};
+        let efer = rdmsr(IA32_EFER) | 1 << 11; 
+        wrmsr(IA32_EFER, efer);
+    }
     // Init page table (code runs on a new page table after this call)
     construct_pt();
 

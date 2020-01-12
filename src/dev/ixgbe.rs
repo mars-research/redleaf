@@ -70,7 +70,9 @@ pub struct IxgbeBar {
     tdh: ArrayRegister,
     tdt: ArrayRegister,
     txdctl: ArrayRegister,
+    dca_txctrl: ArrayRegister,
     txpbsize: ArrayRegister,
+    txpbthresh: ArrayRegister,
     ral: ArrayRegister,
     rah: ArrayRegister,
     eicr: Register,
@@ -129,6 +131,8 @@ impl IxgbeBar {
     const TDT: u64 = 0x06018;
     const TXDCTL: u64 = 0x06028;
     const TXPBSIZE: u64 = 0x0CC00;
+    const TXPBTHRESH: u64 = 0x04950;
+    const DCA_TXCTRL: u64 = 0x07200;
 
     const RAL: u64 = 0x0A200;
     const RAH: u64 = 0x0A204;
@@ -187,6 +191,7 @@ impl IxgbeBar {
             tdh: reg_ixgbe_mult!(TDH, 64, 0x40),
             tdt: reg_ixgbe_mult!(TDT, 64, 0x40),
             txdctl: reg_ixgbe_mult!(TXDCTL, 64, 0x40),
+            dca_txctrl: reg_ixgbe_mult!(DCA_TXCTRL, 128, 0x40),
             txpbsize: reg_ixgbe_mult!(TXPBSIZE, 8, 0x4),
             ral: reg_ixgbe_mult!(RAL, 128, 0x8),
             rah: reg_ixgbe_mult!(RAH, 128, 0x8),
@@ -202,6 +207,7 @@ impl IxgbeBar {
             txdgbch: reg_ixgbe!(TXDGBCH),
             txdgbcl: reg_ixgbe!(TXDGBCL),
             qptc: reg_ixgbe_mult!(QPTC, 16, 0x40),
+            txpbthresh: reg_ixgbe_mult!(TXPBTHRESH, 8, 0x4),
         }
     }
 
@@ -237,41 +243,41 @@ impl IxgbeBar {
             IxgbeRegs::Txdgbcl => { self.txdgbcl.offset },
          }
     }
+
+    #[inline]
+    fn get_array_reg(&self, areg_enum: IxgbeArrayRegs) -> ArrayRegister {
+        match areg_enum {
+            IxgbeArrayRegs::Rdbal => { self.rdbal },
+            IxgbeArrayRegs::Rdbah => { self.rdbah },
+            IxgbeArrayRegs::Rdlen => { self.rdlen },
+            IxgbeArrayRegs::Rdh => { self.rdh },
+            IxgbeArrayRegs::Rdt => { self.rdt },
+            IxgbeArrayRegs::Rxdctl => { self.rxdctl },
+            IxgbeArrayRegs::DcaRxctrl => { self.dca_rxctrl },
+            IxgbeArrayRegs::Srrctl => { self.srrctl },
+            IxgbeArrayRegs::Rxpbsize => { self.rxpbsize },
+            IxgbeArrayRegs::Tdbal => { self.tdbal },
+            IxgbeArrayRegs::Tdbah => { self.tdbah },
+            IxgbeArrayRegs::Tdlen => { self.tdlen },
+            IxgbeArrayRegs::Tdh => { self.tdh },
+            IxgbeArrayRegs::Tdt => { self.tdt },
+            IxgbeArrayRegs::Txdctl => { self.txdctl },
+            IxgbeArrayRegs::DcaTxctrl => { self.dca_txctrl },
+            IxgbeArrayRegs::Txpbsize => { self.txpbsize },
+            IxgbeArrayRegs::TxpbThresh => { self.txpbthresh },
+            IxgbeArrayRegs::Ral => { self.ral },
+            IxgbeArrayRegs::Rah => { self.rah },
+            IxgbeArrayRegs::Ivar => { self.ivar },
+            IxgbeArrayRegs::Eitr => { self.eitr },
+            IxgbeArrayRegs::Qptc => { self.qptc },
+        }
+    }
 }
 
 impl IxgbeBarRegion for IxgbeBar {
     fn read_reg(&self, reg_enum: IxgbeRegs) -> u64 {
-        let offset: u64;
         disable_irq();
-        match reg_enum {
-            IxgbeRegs::Ctrl => { offset = self.ctrl.offset },
-            IxgbeRegs::Status => { offset = self.status.offset },
-            IxgbeRegs::Ctrlext => { offset = self.ctrl_ext.offset },
-            IxgbeRegs::Eec => { offset = self.eec.offset },
-            IxgbeRegs::Autoc => { offset = self.autoc.offset },
-            IxgbeRegs::Gprc => { offset = self.gprc.offset },
-            IxgbeRegs::Gptc => { offset = self.gptc.offset },
-            IxgbeRegs::Gorcl => { offset = self.gorcl.offset },
-            IxgbeRegs::Gorch => { offset = self.gorch.offset },
-            IxgbeRegs::Gotcl => { offset = self.gotcl.offset },
-            IxgbeRegs::Gotch => { offset = self.gotch.offset },
-            IxgbeRegs::Hlreg0 => { offset = self.hlreg0.offset },
-            IxgbeRegs::Links => { offset = self.links.offset },
-            IxgbeRegs::Fctrl => { offset = self.fctrl.offset },
-            IxgbeRegs::Rdrxctl => { offset = self.rdrxctl.offset },
-            IxgbeRegs::Rxctrl => { offset = self.rxctrl.offset },
-            IxgbeRegs::Dtxmxszrq => { offset = self.dtxmxszrq.offset },
-            IxgbeRegs::Dmatxctl => { offset = self.dmatxctl.offset },
-            IxgbeRegs::Rttdcs => { offset = self.rttdcs.offset },
-            IxgbeRegs::Eicr => { offset = self.eicr.offset },
-            IxgbeRegs::Eims => { offset = self.eims.offset },
-            IxgbeRegs::Eimc => { offset = self.eimc.offset },
-            IxgbeRegs::Eiac => { offset = self.eiac.offset },
-            IxgbeRegs::Gpie => { offset = self.gpie.offset },
-            IxgbeRegs::Txdgpc => { offset = self.txdgpc.offset },
-            IxgbeRegs::Txdgbch => { offset = self.txdgbch.offset },
-            IxgbeRegs::Txdgbcl => { offset = self.txdgbcl.offset },
-        } 
+        let offset: u64 = self.get_offset(reg_enum);
         let ret = unsafe {
             ptr::read_volatile((self.base + offset) as *const u64) & 0xFFFF_FFFF as u64
         };
@@ -280,31 +286,8 @@ impl IxgbeBarRegion for IxgbeBar {
     }
 
     fn read_reg_idx(&self, reg_enum: IxgbeArrayRegs, idx: u64) -> u64 {
-        let reg: ArrayRegister;
         disable_irq();
-        match reg_enum {
-            IxgbeArrayRegs::Rdbal => { reg = self.rdbal },
-            IxgbeArrayRegs::Rdbah => { reg = self.rdbah },
-            IxgbeArrayRegs::Rdlen => { reg = self.rdlen },
-            IxgbeArrayRegs::Rdh => { reg = self.rdh },
-            IxgbeArrayRegs::Rdt => { reg = self.rdt },
-            IxgbeArrayRegs::Rxdctl => { reg = self.rxdctl },
-            IxgbeArrayRegs::DcaRxctrl => { reg = self.dca_rxctrl },
-            IxgbeArrayRegs::Srrctl => { reg = self.srrctl },
-            IxgbeArrayRegs::Rxpbsize => { reg = self.rxpbsize },
-            IxgbeArrayRegs::Tdbal => { reg = self.tdbal },
-            IxgbeArrayRegs::Tdbah => { reg = self.tdbah },
-            IxgbeArrayRegs::Tdlen => { reg = self.tdlen },
-            IxgbeArrayRegs::Tdh => { reg = self.tdh },
-            IxgbeArrayRegs::Tdt => { reg = self.tdt },
-            IxgbeArrayRegs::Txdctl => { reg = self.txdctl },
-            IxgbeArrayRegs::Txpbsize => { reg = self.txpbsize },
-            IxgbeArrayRegs::Ral => { reg = self.ral },
-            IxgbeArrayRegs::Rah => { reg = self.rah },
-            IxgbeArrayRegs::Ivar => { reg = self.ivar },
-            IxgbeArrayRegs::Eitr => { reg = self.eitr },
-            IxgbeArrayRegs::Qptc => { reg = self.qptc },
-        }
+        let reg = self.get_array_reg(reg_enum);
 
         if idx >= reg.num_regs {
             return 0;
@@ -317,39 +300,9 @@ impl IxgbeBarRegion for IxgbeBar {
     }
 
     fn write_reg(&self, reg_enum: IxgbeRegs, val: u64) {
-        let offset: u64;
         disable_irq();
-        match reg_enum {
-            IxgbeRegs::Ctrl => { offset = self.ctrl.offset },
-            IxgbeRegs::Status => { offset = self.status.offset },
-            IxgbeRegs::Ctrlext => { offset = self.ctrl_ext.offset },
-            IxgbeRegs::Eec => { offset = self.eec.offset },
-            IxgbeRegs::Autoc => { offset = self.autoc.offset },
-            IxgbeRegs::Gprc => { offset = self.gprc.offset },
-            IxgbeRegs::Gptc => { offset = self.gptc.offset },
-            IxgbeRegs::Gorcl => { offset = self.gorcl.offset },
-            IxgbeRegs::Gorch => { offset = self.gorch.offset },
-            IxgbeRegs::Gotcl => { offset = self.gotcl.offset },
-            IxgbeRegs::Gotch => { offset = self.gotch.offset },
-            IxgbeRegs::Hlreg0 => { offset = self.hlreg0.offset },
-            IxgbeRegs::Links => { offset = self.links.offset },
-            IxgbeRegs::Fctrl => { offset = self.fctrl.offset },
-            IxgbeRegs::Rdrxctl => { offset = self.rdrxctl.offset },
-            IxgbeRegs::Rxctrl => { offset = self.rxctrl.offset },
-            IxgbeRegs::Dtxmxszrq => { offset = self.dtxmxszrq.offset },
-            IxgbeRegs::Dmatxctl => { offset = self.dmatxctl.offset },
-            IxgbeRegs::Rttdcs => { offset = self.rttdcs.offset },
-            IxgbeRegs::Eicr => { offset = self.eicr.offset },
-            IxgbeRegs::Eims => { offset = self.eims.offset },
-            IxgbeRegs::Eimc => { offset = self.eimc.offset },
-            IxgbeRegs::Eiac => { offset = self.eiac.offset },
-            IxgbeRegs::Gpie => { offset = self.gpie.offset },
-            IxgbeRegs::Txdgpc => { offset = self.txdgpc.offset },
-            IxgbeRegs::Txdgbch => { offset = self.txdgbch.offset },
-            IxgbeRegs::Txdgbcl => { offset = self.txdgbcl.offset },
-
-        }
-        println!("Write to {:08x}", self.base + offset);
+        let offset: u64 = self.get_offset(reg_enum);
+        //println!("Write to {:08x}", self.base + offset);
         unsafe {
             ptr::write_volatile((self.base + offset) as *mut u32, val as u32);
         }
@@ -357,31 +310,8 @@ impl IxgbeBarRegion for IxgbeBar {
     }
 
     fn write_reg_idx(&self, reg_enum: IxgbeArrayRegs, idx: u64, val: u64) {
-        let reg: ArrayRegister;
         disable_irq();
-        match reg_enum {
-            IxgbeArrayRegs::Rdbal => { reg = self.rdbal },
-            IxgbeArrayRegs::Rdbah => { reg = self.rdbah },
-            IxgbeArrayRegs::Rdlen => { reg = self.rdlen },
-            IxgbeArrayRegs::Rdh => { reg = self.rdh },
-            IxgbeArrayRegs::Rdt => { reg = self.rdt },
-            IxgbeArrayRegs::Rxdctl => { reg = self.rxdctl },
-            IxgbeArrayRegs::DcaRxctrl => { reg = self.dca_rxctrl },
-            IxgbeArrayRegs::Srrctl => { reg = self.srrctl },
-            IxgbeArrayRegs::Rxpbsize => { reg = self.rxpbsize },
-            IxgbeArrayRegs::Tdbal => { reg = self.tdbal },
-            IxgbeArrayRegs::Tdbah => { reg = self.tdbah },
-            IxgbeArrayRegs::Tdlen => { reg = self.tdlen },
-            IxgbeArrayRegs::Tdh => { reg = self.tdh },
-            IxgbeArrayRegs::Tdt => { reg = self.tdt },
-            IxgbeArrayRegs::Txdctl => { reg = self.txdctl },
-            IxgbeArrayRegs::Txpbsize => { reg = self.txpbsize },
-            IxgbeArrayRegs::Ral => { reg = self.ral },
-            IxgbeArrayRegs::Rah => { reg = self.rah },
-            IxgbeArrayRegs::Ivar => { reg = self.ivar },
-            IxgbeArrayRegs::Eitr => { reg = self.eitr },
-            IxgbeArrayRegs::Qptc => { reg = self.qptc },
-        }
+        let reg = self.get_array_reg(reg_enum);
 
         if idx < reg.num_regs {
             unsafe {

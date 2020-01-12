@@ -47,6 +47,8 @@ qemu_x := -serial file:serial.log
 .PHONY: all
 all: $(bin) checkstack
 
+install: all
+	sudo cp build/kernel.bin /boot
 .PHONY: release
 release: $(releaseKernel)
 

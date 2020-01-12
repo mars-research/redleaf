@@ -102,11 +102,15 @@ impl syscalls::Net for Ixgbe {
             if self.active() {
                 if let Some(mut device) = self.device.borrow_mut().as_mut() {
                     let dev: &mut Intel8259x = device;
-                    if let Ok(Some(opt)) = dev.write(packet.lock().as_slice()) {
-                        opt as u32
-                    } else {
-                        0
+                    let mut ret: u32 = 0;
+                    for i in 0..1000 {
+                        if let Ok(Some(opt)) = dev.write(packet.lock().as_slice()) {
+                            ret = opt as u32;
+                        } else {
+                            ret = 0;
+                        }
                     }
+                    ret
                 } else {
                     0
                 }

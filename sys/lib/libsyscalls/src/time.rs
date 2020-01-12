@@ -32,12 +32,12 @@ pub fn sys_ns_sleep(ns: u64) {
         let left_to_wait_ns = target_ns - current_ns;
 
         if left_to_wait_ns < NS_IN_TIMER_TICK {
-            crate::syscalls::sys_println("sys_ns_sleep: loopsleep");
+            //crate::syscalls::sys_println("sys_ns_sleep: loopsleep");
             loop_sleep(left_to_wait_ns);
             break;
         }
 
-        crate::syscalls::sys_println("sys_ns_sleep: yield");
+        //crate::syscalls::sys_println("sys_ns_sleep: yield");
         crate::syscalls::sys_yield(); 
     }
 }

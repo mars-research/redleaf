@@ -43,6 +43,8 @@ pub enum MapAction {
     ReadWriteExecuteKernel,
     /// Map region read-write-executable for kernel (uncacheable)
     ReadWriteExecuteKernelNoCache,
+    /// Map region read-write for kernel no cache.
+    ReadWriteKernelNoCache,
 }
 
 /// Type of resource we're trying to allocate
@@ -66,11 +68,12 @@ impl MapAction {
             ReadKernel => PDPTFlags::XD,
             ReadWriteUser => PDPTFlags::RW | PDPTFlags::XD | PDPTFlags::US,
             ReadWriteKernel => PDPTFlags::RW | PDPTFlags::XD,
+            ReadWriteKernelNoCache => PDPTFlags::RW | PDPTFlags::XD | PDPTFlags::PCD,
             ReadExecuteUser => PDPTFlags::US,
             ReadExecuteKernel => PDPTFlags::empty(),
             ReadWriteExecuteUser => PDPTFlags::RW | PDPTFlags::US,
             ReadWriteExecuteKernel => PDPTFlags::RW,
-            ReadWriteExecuteKernelNoCache => PDPTFlags::RW | PDPTFlags::PCD,
+            ReadWriteExecuteKernelNoCache => PDPTFlags::RW | PDPTFlags::PCD | PDPTFlags::PWT,
         }
     }
 
@@ -83,11 +86,12 @@ impl MapAction {
             ReadKernel => PDFlags::XD,
             ReadWriteUser => PDFlags::RW | PDFlags::XD | PDFlags::US,
             ReadWriteKernel => PDFlags::RW | PDFlags::XD,
+            ReadWriteKernelNoCache => PDFlags::RW | PDFlags::XD | PDFlags::PCD,
             ReadExecuteUser => PDFlags::US,
             ReadExecuteKernel => PDFlags::empty(),
             ReadWriteExecuteUser => PDFlags::RW | PDFlags::US,
             ReadWriteExecuteKernel => PDFlags::RW,
-            ReadWriteExecuteKernelNoCache => PDFlags::RW | PDFlags::PCD,
+            ReadWriteExecuteKernelNoCache => PDFlags::RW | PDFlags::PCD | PDFlags::PWT ,
         }
     }
 
@@ -100,11 +104,12 @@ impl MapAction {
             ReadKernel => PTFlags::XD,
             ReadWriteUser => PTFlags::RW | PTFlags::XD | PTFlags::US,
             ReadWriteKernel => PTFlags::RW | PTFlags::XD,
+            ReadWriteKernelNoCache => PTFlags::RW | PTFlags::XD | PTFlags::PCD,
             ReadExecuteUser => PTFlags::US,
             ReadExecuteKernel => PTFlags::empty(),
             ReadWriteExecuteUser => PTFlags::RW | PTFlags::US,
             ReadWriteExecuteKernel => PTFlags::RW,
-            ReadWriteExecuteKernelNoCache => PTFlags::RW | PTFlags::PCD,
+            ReadWriteExecuteKernelNoCache => PTFlags::RW | PTFlags::PCD | PTFlags::PWT,
         }
     }
 }
@@ -118,6 +123,7 @@ impl fmt::Display for MapAction {
             ReadKernel => write!(f, "kR--"),
             ReadWriteUser => write!(f, "uRW-"),
             ReadWriteKernel => write!(f, "kRW-"),
+            ReadWriteKernelNoCache => write!(f, "kRW-nC"),
             ReadExecuteUser => write!(f, "uR-X"),
             ReadExecuteKernel => write!(f, "kR-X"),
             ReadWriteExecuteUser => write!(f, "uRWX"),
@@ -190,6 +196,7 @@ impl VSpace {
     /// physical address 0x2000 -- 0x3000.
     pub(crate) fn map_identity(&mut self, base: PAddr, end: PAddr, rights: MapAction) {
         self.map_identity_with_offset(PAddr::from(0x0), base, end, rights);
+        unsafe { x86::tlb::flush_all(); }
     }
 
     /// A pretty generic map function, it puts the physical memory range `pregion` with base and

@@ -6,6 +6,10 @@
 pub const IXGBE_CTRL_LNK_RST: u64               = 0x00000008; /* Link Reset. Resets everything. */
 pub const IXGBE_CTRL_RST: u64                   = 0x04000000; /* Reset (SW) */
 pub const IXGBE_CTRL_RST_MASK: u64              = (IXGBE_CTRL_LNK_RST | IXGBE_CTRL_RST);
+pub const IXGBE_CTRL_PCIE_MASTER_DISABLE: u64              = 1 << 2;
+
+pub const IXGBE_STATUS_PCIE_MASTER_STATUS: u64  = 1 << 19;
+pub const IXGBE_CTRL_EXT_DRV_LOAD: u64          = 1 << 28;
 
 pub const IXGBE_EEC_ARD: u64                    = 0x00000200; /* EEPROM Auto Read Done */
 pub const IXGBE_RDRXCTL_DMAIDONE: u64           = 0x00000008; /* DMA init cycle done */
