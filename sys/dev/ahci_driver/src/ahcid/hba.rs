@@ -85,9 +85,11 @@ impl HbaPort {
     }
 
     fn start(&self, hba: &MutexGuard<Hba>) {
+        /*
         while hba.bar.read_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_CR) {
             sys_yield();
         }
+        */
 
         hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_FRE | HBA_PORT_CMD_ST, true);
     }
@@ -233,49 +235,7 @@ impl HbaPort {
         }
     }
 
-
-    #[deprecated]
-    pub fn ata_dma(&mut self, block: u64, sectors: usize, write: bool, clb: &mut Dma<[HbaCmdHeader; 32]>, ctbas: &mut [Dma<HbaCmdTable>; 32], buf: usize) -> Option<u32> {
-        print!("AHCI {} DMA BLOCK: {:X} SECTORS: {} WRITE: {}\n", self.port, block, sectors, write);
-
-        assert!(sectors > 0 && sectors < 512);
-
-        self.ata_start(clb, ctbas, |cmdheader, cmdfis, prdt_entries, _acmd| {
-            if write {
-                let cfl = cmdheader.cfl.read();
-                cmdheader.cfl.write(cfl | 1 << 7 | 1 << 6)
-            }
-
-            cmdheader.prdtl.write(1);
-
-            let prdt_entry = &mut prdt_entries[0];
-            prdt_entry.dba.write(buf as u64);
-            prdt_entry.dbc.write(((sectors * 512) as u32) | 1);
-
-            cmdfis.pm.write(1 << 7);
-            if write {
-                cmdfis.command.write(ATA_CMD_WRITE_DMA_EXT);
-            } else {
-                cmdfis.command.write(ATA_CMD_READ_DMA_EXT);
-            }
-
-            cmdfis.lba0.write(block as u8);
-            cmdfis.lba1.write((block >> 8) as u8);
-            cmdfis.lba2.write((block >> 16) as u8);
-
-            cmdfis.device.write(1 << 6);
-
-            cmdfis.lba3.write((block >> 24) as u8);
-            cmdfis.lba4.write((block >> 32) as u8);
-            cmdfis.lba5.write((block >> 40) as u8);
-
-            cmdfis.countl.write(sectors as u8);
-            cmdfis.counth.write((sectors >> 8) as u8);
-        })
-    }
-
-
-    pub fn a_brand_new_ata_dma(&mut self, block: u64, sectors: u16, write: bool, clb: &mut Dma<[HbaCmdHeader; 32]>, ctbas: &mut [Dma<HbaCmdTable>; 32], buf: &[u8]) -> Option<u32> {
+    pub fn ata_dma(&mut self, block: u64, sectors: u16, write: bool, clb: &mut Dma<[HbaCmdHeader; 32]>, ctbas: &mut [Dma<HbaCmdTable>; 32], buf: &[u8]) -> Option<u32> {
         println!("AHCI {} DMA BLOCK: {:X} SECTORS: {} WRITE: {}", self.port, block, sectors, write);
         if (sectors > 0xFFFF) {
             println!("Cannot R/W to more than {} sectors at a time", 0xFFFF);

@@ -130,7 +130,7 @@ impl Disk for DiskATA {
         let address = &*buffer as *const [u8] as *const () as usize;
         let total_sectors = buffer.len() / 512;
 
-        if let Some(slot) = self.port.a_brand_new_ata_dma(block, total_sectors as u16, write, &mut self.clb, &mut self.ctbas, &*buffer) {
+        if let Some(slot) = self.port.ata_dma(block, total_sectors as u16, write, &mut self.clb, &mut self.ctbas, &*buffer) {
             // Submitted, create the corresponding Request in self.requests_opt
             self.requests_opt[slot as usize] = Some(Request {
                 address,
