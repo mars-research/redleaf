@@ -3,7 +3,11 @@
 
 extern crate alloc;
 use alloc::boxed::Box;
+use alloc::vec::Vec;
+use crate::errors::Result;
 use spin::MutexGuard;
+
+pub mod errors;
 
 pub trait Syscall {
     fn sys_print(&self, s: &str);
@@ -54,12 +58,8 @@ pub trait BDev {
 
     fn read_contig(&self, block: u32, data: &mut [u8]);
 
-    fn submit(&self, block: u64, write: bool, buf: Box<[u8]>) -> u64 {
-        unimplemented!();
-    }
-    fn poll(&self, slot: u64) -> Option<Box<[u8]>> {
-        unimplemented!();
-    }
+    fn submit(&self, block: u64, write: bool, buf: Box<[u8]>) -> Result<u32>;
+    fn poll(&self, slot: u32) -> Result<Option<Box<[u8]>>>;
 }
 pub type BDevPtr = Box<dyn BDev + Send + Sync>;
 

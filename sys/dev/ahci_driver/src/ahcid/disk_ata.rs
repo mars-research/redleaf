@@ -24,8 +24,8 @@ use core::ptr;
 
 use alloc::boxed::Box;
 
-use libsyscalls::errors::Result;
-use libsyscalls::errors::{Error, EBUSY, EINVAL};
+use syscalls::errors::Result;
+use syscalls::errors::{Error, EBUSY, EINVAL};
 use libsyscalls::syscalls::sys_yield;
 
 use libdma::Dma;
@@ -92,7 +92,39 @@ impl DiskATA {
         })
     }
 
-    fn request_submit(&mut self, block: u64, write: bool, mut buffer: Box<[u8]>) -> Result<u32> {
+}
+
+impl Disk for DiskATA {
+    fn id(&self) -> usize {
+        self.id
+    }
+
+    fn size(&mut self) -> u64 {
+        self.size
+    }
+
+    fn read(&mut self, block: u64, buffer: &mut [u8]) {
+        // Synchronous read
+        if let Ok(slot) = self.submit(block, false, unsafe { Box::from_raw(buffer as *mut [u8]) }) {
+            while let None = self.poll(slot).unwrap() {}
+        } else {
+            panic!("You suck");
+        }
+    }
+
+    fn write(&mut self, block: u64, buffer: &[u8]) {
+        if let Ok(slot) = self.submit(block, true, unsafe { Box::from_raw(buffer as *const [u8] as *mut [u8]) }) {
+            while let None = self.poll(slot).unwrap() {}
+        } else {
+            panic!("You suck");
+        }
+    }
+
+    fn block_length(&mut self) -> Result<u32> {
+        Ok(512)
+    }
+
+    fn submit(&mut self, block: u64, write: bool, mut buffer: Box<[u8]>) -> Result<u32> {
         assert!(buffer.len() % 512 == 0, "Must read a multiple of block size number of bytes");
 
         let address = &*buffer as *const [u8] as *const () as usize;
@@ -113,49 +145,19 @@ impl DiskATA {
         }
     }
 
-    fn request_poll(&mut self, slot: u32) -> Result<bool> {
+    fn poll(&mut self, slot: u32) -> Result<Option<Box<[u8]>>> {
         if let None = self.requests_opt[slot as usize] {
             return Err(Error::new(EINVAL))
         }
 
         if self.port.ata_running(slot) {
             // Still running
-            Ok(false)
+            Ok(None)
         } else {
             // Finished (errored or otherwise)
             self.port.ata_stop(slot)?;
-            Ok(true)
+            let opt = self.requests_opt[slot as usize].take().unwrap();
+            Ok(Some(opt.buffer))
         }
-    }
-}
-
-impl Disk for DiskATA {
-    fn id(&self) -> usize {
-        self.id
-    }
-
-    fn size(&mut self) -> u64 {
-        self.size
-    }
-
-    fn read(&mut self, block: u64, buffer: &mut [u8]) {
-        // Synchronous read
-        if let Ok(slot) = self.request_submit(block, false, unsafe { Box::from_raw(buffer as *mut [u8]) }) {
-            while !self.request_poll(slot).unwrap() {}
-        } else {
-            panic!("You suck");
-        }
-    }
-
-    fn write(&mut self, block: u64, buffer: &[u8]) {
-        if let Ok(slot) = self.request_submit(block, true, unsafe { Box::from_raw(buffer as *const [u8] as *mut [u8]) }) {
-            while !self.request_poll(slot).unwrap() {}
-        } else {
-            panic!("You suck");
-        }
-    }
-
-    fn block_length(&mut self) -> Result<u32> {
-        Ok(512)
     }
 }

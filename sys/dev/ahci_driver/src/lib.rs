@@ -25,6 +25,7 @@ mod ahcid;
 use core::panic::PanicInfo;
 use core::cell::RefCell;
 use syscalls::{Syscall};
+use libsyscalls::errors::Result;
 use libsyscalls::syscalls::{sys_print, sys_alloc, sys_backtrace};
 use console::println;
 use pci_driver::BarRegions;
@@ -111,6 +112,14 @@ impl syscalls::BDev for Ahci {
     }
     fn write(&self, block: u32, data: &[u8; 512]) {
         self.disks.borrow_mut()[DISK_INDEX].write(block as u64, data);
+    }
+
+    fn submit(&self, block: u64, write: bool, buf: Box<[u8]>) -> Result<u32> {
+        self.disks.borrow_mut()[DISK_INDEX].submit(block, write, buf)
+    }
+
+    fn poll(&self, slot: u32) -> Result<Option<Box<[u8]>>> {
+        self.disks.borrow_mut()[DISK_INDEX].poll(slot)
     }
 }
 

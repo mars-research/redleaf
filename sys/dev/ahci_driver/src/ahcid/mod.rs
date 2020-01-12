@@ -25,6 +25,8 @@ pub trait Disk {
     fn read(&mut self, block: u64, buffer: &mut [u8]);
     fn write(&mut self, block: u64, buffer: &[u8]);
     fn block_length(&mut self) -> Result<u32>;
+    fn submit(&mut self, block: u64, write: bool, buffer: Box<[u8]>) -> Result<u32>;
+    fn poll(&mut self, slot: u32) -> Result<Option<Box<[u8]>>>;
 }
 
 pub fn disks(bar: Box<dyn AhciBarRegion>) -> Vec<Box<dyn Disk>> {

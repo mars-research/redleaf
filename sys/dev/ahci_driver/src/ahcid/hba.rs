@@ -12,7 +12,7 @@ use libdma::{Mmio, Dma};
 use libdma::ahci::{HbaPrdtEntry, HbaCmdTable, HbaCmdHeader};
 use libdma::ahci::allocate_dma;
 
-use libsyscalls::errors::{Error, Result, EIO};
+use syscalls::errors::{Error, Result, EIO};
 use libsyscalls::syscalls::sys_yield;
 
 use ahci::{AhciBarRegion, AhciRegs, AhciArrayRegs, AhciPortRegs, AhciPortArrayRegs};

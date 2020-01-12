@@ -27,7 +27,7 @@ use console::println;
 use pci_driver::BarRegions;
 use ixgbe::IxgbeBarRegion;
 use core::mem::MaybeUninit;
-pub use libsyscalls::errors::Result;
+pub use syscalls::errors::Result;
 use crate::device::Intel8259x;
 
 #[derive(Copy, Clone)]
