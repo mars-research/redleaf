@@ -132,12 +132,14 @@ pub fn ahci_init(s: Box<dyn Syscall + Send + Sync>,
     benchmark_ahci(&ahci, 256, 256);
     benchmark_ahci(&ahci, 1024, 1024);
     benchmark_ahci(&ahci, 8192, 8192);
+    benchmark_ahci(&ahci, 32768, 32768);
+    benchmark_ahci(&ahci, 0xFFFF, 0xFFFF);
     ahci
 }
 
 fn benchmark_ahci(bdev: &Box<dyn syscalls::BDev>, blocks_to_read: u32, blocks_per_patch: u32) {
     assert!(blocks_to_read % blocks_per_patch == 0);
-    assert!(blocks_per_patch <= crate::ahcid::disk_ata::MAX_SECTORS_PER_PRDT_ENTRY as u32);
+    assert!(blocks_per_patch <= 0xFFFF);
     let mut buf = alloc::vec![0 as u8; 512 * blocks_per_patch as usize];
 
     let start = libsyscalls::time::get_rdtsc();
