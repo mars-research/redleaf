@@ -29,6 +29,7 @@ pub struct Intel8259x {
     bar: Box<dyn IxgbeBarRegion>,
     //pub handles: BTreeMap<usize, usize>,
     counter: usize,
+    gcounter: usize,
 }
 
 fn wrap_ring(index: usize, ring_size: usize) -> usize {
@@ -61,6 +62,16 @@ impl Intel8259x {
                 Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
                 Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
                 Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
+
+                /*Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
+                Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
+                Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
+                Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
+                Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
+                Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
+                Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
+                Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,*/
+
             ],
             receive_index: 0,
             transmit_ring: Dma::zeroed()?,
@@ -70,6 +81,7 @@ impl Intel8259x {
             next_id: 0,
             bar,
             counter: 0,
+            gcounter: 0,
         };
 
         println!("Calling module.init for ixgbe");
@@ -489,7 +501,7 @@ impl Intel8259x {
                 };
 
                 if (unsafe { desc.wb.status } & IXGBE_ADVTXD_STAT_DD as u32) != 0 {
-                    println!("DD for tx desc {}", self.transmit_clean_index);
+                    //println!("DD for tx desc {}", self.transmit_clean_index);
                     self.transmit_clean_index =
                         wrap_ring(self.transmit_clean_index, self.transmit_ring.len());
                     self.transmit_ring_free += 1;
@@ -517,7 +529,9 @@ impl Intel8259x {
 
         let i = cmp::min(buf.len(), data.len());
         data[..i].copy_from_slice(&buf[..i]);
-
+        data[i-11] = self.gcounter as u8;
+        data[i-10] = b':';
+        data[i-9] = self.counter as u8;
         /*
         println!("{:x?}", data);
         desc.read.buffer_addr = buf as *const _ as *const u64 as u64;
@@ -547,12 +561,17 @@ impl Intel8259x {
         //self.dump_regs();
         //core::mem::forget(buf);
         self.counter += 1;
-        if self.counter == 30 {
-            self.dump_regs();
-            self.counter = 0;
-        }
+        self.gcounter += 1;
+        //if self.counter == 32 {
+        //    self.dump_regs();
+          //  sys_ns_sleep(ONE_MS_IN_NS * 500);
+          //  self.counter = 0;
+            //core::arch::x86::_mm_clflush(desc);
+            //unsafe {
+            //asm!("clflush $0" :: "m"(desc) :);
+            //}
+        //}
 
-        //sys_ns_sleep(ONE_MS_IN_NS * 500);
         Ok(Some(0))
     }
 
