@@ -270,31 +270,6 @@ impl HbaPort {
         })
     }
 
-    /// Send ATAPI packet
-    pub fn atapi_dma(&mut self, cmd: &[u8; 16], size: u32, clb: &mut Dma<[HbaCmdHeader; 32]>, ctbas: &mut [Dma<HbaCmdTable>; 32], buf: &mut Dma<[u8; 256 * 512]>) -> Result<()> {
-        let slot = self.ata_start(clb, ctbas, |cmdheader, cmdfis, prdt_entries, acmd| {
-            let cfl = cmdheader.cfl.read();
-            cmdheader.cfl.write(cfl | 1 << 5);
-
-            cmdheader.prdtl.write(1);
-
-            let prdt_entry = &mut prdt_entries[0];
-            prdt_entry.dba.write(buf.physical() as u64);
-            prdt_entry.dbc.write(size - 1);
-
-            cmdfis.pm.write(1 << 7);
-            cmdfis.command.write(ATA_CMD_PACKET);
-            cmdfis.device.write(0);
-            cmdfis.lba1.write(0);
-            cmdfis.lba2.write(0);
-            cmdfis.featurel.write(1);
-            cmdfis.featureh.write(0);
-
-            unsafe { ptr::write_volatile(acmd.as_mut_ptr() as *mut [u8; 16], *cmd) };
-        }).ok_or(Error::new(EIO))?;
-        self.ata_stop(slot)
-    }
-
     pub fn ata_start<F>(&mut self, clb: &mut Dma<[HbaCmdHeader; 32]>, ctbas: &mut [Dma<HbaCmdTable>; 32], callback: F) -> Option<u32>
               where F: FnOnce(&mut HbaCmdHeader, &mut FisRegH2D, &mut [HbaPrdtEntry; 65536], &mut [Mmio<u8>; 16]) {
         let hba = self.hbaarc.lock();
