@@ -344,14 +344,19 @@ impl HbaPort {
             let bar = &hba.bar;
             // FIXME
             print!(
-                "   - AHCI CAP {:X} GHC {:X} IS {:X} PI {:X} VS {:X} CAP2 {:X} BOHC {:X}",
-                bar.read_reg(AhciRegs::Cap),
-                bar.read_reg(AhciRegs::Ghc),
-                bar.read_reg(AhciRegs::Is),
-                bar.read_reg(AhciRegs::Pi),
-                bar.read_reg(AhciRegs::Vs),
-                bar.read_reg(AhciRegs::Cap2),
-                bar.read_reg(AhciRegs::Bohc)
+                "   - AHCI LOG LOG LOG {:X} {:X} {:X} {:X} {:X} {:X} {:X} {:X} {:X} {:X} {:X} {:X}",
+                bar.read_port_reg(self.port, AhciPortRegs::Is),
+                bar.read_port_reg(self.port, AhciPortRegs::Ie),
+                bar.read_port_reg(self.port, AhciPortRegs::Cmd),
+                bar.read_port_reg(self.port, AhciPortRegs::Rsv0),
+                bar.read_port_reg(self.port, AhciPortRegs::Tfd),
+                bar.read_port_reg(self.port, AhciPortRegs::Ssts),
+                bar.read_port_reg(self.port, AhciPortRegs::Sctl),
+                bar.read_port_reg(self.port, AhciPortRegs::Serr),
+                bar.read_port_reg(self.port, AhciPortRegs::Sact),
+                bar.read_port_reg(self.port, AhciPortRegs::Ci),
+                bar.read_port_reg(self.port, AhciPortRegs::Sntf),
+                bar.read_port_reg(self.port, AhciPortRegs::Fbs),
             );
             
             hba.bar.write_port_reg(self.port, AhciPortRegs::Is, u32::MAX);
