@@ -20,8 +20,8 @@ pub struct Intel8259x {
     receive_buffer: [Dma<[u8; 2048]>; 32],
     receive_ring: Dma<[ixgbe_adv_rx_desc; 32]>,
     receive_index: usize,
-    transmit_buffer: [Dma<[u8; 2048]>; 32],
-    transmit_ring: Dma<[ixgbe_adv_tx_desc; 32]>,
+    transmit_buffer: [Dma<[u8; 2048]>; 64],
+    transmit_ring: Dma<[ixgbe_adv_tx_desc; 64]>,
     transmit_ring_free: usize,
     transmit_index: usize,
     transmit_clean_index: usize,
@@ -63,19 +63,19 @@ impl Intel8259x {
                 Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
                 Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
 
-                /*Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
                 Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
                 Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
                 Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
                 Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
                 Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
                 Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
-                Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,*/
+                Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
+                Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?, Dma::zeroed()?,
 
             ],
             receive_index: 0,
             transmit_ring: Dma::zeroed()?,
-            transmit_ring_free: 32,
+            transmit_ring_free: 64,
             transmit_index: 0,
             transmit_clean_index: 0,
             next_id: 0,
@@ -562,15 +562,15 @@ impl Intel8259x {
         //core::mem::forget(buf);
         self.counter += 1;
         self.gcounter += 1;
-        //if self.counter == 32 {
+        if self.counter == 64 {
         //    self.dump_regs();
-          //  sys_ns_sleep(ONE_MS_IN_NS * 500);
-          //  self.counter = 0;
+            sys_ns_sleep(ONE_MS_IN_NS * 10);
+            self.counter = 0;
             //core::arch::x86::_mm_clflush(desc);
             //unsafe {
             //asm!("clflush $0" :: "m"(desc) :);
             //}
-        //}
+        }
 
         Ok(Some(0))
     }
