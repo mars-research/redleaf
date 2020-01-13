@@ -51,7 +51,7 @@ impl<T> RRef<T> where T: Send {
         }
     }
 
-    pub fn move_to(&mut self, new_domain_id: u64) {
+    pub fn move_to(&self, new_domain_id: u64) {
         // TODO: race here
         unsafe {
             let from_domain = (*self.pointer).domain_id;
@@ -66,6 +66,7 @@ impl<T> Drop for RRef<T> where T: Send {
     fn drop(&mut self) {
         unsafe {
             let layout = Layout::new::<SharedHeapObject<T>>();
+            drop(&mut (*self.pointer).value);
             sys_heap_dealloc((*self.pointer).domain_id, self.pointer as *mut u8, Layout::new::<SharedHeapObject<T>>());
         }
     }
