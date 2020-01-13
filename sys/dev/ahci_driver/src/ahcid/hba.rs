@@ -341,12 +341,19 @@ impl HbaPort {
         self.stop(&hba);
 
         if hba.bar.read_port_reg(self.port, AhciPortRegs::Is) & HBA_PORT_IS_ERR != 0 {
-            /* FIXME
-            print!("ERROR IS {:X} IE {:X} CMD {:X} TFD {:X}\nSSTS {:X} SCTL {:X} SERR {:X} SACT {:X}\nCI {:X} SNTF {:X} FBS {:X}\n",
-                    self.is.read(), self.ie.read(), self.cmd.read(), self.tfd.read(),
-                    self.ssts.read(), self.sctl.read(), self.serr.read(), self.sact.read(),
-                    self.ci.read(), self.sntf.read(), self.fbs.read());
-            */
+            let bar = &hba.bar;
+            // FIXME
+            print!(
+                "   - AHCI CAP {:X} GHC {:X} IS {:X} PI {:X} VS {:X} CAP2 {:X} BOHC {:X}",
+                bar.read_reg(AhciRegs::Cap),
+                bar.read_reg(AhciRegs::Ghc),
+                bar.read_reg(AhciRegs::Is),
+                bar.read_reg(AhciRegs::Pi),
+                bar.read_reg(AhciRegs::Vs),
+                bar.read_reg(AhciRegs::Cap2),
+                bar.read_reg(AhciRegs::Bohc)
+            );
+            
             hba.bar.write_port_reg(self.port, AhciPortRegs::Is, u32::MAX);
             Err(Error::new(EIO))
         } else {

@@ -134,12 +134,12 @@ pub fn ahci_init(s: Box<dyn Syscall + Send + Sync>,
 
     let ahci: Box<dyn syscalls::BDev> = Box::new(ahci);
 
-    benchmark_ahci(&ahci, 256, 1);
-    benchmark_ahci_async(&ahci, 256, 1);
-    benchmark_ahci(&ahci, 8192, 8192);
-    benchmark_ahci_async(&ahci, 8192, 8192);
-    benchmark_ahci(&ahci, 8192 * 128, 8192);
-    benchmark_ahci_async(&ahci, 8192 * 128, 8192);
+    // benchmark_ahci(&ahci, 256, 1);
+    // benchmark_ahci_async(&ahci, 256, 1);
+    // benchmark_ahci(&ahci, 8192, 8192);
+    // benchmark_ahci_async(&ahci, 8192, 8192);
+    // benchmark_ahci(&ahci, 8192 * 128, 8192);
+    // benchmark_ahci_async(&ahci, 8192 * 128, 8192);
     // benchmark_ahci(&ahci, 32768, 32768);
     // benchmark_ahci(&ahci, 0xFFFF * 128, 0xFFFF);
     // benchmark_ahci_async(&ahci, 0xFFFF * 128, 0xFFFF);
