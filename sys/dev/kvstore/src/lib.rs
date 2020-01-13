@@ -90,9 +90,16 @@ pub fn kvstore_init(s: Box<dyn syscalls::Syscall + Send + Sync>, net: Box<dyn sy
     //let buf = [0, 1, 2];
     //net.send(&buf);
     let packet = construct_udp_packet();
-    println!("===> pushing out first batch of 20 million packets");
 
     net.send_udp(packet.clone());
+
+    sys_ns_sleep(1_000_000_000 * 10);
+
+    println!("===> pushing out first batch of 20 million packets");
+
+    for i in 0..20 {
+        net.send_udp(packet.clone());
+    }
 
     println!("===> Done pushing out first batch of 20 million packets");
 
@@ -104,7 +111,9 @@ pub fn kvstore_init(s: Box<dyn syscalls::Syscall + Send + Sync>, net: Box<dyn sy
 
     println!("===> pushing out second batch of 20 million packets");
 
-    net.send_udp(packet.clone());
+    for i in 0..20 {
+        net.send_udp(packet.clone());
+    }
 
     println!("===> Done pushing out second batch of 20 million packets");
 }

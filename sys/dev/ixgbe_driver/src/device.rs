@@ -354,6 +354,10 @@ impl Intel8259x {
         self.wait_for_link();
 
         self.dump_regs();
+
+        // sleep for 10 seconds. Just stabilize the hardware
+        // Well. this ugliness costed us two days of debugging.
+        sys_ns_sleep(ONE_MS_IN_NS * 1000 * 10);
     }
 
     /// Returns the mac address of this device.
