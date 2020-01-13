@@ -111,7 +111,8 @@ impl syscalls::BDev for Ahci {
         self.disks.borrow_mut()[DISK_INDEX].read(block as u64, data);
     }
     fn write(&self, block: u32, data: &[u8; 512]) {
-        self.disks.borrow_mut()[DISK_INDEX].write(block as u64, data);
+        println!("WARNING: BDEV.write is currently disabled");
+        // self.disks.borrow_mut()[DISK_INDEX].write(block as u64, data);
     }
 
     fn submit(&self, block: u64, write: bool, buf: Box<[u8]>) -> Result<u32> {
