@@ -24,20 +24,14 @@ pub fn cpuid() -> u32 {
 }
 
 #[macro_export]
-macro_rules! printcpu {
-    ($($arg:tt)*) => ($crate::console::_print(format_args!($($arg)*)));
-}
-
-
-#[macro_export]
 macro_rules! print {
-    ($($arg:tt)*) => ($crate::printcpu!("cpu({}):{}", crate::console::cpuid(), format_args!($($arg)*)));
+    ($($arg:tt)*) => ($crate::console::_print(format_args!($($arg)*)));
 }
 
 #[macro_export]
 macro_rules! println {
     () => ($crate::print!("\n"));
-    ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
+    ($($arg:tt)*) => ($crate::print!("cpu({}):{}\n", crate::console::cpuid(), format_args!($($arg)*)));
 }
 
 #[doc(hidden)]
