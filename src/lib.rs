@@ -33,6 +33,7 @@ mod interrupt;
 mod entryother;
 mod redsys;
 mod drivers;
+mod heap;
 pub mod gdt;
 
 
@@ -54,7 +55,6 @@ mod waitqueue;
 
 use x86::cpuid::CpuId;
 use crate::arch::{init_buddy};
-use core::alloc::{Layout};
 use crate::memory::{construct_pt, construct_ap_pt};
 use crate::pci::scan_pci_devs;
 use core::ptr;

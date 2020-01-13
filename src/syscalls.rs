@@ -2,13 +2,13 @@ use crate::interrupt::{disable_irq, enable_irq};
 use crate::thread::{do_yield, create_thread};
 use x86::bits64::paging::{PAddr, VAddr};
 use crate::arch::vspace::{VSpace, ResourceType};
-use crate::memory::paddr_to_kernel_vaddr;
+use crate::memory::{paddr_to_kernel_vaddr, MEM_PROVIDER};
 use x86::bits64::paging::BASE_PAGE_SIZE;
 use alloc::boxed::Box; 
 use spin::Mutex;
 use alloc::sync::Arc; 
 use crate::domain::domain::{Domain}; 
-use syscalls::{Thread,PciResource, PciBar};
+use syscalls::{Thread, PciResource, PciBar};
 use crate::round_up;
 
 //use crate::domain::domain::BOOTING_DOMAIN; 
@@ -216,6 +216,16 @@ impl syscalls::CreateXv6Usr for PDomain {
         r
     }
 }
+
+impl syscalls::CreateProxy for PDomain {
+    fn create_domain_proxy(&self, heap: Box<dyn syscalls::Heap>) -> (Box<dyn syscalls::Domain>, Box<dyn syscalls::Proxy>) {
+        disable_irq();
+        let r = crate::domain::create_domain::create_domain_proxy(heap);
+        enable_irq();
+        r
+    }
+}
+
 
 #[derive(Clone)]
 pub struct Interrupt {

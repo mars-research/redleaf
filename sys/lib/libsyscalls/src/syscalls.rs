@@ -2,6 +2,7 @@ extern crate alloc;
 use spin::Once;
 use alloc::boxed::Box;
 use syscalls::{Syscall, Thread, Interrupt};
+use core::alloc::Layout;
 
 static SYSCALL: Once<Box<dyn Syscall + Send + Sync>> = Once::new();
 static INT: Once<Box<dyn Interrupt + Send + Sync>> = Once::new();

@@ -77,6 +77,8 @@ fn test_sleep() {
 #[no_mangle]
 pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
             ints: Box<dyn syscalls::Interrupt + Send + Sync>,
+            heap: Box<dyn syscalls::Heap + Send + Sync>,
+            create_proxy: Box<dyn syscalls::CreateProxy>,
             create_xv6: Box<dyn syscalls::CreateXv6>,
             create_xv6fs: Box<dyn syscalls::CreateXv6FS>,
             create_xv6usr: Box<dyn syscalls::CreateXv6Usr>,
@@ -88,7 +90,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
 
     let ints_clone = ints.int_clone(); 
     libsyscalls::syscalls::init_interrupts(ints);
-    
+
     //let b = Box::new(4);
     //let r = sys_alloc();
     let mut v1: Vec<u64> = Vec::with_capacity(1024);
@@ -130,6 +132,13 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
         drop(t2); 
     }
 
+    println!("about to create proxy");
+    let (dom_proxy, proxy) = create_proxy.create_domain_proxy(heap);
+    println!("created proxy");
+
+    let ptr = proxy.foo();
+    println!("proxy heap ptr: {}", ptr);
+    println!("proxy heap ptr value: {}", unsafe { *(ptr as *mut u64) });
 
     let pci_resource = create_pci.get_pci_resource();
 

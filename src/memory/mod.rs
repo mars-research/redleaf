@@ -352,7 +352,7 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
 }
 
 #[global_allocator]
-static MEM_PROVIDER: SafeZoneAllocator = SafeZoneAllocator::new(&PAGER);
+pub static MEM_PROVIDER: SafeZoneAllocator = SafeZoneAllocator::new(&PAGER);
 
 use crate::arch::vspace::{VSpace, MapAction};
 use x86::controlregs;

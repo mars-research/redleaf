@@ -13,7 +13,12 @@ use spin::Mutex;
 //use alloc::rc::Rc;
 use spin::Once;
 use crate::{round_up, is_page_aligned};
+use core::sync::atomic::{AtomicU64, Ordering};
 
+
+/// This should be a cryptographically secure number, for now
+/// just sequential ID
+static DOMAIN_ID: AtomicU64 = AtomicU64::new(0);
 
 /// Global Domain list
 pub static KERNEL_DOMAIN: Once<Arc<Mutex<Domain>>> = Once::new();
@@ -22,6 +27,7 @@ pub static KERNEL_DOMAIN: Once<Arc<Mutex<Domain>>> = Once::new();
 //pub static BOOTING_DOMAIN: RefCell<Option<Box<PDomain>>> = RefCell::new(None); 
 
 pub struct Domain {
+    pub id: u64,
     pub name: String,
     pub mapping: Vec<(VAddr, usize, u64, MapAction)>,
     /// Offset where ELF is located.
@@ -51,6 +57,7 @@ impl DomainThreads {
 impl Domain {
     pub fn new(name: &str) -> Domain {
         Domain {
+            id: DOMAIN_ID.fetch_add(1, Ordering::SeqCst),
             name: name.to_string(),
             mapping: Vec::with_capacity(64),
             offset: VAddr::from(0usize),
