@@ -22,6 +22,9 @@ use protocol::{UdpPacket, PAYLOAD_SZ};
 use spin::Mutex;
 use alloc::sync::Arc;
 use libsyscalls::time::sys_ns_sleep;
+use x86::time::{rdtsc, rdtscp};
+
+pub const NUM_PACKETS: u64 = 20 * 1_000_000;
 
 fn calc_ipv4_checksum(ipv4_header: &[u8]) -> u16 {
     assert!(ipv4_header.len() % 2 == 0);
@@ -93,29 +96,16 @@ pub fn kvstore_init(s: Box<dyn syscalls::Syscall + Send + Sync>, net: Box<dyn sy
 
     net.send_udp(packet.clone());
 
-    sys_ns_sleep(1_000_000_000 * 10);
+    for t in 1..=5 {
+        let start = unsafe { rdtsc() };
 
-    println!("===> pushing out first batch of 20 million packets");
+        for i in 0..NUM_PACKETS {
+            net.send_udp(packet.clone());
+        }
+        let end = unsafe { rdtscp() };
 
-    for i in 0..20 {
-        net.send_udp(packet.clone());
+        println!("Try {} Sending {} packets took {} cycles", t, NUM_PACKETS, end - start);
     }
-
-    println!("===> Done pushing out first batch of 20 million packets");
-
-    println!("===> Sleeping for 10seconds");
-
-    sys_ns_sleep(1_000_000_000 * 10);
-
-    println!("===> Woken up after sleep of 10seconds");
-
-    println!("===> pushing out second batch of 20 million packets");
-
-    for i in 0..20 {
-        net.send_udp(packet.clone());
-    }
-
-    println!("===> Done pushing out second batch of 20 million packets");
 }
 
 // This function is called on panic.
