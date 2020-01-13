@@ -21,6 +21,7 @@ use console::println;
 use protocol::{UdpPacket, PAYLOAD_SZ};
 use spin::Mutex;
 use alloc::sync::Arc;
+use libsyscalls::time::sys_ns_sleep;
 
 fn calc_ipv4_checksum(ipv4_header: &[u8]) -> u16 {
     assert!(ipv4_header.len() % 2 == 0);
@@ -89,9 +90,23 @@ pub fn kvstore_init(s: Box<dyn syscalls::Syscall + Send + Sync>, net: Box<dyn sy
     //let buf = [0, 1, 2];
     //net.send(&buf);
     let packet = construct_udp_packet();
-    //for i in 0..32 {
-        net.send_udp(packet);
-    //}
+    println!("===> pushing out first batch of 20 million packets");
+
+    net.send_udp(packet.clone());
+
+    println!("===> Done pushing out first batch of 20 million packets");
+
+    println!("===> Sleeping for 10seconds");
+
+    sys_ns_sleep(1_000_000_000 * 10);
+
+    println!("===> Woken up after sleep of 10seconds");
+
+    println!("===> pushing out second batch of 20 million packets");
+
+    net.send_udp(packet.clone());
+
+    println!("===> Done pushing out second batch of 20 million packets");
 }
 
 // This function is called on panic.

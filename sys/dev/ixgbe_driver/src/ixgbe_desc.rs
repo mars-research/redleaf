@@ -27,6 +27,7 @@ pub const IXGBE_RXCTRL_RXEN: u64                = 0x00000001; /* Enable Receiver
 pub const IXGBE_RXPBSIZE_128KB: u64             = 0x00020000; /* 128KB Packet Buffer */
 
 pub const IXGBE_HLREG0_RXCRCSTRP: u64           = 0x00000002; /* bit  1 */
+pub const IXGBE_HLREG0_LPBK: u64           = 1 << 15;
 pub const IXGBE_RDRXCTL_CRCSTRIP: u64           = 0x00000002; /* CRC Strip */
 
 pub const IXGBE_FCTRL_BAM: u64                  = 0x00000400; /* Broadcast Accept Mode */
