@@ -11,6 +11,9 @@ code: {{
     compiler::data global_data;
     std::vector<std::string>& identifiers {global_data.identifiers};
     std::vector<compiler::argument>& arguments {global_data.arguments};
+    std::vector<compiler::function>& free_functions {global_data.free_functions};
+    std::vector<compiler::function>& member_functions {global_data.member_functions};
+    std::vector<compiler::trait>& traits {global_data.traits};
     std::vector<std::size_t>& allowed_types {global_data.allowed_types};
     std::vector<std::size_t>& type_refs {global_data.type_refs};
 
@@ -73,7 +76,15 @@ copy-type(type_ref) = "[" {{
         *type += identifiers.at(narrow<std::size_t>(id.getValue()));
     }}
 
-trait = space* "trait" wspace identifier space* "{" function-list space* "}"
+trait = space* "trait" wspace id:identifier {{
+        compiler::trait t {};
+        t.name = narrow<size_t>(id.getValue());
+        t.fn_list = member_functions.size();
+        traits.push_back(t);
+    }} space* "{" function-list space* "}" {{
+        auto& t = traits.back();
+        t.num_fns = member_functions.size() - t.fn_list;
+    }}
 
 function-list = space* member-function function-list | <void>
 
@@ -81,15 +92,29 @@ free-function = space* accessible-function
 
 accessible-function = "pub" wspace free-function-body | free-function-body
 
-free-function-body = space* "fn" wspace identifier space* "(" arg-list space* ")" space* "->" space* type_ref:{{
+free-function-body = space* "fn" wspace id:identifier {{
+        compiler::function f {};
+        f.name = narrow<size_t>(id.getValue());
+        f.arg_list = arguments.size();
+        free_functions.push_back(f);
+    }} space* "(" arg-list space* ")" space* "->" space* type_ref:{{
         arguments.push_back({intern("_RETURN_TYPE"), ""});
+        auto& f = free_functions.back();
+        f.num_args = arguments.size() - f.arg_list;
         value = reinterpret_cast<void*>(&arguments.back().type);
-    }} arg-type(type_ref) space* ";"
+    }} return-type(type_ref) space* ";"
 
-member-function = space* "fn" wspace identifier space* "(" space* self-arg arg-list-tail space* ")" space* "->" space* type_ref:{{
+member-function = space* "fn" wspace id:identifier {{
+        compiler::function f {};
+        f.name = narrow<size_t>(id.getValue());
+        f.arg_list = arguments.size();
+        member_functions.push_back(f);
+    }} space* "(" space* self-arg arg-list-tail space* ")" space* "->" space* type_ref:{{
         arguments.push_back({intern("_RETURN_TYPE"), ""});
+        auto& f = member_functions.back();
+        f.num_args = arguments.size() - f.arg_list;
         value = reinterpret_cast<void*>(&arguments.back().type);
-    }} arg-type(type_ref) space* ";"
+    }} return-type(type_ref) space* ";"
 
 self-arg = "&" space* mut-marker? "self"
 
@@ -116,6 +141,23 @@ arg-type(type_ref) = "RRef<" space* "dyn" wspace id:identifier space* ">" {{
         *type += ">";
     }}
     | simple-type(type_ref)
+
+return-type(type_ref) = "RRef<" space* "dyn" wspace id:identifier space* ">" {{ 
+        const auto type = (std::string*)(type_ref.getValue());
+        *type += "RRef<dyn " + identifiers.at(narrow<std::size_t>(id.getValue())) + ">";
+    }}
+    | "RRef<" {{ 
+        const auto type = (std::string*)(type_ref.getValue());
+        *type += "RRef<";
+    }} space* copy-type(type_ref) space* ">" {{ 
+        const auto type = (std::string*)(type_ref.getValue());
+        *type += ">";
+    }}
+    | simple-type(type_ref)
+    | "void" {{
+        const auto type = (std::string*)(type_ref.getValue());
+        *type += "void";
+    }}
 
 other = space* "//" any-char* eol
 
