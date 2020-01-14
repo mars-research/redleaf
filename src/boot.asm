@@ -159,6 +159,17 @@ set_up_page_tables:
     or eax, 0b10000011 ; present + writable + huge
     mov [apic_p2_table + 503 * 8 ], eax ; map ecx-th entry
 
+    ; map bigboi_p2_table into p3_table
+    ; we use entry 0b10 or 2 
+    mov eax, bigboi_p2_table
+    or eax, 0b11 ; present + writable
+    mov [p3_table + 2*8 ], eax
+
+    ; map big boi @ 0x10000000 (which is entry b111110111 or 503 into apic_p2_table) 
+    mov eax, 0x10000000 ; address
+    or eax, 0b10000011 ; present + writable + huge
+    mov [bigboi_p2_table + 0 * 8 ], eax ; map ecx-th entry
+
     ret
 
 enable_paging:
@@ -212,6 +223,8 @@ p3_table:
 p2_table:
     resb 4096
 apic_p2_table:
+    resb 4096
+bigboi_p2_table:
     resb 4096
 
 stack_bottom:

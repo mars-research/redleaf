@@ -41,7 +41,7 @@ pub fn init_buddy(bootinfo: &BootInformation) {
 
                 // TODO BAD: We can only add one region to the buddy allocator, so we need
                 // to pick a big one weee
-                if base > KERNEL_START && size > BASE_PAGE_SIZE && size > 49152000 {
+                if base > KERNEL_START && size > BASE_PAGE_SIZE && size > 1073741824 {
                     println!("region.base = {:#x} region.size = {:#x}", base, size);
                     unsafe {
                         let f = Frame::new(PAddr::from(base), size);
