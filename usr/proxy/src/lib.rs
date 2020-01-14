@@ -32,6 +32,9 @@ impl usr::proxy::Proxy for Proxy {
         println!("Created new value");
         rref
     }
+    fn drop_value(&self, value: RRef<[u8; 512]>) {
+        RRef::drop(value);
+    }
 }
 
 impl Proxy {

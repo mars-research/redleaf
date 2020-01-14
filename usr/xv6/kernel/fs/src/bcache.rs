@@ -166,8 +166,11 @@ impl BufferCache {
             let mut guard = buffer.lock();
             if (guard.flags & B_VALID) == 0 {
                 // iderw will set the buffer to valid
-                // Note that this is different from xv6-risvc 
-                sysbdev::sys_read(buffer.block_number(), proxy::proxy_new_value(guard.data));
+                // Note that this is different from xv6-risvc
+                let mut buf = proxy::proxy_new_value(guard.data);
+                sysbdev::sys_read(buffer.block_number(), &mut buf);
+                (*guard).data = *buf;
+                proxy::proxy_drop_value(buf);
             }
             // println!("bread block#{}: {:X?}", block_number, &guard.data[..]);
         }

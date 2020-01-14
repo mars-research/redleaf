@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 use rref::RRef;
 
 pub trait BDev {
-    fn read(&self, block: u32, data: RRef<[u8; 512]>);
+    fn read(&self, block: u32, data: &mut RRef<[u8; 512]>);
     fn write(&self, block: u32, data: &[u8; 512]);
 
     fn read_contig(&self, block: u32, data: &mut [u8]);

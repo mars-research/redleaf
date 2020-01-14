@@ -105,11 +105,8 @@ impl pci_driver::PciDriver for Ahci {
 }
 
 impl usr::bdev::BDev for Ahci {
-    fn read(&self, block: u32, mut data: RRef<[u8; 512]>) {
-        self.disks.borrow_mut()[DISK_INDEX].read(block as u64, &mut *data);
-        println!("about to drop rref");
-        drop(data);
-        println!("dropped rref");
+    fn read(&self, block: u32, data: &mut RRef<[u8; 512]>) {
+        self.disks.borrow_mut()[DISK_INDEX].read(block as u64, &mut **data);
     }
     fn read_contig(&self, block: u32, data: &mut [u8]) {
         self.disks.borrow_mut()[DISK_INDEX].read(block as u64, data);

@@ -19,3 +19,8 @@ pub fn proxy_new_value(value: [u8; 512]) -> RRef<[u8; 512]> {
     let proxy = PROXY.r#try().expect("Proxy interface is not initialized.");
     proxy.new_value(value)
 }
+
+pub fn proxy_drop_value(value: RRef<[u8; 512]>) {
+    let proxy = PROXY.r#try().expect("Proxy interface is not initialized.");
+    proxy.drop_value(value)
+}

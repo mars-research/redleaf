@@ -60,15 +60,19 @@ impl<T> RRef<T> where T: Send {
             (*self.pointer).domain_id = new_domain_id
         };
     }
+
+    pub fn drop(self) {
+        unsafe {
+            drop(&mut (*self.pointer).value);
+            let layout = Layout::new::<SharedHeapObject<T>>();
+            sys_heap_dealloc((*self.pointer).domain_id, self.pointer as *mut u8, Layout::new::<SharedHeapObject<T>>());
+        }
+    }
 }
 
 impl<T> Drop for RRef<T> where T: Send {
     fn drop(&mut self) {
-        unsafe {
-            let layout = Layout::new::<SharedHeapObject<T>>();
-            drop(&mut (*self.pointer).value);
-            sys_heap_dealloc((*self.pointer).domain_id, self.pointer as *mut u8, Layout::new::<SharedHeapObject<T>>());
-        }
+        // overload drop to do nothing - we invoke drop manually due to domain boundaries
     }
 }
 
