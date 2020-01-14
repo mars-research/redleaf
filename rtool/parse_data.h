@@ -17,6 +17,7 @@ namespace compiler {
 
     struct argument {
         std::size_t name;
+        bool is_rref;
         std::string type;
     };
 

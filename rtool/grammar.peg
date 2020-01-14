@@ -62,18 +62,18 @@ copy-field-type = "[" copy-field-type "]"
     }}
 
 copy-type(type_ref) = "[" {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += "[";
+        const auto type = (compiler::argument*)(type_ref.getValue());
+        type->type += "[";
     }} copy-type(type_ref) "]" {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += "]";
+        const auto type = (compiler::argument*)(type_ref.getValue());
+        type->type += "]";
     }}
     | simple-type(type_ref)
     | id:identifier {{
         type_refs.push_back(narrow<std::size_t>(id.getValue()));
     }} {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += identifiers.at(narrow<std::size_t>(id.getValue()));
+        const auto type = (compiler::argument*)(type_ref.getValue());
+        type->type += identifiers.at(narrow<std::size_t>(id.getValue()));
     }}
 
 trait = space* "trait" wspace id:identifier {{
@@ -97,135 +97,125 @@ free-function-body = space* "fn" wspace id:identifier {{
         f.name = narrow<size_t>(id.getValue());
         f.arg_list = arguments.size();
         free_functions.push_back(f);
-    }} space* "(" arg-list space* ")" space* "->" space* type_ref:{{
-        arguments.push_back({intern("<return-value>"), ""});
+    }} space* "(" arg-list space* ")" space* type_ref:{{
+        arguments.push_back({intern("<return-value>"), false, ""});
         auto& f = free_functions.back();
         f.num_args = arguments.size() - f.arg_list;
-        value = reinterpret_cast<void*>(&arguments.back().type);
-    }} return-type(type_ref) space* ";"
+        value = reinterpret_cast<void*>(&arguments.back());
+    }} return-type-expr(type_ref) space* ";"
 
 member-function = space* "fn" wspace id:identifier {{
         compiler::function f {};
         f.name = narrow<size_t>(id.getValue());
         f.arg_list = arguments.size();
         member_functions.push_back(f);
-    }} space* "(" space* self-arg arg-list-tail space* ")" space* "->" space* type_ref:{{
-        arguments.push_back({intern("<return-value>"), ""});
+    }} space* "(" space* self-arg arg-list-tail space* ")" space* type_ref:{{
+        arguments.push_back({intern("<return-value>"), false, ""});
         auto& f = member_functions.back();
         f.num_args = arguments.size() - f.arg_list;
-        value = reinterpret_cast<void*>(&arguments.back().type);
-    }} return-type(type_ref) space* ";"
+        value = reinterpret_cast<void*>(&arguments.back());
+    }} return-type-expr(type_ref) space* ";"
 
-self-arg = "&" space* mut-marker? "self"
+return-type-expr(type_ref) = "->" space* arg-type(type_ref) | {{ 
+        const auto type = (compiler::argument*)(type_ref.getValue());
+        type->type += "void";
+    }}
 
-mut-marker = "mut" wspace
+self-arg = "&" space* "self"
+
+# mut-marker = "mut" wspace
 
 arg-list = space* argument space* arg-list-tail
 
 arg-list-tail = "," arg-list | <void>
 
 argument = id:identifier type_ref:{{
-        arguments.push_back({narrow<std::size_t>(id.getValue()), ""});
-        value = reinterpret_cast<void*>(&arguments.back().type);
+        arguments.push_back({narrow<std::size_t>(id.getValue()), false, ""});
+        value = reinterpret_cast<void*>(&arguments.back());
     }} space* ":" space* arg-type(type_ref)
 
 arg-type(type_ref) = "RRef<" space* "dyn" wspace id:identifier space* ">" {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += "RRef<dyn " + identifiers.at(narrow<std::size_t>(id.getValue())) + ">";
+        auto type = (compiler::argument*)(type_ref.getValue());
+        type->is_rref = true;
+        type->type += "RRef<dyn " + identifiers.at(narrow<std::size_t>(id.getValue())) + ">";
     }}
     | "RRef<" {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += "RRef<";
+        auto type = (compiler::argument*)(type_ref.getValue());
+        type->is_rref = true;
+        type->type += "RRef<";
     }} space* copy-type(type_ref) space* ">" {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += ">";
+        const auto type = (compiler::argument*)(type_ref.getValue());
+        type->type += ">";
     }}
     | simple-type(type_ref)
-
-return-type(type_ref) = "RRef<" space* "dyn" wspace id:identifier space* ">" {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += "RRef<dyn " + identifiers.at(narrow<std::size_t>(id.getValue())) + ">";
-    }}
-    | "RRef<" {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += "RRef<";
-    }} space* copy-type(type_ref) space* ">" {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += ">";
-    }}
-    | simple-type(type_ref)
-    | "void" {{
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += "void";
-    }}
 
 other = space* "//" any-char* eol
 
 eol = "\r\n" | "\n" | <eof>
 
 simple-type(type_ref) = "char" {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += "char";
+        const auto type = (compiler::argument*)(type_ref.getValue());
+        type->type += "char";
     }}
     | "bool" {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += "bool";
+        const auto type = (compiler::argument*)(type_ref.getValue());
+        type->type += "bool";
     }}
     | "f32" {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += "f32";
+        const auto type = (compiler::argument*)(type_ref.getValue());
+        type->type += "f32";
     }}
     | "f64" {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += "f64";
+        const auto type = (compiler::argument*)(type_ref.getValue());
+        type->type += "f64";
     }}
     | "i8" {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += "i8";
+        const auto type = (compiler::argument*)(type_ref.getValue());
+        type->type += "i8";
     }}
     | "i16" {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += "i16";
+        const auto type = (compiler::argument*)(type_ref.getValue());
+        type->type += "i16";
     }}
     | "i32" {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += "i32";
+        const auto type = (compiler::argument*)(type_ref.getValue());
+        type->type += "i32";
     }}
     | "i64" {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += "i64";
+        const auto type = (compiler::argument*)(type_ref.getValue());
+        type->type += "i64";
     }}
     | "i128" {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += "i128";
+        const auto type = (compiler::argument*)(type_ref.getValue());
+        type->type += "i128";
     }}
     | "isize" {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += "isize";
+        const auto type = (compiler::argument*)(type_ref.getValue());
+        type->type += "isize";
     }}
     | "u8" {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += "u8";
+        const auto type = (compiler::argument*)(type_ref.getValue());
+        type->type += "u8";
     }}
     | "u16" {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += "u16";
+        const auto type = (compiler::argument*)(type_ref.getValue());
+        type->type += "u16";
     }}
     | "u32" {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += "u32";
+        const auto type = (compiler::argument*)(type_ref.getValue());
+        type->type += "u32";
     }}
     | "u64" {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += "u64";
+        const auto type = (compiler::argument*)(type_ref.getValue());
+        type->type += "u64";
     }}
     | "u128" {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += "u128";
+        const auto type = (compiler::argument*)(type_ref.getValue());
+        type->type += "u128";
     }}
     | "usize" {{ 
-        const auto type = (std::string*)(type_ref.getValue());
-        *type += "usize";
+        const auto type = (compiler::argument*)(type_ref.getValue());
+        type->type += "usize";
     }}
 
 simple-field-type = "char"
