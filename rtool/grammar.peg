@@ -98,7 +98,7 @@ free-function-body = space* "fn" wspace id:identifier {{
         f.arg_list = arguments.size();
         free_functions.push_back(f);
     }} space* "(" arg-list space* ")" space* "->" space* type_ref:{{
-        arguments.push_back({intern("_RETURN_TYPE"), ""});
+        arguments.push_back({intern("<return-value>"), ""});
         auto& f = free_functions.back();
         f.num_args = arguments.size() - f.arg_list;
         value = reinterpret_cast<void*>(&arguments.back().type);
@@ -110,7 +110,7 @@ member-function = space* "fn" wspace id:identifier {{
         f.arg_list = arguments.size();
         member_functions.push_back(f);
     }} space* "(" space* self-arg arg-list-tail space* ")" space* "->" space* type_ref:{{
-        arguments.push_back({intern("_RETURN_TYPE"), ""});
+        arguments.push_back({intern("<return-value>"), ""});
         auto& f = member_functions.back();
         f.num_args = arguments.size() - f.arg_list;
         value = reinterpret_cast<void*>(&arguments.back().type);

@@ -27,7 +27,6 @@ namespace compiler {
         std::vector<function> member_functions;
         std::vector<trait> traits;
         std::vector<std::size_t> allowed_types;
-        std::vector<std::size_t> type_refs;        
-        std::vector<std::size_t> init_signature;
+        std::vector<std::size_t> type_refs;
     };
 }
