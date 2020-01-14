@@ -34,6 +34,7 @@ mod entryother;
 mod redsys;
 mod drivers;
 mod heap;
+mod buildinfo;
 pub mod gdt;
 
 
@@ -175,6 +176,8 @@ pub extern "C" fn rust_main() -> ! {
         Some(vendor) => println!("RedLeaf booting (CPU model: {})", vendor.as_string()),
         None => println!("RedLeaf booting on (CPU model: unknown)"),
     }
+
+    println!("Version: {}", buildinfo::BUILD_VERSION);
 
     let featureInfo = CpuId::new().get_feature_info()
         .expect("CPUID unavailable");

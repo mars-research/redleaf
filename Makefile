@@ -132,6 +132,7 @@ init:
 
 .PHONY: kernel
 kernel:
+	cat src/buildinfo.template | BUILD_VERSION=$$(date) envsubst > src/buildinfo.rs
 	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo xbuild ${CARGO_FLAGS} --target x86_64-redleaf.json $(FEATURES)
 
 
