@@ -1,7 +1,7 @@
 use byteorder::{ByteOrder, LittleEndian};
-use libsyscalls::sysbdev;
+use libusr::sysbdev;
 use spin::Once;
-use syscalls::BDevPtr;
+use usr::bdev::BDevPtr;
 
 use crate::params;
 use crate::log::{Log, LOG};

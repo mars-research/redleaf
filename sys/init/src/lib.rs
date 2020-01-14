@@ -68,8 +68,8 @@ fn test_sleep() {
 // AB: XXX: The following is is not supported in Rust at the moment
 //
 //pub fn init(s: Box<dyn syscalls::Syscall 
-//                    + syscalls::CreateXv6 + syscalls::CreateXv6FS /* + CreateXv6User */
-//                    + syscalls::CreatePCI + syscalls::CreateAHCI + Send + Sync>) 
+//                    + create::CreateXv6 + create::CreateXv6FS /* + CreateXv6User */
+//                    + create::CreatePCI + create::CreateAHCI + Send + Sync>) 
 // See
 //   rustc --explain E0225
 //
@@ -78,13 +78,13 @@ fn test_sleep() {
 pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
             ints: Box<dyn syscalls::Interrupt + Send + Sync>,
             heap: Box<dyn syscalls::Heap + Send + Sync>,
-            create_proxy: Box<dyn syscalls::CreateProxy>,
-            create_xv6: Box<dyn syscalls::CreateXv6>,
-            create_xv6fs: Box<dyn syscalls::CreateXv6FS>,
-            create_xv6usr: Box<dyn syscalls::CreateXv6Usr>,
-            create_pci: Box<dyn syscalls::CreatePCI>,
-            create_ixgbe: Box<dyn syscalls::CreateIxgbe>,
-            create_ahci: Box<dyn syscalls::CreateAHCI>) 
+            create_proxy: Box<dyn create::CreateProxy>,
+            create_xv6: Box<dyn create::CreateXv6>,
+            create_xv6fs: Box<dyn create::CreateXv6FS>,
+            create_xv6usr: Box<dyn create::CreateXv6Usr>,
+            create_pci: Box<dyn create::CreatePCI>,
+            create_ixgbe: Box<dyn create::CreateIxgbe>,
+            create_ahci: Box<dyn create::CreateAHCI>) 
 {
     libsyscalls::syscalls::init(s);
 

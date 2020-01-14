@@ -3,7 +3,7 @@
 use core::mem::size_of;
 use byteorder::{ByteOrder, LittleEndian};
 use spin::Once;
-use syscalls::BDevPtr;
+use usr::bdev::BDevPtr;
 
 use crate::fs::SuperBlock;
 use crate::params;

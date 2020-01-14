@@ -1,6 +1,7 @@
 use elfloader::ElfBinary;
 use super::Domain;
-use syscalls::{Syscall, BDev, Heap, PCI, VFS, PciResource, Net, PciBar, Proxy};
+use syscalls::{Syscall, Heap, PCI, PciResource, Net, PciBar};
+use usr::{bdev::BDev, vfs::VFS, proxy::Proxy};
 use crate::syscalls::{PDomain, Interrupt};
 use core::mem::transmute;
 use crate::interrupt::{disable_irq, enable_irq};
@@ -75,8 +76,8 @@ pub fn create_domain_ixgbe(pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box
 }
 
 pub fn create_domain_xv6kernel(ints: Box<dyn syscalls::Interrupt>,
-                               create_xv6fs: Box<dyn syscalls::CreateXv6FS>,
-                               create_xv6usr: Box<dyn syscalls::CreateXv6Usr>,
+                               create_xv6fs: Box<dyn create::CreateXv6FS>,
+                               create_xv6usr: Box<dyn create::CreateXv6Usr>,
                                bdev: Box<dyn BDev>) -> Box<dyn syscalls::Domain> {
     extern "C" {
         fn _binary_usr_xv6_kernel_core_build_xv6kernel_start();
@@ -110,7 +111,7 @@ pub fn create_domain_xv6fs(bdev: Box<dyn BDev>) ->(Box<dyn syscalls::Domain>, Bo
 // AB: We have to split ukern syscalls into some that are
 // accessible to xv6 user, e.g., memory management, and the rest 
 // which is hidden, e.g., create_thread, etc.
-pub fn create_domain_xv6usr(name: &str, xv6: Box<dyn syscalls::Xv6>) -> Box<dyn syscalls::Domain> {
+pub fn create_domain_xv6usr(name: &str, xv6: Box<dyn usr::xv6::Xv6>) -> Box<dyn syscalls::Domain> {
 
     let binary_range = match name {
         "shell" => {
@@ -133,7 +134,7 @@ pub fn create_domain_xv6usr(name: &str, xv6: Box<dyn syscalls::Xv6>) -> Box<dyn 
     build_domain_xv6usr(name, binary_range, xv6)
 }
 
-pub fn create_domain_proxy(heap: Box<dyn Heap>) -> (Box<dyn syscalls::Domain>, Box<dyn syscalls::Proxy>) {
+pub fn create_domain_proxy(heap: Box<dyn Heap>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::proxy::Proxy>) {
     extern "C" {
         fn _binary_usr_proxy_build_proxy_start();
         fn _binary_usr_proxy_build_proxy_end();
@@ -150,8 +151,8 @@ pub fn create_domain_proxy(heap: Box<dyn Heap>) -> (Box<dyn syscalls::Domain>, B
 // AB: XXX: The following is is not supported in Rust at the moment
 //
 //pub fn init(s: Box<dyn syscalls::Syscall 
-//                    + syscalls::CreateXv6 + syscalls::CreateXv6FS /* + CreateXv6User */
-//                    + syscalls::CreatePCI + syscalls::CreateAHCI + Send + Sync>) 
+//                    + create::CreateXv6 + create::CreateXv6FS /* + CreateXv6User */
+//                    + create::CreatePCI + create::CreateAHCI + Send + Sync>)
 // See
 //   rustc --explain E0225
 //
@@ -164,13 +165,13 @@ pub fn build_domain_init(name: &str,
     type UserInit = fn(Box<dyn syscalls::Syscall>, 
                          Box<dyn syscalls::Interrupt>,
                          Box<dyn syscalls::Heap>,
-                         Box<dyn syscalls::CreateProxy>,
-                         Box<dyn syscalls::CreateXv6>,
-                         Box<dyn syscalls::CreateXv6FS>,
-                         Box<dyn syscalls::CreateXv6Usr>,
-                         Box<dyn syscalls::CreatePCI>,
-                         Box<dyn syscalls::CreateIxgbe>,
-                         Box<dyn syscalls::CreateAHCI>);
+                         Box<dyn create::CreateProxy>,
+                         Box<dyn create::CreateXv6>,
+                         Box<dyn create::CreateXv6FS>,
+                         Box<dyn create::CreateXv6Usr>,
+                         Box<dyn create::CreatePCI>,
+                         Box<dyn create::CreateIxgbe>,
+                         Box<dyn create::CreateAHCI>);
 
     let (dom, entry) = unsafe { 
         load_domain(name, binary_range)
@@ -330,14 +331,14 @@ pub fn build_domain_proxy(name: &str,
 pub fn build_domain_xv6kernel(name: &str, 
                                  binary_range: (*const u8, *const u8),
                                  ints: Box<dyn syscalls::Interrupt>,
-                                 create_xv6fs: Box<dyn syscalls::CreateXv6FS>,
-                                 create_xv6usr: Box<dyn syscalls::CreateXv6Usr>,
+                                 create_xv6fs: Box<dyn create::CreateXv6FS>,
+                                 create_xv6usr: Box<dyn create::CreateXv6Usr>,
                                  bdev: Box<dyn BDev>) -> Box<dyn syscalls::Domain> 
 {
     type UserInit = fn(Box<dyn Syscall>,
                        Box<dyn syscalls::Interrupt>,
-                       Box<dyn syscalls::CreateXv6FS>,
-                       Box<dyn syscalls::CreateXv6Usr>,
+                       Box<dyn create::CreateXv6FS>,
+                       Box<dyn create::CreateXv6Usr>,
                        Box<dyn BDev>);
     
     let (dom, entry) = unsafe {
@@ -361,9 +362,9 @@ pub fn build_domain_xv6kernel(name: &str,
 
 pub fn build_domain_xv6usr(name: &str, 
                                  binary_range: (*const u8, *const u8), 
-                                 xv6: Box<dyn syscalls::Xv6>) -> Box<dyn syscalls::Domain> 
+                                 xv6: Box<dyn usr::xv6::Xv6>) -> Box<dyn syscalls::Domain>
 {
-    type UserInit = fn(Box<dyn Syscall>, Box<dyn syscalls::Xv6>);
+    type UserInit = fn(Box<dyn Syscall>, Box<dyn usr::xv6::Xv6>);
     
     let (dom, entry) = unsafe { 
         load_domain(name, binary_range)

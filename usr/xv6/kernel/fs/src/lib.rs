@@ -52,13 +52,13 @@ impl VFS {
     }
 }
 
-impl syscalls::VFS for VFS {}
+impl usr::vfs::VFS for VFS {}
 
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>, bdev: syscalls::BDevPtr) -> Box<dyn syscalls::VFS> {
+pub fn init(s: Box<dyn Syscall + Send + Sync>, bdev: usr::bdev::BDevPtr) -> Box<dyn usr::vfs::VFS> {
     libsyscalls::syscalls::init(s);
-    libsyscalls::sysbdev::init(bdev);
+    libusr::sysbdev::init(bdev);
 
     println!("init xv6 filesystem");
     fs::fsinit(0);

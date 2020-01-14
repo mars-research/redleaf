@@ -103,7 +103,7 @@ impl pci_driver::PciDriver for Ahci {
     }
 }
 
-impl syscalls::BDev for Ahci {
+impl usr::bdev::BDev for Ahci {
     fn read(&self, block: u32, data: &mut [u8; 512]) {
         self.disks.borrow_mut()[DISK_INDEX].read(block as u64, data);
     }
@@ -127,13 +127,13 @@ impl syscalls::BDev for Ahci {
 
 #[no_mangle]
 pub fn ahci_init(s: Box<dyn Syscall + Send + Sync>,
-                 pci: Box<dyn syscalls::PCI>) -> Box<dyn syscalls::BDev> {
+                 pci: Box<dyn syscalls::PCI>) -> Box<dyn usr::bdev::BDev> {
     libsyscalls::syscalls::init(s);
 
     let mut ahci = Ahci::new();
     pci.pci_register_driver(&mut ahci, 5);
 
-    let ahci: Box<dyn syscalls::BDev> = Box::new(ahci);
+    let ahci: Box<dyn usr::bdev::BDev> = Box::new(ahci);
 
     // benchmark_ahci(&ahci, 256, 1);
     // benchmark_ahci_async(&ahci, 256, 1);
@@ -147,7 +147,7 @@ pub fn ahci_init(s: Box<dyn Syscall + Send + Sync>,
     ahci
 }
 
-fn benchmark_ahci(bdev: &Box<dyn syscalls::BDev>, blocks_to_read: u32, blocks_per_patch: u32) {
+fn benchmark_ahci(bdev: &Box<dyn usr::bdev::BDev>, blocks_to_read: u32, blocks_per_patch: u32) {
     assert!(blocks_to_read % blocks_per_patch == 0);
     assert!(blocks_per_patch <= 0xFFFF);
     let mut buf = alloc::vec![0 as u8; 512 * blocks_per_patch as usize];
@@ -160,7 +160,7 @@ fn benchmark_ahci(bdev: &Box<dyn syscalls::BDev>, blocks_to_read: u32, blocks_pe
     println!("AHCI benchmark: reading {} blocks, {} blocks at a time, takes {} cycles", blocks_to_read, blocks_per_patch, end - start);
 }
 
-fn benchmark_ahci_async(bdev: &Box<dyn syscalls::BDev>, blocks_to_read: u32, blocks_per_patch: u32) {
+fn benchmark_ahci_async(bdev: &Box<dyn usr::bdev::BDev>, blocks_to_read: u32, blocks_per_patch: u32) {
     println!("starting bencharl async {}", blocks_to_read);
 
     assert!(blocks_to_read % blocks_per_patch == 0);

@@ -7,7 +7,7 @@ use crate::params::{NBUF, BSIZE};
 use alloc::sync::Arc;
 use console::println;
 use core::ops::Deref;
-use libsyscalls::sysbdev;
+use libusr::sysbdev;
 use spin::{Mutex};
 use utils::list2;
 

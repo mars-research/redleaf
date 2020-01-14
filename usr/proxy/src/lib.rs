@@ -19,11 +19,15 @@ impl Proxy {
     }
 }
 
-impl syscalls::Proxy for Proxy {
+impl usr::proxy::Proxy for Proxy {
     fn foo(&self) -> usize {
         let ptr = libsyscalls::heap::sys_heap_alloc(10, Layout::new::<u64>());
         unsafe { *(ptr as *mut u64) = 0xf00; } // 3840
         return ptr as usize;
+    }
+    fn new_value(&self, value: usize) -> RRef<usize> {
+        // TODO: get domain id
+        RRef::new(0, value)
     }
 }
 
@@ -36,7 +40,7 @@ impl Proxy {
 
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>,
-            heap: Box<dyn syscalls::Heap + Send + Sync>) -> Box<dyn syscalls::Proxy + Send + Sync> {
+            heap: Box<dyn syscalls::Heap + Send + Sync>) -> Box<dyn usr::proxy::Proxy + Send + Sync> {
     libsyscalls::syscalls::init(s);
     libsyscalls::heap::init(heap);
 

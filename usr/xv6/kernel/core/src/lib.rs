@@ -30,7 +30,7 @@ impl Xv6Syscalls {
     }
 }
 
-impl syscalls::Xv6 for Xv6Syscalls {}
+impl usr::xv6::Xv6 for Xv6Syscalls {}
 
 extern fn xv6_kernel_test_th() {
    loop {
@@ -96,9 +96,9 @@ fn test_sleeplock() {
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>,
             ints: Box<dyn syscalls::Interrupt + Send + Sync>,
-            create_xv6fs: Box<dyn syscalls::CreateXv6FS>,
-            create_xv6usr: Box<dyn syscalls::CreateXv6Usr>,
-            bdev: Box<dyn syscalls::BDev>) 
+            create_xv6fs: Box<dyn create::CreateXv6FS>,
+            create_xv6usr: Box<dyn create::CreateXv6Usr>,
+            bdev: Box<dyn usr::bdev::BDev>)
 {
    
     libsyscalls::syscalls::init(s);

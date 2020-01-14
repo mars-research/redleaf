@@ -16,8 +16,9 @@ extern crate malloc;
 extern crate alloc;
 
 use core::panic::PanicInfo;
-use syscalls::{Syscall, Xv6};
+use syscalls::Syscall;
 use libsyscalls::syscalls::{sys_println, sys_alloc};
+use usr::xv6::Xv6;
 use console::println;
 use alloc::boxed::Box;
 
