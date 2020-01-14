@@ -165,7 +165,8 @@ impl create::CreatePCI for PDomain {
 }
 
 impl create::CreateAHCI for PDomain {
-    fn create_domain_ahci(&self, pci: Box<dyn syscalls::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev>) {
+    fn create_domain_ahci(&self,
+                          pci: Box<dyn syscalls::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev>) {
         disable_irq();
         let r = crate::domain::create_domain::create_domain_ahci(pci);
         enable_irq();
@@ -187,11 +188,13 @@ impl create::CreateXv6 for PDomain {
                                 ints: Box<dyn syscalls::Interrupt>,
                                 create_xv6fs: Box<dyn create::CreateXv6FS>,
                                 create_xv6usr: Box<dyn create::CreateXv6Usr>,
+                                proxy: Box<dyn usr::proxy::Proxy>,
                                 bdev: Box<dyn usr::bdev::BDev>) -> Box<dyn syscalls::Domain> {
         disable_irq();
         let r = crate::domain::create_domain::create_domain_xv6kernel(ints, 
                         create_xv6fs, 
-                        create_xv6usr, 
+                        create_xv6usr,
+                        proxy,
                         bdev);
         enable_irq();
         r
@@ -199,9 +202,11 @@ impl create::CreateXv6 for PDomain {
 }   
 
 impl create::CreateXv6FS for PDomain {
-    fn create_domain_xv6fs(&self, bdev: Box<dyn usr::bdev::BDev>) ->(Box<dyn syscalls::Domain>, Box<dyn usr::vfs::VFS>) {
+    fn create_domain_xv6fs(&self,
+                           proxy: Box<dyn usr::proxy::Proxy>,
+                           bdev: Box<dyn usr::bdev::BDev>) ->(Box<dyn syscalls::Domain>, Box<dyn usr::vfs::VFS>) {
         disable_irq();
-        let r = crate::domain::create_domain::create_domain_xv6fs(bdev);
+        let r = crate::domain::create_domain::create_domain_xv6fs(proxy, bdev);
         enable_irq();
         r
     }

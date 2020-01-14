@@ -25,7 +25,7 @@ pub trait CreateIxgbe {
 }
 
 pub trait CreateXv6FS {
-    fn create_domain_xv6fs(&self, bdev: Box<dyn BDev>) ->(Box<dyn Domain>, Box<dyn VFS>);
+    fn create_domain_xv6fs(&self, proxy: Box<dyn Proxy>, bdev: Box<dyn BDev>) ->(Box<dyn Domain>, Box<dyn VFS>);
 }
 
 pub trait CreateXv6Usr {
@@ -37,5 +37,6 @@ pub trait CreateXv6 {
                                ints: Box<dyn Interrupt>,
                                create_xv6fs: Box<dyn CreateXv6FS>,
                                create_xv6usr: Box<dyn CreateXv6Usr>,
+                               proxy: Box<dyn Proxy>,
                                bdev: Box<dyn BDev>) -> Box<dyn Domain>;
 }

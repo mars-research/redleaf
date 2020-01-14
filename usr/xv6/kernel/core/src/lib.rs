@@ -98,6 +98,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
             ints: Box<dyn syscalls::Interrupt + Send + Sync>,
             create_xv6fs: Box<dyn create::CreateXv6FS>,
             create_xv6usr: Box<dyn create::CreateXv6Usr>,
+            proxy: Box<dyn usr::proxy::Proxy>,
             bdev: Box<dyn usr::bdev::BDev>)
 {
    
@@ -115,7 +116,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
     #[cfg(feature = "test_sleeplock")]
     test_sleeplock();
 
-    let (dom_xv6fs, vfs)  = create_xv6fs.create_domain_xv6fs(bdev);
+    let (dom_xv6fs, vfs)  = create_xv6fs.create_domain_xv6fs(proxy, bdev);
     
     let xv6 = Box::new(Xv6Syscalls::new()); 
 

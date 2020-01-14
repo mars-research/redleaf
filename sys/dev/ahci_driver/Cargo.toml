@@ -18,9 +18,11 @@ x86 = "0.19.0"
 syscalls = { path = "../../../sys/interfaces/syscalls", version = "0.1.0" }
 usr = { path = "../../../sys/interfaces/usr", version = "0.1.0" }
 libsyscalls = { path = "../../../sys/lib/libsyscalls", version = "0.1.0" }
+libusr = { path = "../../../sys/lib/libusr", version = "0.1.0" }
 console = { path = "../../../sys/lib/console", version = "0.1.0" }
 malloc = { path = "../../../sys/lib/malloc", version = "0.1.0" }
 libdma = { path = "../../../sys/lib/libdma", version = "0.1.0" }
+rref = { path = "../../../sys/lib/rref", version = "0.1.0" }
 spin = "0.5.2"
 bitflags = "1.0.4"
 byteorder = { version = "1.2", default-features = false }

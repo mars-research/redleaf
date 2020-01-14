@@ -152,7 +152,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
 
     let (dom_ixgbe, net) = create_ixgbe.create_domain_ixgbe(pci2);
 
-    let dom_xv6 = create_xv6.create_domain_xv6kernel(ints_clone, create_xv6fs, create_xv6usr, bdev); 
+    let dom_xv6 = create_xv6.create_domain_xv6kernel(ints_clone, create_xv6fs, create_xv6usr, proxy, bdev);
 
 }
 

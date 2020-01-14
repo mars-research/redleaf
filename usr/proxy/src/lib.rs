@@ -25,9 +25,12 @@ impl usr::proxy::Proxy for Proxy {
         unsafe { *(ptr as *mut u64) = 0xf00; } // 3840
         return ptr as usize;
     }
-    fn new_value(&self, value: usize) -> RRef<usize> {
+    fn new_value(&self, value: [u8; 512]) -> RRef<[u8; 512]> {
+        println!("Called Proxy::new_value");
         // TODO: get domain id
-        RRef::new(0, value)
+        let rref = RRef::new(0, value);
+        println!("Created new value");
+        rref
     }
 }
 
