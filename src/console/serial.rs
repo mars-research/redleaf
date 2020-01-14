@@ -76,7 +76,10 @@ impl Write for SerialPort {
 
 use spin::Mutex;
 
-pub static mut EMERGENCY_SERIAL1: SerialPort = SerialPort::new(0x3F8);
+#[cfg(feature = "cloudlab")]
+pub static mut EMERGENCY_SERIAL1: SerialPort = SerialPort::new(COM2_PORT);
+#[cfg(not(feature = "cloudlab"))]
+pub static mut EMERGENCY_SERIAL1: SerialPort = SerialPort::new(COM1_PORT);
 
 lazy_static! {
     pub static ref SERIAL1: Mutex<SerialPort> = {
