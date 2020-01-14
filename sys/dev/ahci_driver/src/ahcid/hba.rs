@@ -341,23 +341,8 @@ impl HbaPort {
         self.stop(&hba);
 
         if hba.bar.read_port_reg(self.port, AhciPortRegs::Is) & HBA_PORT_IS_ERR != 0 {
-            let bar = &hba.bar;
             // FIXME
-            print!(
-                "   - AHCI LOG LOG LOG {:X} {:X} {:X} {:X} {:X} {:X} {:X} {:X} {:X} {:X} {:X} {:X}",
-                bar.read_port_reg(self.port, AhciPortRegs::Is),
-                bar.read_port_reg(self.port, AhciPortRegs::Ie),
-                bar.read_port_reg(self.port, AhciPortRegs::Cmd),
-                bar.read_port_reg(self.port, AhciPortRegs::Rsv0),
-                bar.read_port_reg(self.port, AhciPortRegs::Tfd),
-                bar.read_port_reg(self.port, AhciPortRegs::Ssts),
-                bar.read_port_reg(self.port, AhciPortRegs::Sctl),
-                bar.read_port_reg(self.port, AhciPortRegs::Serr),
-                bar.read_port_reg(self.port, AhciPortRegs::Sact),
-                bar.read_port_reg(self.port, AhciPortRegs::Ci),
-                bar.read_port_reg(self.port, AhciPortRegs::Sntf),
-                bar.read_port_reg(self.port, AhciPortRegs::Fbs),
-            );
+            hba_port_dump(self.port, &hba.bar);
             
             hba.bar.write_port_reg(self.port, AhciPortRegs::Is, u32::MAX);
             Err(Error::new(EIO))
@@ -391,4 +376,37 @@ impl Hba {
     pub fn get_bar_ref(&self) -> &dyn AhciBarRegion {
         &*self.bar
     }
+}
+
+fn hba_port_dump(port: u64, bar: &Box<dyn AhciBarRegion>) {
+    print!(
+        "
+        Is:{:08X}
+        Ie:{:08X}
+        Cmd:{:08X}
+        Rsv0:{:08X}
+        Tfd:{:08X}
+        Sig:{:08X}
+        Ssts:{:08X}
+        Sctl:{:08X}
+        Serr:{:08X}
+        Sact:{:08X}
+        Ci:{:08X}
+        Sntf:{:08X}
+        Fbs:{:08X}
+        ",
+        bar.read_port_reg(port, AhciPortRegs::Is),
+        bar.read_port_reg(port, AhciPortRegs::Ie),
+        bar.read_port_reg(port, AhciPortRegs::Cmd),
+        bar.read_port_reg(port, AhciPortRegs::Rsv0),
+        bar.read_port_reg(port, AhciPortRegs::Tfd),
+        bar.read_port_reg(port, AhciPortRegs::Sig),
+        bar.read_port_reg(port, AhciPortRegs::Ssts),
+        bar.read_port_reg(port, AhciPortRegs::Sctl),
+        bar.read_port_reg(port, AhciPortRegs::Serr),
+        bar.read_port_reg(port, AhciPortRegs::Sact),
+        bar.read_port_reg(port, AhciPortRegs::Ci),
+        bar.read_port_reg(port, AhciPortRegs::Sntf),
+        bar.read_port_reg(port, AhciPortRegs::Fbs),
+    );
 }
