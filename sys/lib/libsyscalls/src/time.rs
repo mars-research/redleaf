@@ -4,7 +4,7 @@ static NS_IN_RDTSC: u64 = 2;
 
 pub fn get_rdtsc() -> u64 {
     unsafe {
-        core::arch::x86_64::_rdtsc() / NS_IN_RDTSC
+        core::arch::x86_64::_rdtsc()
     }
 }
 
