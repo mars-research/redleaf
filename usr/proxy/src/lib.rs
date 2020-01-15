@@ -5,6 +5,7 @@ extern crate alloc;
 use rref::RRef;
 use syscalls;
 use libsyscalls;
+use libsyscalls::time::get_rdtsc;
 use syscalls::Syscall;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
@@ -40,6 +41,23 @@ impl usr::proxy::Proxy for Proxy {
         Box::new((*self).clone())
     }
 
+    fn proxy_bench(&self, iterations: u64) {
+        println!("beginning proxy benchmark");
+        {
+            let start = get_rdtsc();
+            for _ in 0..iterations {
+                // "dummy" kernel crossings
+                let callee_domain = 666;
+                let caller_domain = update_caller_domain_id(callee_domain);
+                // no-op
+                update_caller_domain_id(caller_domain);
+            }
+            let end = get_rdtsc();
+            println!("[2x kernel domain crossing] delta: {}, per iteration: {}, per crossing: {}",
+                     end - start, (end - start) / iterations, (end - start) / iterations / 2);
+        }
+        println!("finished proxy benchmark");
+    }
     fn proxy_foo(&self) {
         // no-op
     }
@@ -59,7 +77,6 @@ impl usr::proxy::Proxy for Proxy {
 
     fn bdev_new_data(&self, data: [u8; 512]) -> RRef<[u8; 512]> {
         let caller_domain = get_caller_domain();
-        println!("[proxy::bdev_new_data] caller: {}", caller_domain);
         let rref = RRef::new(caller_domain, data);
         rref
     }

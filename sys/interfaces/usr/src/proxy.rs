@@ -4,6 +4,8 @@ use alloc::boxed::Box;
 pub trait Proxy {
     fn proxy_clone(&self) -> Box<dyn Proxy>;
 
+    fn proxy_bench(&self, iterations: u64);
+
     fn proxy_foo(&self);
     fn proxy_bar(&self);
 

@@ -64,6 +64,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
 //    println!("init xv6 filesystem");
 //    fs::fsinit(0);
 //    println!("finish init xv6 filesystem");
+    libusr::proxy::sys_proxy_bench(1_000_000);
 
     println!("beginning rref benchmark");
     rref_benchmark(1_000_000);
@@ -75,38 +76,46 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
 
 fn rref_benchmark(iterations: u64) {
 
-    let start = get_rdtsc();
-    for _ in 0..iterations {
-        libusr::proxy::sys_proxy_foo();
+    {
+        let start = get_rdtsc();
+        for _ in 0..iterations {
+            libusr::proxy::sys_proxy_foo();
+        }
+        let end = get_rdtsc();
+        println!("[proxy domain crossing] delta: {}, per iteration: {}, per crossing: {}",
+                 end - start, (end - start) / iterations, (end - start) / iterations / 2);
     }
-    let end = get_rdtsc();
-    println!("[proxy_foo] start: {}, end: {}, delta: {}, per iteration: {}",
-             start, end, (end - start), (end - start) / iterations);
 
-    let start = get_rdtsc();
-    for _ in 0..iterations {
-        libusr::proxy::sys_proxy_bar();
+    {
+        let start = get_rdtsc();
+        for _ in 0..iterations {
+            libusr::proxy::sys_proxy_bar();
+        }
+        let end = get_rdtsc();
+        println!("[proxy + kernel domain crossing] delta: {}, per iteration: {}",
+                 end - start, (end - start) / iterations);
     }
-    let end = get_rdtsc();
-    println!("[proxy_bar] start: {}, end: {}, delta: {}, per iteration: {}",
-             start, end, (end - start), (end - start) / iterations);
 
-    let start = get_rdtsc();
-    for _ in 0..iterations {
-        libusr::sysbdev::sys_foo();
+    {
+        let start = get_rdtsc();
+        for _ in 0..iterations {
+            libusr::sysbdev::sys_foo();
+        }
+        let end = get_rdtsc();
+        println!("[proxy + kernel + bdev domain crossing] delta: {}, per iteration: {}",
+                 end - start, (end - start) / iterations);
     }
-    let end = get_rdtsc();
-    println!("[bdev_foo] start: {}, end: {}, delta: {}, per iteration: {}, per domain crossing: {}",
-             start, end, (end - start), (end - start) / iterations, (end - start) / iterations / 4);
 
-    let start = get_rdtsc();
-    let mut obj = libusr::sysbdev::sys_new_data([7; 512]);
-    for _ in 0..iterations {
-        libusr::sysbdev::sys_bar(&mut obj);
+    {
+        let start = get_rdtsc();
+        let mut obj = libusr::sysbdev::sys_new_data([7; 512]);
+        for _ in 0..iterations {
+            libusr::sysbdev::sys_bar(&mut obj);
+        }
+        let end = get_rdtsc();
+        println!("[proxy + kernel + bdev domain & rref crossing] delta: {}, per iteration: {}",
+                 end - start, (end - start) / iterations);
     }
-    let end = get_rdtsc();
-    println!("[bdev_bar] start: {}, end: {}, delta: {}, per iteration: {}, per domain crossing: {}",
-             start, end, (end - start), (end - start) / iterations, (end - start) / iterations / 4);
 }
 
 fn fs_benchmark(buf_size: usize, path: &str) {
