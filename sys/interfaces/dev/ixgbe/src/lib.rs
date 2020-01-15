@@ -1,6 +1,6 @@
 #![no_std]
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum IxgbeRegs {
     Ctrl,
     Status,
@@ -25,9 +25,13 @@ pub enum IxgbeRegs {
     Eims,
     Eimc,
     Eiac,
+    Gpie,
+    Txdgpc,
+    Txdgbch,
+    Txdgbcl,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum IxgbeArrayRegs {
     Rdbal,
     Rdbah,
@@ -44,9 +48,14 @@ pub enum IxgbeArrayRegs {
     Tdh,
     Tdt,
     Txdctl,
+    DcaTxctrl,
     Txpbsize,
+    TxpbThresh,
     Ral,
     Rah,
+    Ivar,
+    Eitr,
+    Qptc,
 }
 
 pub trait IxgbeBarRegion {
