@@ -31,20 +31,15 @@ impl usr::proxy::Proxy for Proxy {
         Box::new((*self).clone())
     }
 
-    fn foo(&self) -> usize {
-        let ptr = libsyscalls::heap::sys_heap_alloc(10, Layout::new::<u64>());
-        unsafe { *(ptr as *mut u64) = 0xf00; } // 3840
-        return ptr as usize;
-    }
-    fn new_value(&self, value: [u8; 512]) -> RRef<[u8; 512]> {
+    fn bdev_new_data(&self, data: [u8; 512]) -> RRef<[u8; 512]> {
         println!("Called Proxy::new_value");
         // TODO: get domain id
-        let rref = RRef::new(0, value);
+        let rref = RRef::new(0, data);
         println!("Created new value");
         rref
     }
-    fn drop_value(&self, value: RRef<[u8; 512]>) {
-        RRef::drop(value);
+    fn bdev_drop_data(&self, data: RRef<[u8; 512]>) {
+        RRef::drop(data);
     }
 
     fn bdev_read(&self, block: u32, data: &mut RRef<[u8; 512]>) {

@@ -7,7 +7,7 @@ use crate::params::{NBUF, BSIZE};
 use alloc::sync::Arc;
 use console::println;
 use core::ops::Deref;
-use libusr::{sysbdev, proxy};
+use libusr::sysbdev;
 use spin::{Mutex};
 use utils::list2;
 use rref::RRef;
@@ -167,10 +167,10 @@ impl BufferCache {
             if (guard.flags & B_VALID) == 0 {
                 // iderw will set the buffer to valid
                 // Note that this is different from xv6-risvc
-                let mut buf = proxy::proxy_new_value(guard.data);
+                let mut buf = sysbdev::sys_new_data(guard.data);
                 sysbdev::sys_read(buffer.block_number(), &mut buf);
                 (*guard).data = *buf;
-                proxy::proxy_drop_value(buf);
+                sysbdev::sys_drop_data(buf);
             }
             // println!("bread block#{}: {:X?}", block_number, &guard.data[..]);
         }
