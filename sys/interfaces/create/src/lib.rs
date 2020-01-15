@@ -2,11 +2,12 @@
 #![feature(associated_type_defaults)]
 extern crate alloc;
 use alloc::boxed::Box;
+use alloc::sync::Arc;
 use syscalls::{Heap, Domain, PCI, PciBar, PciResource, Net, Interrupt};
 use usr::{proxy::Proxy, bdev::BDev, vfs::VFS, xv6::Xv6};
 
 pub trait CreateProxy {
-    fn create_domain_proxy(&self, heap: Box<dyn Heap>) -> (Box<dyn Domain>, Box<dyn Proxy>);
+    fn create_domain_proxy(&self, heap: Box<dyn Heap>, bdev: Arc<Option<Box<dyn BDev>>>) -> (Box<dyn Domain>, Box<dyn Proxy>);
 }
 
 pub trait CreatePCI {
@@ -25,7 +26,7 @@ pub trait CreateIxgbe {
 }
 
 pub trait CreateXv6FS {
-    fn create_domain_xv6fs(&self, proxy: Box<dyn Proxy>, bdev: Box<dyn BDev>) ->(Box<dyn Domain>, Box<dyn VFS>);
+    fn create_domain_xv6fs(&self, proxy: Box<dyn Proxy>) ->(Box<dyn Domain>, Box<dyn VFS>);
 }
 
 pub trait CreateXv6Usr {
@@ -37,6 +38,5 @@ pub trait CreateXv6 {
                                ints: Box<dyn Interrupt>,
                                create_xv6fs: Box<dyn CreateXv6FS>,
                                create_xv6usr: Box<dyn CreateXv6Usr>,
-                               proxy: Box<dyn Proxy>,
-                               bdev: Box<dyn BDev>) -> Box<dyn Domain>;
+                               proxy: Box<dyn Proxy>) -> Box<dyn Domain>;
 }

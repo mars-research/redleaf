@@ -13,4 +13,3 @@ pub trait BDev {
     fn poll(&self, slot: u32) -> Result<Option<Box<[u8]>>>;
 }
 pub type BDevPtr = Box<dyn BDev + Send + Sync>;
-

@@ -57,10 +57,8 @@ impl usr::vfs::VFS for VFS {}
 
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>,
-            proxy: Box<dyn usr::proxy::Proxy + Send + Sync>,
-            bdev: usr::bdev::BDevPtr) -> Box<dyn usr::vfs::VFS> {
+            proxy: Box<dyn usr::proxy::Proxy + Send + Sync>) -> Box<dyn usr::vfs::VFS> {
     libsyscalls::syscalls::init(s);
-    libusr::sysbdev::init(bdev);
     libusr::proxy::init(proxy);
 
     println!("init xv6 filesystem");

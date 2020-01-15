@@ -8,13 +8,15 @@
     const_fn,
     const_raw_ptr_to_usize_cast,
     untagged_unions,
-    panic_info_message
+    panic_info_message,
+    get_mut_unchecked
 )]
 
 extern crate malloc;
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
+use alloc::sync::Arc;
 use core::panic::PanicInfo;
 use libsyscalls::syscalls::{sys_create_thread, sys_yield, sys_recv_int, sys_backtrace};
 use console::println;
@@ -132,13 +134,11 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
         drop(t2); 
     }
 
-    println!("about to create proxy");
-    let (dom_proxy, proxy) = create_proxy.create_domain_proxy(heap);
-    println!("created proxy");
+    let mut proxy_bdev: Arc<Option<Box<dyn usr::bdev::BDev>>> = Arc::new(Option::None);
 
-    let ptr = proxy.foo();
-    println!("proxy heap ptr: {}", ptr);
-    println!("proxy heap ptr value: {}", unsafe { *(ptr as *mut u64) });
+    println!("about to create proxy");
+    let (dom_proxy, proxy) = create_proxy.create_domain_proxy(heap, proxy_bdev.clone());
+    println!("created proxy");
 
     let pci_resource = create_pci.get_pci_resource();
 
@@ -150,10 +150,12 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
 
     let (dom_ahci, bdev) = create_ahci.create_domain_ahci(pci);
 
+    // TODO: threadsafe?
+    unsafe { Arc::get_mut_unchecked(&mut proxy_bdev).replace(bdev); }
+
     let (dom_ixgbe, net) = create_ixgbe.create_domain_ixgbe(pci2);
 
-    let dom_xv6 = create_xv6.create_domain_xv6kernel(ints_clone, create_xv6fs, create_xv6usr, proxy, bdev);
-
+    let dom_xv6 = create_xv6.create_domain_xv6kernel(ints_clone, create_xv6fs, create_xv6usr, proxy.proxy_clone());
 }
 
 // This function is called on panic.

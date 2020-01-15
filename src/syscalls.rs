@@ -188,14 +188,12 @@ impl create::CreateXv6 for PDomain {
                                 ints: Box<dyn syscalls::Interrupt>,
                                 create_xv6fs: Box<dyn create::CreateXv6FS>,
                                 create_xv6usr: Box<dyn create::CreateXv6Usr>,
-                                proxy: Box<dyn usr::proxy::Proxy>,
-                                bdev: Box<dyn usr::bdev::BDev>) -> Box<dyn syscalls::Domain> {
+                                proxy: Box<dyn usr::proxy::Proxy>) -> Box<dyn syscalls::Domain> {
         disable_irq();
         let r = crate::domain::create_domain::create_domain_xv6kernel(ints, 
-                        create_xv6fs, 
+                        create_xv6fs,
                         create_xv6usr,
-                        proxy,
-                        bdev);
+                        proxy);
         enable_irq();
         r
     }
@@ -203,10 +201,9 @@ impl create::CreateXv6 for PDomain {
 
 impl create::CreateXv6FS for PDomain {
     fn create_domain_xv6fs(&self,
-                           proxy: Box<dyn usr::proxy::Proxy>,
-                           bdev: Box<dyn usr::bdev::BDev>) ->(Box<dyn syscalls::Domain>, Box<dyn usr::vfs::VFS>) {
+                           proxy: Box<dyn usr::proxy::Proxy>) ->(Box<dyn syscalls::Domain>, Box<dyn usr::vfs::VFS>) {
         disable_irq();
-        let r = crate::domain::create_domain::create_domain_xv6fs(proxy, bdev);
+        let r = crate::domain::create_domain::create_domain_xv6fs(proxy);
         enable_irq();
         r
     }
@@ -223,9 +220,11 @@ impl create::CreateXv6Usr for PDomain {
 }
 
 impl create::CreateProxy for PDomain {
-    fn create_domain_proxy(&self, heap: Box<dyn syscalls::Heap>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::proxy::Proxy>) {
+    fn create_domain_proxy(&self,
+                           heap: Box<dyn syscalls::Heap>,
+                           bdev: Arc<Option<Box<dyn usr::bdev::BDev>>>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::proxy::Proxy>) {
         disable_irq();
-        let r = crate::domain::create_domain::create_domain_proxy(heap);
+        let r = crate::domain::create_domain::create_domain_proxy(heap, bdev);
         enable_irq();
         r
     }
