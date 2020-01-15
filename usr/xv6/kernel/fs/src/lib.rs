@@ -61,9 +61,9 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
     libsyscalls::syscalls::init(s);
     libusr::proxy::init(proxy);
 
-    println!("init xv6 filesystem");
-    fs::fsinit(0);
-    println!("finish init xv6 filesystem");
+//    println!("init xv6 filesystem");
+//    fs::fsinit(0);
+//    println!("finish init xv6 filesystem");
 
     println!("beginning rref benchmark");
     rref_benchmark(1_000_000);
