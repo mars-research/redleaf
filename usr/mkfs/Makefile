@@ -35,5 +35,4 @@ clean:
 	rm -f *.o *.d
 	rm -rf build
 	rm -f ./mkfs
-	rm ./big_file
-
+	rm -f ./big_file
