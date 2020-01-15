@@ -31,7 +31,7 @@ pub fn init_buddy(bootinfo: &BootInformation) {
             println!("{:x?}", region);
             if region.typ() == 1 {
                 let mut base = region.start_address();
-                let size: usize = region.size() as usize;
+                let mut size: usize = region.size() as usize;
                 let kernel_end = unsafe { KERNEL_END };
 
                 if base >= KERNEL_START && base < kernel_end {
@@ -41,7 +41,9 @@ pub fn init_buddy(bootinfo: &BootInformation) {
 
                 // TODO BAD: We can only add one region to the buddy allocator, so we need
                 // to pick a big one weee
-                if base > KERNEL_START && size > BASE_PAGE_SIZE && size > 49152000 {
+                if (base >= 1_0000_0000 as u64) && size > BASE_PAGE_SIZE && size >= 0x1_0000_0000 {
+                    // downsize the region to 4GiB
+                    size = 4 * 0x1_0000_0000 as usize;
                     println!("region.base = {:#x} region.size = {:#x}", base, size);
                     unsafe {
                         let f = Frame::new(PAddr::from(base), size);
