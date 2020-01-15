@@ -1,6 +1,7 @@
 use libdma::Mmio;
 
 #[repr(u8)]
+#[derive(Debug)]
 pub enum FisType {
     /// Register FIS - host to device
     RegH2D = 0x27,
@@ -21,6 +22,7 @@ pub enum FisType {
 }
 
 #[repr(packed)]
+#[derive(Debug)]
 pub struct FisRegH2D {
     // DWORD 0
     pub fis_type: Mmio<u8>, // FIS_TYPE_REG_H2D
@@ -53,6 +55,7 @@ pub struct FisRegH2D {
 }
 
 #[repr(packed)]
+#[derive(Debug)]
 pub struct FisRegD2H {
     // DWORD 0
     pub fis_type: Mmio<u8>, // FIS_TYPE_REG_D2H
@@ -97,6 +100,7 @@ pub struct FisData {
 }
 
 #[repr(packed)]
+#[derive(Debug)]
 pub struct FisPioSetup {
     // DWORD 0
     pub fis_type: Mmio<u8>, // FIS_TYPE_PIO_SETUP
@@ -130,6 +134,7 @@ pub struct FisPioSetup {
 }
 
 #[repr(packed)]
+#[derive(Debug)]
 pub struct FisDmaSetup {
     // DWORD 0
     pub fis_type: Mmio<u8>, // FIS_TYPE_DMA_SETUP

@@ -304,10 +304,11 @@ impl HbaPort {
                 let cmdfis = unsafe { &mut *(cmdtbl.cfis.as_mut_ptr() as *mut FisRegH2D) };
                 cmdfis.fis_type.write(FisType::RegH2D as u8);
 
-                let prdt_entry = unsafe { &mut *(&mut cmdtbl.prdt_entry as *mut _) };
+                let prdt_entry: &mut [HbaPrdtEntry; 65536] = unsafe { &mut *(&mut cmdtbl.prdt_entry as *mut _) };
                 let acmd = unsafe { &mut *(&mut cmdtbl.acmd as *mut _) };
 
-                callback(cmdheader, cmdfis, prdt_entry, acmd)
+                callback(cmdheader, cmdfis, prdt_entry, acmd);
+                println!("{:?} {:?} {:?}", cmdheader, prdt_entry[0], cmdfis);
             }
 
             while hba.bar.read_port_regf(self.port, AhciPortRegs::Tfd, (ATA_DEV_BUSY | ATA_DEV_DRQ) as u32) {

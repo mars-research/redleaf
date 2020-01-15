@@ -28,6 +28,7 @@ use super::zeroed_allocator;
 use libsyscalls::errors::Result;
 
 #[repr(packed)]
+#[derive(Debug)]
 pub struct HbaPrdtEntry {
     pub dba: Mmio<u64>, // Data base address
     _rsv0: Mmio<u32>, // Reserved
@@ -50,6 +51,7 @@ pub struct HbaCmdTable {
 }
 
 #[repr(packed)]
+#[derive(Debug)]
 pub struct HbaCmdHeader {
     // DW0
     pub cfl: Mmio<u8>, /* Command FIS length in DWORDS, 2 ~ 16, atapi: 4, write - host to device: 2, prefetchable: 1 */
