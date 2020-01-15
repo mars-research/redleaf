@@ -10,7 +10,6 @@ use core::alloc::Layout;
 
 pub mod errors;
 
-// TODO: get domain id syscall
 pub trait Syscall {
     fn sys_print(&self, s: &str);
     fn sys_println(&self, s: &str);
@@ -54,7 +53,7 @@ pub trait Net {
 
 /// RedLeaf Domain interface
 pub trait Domain {
-
+    fn get_domain_id(&self) -> u64;
 }
 
 /// Shared heap interface
@@ -62,6 +61,10 @@ pub trait Heap {
     fn alloc(&self, domain_id: u64, layout: Layout) -> *mut u8;
     fn dealloc(&self, domain_id: u64, ptr: *mut u8, layout: Layout);
     fn change_domain(&self, from_domain_id: u64, to_domain_id: u64, ptr: *mut u8, layout: Layout);
+
+    // TODO: move out of heap
+    fn get_current_domain_id(&self) -> u64;
+    fn update_current_domain_id(&self, new_domain_id: u64) -> u64;
 }
 
 pub static IRQ_TIMER: u8 = 32;

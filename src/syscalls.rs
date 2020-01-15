@@ -49,14 +49,24 @@ impl PDomain {
         let t = pt.thread.clone(); 
     
         let mut d = self.domain.lock();
-        d.add_thread(t); 
+        d.add_thread(t);
+        pt.thread.lock().current_domain_id = d.id;
 
         println!("Created thread {} for domain {}", pt.thread.lock().name, d.name); 
         pt   
     }
 }
 
-impl syscalls::Domain for PDomain { }
+impl syscalls::Domain for PDomain {
+    fn get_domain_id(&self) -> u64 {
+        disable_irq();
+        let domain_id = {
+            self.domain.lock().id
+        };
+        enable_irq();
+        domain_id
+    }
+}
 
 impl syscalls::Syscall for PDomain {
 
@@ -222,7 +232,8 @@ impl create::CreateXv6Usr for PDomain {
 impl create::CreateProxy for PDomain {
     fn create_domain_proxy(&self,
                            heap: Box<dyn syscalls::Heap>,
-                           bdev: Arc<Option<Box<dyn usr::bdev::BDev>>>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::proxy::Proxy>) {
+                           bdev: Arc<(Option<u64>, Option<Box<dyn usr::bdev::BDev>>)>)
+        -> (Box<dyn syscalls::Domain>, Box<dyn usr::proxy::Proxy>) {
         disable_irq();
         let r = crate::domain::create_domain::create_domain_proxy(heap, bdev);
         enable_irq();

@@ -134,8 +134,8 @@ pub fn create_domain_xv6usr(name: &str, xv6: Box<dyn usr::xv6::Xv6>) -> Box<dyn 
 }
 
 pub fn create_domain_proxy(heap: Box<dyn Heap>,
-                           bdev: Arc<Option<Box<dyn usr::bdev::BDev>>>)
-    -> (Box<dyn syscalls::Domain>, Box<dyn usr::proxy::Proxy>) {
+                           bdev: Arc<(Option<u64>, Option<Box<dyn usr::bdev::BDev>>)>
+) -> (Box<dyn syscalls::Domain>, Box<dyn usr::proxy::Proxy>) {
     extern "C" {
         fn _binary_usr_proxy_build_proxy_start();
         fn _binary_usr_proxy_build_proxy_end();
@@ -307,9 +307,9 @@ pub fn build_domain_fs(name: &str,
 pub fn build_domain_proxy(name: &str,
                           binary_range: (*const u8, *const u8),
                           heap: Box<dyn Heap>,
-                          bdev: Arc<Option<Box<dyn usr::bdev::BDev>>>)
-    -> (Box<dyn syscalls::Domain>, Box<dyn Proxy>) {
-    type UserInit = fn(Box<dyn Syscall>, Box<dyn Heap>, Arc<Option<Box<dyn usr::bdev::BDev>>>) -> Box<dyn Proxy>;
+                          bdev: Arc<(Option<u64>, Option<Box<dyn usr::bdev::BDev>>)>
+) -> (Box<dyn syscalls::Domain>, Box<dyn Proxy>) {
+    type UserInit = fn(Box<dyn Syscall>, Box<dyn Heap>, Arc<(Option<u64>, Option<Box<dyn usr::bdev::BDev>>)>) -> Box<dyn Proxy>;
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)

@@ -2,6 +2,7 @@ use alloc::vec::Vec;
 use core::alloc::{GlobalAlloc, Layout};
 use spin::Mutex;
 use crate::interrupt::{disable_irq, enable_irq};
+use crate::thread;
 use crate::memory::MEM_PROVIDER;
 use syscalls::Heap;
 
@@ -34,6 +35,34 @@ impl Heap for PHeap {
         disable_irq();
         change_domain(from_domain_id, to_domain_id, ptr, layout);
         enable_irq();
+    }
+
+    fn get_current_domain_id(&self) -> u64 {
+        disable_irq();
+        let domain_id = {
+            let thread = thread::get_current_ref();
+            let thread_guard = thread.lock();
+            let id = thread_guard.id;
+            println!("[get_current_domain_id] name: {}, domain_id: {}", thread_guard.name, id);
+            drop(thread_guard);
+            id
+        };
+        enable_irq();
+        domain_id
+    }
+
+    fn update_current_domain_id(&self, new_domain_id: u64) -> u64 {
+        disable_irq();
+        let mut old_domain_id = new_domain_id;
+        {
+            let thread = thread::get_current_ref();
+            let mut thread_guard = thread.lock();
+            core::mem::swap(&mut thread_guard.current_domain_id, &mut old_domain_id);
+            println!("[update_current_domain_id] name: {}, old_domain_id: {}, new_domain_id: {}", thread_guard.name, old_domain_id, new_domain_id);
+            drop(thread_guard);
+        }
+        enable_irq();
+        old_domain_id
     }
 }
 
