@@ -69,3 +69,8 @@ pub fn sys_backtrace() {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
     return scalls.sys_backtrace();
 }
+
+pub fn sys_dummy() {
+    let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
+    return scalls.sys_dummy();
+}

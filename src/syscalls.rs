@@ -135,6 +135,11 @@ impl syscalls::Syscall for PDomain {
         backtrace();
         enable_irq();
     }
+
+    fn sys_dummy(&self) {
+        enable_irq();
+        disable_irq();
+    }
 }
 
 impl create::CreatePCI for PDomain {

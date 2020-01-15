@@ -65,6 +65,22 @@ fn test_sleep() {
 
 }
 
+fn test_dummy_syscall() {
+    use libsyscalls::syscalls::sys_dummy;
+    use libsyscalls::time::get_rdtsc;
+
+    let NUM_ITER: u64 = 20_000_000;
+    let start = get_rdtsc();
+
+    for i in 0..NUM_ITER {
+        sys_dummy();
+    }
+
+    let elapsed = get_rdtsc() - start;
+    println!("Dummy syscall test: {} iterations took {} (avg: {} cycles)", NUM_ITER,
+                        elapsed, elapsed / NUM_ITER);
+}
+
 // AB: XXX: The following is is not supported in Rust at the moment
 //
 //pub fn init(s: Box<dyn syscalls::Syscall 
@@ -131,6 +147,8 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
         drop(t); 
         drop(t2); 
     }
+
+    test_dummy_syscall();
 
     println!("about to create proxy");
     let (dom_proxy, proxy) = create_proxy.create_domain_proxy(heap);
