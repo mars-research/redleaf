@@ -40,6 +40,23 @@ impl usr::proxy::Proxy for Proxy {
         Box::new((*self).clone())
     }
 
+    fn proxy_foo(&self) {
+        // no-op
+    }
+
+    fn proxy_bar(&self) {
+        // hardcode proxy domain for now
+        let callee_domain = 666;
+
+        // move thread to next domain
+        let caller_domain = update_caller_domain_id(callee_domain);
+
+        // no-op
+
+        // move thread back
+        update_caller_domain_id(caller_domain);
+    }
+
     fn bdev_new_data(&self, data: [u8; 512]) -> RRef<[u8; 512]> {
         let caller_domain = get_caller_domain();
         println!("[proxy::bdev_new_data] caller: {}", caller_domain);

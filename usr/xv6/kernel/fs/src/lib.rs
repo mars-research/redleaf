@@ -73,20 +73,40 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
     Box::new(VFS::new()) 
 }
 
-fn rref_benchmark(iterations: usize) {
+fn rref_benchmark(iterations: u64) {
+
+    let start = get_rdtsc();
+    for _ in 0..iterations {
+        libusr::proxy::sys_proxy_foo();
+    }
+    let end = get_rdtsc();
+    println!("[proxy_foo] start: {}, end: {}, delta: {}, per iteration: {}",
+             start, end, (end - start), (end - start) / iterations);
+
+    let start = get_rdtsc();
+    for _ in 0..iterations {
+        libusr::proxy::sys_proxy_bar();
+    }
+    let end = get_rdtsc();
+    println!("[proxy_bar] start: {}, end: {}, delta: {}, per iteration: {}",
+             start, end, (end - start), (end - start) / iterations);
+
     let start = get_rdtsc();
     for _ in 0..iterations {
         libusr::sysbdev::sys_foo();
     }
     let end = get_rdtsc();
-    println!("[bdev_foo] start: {}, end: {}, delta: {}", start, end, (end - start) / iterations / 5);
+    println!("[bdev_foo] start: {}, end: {}, delta: {}, per iteration: {}, per domain crossing: {}",
+             start, end, (end - start), (end - start) / iterations, (end - start) / iterations / 4);
+
     let start = get_rdtsc();
     let mut obj = libusr::sysbdev::sys_new_data([7; 512]);
     for _ in 0..iterations {
         libusr::sysbdev::sys_bar(&mut obj);
     }
     let end = get_rdtsc();
-    println!("[bdev_bar] start: {}, end: {}, delta: {}", start, end, end - start / iterations / 5);
+    println!("[bdev_bar] start: {}, end: {}, delta: {}, per iteration: {}, per domain crossing: {}",
+             start, end, (end - start), (end - start) / iterations, (end - start) / iterations / 4);
 }
 
 fn fs_benchmark(buf_size: usize, path: &str) {
