@@ -46,12 +46,49 @@ start64:
     mov fs, ax
     mov gs, ax
 
+    call setup_huge_page_tables
+
+    ; rdmsr IA32_EFER
+    mov ecx, 0xc0000080
+    rdmsr
+    or eax, 1 << 8 ; enable LME bit
+    wrmsr
+
+    ; load P4 to cr3 register (cpu uses this to access the P4 table)
+    mov rax, hp4_table
+    mov cr3, rax
+
     ; print `OKAY` to screen
     ; mov rax, 0x2f592f412f4b2f4f
     ; mov qword [0xb8000], rax
 
     call rust_main
     hlt
+
+setup_huge_page_tables:
+    ; map first P4 entry to P3 table
+    mov rax, hp3_table
+    or rax, 0b11 ; present + writable
+    mov [hp4_table], rax
+
+    ;map each P3 entry to a huge 1GiB page
+    mov ecx, 0         ; counter variable
+
+.map_hp3_table:
+    ; map ecx-th P3 entry to a huge page that starts at address 1GiB*ecx
+    mov rax, 1 << 30  ; 1GiB
+    mul ecx            ; start address of ecx-th page
+    shl rdx, 32
+    or rax, rdx
+    or rax, 0b10000011 ; present + writable + huge
+    mov [hp3_table + ecx * 8], rax ; map ecx-th entry
+
+    inc ecx            ; increase counter
+    cmp ecx, 0x20       ; if counter == 32, 32 entries in P3 table is mapped
+    jne .map_hp3_table  ; else map the next entry
+
+    ; Apic regions would belong in the first few gigabytes
+    ret
 
 bits 32
 check_multiboot:
@@ -204,6 +241,11 @@ gdt64:
 
 section .bss
 align 4096
+
+hp4_table:
+    resb 4096
+hp3_table:
+    resb 4096
 
 p4_table:
     resb 4096

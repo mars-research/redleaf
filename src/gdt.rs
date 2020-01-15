@@ -230,28 +230,29 @@ pub unsafe fn init_global_gdt() {
 
 /// Initialize GDT with TLS
 /// In other words take a TCB offset and load it into the GDT
-pub unsafe fn init_percpu_gdt(tcb_offset: usize) {
+pub unsafe fn init_percpu_gdt(tcb_offset: u64) {
     // Set the TLS segment to the offset of the Thread Control Block
-    INIT_GDT[GDT_KERNEL_TLS].set_offset(tcb_offset as u32);
+    //INIT_GDT[GDT_KERNEL_TLS].set_offset(tcb_offset as u32);
 
     // Load the initial GDT, before we have access to thread locals
     x86::dtables::lgdt(&INIT_GDT_DESC);
 
-    // Load the segment descriptors
-    load_fs(SegmentSelector::new(GDT_KERNEL_TLS as u16, Ring0));
+    // Load fs
+    use x86::msr::{IA32_FS_BASE, wrmsr};
+    wrmsr(IA32_FS_BASE, tcb_offset);
 
     // Now that we have access to thread locals, setup the AP's individual GDT
     GDT_DESC.limit = (GDT.len() * mem::size_of::<GdtEntry>() - 1) as u16;
     GDT_DESC.base = GDT.as_ptr() as *const Descriptor;
 
     // Set the TLS segment to the offset of the Thread Control Block
-    GDT[GDT_KERNEL_TLS].set_offset(tcb_offset as u32);
+    //GDT[GDT_KERNEL_TLS].set_offset(tcb_offset as u32);
 
     // Set the User TLS segment to the offset of the user TCB
     //set_tcb(0);
 
-    //TSS.ist[PAGE_FAULT_IST_INDEX as usize] = VirtAddr::from_ptr(unsafe { &IST_PF_STACK });
 
+    //TSS.ist[PAGE_FAULT_IST_INDEX as usize] = VirtAddr::from_ptr(unsafe { &IST_PF_STACK });
     TSS.ist[PAGE_FAULT_IST_INDEX as usize] = &IST_PF_STACK as *const _ as u64;
     TSS.ist[DOUBLE_FAULT_IST_INDEX as usize] = &IST_DF_STACK as *const _ as u64;
     TSS.ist[NMI_IST_INDEX as usize] = &IST_NMI_STACK as *const _ as u64;
@@ -259,6 +260,8 @@ pub unsafe fn init_percpu_gdt(tcb_offset: usize) {
     // We can now access our TSS, which is a thread local
     GDT[GDT_TSS].set_offset(&TSS as *const _ as u32);
     GDT[GDT_TSS].set_limit(mem::size_of::<TaskStateSegment>() as u32);
+    GDT[GDT_TSS_HIGH].limitl = (((&TSS as *const _ as u64) >> 32) & 0xFFFF) as u16;
+    GDT[GDT_TSS_HIGH].offsetl = (((&TSS as *const _ as u64) >> 48) & 0xFFFF) as u16;
 
     // Set the stack pointer when coming back from userspace
     // set_tss_stack(stack_offset);
@@ -270,9 +273,12 @@ pub unsafe fn init_percpu_gdt(tcb_offset: usize) {
     set_cs(SegmentSelector::new(GDT_KERNEL_CODE as u16, Ring0));
     segmentation::load_ds(SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring0));
     segmentation::load_es(SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring0));
-    segmentation::load_fs(SegmentSelector::new(GDT_KERNEL_TLS as u16, Ring0));
+    //segmentation::load_fs(SegmentSelector::new(GDT_KERNEL_TLS as u16, Ring0));
     segmentation::load_gs(SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring0));
     segmentation::load_ss(SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring0));
+
+    // Load fs
+    wrmsr(IA32_FS_BASE, tcb_offset);
 
     // Load the task register
     task::load_tr(x86::segmentation::SegmentSelector::new(GDT_TSS as u16, x86::Ring::Ring0));
