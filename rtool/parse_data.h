@@ -15,9 +15,16 @@ namespace compiler {
         std::size_t num_fns;
     };
 
+    enum class rref_type {
+        none,
+        mut,
+        immut,
+        plain
+    };
+
     struct argument {
         std::size_t name;
-        bool is_rref;
+        rref_type rt;
         std::string type;
     };
 

@@ -64,9 +64,9 @@ copy-field-type = "[" copy-field-type "]"
 copy-type(type_ref) = "[" {{ 
         const auto type = (compiler::argument*)(type_ref.getValue());
         type->type += "[";
-    }} copy-type(type_ref) "]" {{ 
+    }} copy-type(type_ref) space* ";" space* n:number "]" {{ 
         const auto type = (compiler::argument*)(type_ref.getValue());
-        type->type += "]";
+        type->type += "; " + identifiers.at(narrow<std::size_t>(n.getValue())) + "]";
     }}
     | simple-type(type_ref)
     | id:identifier {{
@@ -76,7 +76,7 @@ copy-type(type_ref) = "[" {{
         type->type += identifiers.at(narrow<std::size_t>(id.getValue()));
     }}
 
-trait = space* "trait" wspace id:identifier {{
+trait = space* "pub" wspace "trait" wspace id:identifier {{
         compiler::trait t {};
         t.name = narrow<size_t>(id.getValue());
         t.fn_list = member_functions.size();
@@ -98,7 +98,7 @@ free-function-body = space* "fn" wspace id:identifier {{
         f.arg_list = arguments.size();
         free_functions.push_back(f);
     }} space* "(" arg-list space* ")" space* type_ref:{{
-        arguments.push_back({intern("<return-value>"), false, ""});
+        arguments.push_back({intern("<return-value>"), compiler::rref_type::none, ""});
         auto& f = free_functions.back();
         f.num_args = arguments.size() - f.arg_list;
         value = reinterpret_cast<void*>(&arguments.back());
@@ -110,13 +110,13 @@ member-function = space* "fn" wspace id:identifier {{
         f.arg_list = arguments.size();
         member_functions.push_back(f);
     }} space* "(" space* self-arg arg-list-tail space* ")" space* type_ref:{{
-        arguments.push_back({intern("<return-value>"), false, ""});
+        arguments.push_back({intern("<return-value>"), compiler::rref_type::none, ""});
         auto& f = member_functions.back();
         f.num_args = arguments.size() - f.arg_list;
         value = reinterpret_cast<void*>(&arguments.back());
     }} return-type-expr(type_ref) space* ";"
 
-return-type-expr(type_ref) = "->" space* arg-type(type_ref) | {{ 
+return-type-expr(type_ref) = "->" space* return-type(type_ref) | {{ 
         const auto type = (compiler::argument*)(type_ref.getValue());
         type->type += "void";
     }}
@@ -130,24 +130,41 @@ arg-list = space* argument space* arg-list-tail
 arg-list-tail = "," arg-list | <void>
 
 argument = id:identifier type_ref:{{
-        arguments.push_back({narrow<std::size_t>(id.getValue()), false, ""});
+        arguments.push_back({narrow<std::size_t>(id.getValue()), compiler::rref_type::none, ""});
         value = reinterpret_cast<void*>(&arguments.back());
     }} space* ":" space* arg-type(type_ref)
 
-arg-type(type_ref) = "RRef<" space* "dyn" wspace id:identifier space* ">" {{ 
+arg-type(type_ref) = "&" {{
+        const auto type = (compiler::argument*)(type_ref.getValue());
+        type->rt = compiler::rref_type::immut;
+    }} space* mut-marker(type_ref)? rref-sub-type(type_ref)
+    | simple-type(type_ref)
+
+return-type(type_ref) = "RRef<" space* "dyn" wspace id:identifier space* ">" {{ 
         auto type = (compiler::argument*)(type_ref.getValue());
-        type->is_rref = true;
+        type->rt = compiler::rref_type::plain;
         type->type += "RRef<dyn " + identifiers.at(narrow<std::size_t>(id.getValue())) + ">";
     }}
     | "RRef<" {{ 
         auto type = (compiler::argument*)(type_ref.getValue());
-        type->is_rref = true;
+        type->rt = compiler::rref_type::plain;
         type->type += "RRef<";
-    }} space* copy-type(type_ref) space* ">" {{ 
-        const auto type = (compiler::argument*)(type_ref.getValue());
+    }} space* copy-type(type_ref) space* ">" {{
+        auto type = (compiler::argument*)(type_ref.getValue());
         type->type += ">";
     }}
     | simple-type(type_ref)
+
+rref-sub-type(type_ref) = "RRef<" space* "dyn" wspace id:identifier space* ">" {{ 
+        auto type = (compiler::argument*)(type_ref.getValue());
+        type->type += "dyn " + identifiers.at(narrow<std::size_t>(id.getValue()));
+    }}
+    | "RRef<" space* copy-type(type_ref) space* ">"
+
+mut-marker(type_ref) = "mut" wspace {{
+        const auto type = (compiler::argument*)(type_ref.getValue());
+        type->rt = compiler::rref_type::mut;
+    }}
 
 other = space* "//" any-char* eol
 
@@ -251,6 +268,18 @@ identifier = "_" ch:tail-char+ {{
             id += chr;
         }
 
+        value = reinterpret_cast<void*>(intern(id));
+    }}
+
+digit = [0123456789]
+
+number = ch:digit+ {{
+        std::string id {""};
+        for (const auto val : ch.getValues()) {
+            const auto chr = narrow<char>(val.getValue());
+            id += chr;
+        }
+        
         value = reinterpret_cast<void*>(intern(id));
     }}
 
