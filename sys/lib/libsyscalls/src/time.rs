@@ -38,3 +38,10 @@ pub fn sys_ns_sleep(ns: u64) {
         crate::syscalls::sys_yield(); 
     }
 }
+
+pub fn sys_ns_loopsleep(ns: u64) {
+    let target_ns = get_ns_time() + ns;
+    let current_ns = get_ns_time();
+    let left_to_wait_ns = target_ns - current_ns;
+    loop_sleep(left_to_wait_ns);
+}
