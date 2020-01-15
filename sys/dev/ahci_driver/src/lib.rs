@@ -123,6 +123,13 @@ impl usr::bdev::BDev for Ahci {
     fn poll(&self, slot: u32) -> Result<Option<Box<[u8]>>> {
         self.disks.borrow_mut()[DISK_INDEX].poll(slot)
     }
+
+    fn foo(&self) {
+        // no-op
+    }
+    fn bar(&self, data: &mut RRef<[u8; 512]>) {
+        // no-op
+    }
 }
 
 

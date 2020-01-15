@@ -1,7 +1,6 @@
 use byteorder::{ByteOrder, LittleEndian};
 use libusr::sysbdev;
 use spin::Once;
-use usr::bdev::BDevPtr;
 
 use crate::params;
 use crate::log::{Log, LOG};

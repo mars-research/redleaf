@@ -44,7 +44,6 @@ impl Heap for PHeap {
             let thread = thread::get_current_ref();
             let thread_guard = thread.lock();
             let id = thread_guard.id;
-            println!("[get_current_domain_id] name: {}, domain_id: {}", thread_guard.name, id);
             drop(thread_guard);
             id
         };
@@ -59,7 +58,6 @@ impl Heap for PHeap {
             let thread = thread::get_current_ref();
             let mut thread_guard = thread.lock();
             core::mem::swap(&mut thread_guard.current_domain_id, &mut old_domain_id);
-            println!("[update_current_domain_id] name: {}, old_domain_id: {}, new_domain_id: {}", thread_guard.name, old_domain_id, new_domain_id);
             drop(thread_guard);
         }
         enable_irq();

@@ -23,3 +23,13 @@ pub fn sys_write(block: u32, data: &[u8; 512]) {
     let proxy = PROXY.r#try().expect("Proxy interface is not initialized.");
     proxy.bdev_write(block, data)
 }
+
+pub fn sys_foo() {
+    let proxy = PROXY.r#try().expect("Proxy interface is not initialized.");
+    proxy.bdev_foo()
+}
+
+pub fn sys_bar(data: &mut RRef<[u8; 512]>) {
+    let proxy = PROXY.r#try().expect("Proxy interface is not initialized.");
+    proxy.bdev_bar(data)
+}

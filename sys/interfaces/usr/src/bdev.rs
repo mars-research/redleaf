@@ -11,5 +11,7 @@ pub trait BDev {
 
     fn submit(&self, block: u64, write: bool, buf: Box<[u8]>) -> Result<u32>;
     fn poll(&self, slot: u32) -> Result<Option<Box<[u8]>>>;
+
+    fn foo(&self);
+    fn bar(&self, data: &mut RRef<[u8; 512]>);
 }
-pub type BDevPtr = Box<dyn BDev + Send + Sync>;

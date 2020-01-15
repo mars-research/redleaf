@@ -9,4 +9,7 @@ pub trait Proxy {
 
     fn bdev_read(&self, block: u32, data: &mut RRef<[u8; 512]>);
     fn bdev_write(&self, block: u32, data: &[u8; 512]);
+
+    fn bdev_foo(&self);
+    fn bdev_bar(&self, data: &mut RRef<[u8; 512]>);
 }
