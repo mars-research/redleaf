@@ -53,7 +53,7 @@ impl usr::proxy::Proxy for Proxy {
                 update_caller_domain_id(caller_domain);
             }
             let end = get_rdtsc();
-            println!("[2x kernel domain crossing] delta: {}, per iteration: {}, per crossing: {}",
+            println!("[kernel domain crossing] delta: {}, per iteration: {}, per crossing: {}",
                      end - start, (end - start) / iterations, (end - start) / iterations / 2);
         }
         println!("finished proxy benchmark");
