@@ -252,7 +252,7 @@ pub extern "C" fn rust_main_ap() -> ! {
         }
 
         let tcb_offset = tls::init_per_cpu_vars(cpu_id);
-        gdt::init_percpu_gdt(tcb_offset);
+        gdt::init_percpu_gdt(tcb_offset as u64);
 
         // Update cpuid of this CPU
         tls::set_cpuid(cpu_id as usize);
