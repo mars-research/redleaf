@@ -32,6 +32,12 @@ pub struct Mmio<T> {
     value: MaybeUninit<T>,
 }
 
+impl<T> core::fmt::Debug for Mmio<T> where T: Copy + PartialEq + BitAnd<Output = T> + BitOr<Output = T> + Not<Output = T> + core::fmt::Display {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::write!(f, "Mmio{{{}}}", self.read())
+    }
+}
+
 impl<T> Mmio<T> {
     /// Create a new Mmio without initializing
     pub fn new() -> Self {
