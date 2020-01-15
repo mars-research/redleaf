@@ -78,7 +78,7 @@ impl syscalls::Syscall for PDomain {
         disable_irq();
         let paddr: PAddr = VSpace::allocate_one_page();
         let vaddr: VAddr = paddr_to_kernel_vaddr(paddr);
-        println!("sys_alloc: returning {:x}", vaddr.as_u64());
+        //println!("sys_alloc: returning {:x}", vaddr.as_u64());
         enable_irq();
         vaddr.as_mut_ptr()
     }
@@ -88,7 +88,7 @@ impl syscalls::Syscall for PDomain {
         disable_irq();
         let paddr: PAddr = VSpace::allocate_pages(how_many, ResourceType::Memory);
         let vaddr: VAddr = paddr_to_kernel_vaddr(paddr);
-        println!("sys_alloc_huge: returning {:x}", vaddr.as_u64());
+        //println!("sys_alloc_huge: returning {:x}", vaddr.as_u64());
         enable_irq();
         vaddr.as_mut_ptr()
     }

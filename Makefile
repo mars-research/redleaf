@@ -18,6 +18,10 @@ ifeq ($(CLOUDLAB),true)
 FEATURES += --features "cloudlab"
 endif
 
+ifeq ($(IXGBE),true)
+FEATURES += --features "c220g2_ixgbe"
+endif
+
 target ?= $(arch)-redleaf
 rust_os := target/$(target)/$(TARGET_SUB_DIR)/libredleaf.a
 xv6fs_img = usr/mkfs/build/fs.img
@@ -50,6 +54,9 @@ qemu_x := -serial file:serial.log
 
 .PHONY: all
 all: $(bin) checkstack
+
+install: all
+	sudo cp -v build/kernel.bin /boot
 
 .PHONY: release
 release: $(releaseKernel)
