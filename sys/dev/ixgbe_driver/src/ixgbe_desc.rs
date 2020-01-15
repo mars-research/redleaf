@@ -6,6 +6,10 @@
 pub const IXGBE_CTRL_LNK_RST: u64               = 0x00000008; /* Link Reset. Resets everything. */
 pub const IXGBE_CTRL_RST: u64                   = 0x04000000; /* Reset (SW) */
 pub const IXGBE_CTRL_RST_MASK: u64              = (IXGBE_CTRL_LNK_RST | IXGBE_CTRL_RST);
+pub const IXGBE_CTRL_PCIE_MASTER_DISABLE: u64              = 1 << 2;
+
+pub const IXGBE_STATUS_PCIE_MASTER_STATUS: u64  = 1 << 19;
+pub const IXGBE_CTRL_EXT_DRV_LOAD: u64          = 1 << 28;
 
 pub const IXGBE_EEC_ARD: u64                    = 0x00000200; /* EEPROM Auto Read Done */
 pub const IXGBE_RDRXCTL_DMAIDONE: u64           = 0x00000008; /* DMA init cycle done */
@@ -23,6 +27,7 @@ pub const IXGBE_RXCTRL_RXEN: u64                = 0x00000001; /* Enable Receiver
 pub const IXGBE_RXPBSIZE_128KB: u64             = 0x00020000; /* 128KB Packet Buffer */
 
 pub const IXGBE_HLREG0_RXCRCSTRP: u64           = 0x00000002; /* bit  1 */
+pub const IXGBE_HLREG0_LPBK: u64           = 1 << 15;
 pub const IXGBE_RDRXCTL_CRCSTRIP: u64           = 0x00000002; /* CRC Strip */
 
 pub const IXGBE_FCTRL_BAM: u64                  = 0x00000400; /* Broadcast Accept Mode */
@@ -58,21 +63,30 @@ pub const IXGBE_RXD_STAT_EOP: u64               = 0x02; /* End of Packet */
 pub const IXGBE_RXDADV_STAT_DD: u64             = IXGBE_RXD_STAT_DD; /* Done */
 pub const IXGBE_RXDADV_STAT_EOP: u64            = IXGBE_RXD_STAT_EOP; /* End of Packet */
 
-pub const IXGBE_ADVTXD_PAYLEN_SHIFT: u64        = 14; /* Adv desc PAYLEN shift */
-pub const IXGBE_TXD_CMD_EOP: u64                = 0x01000000; /* End of Packet */
-pub const IXGBE_ADVTXD_DCMD_EOP: u64            = IXGBE_TXD_CMD_EOP; /* End of Packet */
-pub const IXGBE_TXD_CMD_RS: u64                 = 0x08000000; /* Report Status */
-pub const IXGBE_ADVTXD_DCMD_RS: u64             = IXGBE_TXD_CMD_RS; /* Report Status */
-pub const IXGBE_TXD_CMD_IFCS: u64               = 0x02000000; /* Insert FCS (Ethernet CRC) */
-pub const IXGBE_ADVTXD_DCMD_IFCS: u64           = IXGBE_TXD_CMD_IFCS; /* Insert FCS */
-pub const IXGBE_TXD_CMD_DEXT: u64               = 0x20000000; /* Desc extension (0 = legacy) */
-pub const IXGBE_ADVTXD_DTYP_DATA: u64           = 0x00300000; /* Adv Data Descriptor */
-pub const IXGBE_ADVTXD_DCMD_DEXT: u64           = IXGBE_TXD_CMD_DEXT; /* Desc ext 1=Adv */
-pub const IXGBE_TXD_STAT_DD: u64                = 0x00000001; /* Descriptor Done */
-pub const IXGBE_ADVTXD_STAT_DD: u64             = IXGBE_TXD_STAT_DD; /* Descriptor Done */
+pub const IXGBE_ADVTXD_PAYLEN_SHIFT: u32        = 14; /* Adv desc PAYLEN shift */
+pub const IXGBE_TXD_CMD_EOP: u32                = 0x01000000; /* End of Packet */
+pub const IXGBE_ADVTXD_DCMD_EOP: u32            = IXGBE_TXD_CMD_EOP; /* End of Packet */
+pub const IXGBE_TXD_CMD_RS: u32                 = 0x08000000; /* Report Status */
+pub const IXGBE_ADVTXD_DCMD_RS: u32             = IXGBE_TXD_CMD_RS; /* Report Status */
+pub const IXGBE_TXD_CMD_IFCS: u32               = 0x02000000; /* Insert FCS (Ethernet CRC) */
+pub const IXGBE_ADVTXD_DCMD_IFCS: u32           = IXGBE_TXD_CMD_IFCS; /* Insert FCS */
+pub const IXGBE_TXD_CMD_DEXT: u32               = 0x20000000; /* Desc extension (0 = legacy) */
+pub const IXGBE_ADVTXD_DTYP_DATA: u32           = 0x00300000; /* Adv Data Descriptor */
+pub const IXGBE_ADVTXD_DCMD_DEXT: u32           = IXGBE_TXD_CMD_DEXT; /* Desc ext 1=Adv */
+pub const IXGBE_TXD_STAT_DD: u32                = 0x00000001; /* Descriptor Done */
+pub const IXGBE_ADVTXD_STAT_DD: u32             = IXGBE_TXD_STAT_DD; /* Descriptor Done */
 
-pub const IXGBE_IVAR_ALLOC_VAL: u64             = 0x80; /* Interrupt Allocation valid */
+pub const IXGBE_IVAR_ALLOC_VAL: u32             = 0x80; /* Interrupt Allocation valid */
 pub const IXGBE_EICR_RTX_QUEUE: u64             = 0x0000FFFF; /* RTx Queue Interrupt */
+
+/* Interrupt clear mask */
+pub const IXGBE_IRQ_CLEAR_MASK: u64                                    = 0xFFFFFFFF;
+
+pub const IXGBE_GPIE_MSIX_MODE: u64                                    = 0x00000010; /* MSI-X mode */
+pub const IXGBE_GPIE_OCD: u64                                          = 0x00000020; /* Other Clear Disable */
+pub const IXGBE_GPIE_EIMEN: u64                                        = 0x00000040; /* Immediate Interrupt Enable */
+pub const IXGBE_GPIE_EIAME: u64                                        = 0x40000000;
+pub const IXGBE_GPIE_PBA_SUPPORT: u64                                  = 0x80000000;
 
 #[derive(Debug, Copy, Clone)]
 #[repr(packed)]

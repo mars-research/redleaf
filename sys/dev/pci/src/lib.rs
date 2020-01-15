@@ -60,7 +60,7 @@ impl syscalls::PCI for PCI {
         if let Some(bars) = PCI_MAP.lock().get(&pci_dev) {
             assert!(bar_index < bars.len());
 
-            println!("Device found {:x?} {:?}", pci_dev, bars[bar_index]);
+            println!("Device found {:x?} {:x?}", pci_dev, bars[bar_index]);
 
             match bars[bar_index] {
                 Some(bar) => {

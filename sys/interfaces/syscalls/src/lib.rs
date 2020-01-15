@@ -5,8 +5,10 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use crate::errors::Result;
-use spin::MutexGuard;
+use spin::{MutexGuard, Mutex};
 use core::alloc::Layout;
+use alloc::sync::Arc;
+use protocol::UdpPacket;
 
 pub mod errors;
 
@@ -50,6 +52,9 @@ pub trait PCI {
 
 /// RedLeaf network interface
 pub trait Net {
+    fn send(&self, buf: &[u8]) -> u32;
+    fn send_udp(&self, packet: Arc<Mutex<UdpPacket>>) -> u32;
+    fn send_udp_from_ixgbe(&self, packet: &[u8]) -> u32;
 }
 
 /// RedLeaf Domain interface

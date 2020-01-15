@@ -83,6 +83,18 @@ fn handle_parsed_header(pci: &Pci, bus_num: u8,
         }
     }
 
+    #[cfg(feature = "c220g2_ixgbe")]
+    {
+        // Cloudlab has dual port ixgbe devices and the we need to attach our driver
+        // to the second device.
+        let mut hmap = PCI_MAP.lock();
+        if let Some(bar_vec) = hmap.get_mut(&pci_device) {
+            if bar_vec[0] == PciBar::Memory(0xc7900000) {
+                    hmap.remove(&pci_device);
+            }
+        }
+    }
+
     string.push('\n');
 
     println!("{}", string);
