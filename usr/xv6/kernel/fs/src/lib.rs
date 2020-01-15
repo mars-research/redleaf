@@ -66,27 +66,27 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
     println!("finish init xv6 filesystem");
 
     println!("beginning rref benchmark");
-    rref_benchmark();
+    rref_benchmark(1_000_000);
     println!("finished rref benchmark");
 //    ls("/").unwrap();
 //    fs_benchmark(512, "/big_file");
     Box::new(VFS::new()) 
 }
 
-fn rref_benchmark() {
+fn rref_benchmark(iterations: usize) {
     let start = get_rdtsc();
-    for _ in 0..1_000_000 {
+    for _ in 0..iterations {
         libusr::sysbdev::sys_foo();
     }
     let end = get_rdtsc();
-    println!("[bdev_foo] start: {}, end: {}, delta: {}", start, end, end - start);
+    println!("[bdev_foo] start: {}, end: {}, delta: {}", start, end, (end - start) / iterations / 5);
     let start = get_rdtsc();
     let mut obj = libusr::sysbdev::sys_new_data([7; 512]);
-    for _ in 0..1_000_000 {
+    for _ in 0..iterations {
         libusr::sysbdev::sys_bar(&mut obj);
     }
     let end = get_rdtsc();
-    println!("[bdev_bar] start: {}, end: {}, delta: {}", start, end, end - start);
+    println!("[bdev_bar] start: {}, end: {}, delta: {}", start, end, end - start / iterations / 5);
 }
 
 fn fs_benchmark(buf_size: usize, path: &str) {
