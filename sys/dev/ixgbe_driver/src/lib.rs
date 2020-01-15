@@ -35,7 +35,7 @@ use core::cell::RefCell;
 use protocol::{UdpPacket, MTU_SZ};
 use alloc::sync::Arc;
 use spin::Mutex;
-use x86::time::{rdtsc, rdtscp};
+use libsyscalls::time::get_rdtsc as rdtsc;
 
 struct Ixgbe {
     vendor_id: u16,
@@ -175,11 +175,11 @@ impl syscalls::Net for Ixgbe {
                 if let Some(mut device) = self.device.borrow_mut().as_mut() {
                     let dev: &mut Intel8259x = device;
                     let mut ret: usize = 0;
-                    let start = unsafe { rdtsc() };
+                    let start = rdtsc();
                     for i in 0..5_00_000 {
                         ret += dev.tx_batch(&pvec);
                     }
-                    let end = unsafe { rdtscp() };
+                    let end = rdtsc();
                     println!("From ixgbe layer: {} iterations took {} cycles (avg = {})", 20_000_000, end-start, (end - start) / ret as u64);
 
                     ret as u32
@@ -307,14 +307,14 @@ fn run_udp_test(dev: &Ixgbe) {
     if let Some(mut device) = dev.device.borrow_mut().as_mut() {
         let dev: &mut Intel8259x = device;
         let mut sum: usize = 0;
-        let start = unsafe { rdtsc() };
+        let start = rdtsc();
         while sum <= 20_000_000 {
             let ret = dev.tx_batch(&pvec);
             sum += ret;
         }
         println!("sum {}", sum);
-        let end = unsafe { rdtscp() };
-        println!("==> tx batch : {} iterations took {} cycles (avg = {})", sum, end - start, (end - start) / sum as u64);
+        let elapsed = rdtsc() - start;
+        println!("==> tx batch : {} iterations took {} cycles (avg = {})", sum, elapsed, elapsed / sum as u64);
         dev.dump_stats();
     }
 }
