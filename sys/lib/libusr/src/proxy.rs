@@ -11,16 +11,16 @@ pub fn init(proxy: Box<dyn Proxy + Sync + Send>) {
 }
 
 pub fn sys_proxy_bench(iterations: u64) {
-    let proxy = PROXY.r#try().expect("Proxy interface is not initialized.");
+    let proxy = PROXY.force_get();//.r#try().expect("Proxy interface is not initialized.");
     proxy.proxy_bench(iterations)
 }
 
 pub fn sys_proxy_foo() {
-    let proxy = PROXY.r#try().expect("Proxy interface is not initialized.");
+    let proxy = PROXY.force_get();//.r#try().expect("Proxy interface is not initialized.");
     proxy.proxy_foo()
 }
 
 pub fn sys_proxy_bar() {
-    let proxy = PROXY.r#try().expect("Proxy interface is not initialized.");
+    let proxy = PROXY.force_get();//.r#try().expect("Proxy interface is not initialized.");
     proxy.proxy_bar()
 }
