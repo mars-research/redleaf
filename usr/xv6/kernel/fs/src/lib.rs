@@ -77,42 +77,50 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
 fn rref_benchmark(iterations: u64) {
 
     {
+        x86_64::instructions::interrupts::disable();
         let start = get_rdtsc();
         for _ in 0..iterations {
             libusr::proxy::sys_proxy_foo();
         }
         let end = get_rdtsc();
+        x86_64::instructions::interrupts::enable();
         println!("[proxy domain crossing] delta: {}, per iteration: {}, per crossing: {}",
                  end - start, (end - start) / iterations, (end - start) / iterations / 2);
     }
 
     {
+        x86_64::instructions::interrupts::disable();
         let start = get_rdtsc();
         for _ in 0..iterations {
             libusr::proxy::sys_proxy_bar();
         }
         let end = get_rdtsc();
+        x86_64::instructions::interrupts::enable();
         println!("[proxy + kernel domain crossing] delta: {}, per iteration: {}",
                  end - start, (end - start) / iterations);
     }
 
     {
+        x86_64::instructions::interrupts::disable();
         let start = get_rdtsc();
         for _ in 0..iterations {
             libusr::sysbdev::sys_foo();
         }
         let end = get_rdtsc();
+        x86_64::instructions::interrupts::enable();
         println!("[proxy + kernel + bdev domain crossing] delta: {}, per iteration: {}",
                  end - start, (end - start) / iterations);
     }
 
     {
+        x86_64::instructions::interrupts::disable();
         let start = get_rdtsc();
         let mut obj = libusr::sysbdev::sys_new_data([7; 512]);
         for _ in 0..iterations {
             libusr::sysbdev::sys_bar(&mut obj);
         }
         let end = get_rdtsc();
+        x86_64::instructions::interrupts::enable();
         println!("[proxy + kernel + bdev domain & rref crossing] delta: {}, per iteration: {}",
                  end - start, (end - start) / iterations);
     }
