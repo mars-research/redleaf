@@ -60,7 +60,7 @@ impl<T> Once<T> {
         Self::INIT
     }
 
-    fn force_get<'a>(&'a self) -> &'a T {
+    pub fn force_get<'a>(&'a self) -> &'a T {
         match unsafe { &*self.data.get() }.as_ref() {
             None    => unsafe { unreachable() },
             Some(p) => p,
