@@ -562,7 +562,7 @@ impl Intel8259x {
     }
 
     /// Pops as many packets as possible from `packets` to put them into the device`s tx queue.
-    pub fn tx_batch(&mut self, packets: &Vec<UdpPacket>) -> usize {
+    pub fn tx_batch<T>(&mut self, packets: &Vec<UdpPacket<T>>) -> usize {
         let mut sent = 0;
 
         {
@@ -586,7 +586,7 @@ impl Intel8259x {
 
                 // for debugging only
                 unsafe {
-                    let mut mpslice = packet as *const UdpPacket as *mut u8;
+                    let mut mpslice = packet as *const UdpPacket<T> as *mut u8;
                     *mpslice.add(PACKET_SIZE - 4) = ((self.gcounter >> 24) as u8) & 0xFF;
                     *mpslice.add(PACKET_SIZE - 3) = ((self.gcounter >> 16) as u8) & 0xFF;
                     *mpslice.add(PACKET_SIZE - 2) = ((self.gcounter >> 8) as u8) & 0xFF;

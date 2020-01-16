@@ -54,7 +54,6 @@ pub trait PCI {
 /// RedLeaf network interface
 pub trait Net {
     fn send(&self, buf: &[u8]) -> u32;
-    fn send_udp(&self, packet: Arc<Mutex<UdpPacket>>) -> u32;
     fn send_udp_from_ixgbe(&self, packet: &[u8]) -> u32;
 }
 

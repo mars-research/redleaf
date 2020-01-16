@@ -114,6 +114,7 @@ impl syscalls::Net for Ixgbe {
     }
 
     fn send_udp_from_ixgbe(&self, packet: &[u8]) -> u32 {
+        const PAYLOAD_SZ: usize = 64;
         let mac_data = [
             0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x50, // Dst mac
             0x90, 0xe2, 0xba, 0xb5, 0x14, 0xf5, // Src mac
@@ -137,12 +138,14 @@ impl syscalls::Net for Ixgbe {
             0x9c, 0xaf,
         ];
 
-        let mut payload = [
-            b'R', b'e', b'd', b'l', b'e', b'a', b'f', 0x0,
-            0, 0, 0, 0, 0, 0, 0, 0,
-            0,0,
-        ];
-
+        let mut payload: [u8; PAYLOAD_SZ] = [0u8; PAYLOAD_SZ];
+        payload[0] = b'R';
+        payload[1] = b'e';
+        payload[2] = b'd';
+        payload[3] = b'l';
+        payload[4] = b'e';
+        payload[5] = b'a';
+        payload[6] = b'f';
 
         let checksum = calc_ipv4_checksum(&ip_data);
         // Calculated checksum is little-endian; checksum field is big-endian
@@ -155,15 +158,15 @@ impl syscalls::Net for Ixgbe {
         let payload = payload;
         let pkt = UdpPacket::new(eth_hdr, ip_hdr, udp_hdr, payload);
 
-        let mut pvec: Vec<UdpPacket> = Vec::with_capacity(32);
+        let mut pvec: Vec<UdpPacket<[u8; PAYLOAD_SZ]>> = Vec::with_capacity(32);
 
         for i in 0..32 {
-            pvec.push(UdpPacket::new_zeroed());
+            pvec.push(UdpPacket::new_zeroed(payload));
             unsafe {
                 core::ptr::copy(
                     pkt.as_slice() as *const _ as *const u8,
-                    &mut pvec[i] as *mut UdpPacket as *mut u8,
-                    MTU_SZ);
+                    &mut pvec[i] as *mut UdpPacket<[u8; PAYLOAD_SZ]> as *mut u8,
+                    core::mem::size_of::<UdpPacket<[u8; PAYLOAD_SZ]>>());
             }
         }
 
@@ -191,7 +194,8 @@ impl syscalls::Net for Ixgbe {
         }
     }
 
-    fn send_udp(&self, packet: Arc<Mutex<UdpPacket>>) -> u32 {
+    /*
+    fn send_udp<T>(&self, packet: Arc<Mutex<UdpPacket<T>>>) -> u32 {
          if self.device_initialized == false {
             0
         } else {
@@ -213,6 +217,7 @@ impl syscalls::Net for Ixgbe {
             }
         }
     }
+    */
 }
 
 impl pci_driver::PciDriver for Ixgbe {
@@ -242,12 +247,8 @@ impl pci_driver::PciDriver for Ixgbe {
     }
 }
 
-struct UdpQueue {
-    udp_packet: UdpPacket,
-    sent: bool,
-}
-
-fn run_udp_test(dev: &Ixgbe) {
+fn run_udp_test_64(dev: &Ixgbe) {
+    const PAYLOAD_SZ: usize = 64;
     let mac_data = [
         0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x50, // Dst mac
         0x90, 0xe2, 0xba, 0xb5, 0x14, 0xf5, // Src mac
@@ -271,12 +272,14 @@ fn run_udp_test(dev: &Ixgbe) {
         0x9c, 0xaf,
     ];
 
-    let mut payload = [
-        b'R', b'e', b'd', b'l', b'e', b'a', b'f', 0x0,
-        0, 0, 0, 0, 0, 0, 0, 0,
-        0,0,
-    ];
-
+    let mut payload: [u8; PAYLOAD_SZ] = [0u8; PAYLOAD_SZ];
+    payload[0] = b'R';
+    payload[1] = b'e';
+    payload[2] = b'd';
+    payload[3] = b'l';
+    payload[4] = b'e';
+    payload[5] = b'a';
+    payload[6] = b'f';
 
     let checksum = calc_ipv4_checksum(&ip_data);
     // Calculated checksum is little-endian; checksum field is big-endian
@@ -289,19 +292,19 @@ fn run_udp_test(dev: &Ixgbe) {
     let payload = payload;
     let pkt = UdpPacket::new(eth_hdr, ip_hdr, udp_hdr, payload);
 
-    let mut pvec: Vec<UdpPacket> = Vec::with_capacity(32);
+    let mut pvec: Vec<UdpPacket<[u8; PAYLOAD_SZ]>> = Vec::with_capacity(32);
 
     for i in 0..32 {
-        pvec.push(UdpPacket::new_zeroed());
+        pvec.push(UdpPacket::new_zeroed(payload));
         unsafe {
             core::ptr::copy(
                 pkt.as_slice() as *const _ as *const u8,
-                &mut pvec[i] as *mut UdpPacket as *mut u8,
-                MTU_SZ);
+                &mut pvec[i] as *mut UdpPacket<[u8; PAYLOAD_SZ]> as *mut u8,
+                core::mem::size_of::<UdpPacket<[u8; PAYLOAD_SZ]>>());
         }
     }
 
-    println!("{:?}", pvec[0]);
+    //println!("{:?}", pvec[0]);
 
     if let Some(mut device) = dev.device.borrow_mut().as_mut() {
         let dev: &mut Intel8259x = device;
@@ -313,7 +316,303 @@ fn run_udp_test(dev: &Ixgbe) {
         }
         println!("sum {}", sum);
         let elapsed = rdtsc() - start;
-        println!("==> tx batch : {} iterations took {} cycles (avg = {})", sum, elapsed, elapsed / sum as u64);
+        println!("==> tx batch 64B: {} iterations took {} cycles (avg = {})", sum, elapsed, elapsed / sum as u64);
+        dev.dump_stats();
+    }
+}
+
+fn run_udp_test_128(dev: &Ixgbe) {
+    const PAYLOAD_SZ: usize = 128;
+    let mac_data = [
+        0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x50, // Dst mac
+        0x90, 0xe2, 0xba, 0xb5, 0x14, 0xf5, // Src mac
+        0x08, 0x00,                         // Protocol
+    ];
+    let mut ip_data = [
+        //0x45, 0x00, 0x05, 0xdc, 0x78, 0xb4, 0x40, 0x00,
+        0x45, 0x00,
+        0x00,
+        0x2e,
+        0x00, 0x0, 0x0, 0x00,
+        0x40, 0x11, 0x00, 0x00,
+        0x0a, 0x0a, 0x03, 0x01,
+        0x0a, 0x0a, 0x03, 0x02,
+    ];
+
+    let udp_hdr = [
+        0xb2, 0x6f, 0x14, 0x51,
+        0x00,
+        0x1a,
+        0x9c, 0xaf,
+    ];
+
+    let mut payload: [u8; PAYLOAD_SZ] = [0u8; PAYLOAD_SZ];
+    payload[0] = b'R';
+    payload[1] = b'e';
+    payload[2] = b'd';
+    payload[3] = b'l';
+    payload[4] = b'e';
+    payload[5] = b'a';
+    payload[6] = b'f';
+
+    let checksum = calc_ipv4_checksum(&ip_data);
+    // Calculated checksum is little-endian; checksum field is big-endian
+    ip_data[10] = (checksum >> 8) as u8;
+    ip_data[11] = (checksum & 0xff) as u8;
+
+    let eth_hdr = protocol::EthernetHeader(mac_data);
+    let ip_hdr = protocol::IpV4Header(ip_data);
+    let udp_hdr = protocol::UdpHeader(udp_hdr);
+    let payload = payload;
+    let pkt = UdpPacket::new(eth_hdr, ip_hdr, udp_hdr, payload);
+
+    let mut pvec: Vec<UdpPacket<[u8; PAYLOAD_SZ]>> = Vec::with_capacity(32);
+
+    for i in 0..32 {
+        pvec.push(UdpPacket::new_zeroed(payload));
+        unsafe {
+            core::ptr::copy(
+                pkt.as_slice() as *const _ as *const u8,
+                &mut pvec[i] as *mut UdpPacket<[u8; PAYLOAD_SZ]> as *mut u8,
+                core::mem::size_of::<UdpPacket<[u8; PAYLOAD_SZ]>>());
+        }
+    }
+
+    //println!("{:?}", pvec[0]);
+
+    if let Some(mut device) = dev.device.borrow_mut().as_mut() {
+        let dev: &mut Intel8259x = device;
+        let mut sum: usize = 0;
+        let start = rdtsc();
+        while sum <= 20_000_000 {
+            let ret = dev.tx_batch(&pvec);
+            sum += ret;
+        }
+        println!("sum {}", sum);
+        let elapsed = rdtsc() - start;
+        println!("==> tx batch 128B: {} iterations took {} cycles (avg = {})", sum, elapsed, elapsed / sum as u64);
+        dev.dump_stats();
+    }
+}
+ 
+fn run_udp_test_256(dev: &Ixgbe) {
+    const PAYLOAD_SZ: usize = 256;
+    let mac_data = [
+        0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x50, // Dst mac
+        0x90, 0xe2, 0xba, 0xb5, 0x14, 0xf5, // Src mac
+        0x08, 0x00,                         // Protocol
+    ];
+    let mut ip_data = [
+        //0x45, 0x00, 0x05, 0xdc, 0x78, 0xb4, 0x40, 0x00,
+        0x45, 0x00,
+        0x00,
+        0x2e,
+        0x00, 0x0, 0x0, 0x00,
+        0x40, 0x11, 0x00, 0x00,
+        0x0a, 0x0a, 0x03, 0x01,
+        0x0a, 0x0a, 0x03, 0x02,
+    ];
+
+    let udp_hdr = [
+        0xb2, 0x6f, 0x14, 0x51,
+        0x00,
+        0x1a,
+        0x9c, 0xaf,
+    ];
+
+    let mut payload: [u8; PAYLOAD_SZ] = [0u8; PAYLOAD_SZ];
+    payload[0] = b'R';
+    payload[1] = b'e';
+    payload[2] = b'd';
+    payload[3] = b'l';
+    payload[4] = b'e';
+    payload[5] = b'a';
+    payload[6] = b'f';
+
+    let checksum = calc_ipv4_checksum(&ip_data);
+    // Calculated checksum is little-endian; checksum field is big-endian
+    ip_data[10] = (checksum >> 8) as u8;
+    ip_data[11] = (checksum & 0xff) as u8;
+
+    let eth_hdr = protocol::EthernetHeader(mac_data);
+    let ip_hdr = protocol::IpV4Header(ip_data);
+    let udp_hdr = protocol::UdpHeader(udp_hdr);
+    let payload = payload;
+    let pkt = UdpPacket::new(eth_hdr, ip_hdr, udp_hdr, payload);
+
+    let mut pvec: Vec<UdpPacket<[u8; PAYLOAD_SZ]>> = Vec::with_capacity(32);
+
+    for i in 0..32 {
+        pvec.push(UdpPacket::new_zeroed(payload));
+        unsafe {
+            core::ptr::copy(
+                pkt.as_slice() as *const _ as *const u8,
+                &mut pvec[i] as *mut UdpPacket<[u8; PAYLOAD_SZ]> as *mut u8,
+                core::mem::size_of::<UdpPacket<[u8; PAYLOAD_SZ]>>());
+        }
+    }
+
+    //println!("{:?}", pvec[0]);
+
+    if let Some(mut device) = dev.device.borrow_mut().as_mut() {
+        let dev: &mut Intel8259x = device;
+        let mut sum: usize = 0;
+        let start = rdtsc();
+        while sum <= 20_000_000 {
+            let ret = dev.tx_batch(&pvec);
+            sum += ret;
+        }
+        println!("sum {}", sum);
+        let elapsed = rdtsc() - start;
+        println!("==> tx batch 256B: {} iterations took {} cycles (avg = {})", sum, elapsed, elapsed / sum as u64);
+        dev.dump_stats();
+    }
+}
+
+fn run_udp_test_512(dev: &Ixgbe) {
+    const PAYLOAD_SZ: usize = 512;
+    let mac_data = [
+        0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x50, // Dst mac
+        0x90, 0xe2, 0xba, 0xb5, 0x14, 0xf5, // Src mac
+        0x08, 0x00,                         // Protocol
+    ];
+    let mut ip_data = [
+        //0x45, 0x00, 0x05, 0xdc, 0x78, 0xb4, 0x40, 0x00,
+        0x45, 0x00,
+        0x00,
+        0x2e,
+        0x00, 0x0, 0x0, 0x00,
+        0x40, 0x11, 0x00, 0x00,
+        0x0a, 0x0a, 0x03, 0x01,
+        0x0a, 0x0a, 0x03, 0x02,
+    ];
+
+    let udp_hdr = [
+        0xb2, 0x6f, 0x14, 0x51,
+        0x00,
+        0x1a,
+        0x9c, 0xaf,
+    ];
+
+    let mut payload: [u8; PAYLOAD_SZ] = [0u8; PAYLOAD_SZ];
+    payload[0] = b'R';
+    payload[1] = b'e';
+    payload[2] = b'd';
+    payload[3] = b'l';
+    payload[4] = b'e';
+    payload[5] = b'a';
+    payload[6] = b'f';
+
+    let checksum = calc_ipv4_checksum(&ip_data);
+    // Calculated checksum is little-endian; checksum field is big-endian
+    ip_data[10] = (checksum >> 8) as u8;
+    ip_data[11] = (checksum & 0xff) as u8;
+
+    let eth_hdr = protocol::EthernetHeader(mac_data);
+    let ip_hdr = protocol::IpV4Header(ip_data);
+    let udp_hdr = protocol::UdpHeader(udp_hdr);
+    let payload = payload;
+    let pkt = UdpPacket::new(eth_hdr, ip_hdr, udp_hdr, payload);
+
+    let mut pvec: Vec<UdpPacket<[u8; PAYLOAD_SZ]>> = Vec::with_capacity(32);
+
+    for i in 0..32 {
+        pvec.push(UdpPacket::new_zeroed(payload));
+        unsafe {
+            core::ptr::copy(
+                pkt.as_slice() as *const _ as *const u8,
+                &mut pvec[i] as *mut UdpPacket<[u8; PAYLOAD_SZ]> as *mut u8,
+                core::mem::size_of::<UdpPacket<[u8; PAYLOAD_SZ]>>());
+        }
+    }
+
+    //println!("{:?}", pvec[0]);
+
+    if let Some(mut device) = dev.device.borrow_mut().as_mut() {
+        let dev: &mut Intel8259x = device;
+        let mut sum: usize = 0;
+        let start = rdtsc();
+        while sum <= 20_000_000 {
+            let ret = dev.tx_batch(&pvec);
+            sum += ret;
+        }
+        println!("sum {}", sum);
+        let elapsed = rdtsc() - start;
+        println!("==> tx batch 512B: {} iterations took {} cycles (avg = {})", sum, elapsed, elapsed / sum as u64);
+        dev.dump_stats();
+    }
+}
+
+fn run_udp_test_MTU(dev: &Ixgbe) {
+    const PAYLOAD_SZ: usize = 1472;
+    let mac_data = [
+        0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x50, // Dst mac
+        0x90, 0xe2, 0xba, 0xb5, 0x14, 0xf5, // Src mac
+        0x08, 0x00,                         // Protocol
+    ];
+    let mut ip_data = [
+        //0x45, 0x00, 0x05, 0xdc, 0x78, 0xb4, 0x40, 0x00,
+        0x45, 0x00,
+        0x00,
+        0x2e,
+        0x00, 0x0, 0x0, 0x00,
+        0x40, 0x11, 0x00, 0x00,
+        0x0a, 0x0a, 0x03, 0x01,
+        0x0a, 0x0a, 0x03, 0x02,
+    ];
+
+    let udp_hdr = [
+        0xb2, 0x6f, 0x14, 0x51,
+        0x00,
+        0x1a,
+        0x9c, 0xaf,
+    ];
+
+    let mut payload: [u8; PAYLOAD_SZ] = [0u8; PAYLOAD_SZ];
+    payload[0] = b'R';
+    payload[1] = b'e';
+    payload[2] = b'd';
+    payload[3] = b'l';
+    payload[4] = b'e';
+    payload[5] = b'a';
+    payload[6] = b'f';
+
+    let checksum = calc_ipv4_checksum(&ip_data);
+    // Calculated checksum is little-endian; checksum field is big-endian
+    ip_data[10] = (checksum >> 8) as u8;
+    ip_data[11] = (checksum & 0xff) as u8;
+
+    let eth_hdr = protocol::EthernetHeader(mac_data);
+    let ip_hdr = protocol::IpV4Header(ip_data);
+    let udp_hdr = protocol::UdpHeader(udp_hdr);
+    let payload = payload;
+    let pkt = UdpPacket::new(eth_hdr, ip_hdr, udp_hdr, payload);
+
+    let mut pvec: Vec<UdpPacket<[u8; PAYLOAD_SZ]>> = Vec::with_capacity(32);
+
+    for i in 0..32 {
+        pvec.push(UdpPacket::new_zeroed(payload));
+        unsafe {
+            core::ptr::copy(
+                pkt.as_slice() as *const _ as *const u8,
+                &mut pvec[i] as *mut UdpPacket<[u8; PAYLOAD_SZ]> as *mut u8,
+                core::mem::size_of::<UdpPacket<[u8; PAYLOAD_SZ]>>());
+        }
+    }
+
+    //println!("{:?}", pvec[0]);
+
+    if let Some(mut device) = dev.device.borrow_mut().as_mut() {
+        let dev: &mut Intel8259x = device;
+        let mut sum: usize = 0;
+        let start = rdtsc();
+        while sum <= 20_000_000 {
+            let ret = dev.tx_batch(&pvec);
+            sum += ret;
+        }
+        println!("sum {}", sum);
+        let elapsed = rdtsc() - start;
+        println!("==> tx batch MTU: {} iterations took {} cycles (avg = {})", sum, elapsed, elapsed / sum as u64);
         dev.dump_stats();
     }
 }
@@ -326,7 +625,11 @@ pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
     println!("ixgbe_init: starting ixgbe driver domain");
     let mut ixgbe = Ixgbe::new();
     pci.pci_register_driver(&mut ixgbe, 0);
-    run_udp_test(&ixgbe);
+    run_udp_test_64(&ixgbe);
+    run_udp_test_128(&ixgbe);
+    run_udp_test_256(&ixgbe);
+    run_udp_test_512(&ixgbe);
+    run_udp_test_MTU(&ixgbe);
     Box::new(ixgbe)
 }
 

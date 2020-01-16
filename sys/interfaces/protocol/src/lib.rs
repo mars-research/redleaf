@@ -1,5 +1,6 @@
 #![no_std]
 #[macro_use]
+
 extern crate bitfield;
 
 use core::convert::TryInto;
@@ -19,24 +20,27 @@ pub const MTU_SZ: usize = 60;
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct UdpPacket {
+pub struct UdpPacket<T> {
     pub eth_hdr: EthernetHeader<[u8; ETH_HDR_SZ]>,
     pub ip_hdr: IpV4Header<[u8; IP_HDR_SZ]>,
     pub udp_hdr: UdpHeader<[u8; UDP_HDR_SZ]>,
-    pub payload: [u8; PAYLOAD_SZ],
+    pub payload: T,
 }
 
 use core::convert::AsMut;
 
-fn copy_into_array(slice: &[u8]) -> [u8; PAYLOAD_SZ]
+/*
+fn copy_into_array<T>(slice: &[u8]) -> T
 {
-    let mut a = [0u8; PAYLOAD_SZ];
+    let mut a: T = Default::default();
     unsafe {
-        core::ptr::copy(slice.as_ptr(), a.as_mut() as *mut _ as *mut u8, PAYLOAD_SZ);
+        core::ptr::copy(slice.as_ptr(), a.as_mut() as *mut _ as *mut u8,
+                            core::mem::size_of::<T>() / slice.len());
     }
     a
-}
+}*/
 
+/*
 impl From<[u8; MTU_SZ]> for UdpPacket {
     fn from(buf: [u8; MTU_SZ]) -> UdpPacket {
         UdpPacket {
@@ -47,12 +51,12 @@ impl From<[u8; MTU_SZ]> for UdpPacket {
         }
     }
 }
-
-impl UdpPacket {
+*/
+impl<T> UdpPacket<T> {
     pub fn new(eth_hdr: EthernetHeader<[u8; ETH_HDR_SZ]>,
                ip_hdr: IpV4Header<[u8; IP_HDR_SZ]>,
                udp_hdr: UdpHeader<[u8; UDP_HDR_SZ]>,
-               payload: [u8; PAYLOAD_SZ]) -> UdpPacket {
+               payload: T) -> UdpPacket<T> {
         UdpPacket {
             eth_hdr,
             ip_hdr,
@@ -61,16 +65,16 @@ impl UdpPacket {
         }
     }
 
-    pub fn new_raw(buf: [u8; MTU_SZ]) -> UdpPacket {
+/*    pub fn new_raw(buf: [u8; MTU_SZ]) -> UdpPacket {
         UdpPacket::from(buf)
     }
-
-    pub fn new_zeroed() -> UdpPacket {
+*/
+    pub fn new_zeroed(payload: T) -> UdpPacket<T> {
         UdpPacket {
             eth_hdr: EthernetHeader([0u8; ETH_HDR_SZ]),
             ip_hdr: IpV4Header([0u8; IP_HDR_SZ]),
             udp_hdr: UdpHeader([0u8; UDP_HDR_SZ]),
-            payload: [0u8; PAYLOAD_SZ],
+            payload: payload
         }
     }
 
