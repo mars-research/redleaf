@@ -13,7 +13,6 @@
 )]
 
 mod device;
-mod dma;
 mod ixgbe_desc;
 
 extern crate malloc;

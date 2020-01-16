@@ -88,6 +88,7 @@ pub const IXGBE_GPIE_EIMEN: u64                                        = 0x00000
 pub const IXGBE_GPIE_EIAME: u64                                        = 0x40000000;
 pub const IXGBE_GPIE_PBA_SUPPORT: u64                                  = 0x80000000;
 
+/*
 #[derive(Debug, Copy, Clone)]
 #[repr(packed)]
 pub struct ixgbe_adv_rx_desc_read {
@@ -189,4 +190,4 @@ pub union ixgbe_adv_tx_desc {
     pub read: ixgbe_adv_tx_desc_read,
     pub wb: ixgbe_adv_tx_desc_wb,
     _union_align: [u64; 2],
-}
+}*/
