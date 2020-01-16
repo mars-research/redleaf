@@ -42,21 +42,20 @@ impl usr::proxy::Proxy for Proxy {
     }
 
     fn proxy_bench(&self, iterations: u64) {
-        {
-            x86_64::instructions::interrupts::disable();
-            let start = get_rdtsc();
-            for _ in 0..iterations {
-                // "dummy" kernel crossings
-                let callee_domain = 666;
-                let caller_domain = update_caller_domain_id(callee_domain);
-                // no-op
-                update_caller_domain_id(caller_domain);
-            }
-            let end = get_rdtsc();
-            x86_64::instructions::interrupts::enable();
-            println!("[kernel domain crossing] delta: {}, per iteration: {}, per crossing: {}",
-                     end - start, (end - start) / iterations, (end - start) / iterations / 2);
+        x86_64::instructions::interrupts::disable();
+        let start = get_rdtsc();
+        let mut i = 0;
+        while i < iterations {
+            // "dummy" kernel crossings
+            let callee_domain = 666;
+            let caller_domain = update_caller_domain_id(callee_domain);
+            // no-op
+            update_caller_domain_id(caller_domain);
         }
+        let end = get_rdtsc();
+        x86_64::instructions::interrupts::enable();
+        println!("[kernel domain crossing] delta: {}, per iteration: {}, per crossing: {}",
+                 end - start, (end - start) / iterations, (end - start) / iterations / 2);
     }
     fn proxy_foo(&self) {
         // no-op

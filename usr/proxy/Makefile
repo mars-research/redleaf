@@ -1,4 +1,5 @@
 root := ../../
+include $(root)/common_flags.mk
 
 bin_name := proxy
 arch ?= x86_64
@@ -28,6 +29,6 @@ $(bin): lib $(linker_script)
 
 .PHONY: lib
 lib:
-	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo xbuild --target x86_64-$(bin_name).json $(FEATURES)
+	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo xbuild ${CARGO_FLAGS} --target x86_64-$(bin_name).json
 
 include $(root)/checkstack.mk
