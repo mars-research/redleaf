@@ -173,3 +173,8 @@ cloudlab-deps:
 	cargo install cargo-xbuild
 	cargo install stack-sizes
 	rustup component add rust-src
+
+.PHONY: cloudlab-grub
+cloudlab-grub:
+	cat cloudlab-grub.template | envsubst '$$PWD' | sudo tee /etc/grub.d/40_custom
+	sudo update-grub2
