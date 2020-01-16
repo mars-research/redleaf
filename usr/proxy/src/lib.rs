@@ -44,8 +44,7 @@ impl usr::proxy::Proxy for Proxy {
     fn proxy_bench(&self, iterations: u64) {
         x86_64::instructions::interrupts::disable();
         let start = get_rdtsc();
-        let mut i = 0;
-        while i < iterations {
+        for _ in 0..i {
             // "dummy" kernel crossings
             let callee_domain = 666;
             let caller_domain = update_caller_domain_id(callee_domain);
