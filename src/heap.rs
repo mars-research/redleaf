@@ -43,9 +43,10 @@ impl Heap for PHeap {
         disable_irq();
         let domain_id = {
             // get domain id without locking the current thread
-            let thread_arc: Arc<Mutex<Thread>> = thread::get_current_ref();
+            let thread_option: &Option<Arc<Mutex<Thread>>> = &thread::CURRENT.borrow();
+            let thread_arc: &Arc<Mutex<Thread>> = thread_option.as_ref().unwrap();
             let thread_mutex: &mut Mutex<Thread> = unsafe {
-                &mut *((&*thread_arc) as *const Mutex<Thread> as *mut Mutex<Thread>)
+                &mut *((&**thread_arc) as *const Mutex<Thread> as *mut Mutex<Thread>)
             };
             thread_mutex.get_mut().current_domain_id
         };
@@ -57,9 +58,11 @@ impl Heap for PHeap {
         disable_irq();
         let mut old_domain_id = new_domain_id;
         {
-            let thread_arc: Arc<Mutex<Thread>> = thread::get_current_ref();
+            // swap domain id without locking the current thread
+            let thread_option: &Option<Arc<Mutex<Thread>>> = &thread::CURRENT.borrow();
+            let thread_arc: &Arc<Mutex<Thread>> = thread_option.as_ref().unwrap();
             let thread_mutex: &mut Mutex<Thread> = unsafe {
-                &mut *((&*thread_arc) as *const Mutex<Thread> as *mut Mutex<Thread>)
+                &mut *((&**thread_arc) as *const Mutex<Thread> as *mut Mutex<Thread>)
             };
             let mut thread = thread_mutex.get_mut();
             core::mem::swap(&mut thread.current_domain_id, &mut old_domain_id);

@@ -33,7 +33,7 @@ static SCHED: RefCell<Scheduler> = RefCell::new(Scheduler::new());
 
 /// Per-CPU current thread
 #[thread_local]
-static CURRENT: RefCell<Option<Arc<Mutex<Thread>>>> = RefCell::new(None); 
+pub static CURRENT: RefCell<Option<Arc<Mutex<Thread>>>> = RefCell::new(None);
 
 static mut REBALANCE_FLAGS: RebalanceFlags = RebalanceFlags::new();
 static REBALANCE_QUEUES: Mutex<RebalanceQueues> = Mutex::new(RebalanceQueues::new());
