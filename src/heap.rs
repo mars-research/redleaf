@@ -1,8 +1,9 @@
 use alloc::vec::Vec;
+use alloc::sync::Arc;
 use core::alloc::{GlobalAlloc, Layout};
 use spin::Mutex;
 use crate::interrupt::{disable_irq, enable_irq};
-use crate::thread;
+use crate::{thread, thread::Thread};
 use crate::memory::MEM_PROVIDER;
 use syscalls::Heap;
 
@@ -41,11 +42,12 @@ impl Heap for PHeap {
     fn get_current_domain_id(&self) -> u64 {
         disable_irq();
         let domain_id = {
-            let thread = thread::get_current_ref();
-            let thread_guard = thread.lock();
-            let id = thread_guard.id;
-            drop(thread_guard);
-            id
+            // get domain id without locking the current thread
+            let thread_arc: Arc<Mutex<Thread>> = thread::get_current_ref();
+            let thread_mutex: &mut Mutex<Thread> = unsafe {
+                &mut *((&*thread_arc) as *const Mutex<Thread> as *mut Mutex<Thread>)
+            };
+            thread_mutex.get_mut().current_domain_id
         };
         enable_irq();
         domain_id
@@ -55,10 +57,12 @@ impl Heap for PHeap {
         disable_irq();
         let mut old_domain_id = new_domain_id;
         {
-            let thread = thread::get_current_ref();
-            let mut thread_guard = thread.lock();
-            core::mem::swap(&mut thread_guard.current_domain_id, &mut old_domain_id);
-            drop(thread_guard);
+            let thread_arc: Arc<Mutex<Thread>> = thread::get_current_ref();
+            let thread_mutex: &mut Mutex<Thread> = unsafe {
+                &mut *((&*thread_arc) as *const Mutex<Thread> as *mut Mutex<Thread>)
+            };
+            let mut thread = thread_mutex.get_mut();
+            core::mem::swap(&mut thread.current_domain_id, &mut old_domain_id);
         }
         enable_irq();
         old_domain_id
