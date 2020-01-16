@@ -21,22 +21,22 @@ impl PHeap {
 
 impl Heap for PHeap {
     fn alloc(&self, domain_id: u64, layout: Layout) -> *mut u8 {
-        disable_irq();
+//        disable_irq();
         let ptr = alloc_heap(domain_id, layout);
-        enable_irq();
+//        enable_irq();
         ptr
     }
 
     fn dealloc(&self, domain_id: u64, ptr: *mut u8, layout: Layout) {
-        disable_irq();
+//        disable_irq();
         dealloc_heap(domain_id, ptr, layout);
-        enable_irq();
+//        enable_irq();
     }
 
     fn change_domain(&self, from_domain_id: u64, to_domain_id: u64, ptr: *mut u8, layout: Layout) {
-        disable_irq();
+//        disable_irq();
         change_domain(from_domain_id, to_domain_id, ptr, layout);
-        enable_irq();
+//        enable_irq();
     }
 
     fn get_current_domain_id(&self) -> u64 {
