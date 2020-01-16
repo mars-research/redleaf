@@ -43,6 +43,7 @@ impl usr::proxy::Proxy for Proxy {
 
     fn proxy_bench(&self, iterations: u64) {
         println!("beginning proxy benchmark");
+        x86_64::instructions::interrupts::disable();
         {
             let start = get_rdtsc();
             for _ in 0..iterations {
@@ -56,6 +57,7 @@ impl usr::proxy::Proxy for Proxy {
             println!("[kernel domain crossing] delta: {}, per iteration: {}, per crossing: {}",
                      end - start, (end - start) / iterations, (end - start) / iterations / 2);
         }
+        x86_64::instructions::interrupts::enable();
         println!("finished proxy benchmark");
     }
     fn proxy_foo(&self) {
