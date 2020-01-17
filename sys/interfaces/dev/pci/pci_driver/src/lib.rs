@@ -23,3 +23,9 @@ pub enum PciDrivers {
     IxgbeDriver,
     AhciDriver,
 }
+
+#[derive(Copy, Clone, Debug)]
+pub enum PciDeviceMatcher {
+    DeviceId((u16, u16)),
+    Class((u8, u8)),
+}

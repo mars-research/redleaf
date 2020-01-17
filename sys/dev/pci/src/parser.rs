@@ -10,9 +10,8 @@ use alloc::vec::Vec;
 use spin::Mutex;
 
 lazy_static! {
-    pub static ref PCI_MAP: Mutex<HashMap<PciDevice, Vec<Option<PciBar>>>> = {
-        let hmap = HashMap::new();
-        Mutex::new(hmap)
+    pub static ref PCI_DEVICES: Mutex<Vec<PciHeader>> = {
+        Mutex::new(Vec::new())
     };
 }
 
@@ -250,6 +249,7 @@ pub fn scan_pci_devs(pci_resource: &dyn PciResource) {
     for bus in pci.buses() {
         for dev in bus.devs() {
             for func in dev.funcs() {
+                // do stuff here
                 let func_num = func.num;
                 match PciHeader::from_reader(func) {
                     Ok(header) => {
