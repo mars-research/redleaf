@@ -33,7 +33,7 @@ use core::panic::PanicInfo;
 use syscalls::{Syscall, PciResource, PciBar};
 use libsyscalls::syscalls::{sys_println, sys_backtrace};
 use alloc::boxed::Box;
-use crate::parser::{PciDevice, PCI_MAP};
+use crate::parser::{PciDevice, PCI_DEVICES};
 use console::println;
 use spin::Once;
 
@@ -56,28 +56,28 @@ impl syscalls::PCI for PCI {
         let device_id = pci_driver.get_did();
         // match vid, dev_id with the registered pci devices we have and
         // typecast the barregion to the appropriate one for this device
-        let pci_dev = PciDevice::new(vendor_id, device_id);
-        if let Some(bars) = PCI_MAP.lock().get(&pci_dev) {
-            assert!(bar_index < bars.len());
+        let pci_devs = &*PCI_DEVICES.lock();
+        // TODO: dont panic here
+        let pci_dev = pci_devs
+                        .iter()
+                        .filter(|header| {
+                            header.vendor_id() == vendor_id && header.device_id() == device_id
+                        })
+                        .nth(0)
+                        .unwrap();
+        // TODO: dont panic here
+        let bar = pci_dev.get_bar(bar_index);
 
-            println!("Device found {:x?} {:x?}", pci_dev, bars[bar_index]);
-
-            match bars[bar_index] {
-                Some(bar) => {
-                    let bar = match bar {
-                        bar::PciBar::Memory(addr) => addr,
-                        bar::PciBar::Port(port) => port as u32,
-                        _ => 0 as u32,
-                    };
-                    let pci_bar = PCI_BAR.r#try().expect("System call interface is not initialized.");
-
-                    let bar_region = pci_bar.get_bar_region(bar as u64, 512 * 1024 as usize, pci_driver.get_driver_type());
-
-                    pci_driver.probe(bar_region);
-                }
-                None => panic!("BAR region is null")
-            }
+        let bar = match bar {
+            bar::PciBar::Memory(addr) => addr,
+            bar::PciBar::Port(port) => port as u32,
+            _ => 0 as u32,
         };
+        let pci_bar = PCI_BAR.r#try().expect("System call interface is not initialized.");
+
+        let bar_region = pci_bar.get_bar_region(bar as u64, 512 * 1024 as usize, pci_driver.get_driver_type());
+
+        pci_driver.probe(bar_region);
     }
 
     fn pci_clone(&self) -> Box<dyn syscalls::PCI> {
