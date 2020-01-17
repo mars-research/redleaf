@@ -14,8 +14,9 @@ FEATURES =
 #FEATURES += --features "smp"
 FEATURES += --features "trace_vspace"
 FEATURES += --features "page_fault_on_ist"
+
 ifeq ($(CLOUDLAB),true)
-FEATURES += --features "cloudlab"
+FEATURES += --features "cloudlab" --features "large_mem"
 endif
 
 ifeq ($(IXGBE),true)
