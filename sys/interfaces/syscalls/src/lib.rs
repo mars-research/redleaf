@@ -4,7 +4,6 @@
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-use crate::errors::Result;
 use spin::{MutexGuard, Mutex};
 use core::alloc::Layout;
 use alloc::sync::Arc;
@@ -45,7 +44,7 @@ pub trait Thread {
 
 /// RedLeaf PCI bus driver interface
 pub trait PCI {
-    fn pci_register_driver(&self, pci_driver: &mut dyn pci_driver::PciDriver, bar_index: usize);
+    fn pci_register_driver(&self, pci_driver: &mut dyn pci_driver::PciDriver, bar_index: usize) -> Result<(), ()>;
     /// Boxed trait objects cannot be cloned trivially!
     /// https://users.rust-lang.org/t/solved-is-it-possible-to-clone-a-boxed-trait-object/1714/6
     fn pci_clone(&self) -> Box<dyn PCI>;

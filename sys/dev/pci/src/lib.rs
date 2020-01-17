@@ -51,20 +51,19 @@ impl PCI {
 impl syscalls::PCI for PCI {
 
     //-> bar_regions::BarRegions
-    fn pci_register_driver(&self, pci_driver: &mut dyn pci_driver::PciDriver, bar_index: usize) {
+    fn pci_register_driver(&self, pci_driver: &mut dyn pci_driver::PciDriver, bar_index: usize) -> Result<(), ()> {
         let vendor_id = pci_driver.get_vid();
         let device_id = pci_driver.get_did();
         // match vid, dev_id with the registered pci devices we have and
         // typecast the barregion to the appropriate one for this device
         let pci_devs = &*PCI_DEVICES.lock();
-        // TODO: dont panic here
         let pci_dev = pci_devs
                         .iter()
                         .filter(|header| {
                             header.vendor_id() == vendor_id && header.device_id() == device_id
                         })
                         .nth(0)
-                        .unwrap();
+                        .ok_or(())?;
         // TODO: dont panic here
         let bar = pci_dev.get_bar(bar_index);
 
@@ -78,6 +77,8 @@ impl syscalls::PCI for PCI {
         let bar_region = pci_bar.get_bar_region(bar as u64, 512 * 1024 as usize, pci_driver.get_driver_type());
 
         pci_driver.probe(bar_region);
+
+        Ok(())
     }
 
     fn pci_clone(&self) -> Box<dyn syscalls::PCI> {
