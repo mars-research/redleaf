@@ -9,6 +9,11 @@ use crate::memory::buddy::BUDDY;
 
 const KERNEL_START: u64 = 0x10_0000;
 
+#[cfg(feature = "large_mem")]
+const MEM_THRESHOLD: usize = 0x1_0000_0000;
+#[cfg(not(feature = "large_mem"))]
+const MEM_THRESHOLD: usize = 0x2EE_0000;
+
 pub fn kernel_end() -> u64 {
     extern {
         /// The starting byte of the thread data segment
@@ -41,9 +46,12 @@ pub fn init_buddy(bootinfo: &BootInformation) {
 
                 // TODO BAD: We can only add one region to the buddy allocator, so we need
                 // to pick a big one weee
-                if (base >= 1_0000_0000 as u64) && size > BASE_PAGE_SIZE && size >= 0x1_0000_0000 {
+                if (base >= 1_0000_0000 as u64) && size > BASE_PAGE_SIZE && size >= MEM_THRESHOLD {
                     // downsize the region to 4GiB
-                    size = 4 * 0x1_0000_0000 as usize;
+                    if size > 4 * 0x1_0000_0000 {
+                        size = 4 * 0x1_0000_0000 as usize;
+                    }
+
                     println!("region.base = {:#x} region.size = {:#x}", base, size);
                     unsafe {
                         let f = Frame::new(PAddr::from(base), size);
