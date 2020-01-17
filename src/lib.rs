@@ -40,6 +40,7 @@ pub mod gdt;
 
 mod multibootv2;
 mod memory;
+mod rtc;
 
 #[macro_use]
 mod prelude;
@@ -178,6 +179,8 @@ pub extern "C" fn rust_main() -> ! {
     }
 
     println!("Version: {}", buildinfo::BUILD_VERSION);
+
+    rtc::print_date();
 
     let featureInfo = CpuId::new().get_feature_info()
         .expect("CPUID unavailable");
