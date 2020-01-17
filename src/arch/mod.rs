@@ -1,3 +1,5 @@
+// Adapted from Bespin OS
+
 pub mod memory;
 pub mod vspace;
 
@@ -71,5 +73,12 @@ pub fn init_buddy(bootinfo: &BootInformation) {
             }
         }
     }
-    println!("added memory regions");
+
+    if let Some(ref mut buddy) = *BUDDY.lock() {
+        if buddy.get_region().size() == 0 {
+            panic!("No memory regions were added!");
+        } else {
+            println!("added memory regions");
+        }
+    }
 }

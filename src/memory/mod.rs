@@ -1,3 +1,4 @@
+// Adapted from Bespin OS code
 use core::fmt;
 use x86::bits64::paging;
 use core::mem::transmute;
