@@ -22,7 +22,6 @@ extern crate alloc;
 
 mod bar;
 mod bus;
-mod class;
 mod dev;
 mod func;
 mod header;
@@ -36,6 +35,7 @@ use alloc::boxed::Box;
 use crate::parser::{PciDevice, PCI_DEVICES};
 use console::println;
 use spin::Once;
+use pci_driver::{PciDriver, PciClass};
 
 #[derive(Clone)]
 struct PCI {}
@@ -51,19 +51,27 @@ impl PCI {
 impl syscalls::PCI for PCI {
 
     //-> bar_regions::BarRegions
-    fn pci_register_driver(&self, pci_driver: &mut dyn pci_driver::PciDriver, bar_index: usize) -> Result<(), ()> {
+    fn pci_register_driver(&self, pci_driver: &mut dyn PciDriver, bar_index: usize, class: Option<(PciClass, u8)>) -> Result<(), ()> {
         let vendor_id = pci_driver.get_vid();
         let device_id = pci_driver.get_did();
         // match vid, dev_id with the registered pci devices we have and
         // typecast the barregion to the appropriate one for this device
         let pci_devs = &*PCI_DEVICES.lock();
-        let pci_dev = pci_devs
-                        .iter()
-                        .filter(|header| {
-                            header.vendor_id() == vendor_id && header.device_id() == device_id
-                        })
-                        .nth(0)
-                        .ok_or(())?;
+        let pci_dev = match class {
+            Some((class, subclass)) => {
+                unimplemented!();
+            }, 
+            None => {
+                pci_devs
+                .iter()
+                .filter(|header| {
+                    header.vendor_id() == vendor_id && header.device_id() == device_id
+                })
+                .nth(0)
+                .ok_or(())?
+            }
+        };
+        
         // TODO: dont panic here
         let bar = pci_dev.get_bar(bar_index);
 

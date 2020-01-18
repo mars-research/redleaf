@@ -1,7 +1,7 @@
 use byteorder::{LittleEndian, ByteOrder};
+use pci_driver::PciClass;
 
 use super::func::ConfigReader;
-use super::class::PciClass;
 use super::bar::PciBar;
 
 #[derive(Debug, PartialEq)]

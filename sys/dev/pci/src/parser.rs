@@ -1,6 +1,6 @@
 #![feature(alloc)]
 
-use crate::pci::{Pci, PciBar, PciClass, PciHeader, PciHeaderError};
+use crate::pci::{Pci, PciBar, PciHeader, PciHeaderError};
 use syscalls::PciResource;
 use console::println;
 use alloc::format;
@@ -8,6 +8,7 @@ use hashbrown::HashMap;
 use lazy_static::lazy_static;
 use alloc::vec::Vec;
 use spin::Mutex;
+use pci_driver::PciClass;
 
 lazy_static! {
     pub static ref PCI_DEVICES: Mutex<Vec<PciHeader>> = {

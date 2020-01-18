@@ -624,7 +624,7 @@ pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
 
     println!("ixgbe_init: starting ixgbe driver domain");
     let mut ixgbe = Ixgbe::new();
-    if let Err(_) = pci.pci_register_driver(&mut ixgbe, 0) {
+    if let Err(_) = pci.pci_register_driver(&mut ixgbe, 0, None) {
         println!("WARNING: failed to register IXGBE driver");
     }
     run_udp_test_64(&ixgbe);

@@ -1,5 +1,9 @@
 #![no_std]
 
+mod pci_class;
+
+pub use pci_class::PciClass;
+
 extern crate alloc;
 use alloc::boxed::Box;
 use ixgbe::IxgbeBarRegion;

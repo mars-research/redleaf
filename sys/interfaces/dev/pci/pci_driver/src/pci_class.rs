@@ -1,3 +1,4 @@
+#[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PciClass {
     Legacy,
