@@ -148,7 +148,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
         drop(t2); 
     }
 
-    test_dummy_syscall();
+    // test_dummy_syscall();
 
     println!("about to create proxy");
     let (dom_proxy, proxy) = create_proxy.create_domain_proxy(heap);

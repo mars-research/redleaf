@@ -22,20 +22,22 @@ extern crate alloc;
 
 mod bar;
 mod bus;
-mod class;
 mod dev;
 mod func;
 mod header;
 mod pci;
 mod parser;
 
+use crate::parser::{PciDevice, PCI_DEVICES};
+use crate::header::PciHeader;
+
 use core::panic::PanicInfo;
 use syscalls::{Syscall, PciResource, PciBar};
 use libsyscalls::syscalls::{sys_println, sys_backtrace};
 use alloc::boxed::Box;
-use crate::parser::{PciDevice, PCI_MAP};
 use console::println;
 use spin::Once;
+use pci_driver::{PciDriver, PciClass};
 
 #[derive(Clone)]
 struct PCI {}
@@ -51,33 +53,48 @@ impl PCI {
 impl syscalls::PCI for PCI {
 
     //-> bar_regions::BarRegions
-    fn pci_register_driver(&self, pci_driver: &mut dyn pci_driver::PciDriver, bar_index: usize) {
+    fn pci_register_driver(&self, pci_driver: &mut dyn PciDriver, bar_index: usize, class: Option<(PciClass, u8)>) -> Result<(), ()> {
         let vendor_id = pci_driver.get_vid();
         let device_id = pci_driver.get_did();
         // match vid, dev_id with the registered pci devices we have and
         // typecast the barregion to the appropriate one for this device
-        let pci_dev = PciDevice::new(vendor_id, device_id);
-        if let Some(bars) = PCI_MAP.lock().get(&pci_dev) {
-            assert!(bar_index < bars.len());
-
-            println!("Device found {:x?} {:x?}", pci_dev, bars[bar_index]);
-
-            match bars[bar_index] {
-                Some(bar) => {
-                    let bar = match bar {
-                        bar::PciBar::Memory(addr) => addr,
-                        bar::PciBar::Port(port) => port as u32,
-                        _ => 0 as u32,
-                    };
-                    let pci_bar = PCI_BAR.r#try().expect("System call interface is not initialized.");
-
-                    let bar_region = pci_bar.get_bar_region(bar as u64, 512 * 1024 as usize, pci_driver.get_driver_type());
-
-                    pci_driver.probe(bar_region);
-                }
-                None => panic!("BAR region is null")
+        let pci_devs = &*PCI_DEVICES.lock();
+        let pci_dev: &PciHeader = match class {
+            Some((class, subclass)) => {
+                pci_devs
+                .iter()
+                .filter(|header| {
+                    header.class() == class && header.subclass() == subclass
+                })
+                .nth(0)
+                .ok_or(())
+            }, 
+            None => {
+                pci_devs
+                .iter()
+                .filter(|header| {
+                    header.vendor_id() == vendor_id && header.device_id() == device_id
+                })
+                .nth(0)
+                .ok_or(())
             }
+        }?;
+        
+        // TODO: dont panic here
+        let bar = pci_dev.get_bar(bar_index);
+
+        let bar = match bar {
+            bar::PciBar::Memory(addr) => addr,
+            bar::PciBar::Port(port) => port as u32,
+            _ => 0 as u32,
         };
+        let pci_bar = PCI_BAR.r#try().expect("System call interface is not initialized.");
+
+        let bar_region = pci_bar.get_bar_region(bar as u64, 512 * 1024 as usize, pci_driver.get_driver_type());
+
+        pci_driver.probe(bar_region);
+
+        Ok(())
     }
 
     fn pci_clone(&self) -> Box<dyn syscalls::PCI> {

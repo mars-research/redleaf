@@ -50,7 +50,6 @@ mod tls;
 mod thread;
 mod panic;
 mod syscalls;
-mod pci;
 mod domain;
 mod dev;
 mod waitqueue;
@@ -58,7 +57,6 @@ mod waitqueue;
 use x86::cpuid::CpuId;
 use crate::arch::{init_buddy};
 use crate::memory::{construct_pt, construct_ap_pt};
-use crate::pci::scan_pci_devs;
 use core::ptr;
 use crate::arch::memory::BASE_PAGE_SIZE;
 use crate::arch::{KERNEL_END, kernel_end};
@@ -217,8 +215,6 @@ pub extern "C" fn rust_main() -> ! {
 
     // Init page table (code runs on a new page table after this call)
     construct_pt();
-
-    scan_pci_devs();
 
     // Init per-CPU variables
     unsafe {
