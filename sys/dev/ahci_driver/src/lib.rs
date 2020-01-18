@@ -33,6 +33,7 @@ use ahci::AhciBarRegion;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use spin::Once;
+use byteorder::{LittleEndian, ByteOrder};
 
 use core::iter::Iterator;
 
@@ -45,11 +46,6 @@ struct Ahci {
     driver: pci_driver::PciDrivers,
     disks: RefCell<Vec<Box<dyn Disk>>>,
 }
-
-#[cfg(feature = "cloudlab")]
-const DISK_INDEX: usize = 1;
-#[cfg(not(feature = "cloudlab"))]
-const DISK_INDEX: usize = 0;
 
 impl Ahci {
     fn new() -> Ahci {
@@ -78,6 +74,27 @@ impl pci_driver::PciDriver for Ahci {
         println!("Initializing with base = {:x}", bar.get_base());
 
         let mut disks = self::ahcid::disks(bar);
+        // Filter out all disk that already has an OS on it
+        let have_magic_number: Vec<bool> = disks
+                        .iter_mut()
+                        .map(|d| {
+                            let mut buf = [0u8; 512];
+                            const MBR_MAGIC: u16 = 0xAA55;
+                            d.read(0, &mut buf);
+                            LittleEndian::read_u16(&buf[510..]) == MBR_MAGIC
+                        })
+                        .collect();
+        let mut disks = disks
+                        .into_iter()
+                        .zip(have_magic_number)
+                        .filter_map(|(d, has_magic_num)| {
+                            if has_magic_num {
+                                None
+                            } else {
+                                Some(d)
+                            }
+                        })
+                        .collect();
         self.disks = RefCell::new(disks);
 
         for (i, disk) in self.disks.borrow_mut().iter_mut().enumerate() {
@@ -102,22 +119,22 @@ impl pci_driver::PciDriver for Ahci {
 
 impl usr::bdev::BDev for Ahci {
     fn read(&self, block: u32, data: &mut [u8; 512]) {
-        self.disks.borrow_mut()[DISK_INDEX].read(block as u64, data);
+        self.disks.borrow_mut()[0].read(block as u64, data);
     }
     fn read_contig(&self, block: u32, data: &mut [u8]) {
-        self.disks.borrow_mut()[DISK_INDEX].read(block as u64, data);
+        self.disks.borrow_mut()[0].read(block as u64, data);
     }
     fn write(&self, block: u32, data: &[u8; 512]) {
         println!("WARNING: BDEV.write is currently disabled");
-        // self.disks.borrow_mut()[DISK_INDEX].write(block as u64, data);
+        // self.disks.borrow_mut()[0].write(block as u64, data);
     }
 
     fn submit(&self, block: u64, write: bool, buf: Box<[u8]>) -> Result<u32> {
-        self.disks.borrow_mut()[DISK_INDEX].submit(block, write, buf)
+        self.disks.borrow_mut()[0].submit(block, write, buf)
     }
 
     fn poll(&self, slot: u32) -> Result<Option<Box<[u8]>>> {
-        self.disks.borrow_mut()[DISK_INDEX].poll(slot)
+        self.disks.borrow_mut()[0].poll(slot)
     }
 }
 
