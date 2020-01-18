@@ -28,7 +28,7 @@ use syscalls::{Syscall};
 use libsyscalls::errors::Result;
 use libsyscalls::syscalls::{sys_print, sys_alloc, sys_backtrace};
 use console::println;
-use pci_driver::BarRegions;
+use pci_driver::{BarRegions, PciClass};
 use ahci::AhciBarRegion;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
@@ -47,20 +47,17 @@ struct Ahci {
 }
 
 #[cfg(feature = "cloudlab")]
-const AHCI_DEVICE_ID: u16 = 0x8d62;
-#[cfg(feature = "cloudlab")]
 const DISK_INDEX: usize = 1;
-
-#[cfg(not(feature = "cloudlab"))]
-const AHCI_DEVICE_ID: u16 = 0x2922;
 #[cfg(not(feature = "cloudlab"))]
 const DISK_INDEX: usize = 0;
 
 impl Ahci {
     fn new() -> Ahci {
         Ahci {
-            vendor_id: 0x8086,
-            device_id: AHCI_DEVICE_ID,
+            // Dummy values. We will use class based matching
+            // so vendor_id and device_id won't be used
+            vendor_id: 0x1234,
+            device_id: 0x1234,
             driver: pci_driver::PciDrivers::AhciDriver,
             disks: RefCell::new(Vec::new()),
         }
@@ -131,7 +128,7 @@ pub fn ahci_init(s: Box<dyn Syscall + Send + Sync>,
     libsyscalls::syscalls::init(s);
 
     let mut ahci = Ahci::new();
-    if let Err(_) = pci.pci_register_driver(&mut ahci, 5, None) {
+    if let Err(_) = pci.pci_register_driver(&mut ahci, 5, Some((PciClass::Storage, /*SATA*/0x06))) {
         println!("WARNING: Failed to register AHCI device");
     }
 

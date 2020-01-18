@@ -28,11 +28,13 @@ mod header;
 mod pci;
 mod parser;
 
+use crate::parser::{PciDevice, PCI_DEVICES};
+use crate::header::PciHeader;
+
 use core::panic::PanicInfo;
 use syscalls::{Syscall, PciResource, PciBar};
 use libsyscalls::syscalls::{sys_println, sys_backtrace};
 use alloc::boxed::Box;
-use crate::parser::{PciDevice, PCI_DEVICES};
 use console::println;
 use spin::Once;
 use pci_driver::{PciDriver, PciClass};
@@ -57,9 +59,15 @@ impl syscalls::PCI for PCI {
         // match vid, dev_id with the registered pci devices we have and
         // typecast the barregion to the appropriate one for this device
         let pci_devs = &*PCI_DEVICES.lock();
-        let pci_dev = match class {
+        let pci_dev: &PciHeader = match class {
             Some((class, subclass)) => {
-                unimplemented!();
+                pci_devs
+                .iter()
+                .filter(|header| {
+                    header.class() == class && header.subclass() == subclass
+                })
+                .nth(0)
+                .ok_or(())
             }, 
             None => {
                 pci_devs
@@ -68,9 +76,9 @@ impl syscalls::PCI for PCI {
                     header.vendor_id() == vendor_id && header.device_id() == device_id
                 })
                 .nth(0)
-                .ok_or(())?
+                .ok_or(())
             }
-        };
+        }?;
         
         // TODO: dont panic here
         let bar = pci_dev.get_bar(bar_index);
