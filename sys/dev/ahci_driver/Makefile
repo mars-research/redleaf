@@ -9,11 +9,6 @@ linker_script := linker.ld
 target ?= $(arch)-$(bin_name)
 lib := target/$(target)/$(TARGET_SUB_DIR)/lib$(bin_name).a
 
-FEATURES =
-ifeq ($(CLOUDLAB),true)
-FEATURES += --features "cloudlab"
-endif
-
 .PHONY: all
 all: $(bin) checkstack
 

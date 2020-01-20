@@ -15,8 +15,8 @@ FEATURES =
 FEATURES += --features "trace_vspace"
 FEATURES += --features "page_fault_on_ist"
 
-ifeq ($(CLOUDLAB),true)
-FEATURES += --features "cloudlab" --features "large_mem"
+ifeq ($(LARGE_MEM),true)
+FEATURES += --features "large_mem"
 endif
 
 ifeq ($(IXGBE),true)
