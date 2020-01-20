@@ -145,7 +145,7 @@ pub fn ahci_init(s: Box<dyn Syscall + Send + Sync>,
     libsyscalls::syscalls::init(s);
 
     let mut ahci = Ahci::new();
-    if let Err(_) = pci.pci_register_driver(&mut ahci, 5, Some((PciClass::Storage, /*SATA*/0x06))) {
+    if let Err(_) = pci.pci_register_driver(&mut ahci, /*ABAR index*/5, Some((PciClass::Storage, /*SATA*/0x06))) {
         println!("WARNING: Failed to register AHCI device");
     }
 
