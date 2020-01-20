@@ -14,3 +14,4 @@ sata.img
 **/*.pyc
 **/*.swp
 **/*.sw*
+**/*.log
