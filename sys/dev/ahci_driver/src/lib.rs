@@ -125,8 +125,8 @@ impl usr::bdev::BDev for Ahci {
         self.disks.borrow_mut()[0].read(block as u64, data);
     }
     fn write(&self, block: u32, data: &[u8; 512]) {
-        println!("WARNING: BDEV.write is currently disabled");
-        // self.disks.borrow_mut()[0].write(block as u64, data);
+        // println!("WARNING: BDEV.write is currently disabled");
+        self.disks.borrow_mut()[0].write(block as u64, data);
     }
 
     fn submit(&self, block: u64, write: bool, buf: Box<[u8]>) -> Result<u32> {
