@@ -31,7 +31,9 @@ const ATA_CMD_PACKET: u8 = 0xA0;
 const ATA_DEV_BUSY: u8 = 0x80;
 const ATA_DEV_DRQ: u8 = 0x08;
 
+// Command List Running
 const HBA_PORT_CMD_CR: u32 = 1 << 15;
+// FIS Receive Running
 const HBA_PORT_CMD_FR: u32 = 1 << 14;
 const HBA_PORT_CMD_FRE: u32 = 1 << 4;
 const HBA_PORT_CMD_ST: u32 = 1;
@@ -100,13 +102,20 @@ impl HbaPort {
         hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_FRE | HBA_PORT_CMD_ST, true);
     }
 
+    // Stop command engine
     fn stop(&self, hba: &MutexGuard<Hba>) {
+        // Clear ST (bit0)
         hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_ST, false);
 
-        while hba.bar.read_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_FR | HBA_PORT_CMD_CR) {
-            sys_yield();
+        // Wait until FR (bit14), CR (bit15) are cleared
+        loop {
+            let cmd = hba.bar.read_port_reg(self.port, AhciPortRegs::Cmd);
+            if (cmd & HBA_PORT_CMD_FR == 0) && (cmd & HBA_PORT_CMD_CR == 0) {
+                break;
+            }
         }
 
+        // Clear FRE (bit4)
         hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_FRE, false);
     }
 
