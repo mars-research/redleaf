@@ -71,16 +71,16 @@ impl HbaPort {
         let hba = self.hbaarc.lock();
 
         if hba.bar.read_port_regf(self.port, AhciPortRegs::Ssts, HBA_SSTS_PRESENT) {
-        // if self.ssts.readf(HBA_SSTS_PRESENT) {
-        //  let sig = self.sig.read();
             let sig = hba.bar.read_port_reg(self.port, AhciPortRegs::Sig);
-            match sig {
+            let sig = match sig {
                 HBA_SIG_ATA => HbaPortType::SATA,
                 HBA_SIG_ATAPI => HbaPortType::SATAPI,
                 HBA_SIG_PM => HbaPortType::PM,
                 HBA_SIG_SEMB => HbaPortType::SEMB,
                 _ => HbaPortType::Unknown(sig),
-            }
+            };
+            println!("AHCI drive found with type: {:?}", sig);
+            sig
         } else {
             HbaPortType::None
         }
