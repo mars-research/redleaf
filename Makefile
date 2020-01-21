@@ -52,7 +52,7 @@ qemu_kvm_args := $(qemu_common) --enable-kvm
 # We set the first serial to /dev/null because we want to always use COM2
 qemu_nox := -nographic -chardev stdio,id=char0,mux=on,logfile=serial.log,signal=off -serial file:/dev/null -serial chardev:char0 -mon chardev=char0
 
-qemu_x := -serial file:/dev/null -serial file:serial2.log
+qemu_x := -serial file:/dev/null -serial file:serial.log
 
 .PHONY: all
 all: $(bin) checkstack
