@@ -103,6 +103,17 @@ set to "false".
   GRUB_HIDDEN_TIMEOUT_QUIET=false
 ```
 
+### Source code layout
+
+| Path                            | Description                                                 |
+|---------------------------------|-------------------------------------------------------------|
+| [src](src)                      | Kernel                                                      |
+| [sys/dev](sys/dev)              | Device drivers                                              |
+| [sys/interfaces](sys/interfaces)| Corss domain interfaces. Shared between kernel and domains. |
+| [sys/init](sys/init)            | The first domain get created after kernel is booted.        |
+| [usr/mkfs](usr/mkfs)            | Make the file system for the rv6 fs.                        |
+| [usr/xv6](usr/xv6)              | The rv6 kernel and it's user programs.                      |
+
 ### Notes
 
 The baremetal Rust setup (features, linking, etc. is best describe in https://os.phil-opp.com/set-up-rust/).
