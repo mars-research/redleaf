@@ -221,7 +221,7 @@ fn detect_apic() -> bool {
 }
 
 #[no_mangle]
-extern fn do_divide_error(pt_regs: &mut PtRegs) {
+extern fn do_divide_error(pt_regs: &mut PtRegs, error_code: isize) {
     unlock_console(); 
     println!("Debug exception:\n{:#?}", pt_regs); 
     crate::panic::backtrace_exception(pt_regs);
@@ -230,7 +230,7 @@ extern fn do_divide_error(pt_regs: &mut PtRegs) {
 
 // 1: Debug
 #[no_mangle]
-extern fn do_debug(pt_regs: &mut PtRegs) {
+extern fn do_debug(pt_regs: &mut PtRegs, error_code: isize) {
     unlock_console(); 
     println!("Debug exception:\n{:#?}", pt_regs); 
     crate::panic::backtrace_exception(pt_regs);
@@ -239,14 +239,14 @@ extern fn do_debug(pt_regs: &mut PtRegs) {
 
 // 2: NMI
 #[no_mangle]
-extern fn do_nmi(pt_regs: &mut PtRegs) {
+extern fn do_nmi(pt_regs: &mut PtRegs, error_code: isize) {
     unlock_console(); 
     println!("NMI exception:\n{:#?}", pt_regs); 
 }
 
 // 3: Breakpoint
 #[no_mangle]
-extern fn do_int3(pt_regs: &mut PtRegs) {
+extern fn do_int3(pt_regs: &mut PtRegs, error_code: isize) {
     unlock_console(); 
     println!("Breakpoint exception:\n{:#?}", pt_regs);
     crate::panic::backtrace_exception(pt_regs);
@@ -254,7 +254,7 @@ extern fn do_int3(pt_regs: &mut PtRegs) {
 
 // 4: Overflow
 #[no_mangle]
-extern fn do_overflow(pt_regs: &mut PtRegs) {
+extern fn do_overflow(pt_regs: &mut PtRegs, error_code: isize) {
     unlock_console(); 
     println!("Overflow exception:\n{:#?}", pt_regs);
     crate::panic::backtrace_exception(pt_regs);
@@ -263,7 +263,7 @@ extern fn do_overflow(pt_regs: &mut PtRegs) {
 
 // 5: Bound range 
 #[no_mangle]
-extern fn do_bounds(pt_regs: &mut PtRegs) {
+extern fn do_bounds(pt_regs: &mut PtRegs, error_code: isize) {
     unlock_console(); 
     println!("Bound range exception:\n{:#?}", pt_regs);
     crate::panic::backtrace_exception(pt_regs);
@@ -272,7 +272,7 @@ extern fn do_bounds(pt_regs: &mut PtRegs) {
 
 // 6: Invalid opcode
 #[no_mangle]
-extern fn do_invalid_op(pt_regs: &mut PtRegs) {
+extern fn do_invalid_op(pt_regs: &mut PtRegs, error_code: isize) {
     unlock_console(); 
     println!("Invalid opcode exception:\n{:#?}", pt_regs);
     crate::panic::backtrace_exception(pt_regs);
@@ -282,7 +282,7 @@ extern fn do_invalid_op(pt_regs: &mut PtRegs) {
 
 // 7: Device not available
 #[no_mangle]
-extern fn do_device_not_available(pt_regs: &mut PtRegs) {
+extern fn do_device_not_available(pt_regs: &mut PtRegs, error_code: isize) {
     unlock_console(); 
     println!("Device not available exception:\n{:#?}", pt_regs);
     crate::panic::backtrace_exception(pt_regs);
@@ -291,16 +291,17 @@ extern fn do_device_not_available(pt_regs: &mut PtRegs) {
 
 // 8: Double fault
 #[no_mangle]
-extern fn do_double_fault(pt_regs: &mut PtRegs) {
+extern fn do_double_fault(pt_regs: &mut PtRegs, error_code: isize) {
     unlock_console(); 
     println!("double fault:\n{:#?}", pt_regs);
+    println!("Error Code {:x}", error_code);
     crate::panic::backtrace_exception(pt_regs);
     crate::halt(); 
 }
 
 // 9: Old coprocessor error
 #[no_mangle]
-extern fn do_coprocessor_segment_overrun(pt_regs: &mut PtRegs) {
+extern fn do_coprocessor_segment_overrun(pt_regs: &mut PtRegs, error_code: isize) {
     unlock_console(); 
     println!("old coprocessor segment overrun fault:\n{:#?}", pt_regs);
     crate::panic::backtrace_exception(pt_regs);
@@ -309,49 +310,53 @@ extern fn do_coprocessor_segment_overrun(pt_regs: &mut PtRegs) {
 
 // 10: Invalid TSS
 #[no_mangle]
-extern fn do_invalid_TSS(pt_regs: &mut PtRegs) {
+extern fn do_invalid_TSS(pt_regs: &mut PtRegs, error_code: isize) {
     unlock_console(); 
     println!("Invalid TSS exception:\n{:#?}", pt_regs);
+    println!("Error Code {:x}", error_code);
     crate::panic::backtrace_exception(pt_regs);
     crate::halt();
 }
 
 // 11: Segment not present
 #[no_mangle]
-extern fn do_segment_not_present(pt_regs: &mut PtRegs) {
+extern fn do_segment_not_present(pt_regs: &mut PtRegs, error_code: isize) {
     unlock_console(); 
     println!("segment not present:\n{:#?}", pt_regs);
+    println!("Error Code {:x}", error_code);
     crate::panic::backtrace_exception(pt_regs);
     crate::halt(); 
 }
 
 // 12: #SS
 #[no_mangle]
-extern fn do_stack_segment(pt_regs: &mut PtRegs) {
+extern fn do_stack_segment(pt_regs: &mut PtRegs, error_code: isize) {
     unlock_console(); 
     println!("stack segment fault:\n{:#?}", pt_regs);
+    println!("Error Code {:x}", error_code);
     crate::panic::backtrace_exception(pt_regs);
     crate::halt(); 
 }
 
 // 13: General protection
 #[no_mangle]
-extern fn do_general_protection(pt_regs: &mut PtRegs) {
+extern fn do_general_protection(pt_regs: &mut PtRegs, error_code: isize) {
     unlock_console(); 
     println!("general protection fault:\n{:#?}", pt_regs);
+    println!("Error Code {:x}", error_code);
     crate::panic::backtrace_exception(pt_regs);
     crate::halt(); 
 }
 
 // 14: Page fault 
 #[no_mangle]
-extern fn do_page_fault(pt_regs: &mut PtRegs) {
+extern fn do_page_fault(pt_regs: &mut PtRegs, error_code: isize) {
     unlock_console(); 
     use x86_64::registers::control::Cr2;
 
     println!("EXCEPTION: PAGE FAULT");
     println!("Accessed Address: {:?}", Cr2::read());
-    println!("Error Code: {:?}", pt_regs.orig_ax);
+    println!("Error Code: {:x}", error_code);
     println!("{:#?}", pt_regs);
 
     crate::panic::backtrace_exception(pt_regs);
@@ -360,7 +365,7 @@ extern fn do_page_fault(pt_regs: &mut PtRegs) {
 
 // 16: x87 Floating-Point Exception
 #[no_mangle]
-extern fn do_coprocessor_error(pt_regs: &mut PtRegs) {
+extern fn do_coprocessor_error(pt_regs: &mut PtRegs, error_code: isize) {
     unlock_console(); 
     println!("x87 floating point exception:\n{:#?}", pt_regs);
     crate::panic::backtrace_exception(pt_regs);
@@ -369,9 +374,10 @@ extern fn do_coprocessor_error(pt_regs: &mut PtRegs) {
 
 // 17: Alignment check
 #[no_mangle]
-extern fn do_alignment_check(pt_regs: &mut PtRegs) {
+extern fn do_alignment_check(pt_regs: &mut PtRegs, error_code: isize) {
     unlock_console(); 
     println!("Alignment check exception:\n{:#?}", pt_regs);
+    println!("Error Code: {:x}", error_code);
     crate::panic::backtrace_exception(pt_regs);
     crate::halt(); 
 }
@@ -380,7 +386,7 @@ extern fn do_alignment_check(pt_regs: &mut PtRegs) {
 // Note, in entry_64.S Linux redefines the function to machine_check_vector(%rip)
 // We need to check what this means
 #[no_mangle]
-extern fn do_machine_check(pt_regs: &mut PtRegs) {
+extern fn do_machine_check(pt_regs: &mut PtRegs, error_code: isize) {
     unlock_console(); 
     println!("Machine check exception:\n{:#?}", pt_regs);
     crate::panic::backtrace_exception(pt_regs);
@@ -389,7 +395,7 @@ extern fn do_machine_check(pt_regs: &mut PtRegs) {
 
 // 19: SIMD Floating-Point Exception
 #[no_mangle]
-extern fn do_simd_coprocessor_error(pt_regs: &mut PtRegs) {
+extern fn do_simd_coprocessor_error(pt_regs: &mut PtRegs, error_code: isize) {
     unlock_console(); 
     println!("SIMD Floating-Point Exception:\n{:#?}", pt_regs);
     crate::panic::backtrace_exception(pt_regs);
@@ -398,7 +404,7 @@ extern fn do_simd_coprocessor_error(pt_regs: &mut PtRegs) {
 
 // 20: Virtualization
 #[no_mangle]
-extern fn do_virtualization(pt_regs: &mut PtRegs) {
+extern fn do_virtualization(pt_regs: &mut PtRegs, error_code: isize) {
     unlock_console(); 
     println!("Virtualization exception:\n{:#?}", pt_regs);
     crate::panic::backtrace_exception(pt_regs);
@@ -408,7 +414,7 @@ extern fn do_virtualization(pt_regs: &mut PtRegs) {
 
 // 30: Security 
 #[no_mangle]
-extern fn do_security(pt_regs: &mut PtRegs) {
+extern fn do_security(pt_regs: &mut PtRegs, error_code: isize) {
     unlock_console(); 
     println!("Security exception:\n{:#?}", pt_regs);
     crate::panic::backtrace_exception(pt_regs);
