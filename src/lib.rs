@@ -166,8 +166,6 @@ fn start_init_thread() {
     crate::thread::create_thread("init", init_user);
 }
 
-
-
 #[no_mangle]
 pub extern "C" fn rust_main() -> ! {
 
@@ -280,7 +278,10 @@ pub extern "C" fn rust_main_ap() -> ! {
     }
 
     println!("cpu{}: Initialized", cpu_id);
-    thread::init_threads();
+    // Lets try running without the init thread otherwise 
+    // we see some weird scheduling behavior, i.e., we actually 
+    // switch into init and it halts the CPU
+    //thread::init_threads();
 
     /*
     // Initialize hello driver
@@ -333,12 +334,22 @@ pub extern "C" fn rust_main_ap() -> ! {
     if cpu_id == 0 {
         //test_threads();
 
-        // The first user system call will re-enable interrupts on
-        // exit to user
-        start_init_thread();
+
+        // Init threads marking this boot thread as "idle" 
+        // the scheduler will treat it specially and will never schedule 
+        // it unless there is really no runnable threads
+        // on this CPU
+        thread::init_threads(); 
+
+        // Create the init thread
+        //
+        // We add it to the scheduler queue on this CPU. 
+        // When we enable the interrupts below the timer interrupt will 
+        // kick the scheduler
+        start_init_thread(); 
     }
 
-    // Enable interrupts and the timer will schedule the next thread
+    // Enable interrupts; the timer interrupt will schedule the next thread
     enable_irq();
 
     halt();

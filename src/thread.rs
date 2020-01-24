@@ -35,6 +35,9 @@ static SCHED: RefCell<Scheduler> = RefCell::new(Scheduler::new());
 #[thread_local]
 static CURRENT: RefCell<Option<Arc<Mutex<Thread>>>> = RefCell::new(None); 
 
+//#[thread_local]
+//static IDLE: RefCell<Option<Arc<Mutex<Thread>>>> = RefCell::new(None); 
+
 static mut REBALANCE_FLAGS: RebalanceFlags = RebalanceFlags::new();
 static REBALANCE_QUEUES: Mutex<RebalanceQueues> = Mutex::new(RebalanceQueues::new());
 
@@ -177,6 +180,7 @@ pub enum ThreadState {
     Runnable = 1,
     Paused = 2,
     Waiting = 3, 
+    Idle = 4, 
 }
 
 // AB: Watch out! if you change format of this line 
@@ -222,6 +226,7 @@ struct SchedulerQueue {
 }
 
 pub struct Scheduler {
+    idle: Option<Arc<Mutex<Thread>>>,
     active: bool,
     active_queue: SchedulerQueue,
     passive_queue: SchedulerQueue,
@@ -387,11 +392,26 @@ impl  Scheduler {
 
     pub const fn new() -> Scheduler {
         Scheduler {
+            idle: None, 
             active: true,
             active_queue: SchedulerQueue::new(),
             passive_queue: SchedulerQueue::new(),
         }
     }
+
+    fn set_idle_thread(&mut self, thread: Arc<Mutex<Thread>>) {
+        self.idle = Some(thread); 
+    }
+
+    fn get_idle_thread(&mut self) -> Arc<Mutex<Thread>> {
+
+        if let Some(thread) = self.idle.take() {
+            thread
+        } else {
+            panic!("No idle thread");
+        } 
+    }
+
 
     pub fn put_thread_in_passive(&mut self, thread: Arc<Mutex<Thread>>) {
         /* put thread in the currently passive queue */
@@ -535,6 +555,11 @@ pub unsafe fn switch(prev: *mut Thread, next: *mut Thread) {
     asm!("mov rbp, $0" : : "r"((*next).context.rbp) : "memory" : "intel", "volatile");
 }
 
+//fn set_idle(t: Arc<Mutex<Thread>>) {
+//    IDLE.replace(Some(t)); 
+//}
+
+
 fn set_current(t: Arc<Mutex<Thread>>) {
     CURRENT.replace(Some(t)); 
 }
@@ -579,10 +604,23 @@ pub fn schedule() {
         let next_thread = match s.next() {
             Some(t) => t,
             None => {
-                // Nothing again, current is the only runnable thread, no need to
-                // context switch
-                trace_sched!("cpu({}): no runnable threads", cpuid());
-                return; 
+                // Check if current is runnable
+                let c = get_current_ref();
+                let state = c.lock().state; 
+                match state {
+                    ThreadState::Runnable => {
+                        // Current is the only runnable thread, no need to
+                        // context switch
+                        trace_sched!("cpu({}): no runnable threads", cpuid());
+                        return;
+                    },
+                    _ => {
+                        // Current is not runnable, and it was the only 
+                        // running thread, switch to idle
+                        break s.get_idle_thread(); 
+                    }
+                }
+
             }
 
         };
@@ -615,13 +653,22 @@ pub fn schedule() {
     };
 
 
-    trace_sched!("cpu({}): switch to {}", cpuid(), next_thread.borrow().name); 
+    trace_sched!("cpu({}): switch to {}", cpuid(), next_thread.lock().name); 
 
     // Make next thread current
     set_current(next_thread.clone()); 
 
-    // put the old thread back in the scheduling queue
-    s.put_thread_in_passive(c.clone());
+    let state = c.lock().state; 
+    match state {
+        ThreadState::Idle => {
+            // We don't put idle thread in the thread queue
+            s.set_idle_thread(c.clone()); 
+        },
+        _ => {
+            // put the old thread back in the scheduling queue
+            s.put_thread_in_passive(c.clone());
+        }
+    }
 
     drop(s); 
 
@@ -772,9 +819,17 @@ pub fn init_threads() {
     
     let kernel_domain = KERNEL_DOMAIN.r#try().expect("Kernel domain is not initialized");
 
-    idle.lock().domain = Some(kernel_domain.clone());
+    {
+        let mut t = idle.lock();
+        t.domain = Some(kernel_domain.clone());
+        t.state = ThreadState::Idle;
+    }
+
+    let mut s = SCHED.borrow_mut();
+    s.set_idle_thread(idle.clone());
 
     // Make idle the current thread
     set_current(idle);   
 }
+
 
