@@ -14,7 +14,7 @@ FEATURES =
 #FEATURES += --features "smp"
 FEATURES += --features "trace_vspace"
 FEATURES += --features "page_fault_on_ist"
-FEATURES += --features "trace_sched"
+#FEATURES += --features "trace_sched"
 
 ifeq ($(LARGE_MEM),true)
 FEATURES += --features "large_mem"
