@@ -277,69 +277,15 @@ pub extern "C" fn rust_main_ap() -> ! {
         init_ap_cpus();
     }
 
-    println!("cpu{}: Initialized", cpu_id);
-    // Lets try running without the init thread otherwise 
-    // we see some weird scheduling behavior, i.e., we actually 
-    // switch into init and it halts the CPU
-    //thread::init_threads();
+    // Init threads marking this boot thread as "idle" 
+    // the scheduler will treat it specially and will never schedule 
+    // it unless there is really no runnable threads
+    // on this CPU
+    thread::init_threads(); 
 
-    /*
-    // Initialize hello driver
-    if cpu_id == 0 {
-        use drivers::hello::Hello;
-
-        println!("Initializing hello driver");
-        let driver = Arc::new(Mutex::new(Hello::new()));
-
-        {
-            let registrar = unsafe { interrupt::get_irq_registrar(driver.clone()) };
-            driver.lock().set_irq_registrar(registrar);
-        }
-    }
-
-    // Initialize IDE driver
-    if cpu_id == 0 {
-        use drivers::ide::IDE;
-
-        println!("Initializing IDE");
-
-        let ataPioDevice = unsafe { Arc::new(Mutex::new(redsys::devices::ATAPIODevice::primary())) };
-        let driver = Arc::new(Mutex::new(IDE::new(ataPioDevice, false)));
-
-        {
-            let registrar = unsafe { interrupt::get_irq_registrar(driver.clone()) };
-            driver.lock().set_irq_registrar(registrar);
-            driver.lock().init();
-        }
-
-        println!("IDE Initialized!");
-
-        println!("Writing");
-        // Write a block of 5s
-        let data: [u32; 512] = [5u32; 512];
-        driver.lock().write(20, &data);
-        println!("Data written");
-
-        // Read the block back
-        let mut rdata: [u32; 512] = [0u32; 512];
-        driver.lock().read(20, &mut rdata);
-        println!("First byte read is {}", data[0]);
-        println!("Data read");
-    }
-
-    */
-
-    println!("cpu{}: Ready to enable interrupts", cpu_id);
 
     if cpu_id == 0 {
         //test_threads();
-
-
-        // Init threads marking this boot thread as "idle" 
-        // the scheduler will treat it specially and will never schedule 
-        // it unless there is really no runnable threads
-        // on this CPU
-        thread::init_threads(); 
 
         // Create the init thread
         //
@@ -348,6 +294,9 @@ pub extern "C" fn rust_main_ap() -> ! {
         // kick the scheduler
         start_init_thread(); 
     }
+
+    println!("cpu{}: Initialized", cpu_id);
+    println!("cpu{}: Ready to enable interrupts", cpu_id);
 
     // Enable interrupts; the timer interrupt will schedule the next thread
     enable_irq();

@@ -31,8 +31,15 @@ macro_rules! print {
 #[macro_export]
 macro_rules! println {
     () => ($crate::print!("\n"));
+    ($($arg:tt)*) => ($crate::print!("cpu({}):{}\n", crate::console::cpuid(), format_args!($($arg)*)));
+}
+
+#[macro_export]
+macro_rules! usrprintln {
+    () => ($crate::print!("\n"));
     ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
 }
+
 
 #[doc(hidden)]
 pub fn _print(args: core::fmt::Arguments) {

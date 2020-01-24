@@ -23,7 +23,7 @@ macro_rules! print {
 #[macro_export]
 macro_rules! println {
     () => ($crate::print!("\n"));
-    ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
+    ($($arg:tt)*) => ($crate::print!("cpu({}):{}\n", libsyscalls::syscalls::sys_cpuid(), format_args!($($arg)*)));
 }
 
 #[doc(hidden)]

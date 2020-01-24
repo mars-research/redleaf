@@ -34,7 +34,7 @@ use core::cell::RefCell;
 use protocol::{UdpPacket, MTU_SZ};
 use alloc::sync::Arc;
 use spin::Mutex;
-use libsyscalls::time::get_rdtsc as rdtsc;
+use libtime::get_rdtsc as rdtsc;
 
 struct Ixgbe {
     vendor_id: u16,

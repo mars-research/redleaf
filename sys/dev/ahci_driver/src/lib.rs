@@ -168,11 +168,11 @@ fn benchmark_ahci(bdev: &Box<dyn usr::bdev::BDev>, blocks_to_read: u32, blocks_p
     assert!(blocks_per_patch <= 0xFFFF);
     let mut buf = alloc::vec![0 as u8; 512 * blocks_per_patch as usize];
 
-    let start = libsyscalls::time::get_rdtsc();
+    let start = libtime::get_rdtsc();
     for i in (0..blocks_to_read).step_by(blocks_per_patch as usize) {
         bdev.read_contig(i, &mut buf);
     }
-    let end = libsyscalls::time::get_rdtsc();
+    let end = libtime::get_rdtsc();
     println!("AHCI benchmark: reading {} blocks, {} blocks at a time, takes {} cycles", blocks_to_read, blocks_per_patch, end - start);
 }
 
@@ -188,7 +188,7 @@ fn benchmark_ahci_async(bdev: &Box<dyn usr::bdev::BDev>, blocks_to_read: u32, bl
     }
     let mut pending = Vec::<u32>::new();
 
-    let start = libsyscalls::time::get_rdtsc();
+    let start = libtime::get_rdtsc();
     for i in (0..blocks_to_read).step_by(blocks_per_patch as usize) {
         while buffers.is_empty() {
             assert!(!pending.is_empty());
@@ -213,7 +213,7 @@ fn benchmark_ahci_async(bdev: &Box<dyn usr::bdev::BDev>, blocks_to_read: u32, bl
             // spin
         }
     }
-    let end = libsyscalls::time::get_rdtsc();
+    let end = libtime::get_rdtsc();
     println!("AHCI async benchmark: reading {} blocks, {} blocks at a time, takes {} cycles", blocks_to_read, blocks_per_patch, end - start);
 }
 

@@ -30,6 +30,11 @@ pub fn sys_println(s: &str) {
     scalls.sys_println(s);
 }
 
+pub fn sys_cpuid() -> u32 {
+    let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
+    scalls.sys_cpuid()
+}
+
 pub fn sys_yield() {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
     scalls.sys_yield();

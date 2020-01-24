@@ -1,6 +1,9 @@
-
+#![no_std]
 static NS_IN_TIMER_TICK: u64 = 10000000;
 static NS_IN_RDTSC: u64 = 2;
+
+use console::println;
+use libsyscalls::syscalls::{sys_yield};
 
 pub fn get_rdtsc() -> u64 {
     unsafe {
@@ -29,13 +32,14 @@ pub fn sys_ns_sleep(ns: u64) {
         let current_ns = get_ns_time(); 
         let left_to_wait_ns = target_ns - current_ns; 
         if left_to_wait_ns < NS_IN_TIMER_TICK {
-            crate::syscalls::sys_println("sys_ns_sleep: loopsleep");
+            println!("sys_ns_sleep: loopsleep, left to wait: {}", left_to_wait_ns); 
             loop_sleep(left_to_wait_ns);
             break;
         }
 
-        crate::syscalls::sys_println("sys_ns_sleep: yield");
-        crate::syscalls::sys_yield(); 
+        println!("sys_ns_sleep: yield, left to wait:{}", left_to_wait_ns);
+        sys_yield();
+        println!("sys_ns_sleep: back from yield");
     }
 }
 

@@ -16,6 +16,7 @@ pub mod errors;
 pub trait Syscall {
     fn sys_print(&self, s: &str);
     fn sys_println(&self, s: &str);
+    fn sys_cpuid(&self) -> u32;
     fn sys_yield(&self);
     fn sys_create_thread(&self, name: &str, func: extern fn()) -> Box<dyn Thread>;
     fn sys_current_thread(&self) -> Box<dyn Thread>;

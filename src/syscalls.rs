@@ -70,8 +70,16 @@ impl syscalls::Syscall for PDomain {
     // Print a string and a newline
     fn sys_println(&self, s: &str) {
         disable_irq();
-        println!("{}", s);
+        usrprintln!("{}", s);
         enable_irq(); 
+    }
+
+    // Get physical CPU id number (we use it for print) 
+    fn sys_cpuid(&self) -> u32 {
+        disable_irq();
+        let cpuid = crate::console::cpuid();
+        enable_irq();
+        cpuid
     }
 
     fn sys_alloc(&self) -> *mut u8 {

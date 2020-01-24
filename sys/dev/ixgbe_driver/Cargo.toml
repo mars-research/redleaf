@@ -16,6 +16,7 @@ panic = "abort"
 [dependencies]
 syscalls = { path = "../../../sys/interfaces/syscalls", version = "0.1.0" }
 libsyscalls = { path = "../../../sys/lib/libsyscalls", version = "0.1.0" }
+libtime = { path = "../../../sys/lib/libtime", version = "0.1.0" }
 console = { path = "../../../sys/lib/console", version = "0.1.0" }
 malloc = { path = "../../../sys/lib/malloc", version = "0.1.0" }
 spin = "0.5.2"

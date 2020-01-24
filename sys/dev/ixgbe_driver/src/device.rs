@@ -11,7 +11,7 @@ use crate::Result;
 use ixgbe::{IxgbeRegs, IxgbeArrayRegs};
 use console::{println, print};
 use core::{mem, slice, cmp};
-use libsyscalls::time::sys_ns_loopsleep;
+use libtime::sys_ns_loopsleep;
 use alloc::format;
 use protocol::UdpPacket;
 use byteorder::{ByteOrder, BigEndian, LittleEndian};

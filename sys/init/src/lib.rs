@@ -55,19 +55,19 @@ extern fn test_init_thread2() {
 
 #[cfg(feature = "test_sleep")]
 fn test_sleep() {
-    let start = libsyscalls::time::get_ns_time();
+    let start = libtime::get_ns_time();
     println!("current time {}, waiting for 100 ms", start);
 
-    libsyscalls::time::sys_ns_sleep(100_000_000); 
+    libtime::sys_ns_sleep(100_000_000); 
 
-    let end = libsyscalls::time::get_ns_time();
+    let end = libtime::get_ns_time();
     println!("current time {}, waited for {} ms", end, (end - start) / 1_000_000);
 
 }
 
 fn test_dummy_syscall() {
     use libsyscalls::syscalls::sys_dummy;
-    use libsyscalls::time::get_rdtsc;
+    use libtime::get_rdtsc;
 
     let NUM_ITER: u64 = 20_000_000;
     let start = get_rdtsc();

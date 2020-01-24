@@ -142,14 +142,14 @@ fn rb_pop_thread(queue: usize) -> Option<Arc<Mutex<Thread>>> {
 }
 
 fn rb_queue_signal(queue: usize) {
-    println!("cpu({}): rb queue signal, queue:{}", cpuid(), queue);
+    println!("rb queue signal, queue:{}", queue);
     unsafe {
         REBALANCE_FLAGS.flags[queue].rebalance = true; 
     };
 }
 
 fn rb_queue_clear_signal(queue: usize) {
-    println!("cpu({}): rb clear signal, queue:{}", cpuid(), queue);
+    println!("rb clear signal, queue:{}", queue);
     unsafe {
         REBALANCE_FLAGS.flags[queue].rebalance = false; 
     };
@@ -466,11 +466,11 @@ impl  Scheduler {
     /// Process rebalance queue
     fn process_rb_queue(&mut self) {
         let cpu_id = cpuid(); 
-        println!("cpu({}): process rb queue", cpuid());
+        println!("process rb queue");
         loop{
             if let Some(thread) = rb_pop_thread(cpu_id) {
 
-                println!("cpu({}): found rb thread: {}", cpuid(), thread.lock().name);
+                println!("found rb thread: {}", thread.lock().name);
 
                 {
                     thread.lock().rebalance = false; 
@@ -611,7 +611,7 @@ pub fn schedule() {
                     ThreadState::Runnable => {
                         // Current is the only runnable thread, no need to
                         // context switch
-                        trace_sched!("cpu({}): no runnable threads", cpuid());
+                        trace_sched!("no runnable threads");
                         return;
                     },
                     _ => {
@@ -653,7 +653,7 @@ pub fn schedule() {
     };
 
 
-    trace_sched!("cpu({}): switch to {}", cpuid(), next_thread.lock().name); 
+    trace_sched!("switch to {}", next_thread.lock().name); 
 
     // Make next thread current
     set_current(next_thread.clone()); 
