@@ -29,7 +29,11 @@ fn loop_sleep(ns: u64) {
 pub fn sys_ns_sleep(ns: u64) {
     let target_ns = get_ns_time() + ns; 
     loop {
-        let current_ns = get_ns_time(); 
+        let current_ns = get_ns_time();
+        if current_ns > target_ns {
+            break; 
+        }
+
         let left_to_wait_ns = target_ns - current_ns; 
         if left_to_wait_ns < NS_IN_TIMER_TICK {
             println!("sys_ns_sleep: loopsleep, left to wait: {}", left_to_wait_ns); 
