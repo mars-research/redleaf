@@ -50,6 +50,11 @@ pub fn sys_ns_sleep(ns: u64) {
 pub fn sys_ns_loopsleep(ns: u64) {
     let target_ns = get_ns_time() + ns;
     let current_ns = get_ns_time();
+    
+    if current_ns > target_ns {
+        return; 
+    }
+
     let left_to_wait_ns = target_ns - current_ns;
     loop_sleep(left_to_wait_ns);
 }
