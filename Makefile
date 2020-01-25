@@ -22,7 +22,10 @@ endif
 
 ifeq ($(IXGBE),true)
 FEATURES += --features "c220g2_ixgbe"
+PCI_FEATURES += --features "c220g2_ixgbe"
 endif
+
+export PCI_FEATURES
 
 target ?= $(arch)-redleaf
 rust_os := target/$(target)/$(TARGET_SUB_DIR)/libredleaf.a
