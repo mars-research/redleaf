@@ -26,6 +26,7 @@ extern crate backtracer;
 extern crate pcid;
 extern crate elfloader;
 use crate::interrupt::{disable_irq, enable_irq};
+use core::sync::atomic::{AtomicU32, Ordering};
 
 #[macro_use]
 mod console;
@@ -67,6 +68,7 @@ use crate::multibootv2::BootInformation;
 
 pub static mut ap_entry_running: bool = true;
 pub const MAX_CPUS: u32 = 4;
+static RUNNING_CPUS: AtomicU32 = AtomicU32::new(0);
 
 static mut elf_found: bool = false;
 
@@ -74,6 +76,11 @@ extern "C" {
     #[no_mangle]
     static _bootinfo: usize;
 }
+
+pub fn active_cpus() -> u32 {
+    RUNNING_CPUS.load(Ordering::Relaxed)
+}
+
 
 // Note, the bootstrap CPU runs on a statically allocated
 // stack that is defined in boot.asm
@@ -96,6 +103,10 @@ pub fn init_ap_cpus() {
         }
 
         while unsafe { ap_entry_running } {}
+    }
+
+    while RUNNING_CPUS.load(Ordering::SeqCst) != (MAX_CPUS - 1) {
+        // We can't halt here, interrupts are still off
     }
 
     println!("Done initializing APs");
@@ -136,23 +147,6 @@ pub fn init_backtrace_kernel_elf(bootinfo: &BootInformation) {
             };
         }
     }
-}
-
-pub extern fn hello1() {
-    loop {
-        println!("hello 1");
-    }
-}
-
-pub extern fn hello2() {
-    loop {
-        println!("hello 2");
-    }
-}
-
-fn test_threads() {
-    crate::thread::create_thread("hello 1", hello1);
-    crate::thread::create_thread("hello 2", hello2);
 }
 
 // Create sys/init domain and execute its init function
@@ -275,10 +269,6 @@ pub extern "C" fn rust_main_ap() -> ! {
     if cpu_id == 0 {
         domain::domain::init_domains();
 
-        // We initialized kernel domain, it's safe to start
-        // other CPUs
-        #[cfg(feature="smp")]
-        init_ap_cpus();
     }
 
     // Init threads marking this boot thread as "idle" 
@@ -287,9 +277,13 @@ pub extern "C" fn rust_main_ap() -> ! {
     // on this CPU
     thread::init_threads(); 
 
-
     if cpu_id == 0 {
-        //test_threads();
+        // We initialized kernel domain, and the idle thread on this CPU
+        // it's safe to start other CPUs, nothing will get migrated to us 
+        // (CPU0), but even if it will we're ready to handle it
+
+        #[cfg(feature="smp")]
+        init_ap_cpus();
 
         // Create the init thread
         //
@@ -301,6 +295,8 @@ pub extern "C" fn rust_main_ap() -> ! {
 
     println!("cpu{}: Initialized", cpu_id);
     println!("cpu{}: Ready to enable interrupts", cpu_id);
+
+    RUNNING_CPUS.fetch_add(1, Ordering::SeqCst);
 
     // Enable interrupts; the timer interrupt will schedule the next thread
     enable_irq();

@@ -56,9 +56,9 @@ extern fn test_init_thread2() {
 #[cfg(feature = "test_sleep")]
 fn test_sleep() {
     let start = libtime::get_ns_time();
-    println!("current time {}, waiting for 100 ms", start);
+    println!("current time {}, waiting for 10_000 ms", start);
 
-    libtime::sys_ns_sleep(100_000_000); 
+    libtime::sys_ns_sleep(10_000_000_000); 
 
     let end = libtime::get_ns_time();
     println!("current time {}, waited for {} ms", end, (end - start) / 1_000_000);
@@ -143,6 +143,20 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
 
         let t2 = sys_create_thread("init_thread_2", test_init_thread2); 
         t2.set_affinity(0); 
+
+        #[cfg(feature = "test_sleep")]
+        test_sleep();
+
+        println!("Setting affinity to CPUs 2 and 3"); 
+        t.set_affinity(2); 
+        t2.set_affinity(3); 
+
+         #[cfg(feature = "test_sleep")]
+        test_sleep();
+
+        println!("Setting affinity to CPUs 1 and 1"); 
+        t.set_affinity(1); 
+        t2.set_affinity(1); 
 
         drop(t); 
         drop(t2); 

@@ -18,6 +18,7 @@ use crate::arch::memory::{BASE_PAGE_SIZE, PAddr};
 use core::alloc::Layout;
 use crate::memory::buddy::BUDDY;
 use crate::memory::{PhysicalAllocator, Frame};
+use crate::active_cpus; 
 
 /// This should be a cryptographically secure number, for now 
 /// just sequential ID
@@ -180,7 +181,8 @@ pub enum ThreadState {
     Runnable = 1,
     Paused = 2,
     Waiting = 3, 
-    Idle = 4, 
+    Idle = 4,
+    Rebalanced = 5,
 }
 
 // AB: Watch out! if you change format of this line 
@@ -400,6 +402,7 @@ impl  Scheduler {
     }
 
     fn set_idle_thread(&mut self, thread: Arc<Mutex<Thread>>) {
+        trace_sched!("setting idle thread"); 
         self.idle = Some(thread); 
     }
 
@@ -444,7 +447,11 @@ impl  Scheduler {
                         ThreadState::Runnable => {
                             return Some(t);
                         },
-                        _ => {
+
+                        ThreadState::Rebalanced => {
+                            return Some(t);
+                        },
+                         _ => {
                             // Thread is not runnable, put it back into the passive queue
                             // We will look at it again after flipping the queues but
                             // nontheless exit the loop after that
@@ -500,7 +507,11 @@ impl  Scheduler {
                 println!("found rb thread: {}", thread.lock().name);
 
                 {
-                    thread.lock().rebalance = false; 
+                    let mut t = thread.lock(); 
+
+                    t.rebalance = false; 
+                    t.state = ThreadState::Runnable;
+
                 }
 
                 self.put_thread_in_passive(thread); 
@@ -641,6 +652,13 @@ pub fn schedule() {
                         trace_sched!("[{}] is the only runnable thread", c.lock().name);
                         return;
                     },
+
+                    ThreadState::Idle => {
+                        // Idle thread is the only runnable thread, no need to
+                        // context switch
+                        trace_sched!("[{}] is the only runnable thread", c.lock().name);
+                        return;
+                    },
                     _ => {
                         // Current is not runnable, and it was the only 
                         // running thread, switch to idle
@@ -761,9 +779,9 @@ impl syscalls::Thread for PThread {
     fn set_affinity(&self, affinity: u64) {
         disable_irq(); 
 
-        if affinity as usize >= crate::tls::active_cpus() {
+        if affinity as u32 >= active_cpus() {
             println!("Error: trying to set affinity:{} for {} but only {} cpus are active", 
-                affinity, self.thread.lock().name, crate::tls::active_cpus());
+                affinity, self.thread.lock().name, active_cpus());
             enable_irq();
             return; 
         }
@@ -774,8 +792,9 @@ impl syscalls::Thread for PThread {
             println!("Setting affinity:{} for {}", affinity, thread.name);
             thread.affinity = affinity; 
             thread.rebalance = true; 
-
+            thread.state = ThreadState::Rebalanced;
         }
+
         enable_irq(); 
     }
 

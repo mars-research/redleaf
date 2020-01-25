@@ -11,7 +11,7 @@ lib := target/$(target)/$(TARGET_SUB_DIR)/libinit.a
 
 FEATURES = 
 #FEATURES += --features "test_guard_page"
-FEATURES += --features "test_sleep"
+#FEATURES += --features "test_sleep"
 #FEATURES += --features "test_timer_thread" 
 #FEATURES += --features "test_threads" 
 
