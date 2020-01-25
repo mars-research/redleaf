@@ -255,7 +255,6 @@ fn run_udp_test_64(dev: &Ixgbe) {
         0x08, 0x00,                         // Protocol
     ];
     let mut ip_data = [
-        //0x45, 0x00, 0x05, 0xdc, 0x78, 0xb4, 0x40, 0x00,
         0x45, 0x00,
         0x00,
         0x2e,
@@ -314,9 +313,9 @@ fn run_udp_test_64(dev: &Ixgbe) {
             let ret = dev.tx_batch(&pvec);
             sum += ret;
         }
-        println!("sum {}", sum);
         let elapsed = rdtsc() - start;
         println!("==> tx batch 64B: {} iterations took {} cycles (avg = {})", sum, elapsed, elapsed / sum as u64);
+        println!("sum {}", sum);
         dev.dump_stats();
     }
 }
@@ -329,7 +328,6 @@ fn run_udp_test_128(dev: &Ixgbe) {
         0x08, 0x00,                         // Protocol
     ];
     let mut ip_data = [
-        //0x45, 0x00, 0x05, 0xdc, 0x78, 0xb4, 0x40, 0x00,
         0x45, 0x00,
         0x00,
         0x2e,
@@ -378,8 +376,6 @@ fn run_udp_test_128(dev: &Ixgbe) {
         }
     }
 
-    //println!("{:?}", pvec[0]);
-
     if let Some(mut device) = dev.device.borrow_mut().as_mut() {
         let dev: &mut Intel8259x = device;
         let mut sum: usize = 0;
@@ -388,8 +384,8 @@ fn run_udp_test_128(dev: &Ixgbe) {
             let ret = dev.tx_batch(&pvec);
             sum += ret;
         }
-        println!("sum {}", sum);
         let elapsed = rdtsc() - start;
+        println!("sum {}", sum);
         println!("==> tx batch 128B: {} iterations took {} cycles (avg = {})", sum, elapsed, elapsed / sum as u64);
         dev.dump_stats();
     }
@@ -403,7 +399,6 @@ fn run_udp_test_256(dev: &Ixgbe) {
         0x08, 0x00,                         // Protocol
     ];
     let mut ip_data = [
-        //0x45, 0x00, 0x05, 0xdc, 0x78, 0xb4, 0x40, 0x00,
         0x45, 0x00,
         0x00,
         0x2e,
@@ -452,7 +447,6 @@ fn run_udp_test_256(dev: &Ixgbe) {
         }
     }
 
-    //println!("{:?}", pvec[0]);
 
     if let Some(mut device) = dev.device.borrow_mut().as_mut() {
         let dev: &mut Intel8259x = device;
@@ -462,8 +456,8 @@ fn run_udp_test_256(dev: &Ixgbe) {
             let ret = dev.tx_batch(&pvec);
             sum += ret;
         }
-        println!("sum {}", sum);
         let elapsed = rdtsc() - start;
+        println!("sum {}", sum);
         println!("==> tx batch 256B: {} iterations took {} cycles (avg = {})", sum, elapsed, elapsed / sum as u64);
         dev.dump_stats();
     }
@@ -477,7 +471,6 @@ fn run_udp_test_512(dev: &Ixgbe) {
         0x08, 0x00,                         // Protocol
     ];
     let mut ip_data = [
-        //0x45, 0x00, 0x05, 0xdc, 0x78, 0xb4, 0x40, 0x00,
         0x45, 0x00,
         0x00,
         0x2e,
@@ -526,19 +519,18 @@ fn run_udp_test_512(dev: &Ixgbe) {
         }
     }
 
-    //println!("{:?}", pvec[0]);
-
     if let Some(mut device) = dev.device.borrow_mut().as_mut() {
         let dev: &mut Intel8259x = device;
         let mut sum: usize = 0;
         let start = rdtsc();
         while sum <= 20_000_000 {
             let ret = dev.tx_batch(&pvec);
+            //let ret = dev.tx_batch_slice(&pvec_slice);
             sum += ret;
         }
-        println!("sum {}", sum);
         let elapsed = rdtsc() - start;
         println!("==> tx batch 512B: {} iterations took {} cycles (avg = {})", sum, elapsed, elapsed / sum as u64);
+        println!("sum {}", sum);
         dev.dump_stats();
     }
 }
@@ -551,7 +543,6 @@ fn run_udp_test_MTU(dev: &Ixgbe) {
         0x08, 0x00,                         // Protocol
     ];
     let mut ip_data = [
-        //0x45, 0x00, 0x05, 0xdc, 0x78, 0xb4, 0x40, 0x00,
         0x45, 0x00,
         0x00,
         0x2e,
@@ -600,20 +591,51 @@ fn run_udp_test_MTU(dev: &Ixgbe) {
         }
     }
 
-    //println!("{:?}", pvec[0]);
+    if let Some(mut device) = dev.device.borrow_mut().as_mut() {
+        let dev: &mut Intel8259x = device;
+        let mut sum: usize = 0;
+        let start = rdtsc();
+        while sum <= 20_000_000 {
+            //let ret = dev.tx_batch_slice(&pvec_slice);
+            let ret = dev.tx_batch(&pvec);
+            sum += ret;
+        }
+        let elapsed = rdtsc() - start;
+        println!("sum {}", sum);
+        println!("==> tx batch MTU: {} iterations took {} cycles (avg = {})", sum, elapsed, elapsed / sum as u64);
+        dev.dump_stats();
+    }
+}
+
+use ixgbe::{IxgbeRegs, IxgbeArrayRegs};
+
+fn run_read_reg_test(dev: &Ixgbe) {
 
     if let Some(mut device) = dev.device.borrow_mut().as_mut() {
         let dev: &mut Intel8259x = device;
         let mut sum: usize = 0;
         let start = rdtsc();
         while sum <= 20_000_000 {
-            let ret = dev.tx_batch(&pvec);
-            sum += ret;
+            dev.bar.read_reg(IxgbeRegs::Gptc);
+            sum += 1;
         }
-        println!("sum {}", sum);
         let elapsed = rdtsc() - start;
-        println!("==> tx batch MTU: {} iterations took {} cycles (avg = {})", sum, elapsed, elapsed / sum as u64);
-        dev.dump_stats();
+        println!("==> read_reg test: {} iterations took {} cycles (avg = {})", sum, elapsed, elapsed / sum as u64);
+    }
+}
+
+fn run_write_reg_test(dev: &Ixgbe) {
+
+    if let Some(mut device) = dev.device.borrow_mut().as_mut() {
+        let dev: &mut Intel8259x = device;
+        let mut sum: usize = 0;
+        let start = rdtsc();
+        while sum <= 20_000_000 {
+            dev.bar.write_reg_tdt(0, 0);
+            sum += 1;
+        }
+        let elapsed = rdtsc() - start;
+        println!("==> write_reg test: {} iterations took {} cycles (avg = {})", sum, elapsed, elapsed / sum as u64);
     }
 }
 
@@ -627,6 +649,11 @@ pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
     if let Err(_) = pci.pci_register_driver(&mut ixgbe, 0, None) {
         println!("WARNING: failed to register IXGBE driver");
     }
+
+    println!("Starting tests");
+    run_read_reg_test(&ixgbe);
+    run_write_reg_test(&ixgbe);
+
     run_udp_test_64(&ixgbe);
     run_udp_test_128(&ixgbe);
     run_udp_test_256(&ixgbe);

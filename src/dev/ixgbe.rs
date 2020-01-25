@@ -313,6 +313,17 @@ impl IxgbeBarRegion for IxgbeBar {
     }
 
     #[inline(always)]
+    fn write_reg_tdt(&self, idx: u64, val: u64) {
+        disable_irq();
+        let reg = self.tdt;
+
+        unsafe {
+            ptr::write_volatile((self.base + reg.offset + reg.multiplier * idx) as *mut u32, val as u32)
+        }
+        enable_irq();
+    }
+
+    #[inline(always)]
     fn write_reg_idx(&self, reg_enum: IxgbeArrayRegs, idx: u64, val: u64) {
         disable_irq();
         let reg = self.get_array_reg(reg_enum);

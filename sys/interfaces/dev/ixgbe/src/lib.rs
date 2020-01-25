@@ -64,4 +64,6 @@ pub trait IxgbeBarRegion {
 
     fn read_reg_idx(&self, reg: IxgbeArrayRegs, idx: u64) -> u64;
     fn write_reg_idx(&self, reg: IxgbeArrayRegs, idx: u64, val: u64);
+    fn write_reg_tdt(&self, idx: u64, val: u64);
+
 }

@@ -30,7 +30,7 @@ pub struct Intel8259x {
     transmit_index: usize,
     transmit_clean_index: usize,
     next_id: usize,
-    bar: Box<dyn IxgbeBarRegion>,
+    pub bar: Box<dyn IxgbeBarRegion>,
     counter: usize,
     gcounter: usize,
 }
@@ -70,6 +70,7 @@ impl Intel8259x {
         module.init();
         //module.enable_loopback();
 
+        println!("Module initialized");
         Ok(module)
     }
 
@@ -582,16 +583,16 @@ impl Intel8259x {
                     break;
                 }
 
-                self.gcounter = self.gcounter.wrapping_add(1);
+                //self.gcounter = self.gcounter.wrapping_add(1);
 
                 // for debugging only
-                unsafe {
+                /*unsafe {
                     let mut mpslice = packet as *const UdpPacket<T> as *mut u8;
                     *mpslice.add(PACKET_SIZE - 4) = ((self.gcounter >> 24) as u8) & 0xFF;
                     *mpslice.add(PACKET_SIZE - 3) = ((self.gcounter >> 16) as u8) & 0xFF;
                     *mpslice.add(PACKET_SIZE - 2) = ((self.gcounter >> 8) as u8) & 0xFF;
                     *mpslice.add(PACKET_SIZE - 1) = ((self.gcounter >> 0) as u8) & 0xFF;
-                }
+                }*/
 
                 self.transmit_index = wrap_ring(self.transmit_index, num_descriptors);
 
@@ -625,7 +626,7 @@ impl Intel8259x {
  
         //println!("updating tail {}", self.transmit_index);
         if sent > 0 {
-            self.bar.write_reg_idx(IxgbeArrayRegs::Tdt, 0, self.transmit_index as u64);
+            self.bar.write_reg_tdt(0, self.transmit_index as u64);
         }
         //println!("wrote {} packets", sent);
 
