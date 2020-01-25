@@ -34,7 +34,7 @@ extern fn timer_thread() {
     
     loop {
          sys_recv_int(syscalls::IRQ_TIMER);
-         //println!("init: got a timer interrupt"); 
+         println!("init: got a timer interrupt"); 
     }
 }
 

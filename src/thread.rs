@@ -434,7 +434,34 @@ impl  Scheduler {
 
     
     pub fn get_next(&mut self) -> Option<Arc<Mutex<Thread>>> {
-        return self.get_next_active();
+        loop {
+            let next_thread = match self.get_next_active() 
+            {
+                Some(t) => {
+                    // Skip over non-runnable threads
+                    let state = t.lock().state; 
+                    match state {
+                        ThreadState::Runnable => {
+                            return Some(t);
+                        },
+                        _ => {
+                            // Thread is not runnable, put it back into the passive queue
+                            // We will look at it again after flipping the queues but
+                            // nontheless exit the loop after that
+                            self.put_thread_in_passive(t); 
+                            continue; 
+                        }
+                    }
+       
+                },
+                None => {
+                    return None;
+                }
+
+            };
+        };
+        // Shouldn't reach this point
+        None 
     }   
 
     // Flip active and passive queue making active queue passive
@@ -611,7 +638,7 @@ pub fn schedule() {
                     ThreadState::Runnable => {
                         // Current is the only runnable thread, no need to
                         // context switch
-                        trace_sched!("no runnable threads");
+                        trace_sched!("[{}] is the only runnable thread", c.lock().name);
                         return;
                     },
                     _ => {

@@ -115,7 +115,6 @@ impl syscalls::Syscall for PDomain {
 
     // Yield to any thread
     fn sys_yield(&self) {
-
         disable_irq();
         trace_sched!("sys_yield"); 
         do_yield();
