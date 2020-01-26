@@ -14,6 +14,7 @@ use libdma::ahci::allocate_dma;
 
 use syscalls::errors::{Error, Result, EIO};
 use libsyscalls::syscalls::sys_yield;
+use libtime::get_rdtsc;
 
 use ahci::{AhciBarRegion, AhciRegs, AhciArrayRegs, AhciPortRegs, AhciPortArrayRegs};
 
@@ -31,11 +32,19 @@ const ATA_CMD_PACKET: u8 = 0xA0;
 const ATA_DEV_BUSY: u8 = 0x80;
 const ATA_DEV_DRQ: u8 = 0x08;
 
+// HBA reset
+const HBA_GHC_HR: u32 = 1 << 0;
+// AHCI enbale
+const HBA_GHC_AE: u32 = 1 << 31; 
+// Perform initialization sequence.
+const HBA_PORT_SCTL_DET_INIT: u32 = 0x1;
+
 // Command List Running
 const HBA_PORT_CMD_CR: u32 = 1 << 15;
 // FIS Receive Running
 const HBA_PORT_CMD_FR: u32 = 1 << 14;
 const HBA_PORT_CMD_FRE: u32 = 1 << 4;
+// Start
 const HBA_PORT_CMD_ST: u32 = 1;
 const HBA_PORT_IS_ERR: u32 = 1 << 30 | 1 << 29 | 1 << 28 | 1 << 27;
 const HBA_SSTS_PRESENT: u32 = 0x3;
@@ -105,14 +114,20 @@ impl HbaPort {
     // Stop command engine
     fn stop(&self, hba: &MutexGuard<Hba>) {
         // Clear ST (bit0)
-        hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_ST, false);
+        hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_ST | HBA_PORT_CMD_FRE, false);
 
         // Wait until FR (bit14), CR (bit15) are cleared
         loop {
             let cmd = hba.bar.read_port_reg(self.port, AhciPortRegs::Cmd);
-            if (cmd & HBA_PORT_CMD_FR == 0) && (cmd & HBA_PORT_CMD_CR == 0) {
-                break;
+            if cmd & HBA_PORT_CMD_FR != 0 {
+                println!("{:b}", cmd);
+                continue;
             }
+            if cmd & HBA_PORT_CMD_CR != 0 {
+                println!("{:b}", cmd);
+                continue;
+            }
+            break;
         }
 
         // Clear FRE (bit4)
@@ -130,6 +145,7 @@ impl HbaPort {
         None
     }
 
+    // OS Dev equivelant: port_rebase
     pub fn init(&mut self, clb: &mut Dma<[HbaCmdHeader; 32]>, ctbas: &mut [Dma<HbaCmdTable>; 32], fb: &mut Dma<[u8; 256]>) {
         let hba = self.hbaarc.lock();
 
@@ -140,7 +156,6 @@ impl HbaPort {
             cmdheader.ctba.write(ctbas[i].physical() as u64);
             cmdheader.prdtl.write(0);
         }
-
 
         hba.bar.write_port_reg_idx(self.port, AhciPortArrayRegs::Clb, 0, clb.physical() as u32);
         hba.bar.write_port_reg_idx(self.port, AhciPortArrayRegs::Clb, 1, (clb.physical() >> 32) as u32);
@@ -161,6 +176,38 @@ impl HbaPort {
         hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, 1 << 2 | 1 << 1, true);
 
         print!("   - AHCI init {:X}\n", hba.bar.read_port_reg(self.port, AhciPortRegs::Cmd));
+    }
+
+    fn reset(&self, hba: &Hba) {
+        // Reset port 
+
+        // Prerequite
+        hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_ST, false);
+        // TODO: set timeout
+        while hba.bar.read_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_CR) {
+            // spin
+        }
+
+        // Actual reset
+        hba.bar.write_port_regf(self.port, AhciPortRegs::Sctl, HBA_PORT_SCTL_DET_INIT, true);
+        // Spin for one second
+        let start_time = get_rdtsc();
+        while get_rdtsc() < start_time + 2_400_000_000 {
+            // Spin
+        }
+        hba.bar.write_port_regf(self.port, AhciPortRegs::Sctl, HBA_PORT_SCTL_DET_INIT, false);
+
+        // Device presence detected and phy communication established.
+        const HBA_PORT_SSTS_DET_EST: u32 = 0x3;
+        while !hba.bar.read_port_regf(self.port, AhciPortRegs::Ssts, HBA_PORT_SSTS_DET_EST) {
+            // Spin
+        }
+        
+        const HBA_PROT_TFD_STS_BSY: u32 = 1 << 7;
+        while !hba.bar.read_port_regf(self.port, AhciPortRegs::Tfd, HBA_PROT_TFD_STS_BSY) {
+            // Spin
+        }
+        println!("HBA port is reset");
     }
 
     pub fn identify(&mut self, clb: &mut Dma<[HbaCmdHeader; 32]>, ctbas: &mut [Dma<HbaCmdTable>; 32]) -> Option<u64> {
@@ -373,11 +420,19 @@ impl Hba {
         }
     }
 
+    fn reset(&self) {
+        let bar = &self.bar;
+        // Reset HBA
+        bar.write_reg(AhciRegs::Ghc, HBA_GHC_HR);
+        while bar.read_regf(AhciRegs::Ghc, HBA_GHC_HR)  {
+            // spin
+        }
+    }
+
     pub fn init(&self) {
         let bar = &self.bar;
-
-        bar.write_reg(AhciRegs::Ghc, 1 << 31 | 1 << 1);
-        print!("   - AHCI CAP {:X} GHC {:X} IS {:X} PI {:X} VS {:X} CAP2 {:X} BOHC {:X}",
+        bar.write_regf(AhciRegs::Ghc, HBA_GHC_AE, true);
+        println!("   - AHCI CAP {:X} GHC {:X} IS {:X} PI {:X} VS {:X} CAP2 {:X} BOHC {:X}",
             bar.read_reg(AhciRegs::Cap), bar.read_reg(AhciRegs::Ghc), bar.read_reg(AhciRegs::Is), bar.read_reg(AhciRegs::Pi),
             bar.read_reg(AhciRegs::Vs), bar.read_reg(AhciRegs::Cap2), bar.read_reg(AhciRegs::Bohc)
         );
