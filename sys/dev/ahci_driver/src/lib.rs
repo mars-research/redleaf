@@ -26,19 +26,16 @@ use core::panic::PanicInfo;
 use core::cell::RefCell;
 use syscalls::{Syscall};
 use libsyscalls::errors::Result;
-use libsyscalls::syscalls::{sys_print, sys_alloc, sys_backtrace};
+use libsyscalls::syscalls::sys_backtrace;
 use console::println;
 use pci_driver::{BarRegions, PciClass};
-use ahci::AhciBarRegion;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-use spin::Once;
 use byteorder::{LittleEndian, ByteOrder};
 
 use core::iter::Iterator;
 
 use self::ahcid::Disk;
-use self::ahcid::hba::Hba;
 
 struct Ahci {
     vendor_id: u16,

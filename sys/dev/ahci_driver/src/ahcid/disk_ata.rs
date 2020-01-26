@@ -31,7 +31,7 @@ use libsyscalls::syscalls::sys_yield;
 use libdma::Dma;
 use libdma::ahci::{HbaCmdTable, HbaCmdHeader};
 use libdma::ahci::allocate_dma;
-use super::hba::HbaPort;
+use super::hba_port::HbaPort;
 use super::Disk;
 
 // Maximun number of sectors per PRDT entry
