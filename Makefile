@@ -74,6 +74,7 @@ clean:
 	-rm -rf build
 	-cargo clean
 	-make -C usr/mkfs clean
+	-make -C usr/proxy clean
 
 .PHONY: run
 run: qemu
