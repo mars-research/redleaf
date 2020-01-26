@@ -46,6 +46,7 @@ const HBA_PORT_CMD_FR: u32 = 1 << 14;
 const HBA_PORT_CMD_FRE: u32 = 1 << 4;
 // Start
 const HBA_PORT_CMD_ST: u32 = 1;
+
 const HBA_PORT_IS_ERR: u32 = 1 << 30 | 1 << 29 | 1 << 28 | 1 << 27;
 const HBA_SSTS_PRESENT: u32 = 0x3;
 const HBA_SIG_ATA: u32 = 0x00000101;
@@ -110,26 +111,28 @@ impl HbaPort {
     }
 
     // Stop command engine
+    // See 10.1.2
     fn stop(&self, hba: &MutexGuard<Hba>) {
         // Clear ST (bit0)
-        hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_ST | HBA_PORT_CMD_FRE, false);
-
-        // Wait until FR (bit14), CR (bit15) are cleared
-        loop {
-            let cmd = hba.bar.read_port_reg(self.port, AhciPortRegs::Cmd);
-            if cmd & HBA_PORT_CMD_FR != 0 {
-                println!("{:b}", cmd);
-                continue;
-            }
-            if cmd & HBA_PORT_CMD_CR != 0 {
-                println!("{:b}", cmd);
-                continue;
-            }
-            break;
+        hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_ST, false);
+        // Wait until FR CR (bit15) is cleared
+        libtime::sys_ns_sleep(1_000_000_000);
+        while (hba.bar.read_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_CR)) {
+            // Spin
         }
 
-        // Clear FRE (bit4)
+        // Clear FRE
         hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_FRE, false);
+        // Wait until FR (bit14) is cleared
+        libtime::sys_ns_sleep(1_000_000_000);
+        while (hba.bar.read_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_FR)) {
+            // Spin
+        }
+
+        // TODO: If PxCMD.CR or PxCMD.FR do
+        // not clear to ‘0’ correctly, then software may 
+        // attempt a port reset or a full HBA reset to
+        // recover.
     }
 
     fn slot(&self, hba: &MutexGuard<Hba>) -> Option<u32> {
@@ -146,6 +149,13 @@ impl HbaPort {
     // OS Dev equivelant: port_rebase
     pub fn init(&mut self, clb: &mut Dma<[HbaCmdHeader; 32]>, ctbas: &mut [Dma<HbaCmdTable>; 32], fb: &mut Dma<[u8; 256]>) {
         let hba = self.hbaarc.lock();
+
+        // See SATA AHCI Spec section 10.1.1
+        // assert!(!hba.bar.read_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_ST));
+        // assert!(!hba.bar.read_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_CR));
+        // assert!(!hba.bar.read_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_FRE));
+        // assert!(!hba.bar.read_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_FR));
+        // assert!(hba.bar.read_port_reg(self.port, AhciPortRegs::Sctl) & 0b1111 == 0);
 
         self.stop(&hba);
 
