@@ -102,11 +102,9 @@ impl HbaPort {
     }
 
     fn start(&self, hba: &MutexGuard<Hba>) {
-        /*
         while hba.bar.read_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_CR) {
-            sys_yield();
+            // spin
         }
-        */
 
         hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_FRE | HBA_PORT_CMD_ST, true);
     }
