@@ -368,8 +368,8 @@ extern fn do_page_fault(pt_regs: &mut PtRegs, error_code: isize) {
 // 15: Spurious interrupt bug
 #[no_mangle]
 extern fn do_spurious_interrupt_bug(pt_regs: &mut PtRegs, error_code: isize) {
-    //dprintln!("SPURIOUS INTERRUPT BUG");
-    //dprintln!("{:#?}", pt_regs);
+    println!("SPURIOUS INTERRUPT BUG");
+    println!("{:#?}", pt_regs);
 }
 
 // 16: x87 Floating-Point Exception
