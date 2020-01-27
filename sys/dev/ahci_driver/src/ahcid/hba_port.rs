@@ -177,11 +177,10 @@ impl HbaPort {
 
         // Disable interrupt
         hba.bar.write_port_reg(self.port, AhciPortRegs::Ie, 0 /* TODO: Enable interrupts: 0b10111*/);
-        // hba.bar.write_port_reg(self.port, AhciPortRegs::Serr, serr);
-
-        // TODO:
+        
         // 6. For each implemented port, clear the PxSERR register, by writing ‘1s’ to each
         // implemented bit location.
+        hba.bar.write_port_reg(self.port, AhciPortRegs::Serr, 0xFF_FF_FF_FF);
 
         // Disable power management
         let sctl = hba.bar.read_port_reg(self.port, AhciPortRegs::Sctl);
