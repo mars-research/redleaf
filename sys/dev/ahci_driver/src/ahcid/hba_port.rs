@@ -322,7 +322,8 @@ impl HbaPort {
         self.ata_start(clb, ctbas, |cmdheader, cmdfis, prdt_entries, _acmd| {
             if write {
                 let cfl = cmdheader.cfl.read();
-                cmdheader.cfl.write(cfl | 1 << 7 | 1 << 6)
+                const COMMAND_HEADER_DW0_W: u8 = 1 << 6;
+                cmdheader.cfl.write(cfl | COMMAND_HEADER_DW0_W);
             }
 
             let chuncks = buf.chunks(MAX_BYTES_PER_PRDT_ENTRY);
@@ -367,7 +368,10 @@ impl HbaPort {
         if let Some(slot) = self.slot(&hba) {
             {
                 let cmdheader = &mut clb[slot as usize];
-                cmdheader.cfl.write((size_of::<FisRegH2D>() / size_of::<u32>()) as u8);
+                let cfl = (size_of::<FisRegH2D>() / size_of::<u32>()) as u8;
+                // CFL is 04:00
+                assert!(cfl < 0b00011111);
+                cmdheader.cfl.write(cfl);
 
                 let cmdtbl = &mut ctbas[slot as usize];
                 unsafe { ptr::write_bytes(cmdtbl.deref_mut() as *mut HbaCmdTable as *mut u8, 0, size_of::<HbaCmdTable>()); }
