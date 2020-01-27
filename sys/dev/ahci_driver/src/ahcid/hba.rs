@@ -27,6 +27,17 @@ const HBA_GHC_HR: u32 = 1 << 0;
 // AHCI enbale
 const HBA_GHC_AE: u32 = 1 << 31; 
 
+// BIOS busy
+const HBA_BOHC_BB: u32 = 1 << 4;
+// OS ownership change
+const HBA_BOHC_OOC: u32 = 1 << 3;
+// SMI on OS ownership change enabled
+const HBA_BOHC_SOOE: u32 = 1 << 2;
+// OS owned semaphore
+const HBA_BOHC_OOS: u32 = 1 << 1;
+// BIOS owned semaphore
+const HBA_BOHC_BOS: u32 = 1 << 0;
+
 pub struct Hba {
     pub bar: Box<dyn AhciBarRegion>,
 }
@@ -49,6 +60,20 @@ impl Hba {
 
     pub fn init(&self) {
         let bar = &self.bar;
+
+        // AHCI r1.3.1 10.6.3
+        // Request HBA ownership from BIOS
+        println!("Requesting ownership from BIOS");
+        bar.write_regf(AhciRegs::Bohc, HBA_BOHC_OOS, true);
+        while bar.read_regf(AhciRegs::Bohc, HBA_BOHC_BOS) {
+            // Spin
+        }
+        libtime::sys_ns_sleep(1_000_000_000);
+        if bar.read_regf(AhciRegs::Bohc, HBA_BOHC_BB) {
+            println!("BIOS still has outstanding requests. Wait for two more seconds");
+            libtime::sys_ns_sleep(2_000_000_000);
+        }
+
         bar.write_regf(AhciRegs::Ghc, HBA_GHC_AE, true);
         println!("   - AHCI CAP {:X} GHC {:X} IS {:X} PI {:X} VS {:X} CAP2 {:X} BOHC {:X}",
             bar.read_reg(AhciRegs::Cap), bar.read_reg(AhciRegs::Ghc), bar.read_reg(AhciRegs::Is), bar.read_reg(AhciRegs::Pi),
