@@ -369,6 +369,7 @@ extern fn do_page_fault(pt_regs: &mut PtRegs, error_code: isize) {
 #[no_mangle]
 extern fn do_spurious_interrupt_bug(pt_regs: &mut PtRegs, error_code: isize) {
     println!("SPURIOUS INTERRUPT BUG");
+    println!("Error Code: {:x}", error_code);
     println!("{:#?}", pt_regs);
 }
 
