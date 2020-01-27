@@ -96,13 +96,13 @@ pub fn init_ap_cpus() {
             ap_cpu_stack + (crate::thread::STACK_SIZE_IN_PAGES * BASE_PAGE_SIZE) as u32);
 
         unsafe {
-            ap_entry_running = true;
+            ptr::write_volatile(&mut ap_entry_running as *mut bool, true);
             interrupt::init_cpu(cpu,
                 ap_cpu_stack + (crate::thread::STACK_SIZE_IN_PAGES * BASE_PAGE_SIZE) as u32,
                 rust_main_ap as u64);
         }
 
-        while unsafe { ap_entry_running } {}
+        while unsafe { ptr::read_volatile(&ap_entry_running as *const bool) } {}
     }
 
     while RUNNING_CPUS.load(Ordering::SeqCst) != (MAX_CPUS - 1) {
@@ -232,7 +232,7 @@ pub extern "C" fn rust_main() -> ! {
 #[no_mangle]
 pub extern "C" fn rust_main_ap() -> ! {
     unsafe {
-        ap_entry_running = false;
+        ptr::write_volatile(&mut ap_entry_running as *mut bool, false);
     }
 
     let featureInfo = CpuId::new().get_feature_info()
