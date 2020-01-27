@@ -173,6 +173,7 @@ impl HbaPort {
         hba.bar.write_port_reg_idx(self.port, AhciPortArrayRegs::Clb, 1, (clb.physical() >> 32) as u32);
         hba.bar.write_port_reg_idx(self.port, AhciPortArrayRegs::Fb, 0, fb.physical() as u32);
         hba.bar.write_port_reg_idx(self.port, AhciPortArrayRegs::Fb, 1, (fb.physical() >> 32) as u32);
+        hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_FRE, true);
 
         // Disable interrupt
         hba.bar.write_port_reg(self.port, AhciPortRegs::Ie, 0 /* TODO: Enable interrupts: 0b10111*/);
