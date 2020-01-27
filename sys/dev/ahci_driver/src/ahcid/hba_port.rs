@@ -1,28 +1,22 @@
-use core::mem::size_of;
-use core::ops::DerefMut;
-use core::{ptr, u32};
-
 use alloc::string::String;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-
+use ahci::{AhciBarRegion, AhciRegs, AhciArrayRegs, AhciPortRegs, AhciPortArrayRegs};
+use byteorder::{ByteOrder, LE};
+use console::{print, println};
+use core::mem::size_of;
+use core::ops::DerefMut;
+use core::{ptr, u32};
 use spin::{Mutex, MutexGuard};
-
+use syscalls::errors::{Error, Result, EIO};
 use libdma::{Mmio, Dma};
 use libdma::ahci::{HbaPrdtEntry, HbaCmdTable, HbaCmdHeader};
 use libdma::ahci::allocate_dma;
-
-use syscalls::errors::{Error, Result, EIO};
 use libsyscalls::syscalls::sys_yield;
 use libtime::get_rdtsc;
 
-use ahci::{AhciBarRegion, AhciRegs, AhciArrayRegs, AhciPortRegs, AhciPortArrayRegs};
-
 use super::disk_ata::{MAX_SECTORS_PER_PRDT_ENTRY, MAX_BYTES_PER_PRDT_ENTRY};
 use super::hba::{Hba, hba_port_dump};
-
-use console::{print, println};
-
 use super::fis::{FisType, FisRegH2D};
 
 
@@ -150,13 +144,16 @@ impl HbaPort {
     pub fn init(&mut self, clb: &mut Dma<[HbaCmdHeader; 32]>, ctbas: &mut [Dma<HbaCmdTable>; 32], fb: &mut Dma<[u8; 256]>) {
         let hba = self.hbaarc.lock();
 
-        // See SATA AHCI Spec section 10.1.1
-        // assert!(!hba.bar.read_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_ST));
-        // assert!(!hba.bar.read_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_CR));
-        // assert!(!hba.bar.read_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_FRE));
-        // assert!(!hba.bar.read_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_FR));
-        // assert!(hba.bar.read_port_reg(self.port, AhciPortRegs::Sctl) & 0b1111 == 0);
-
+        // 3. Ensure that the controller is not in the running state by reading and examining each
+        // implemented port’s PxCMD register. If PxCMD.ST, PxCMD.CR, PxCMD.FRE and
+        // PxCMD.FR are all cleared, the port is in an idle state. Otherwise, the port is not idle and
+        // should be placed in the idle state prior to manipulating HBA and port specific registers.
+        // System software places a port into the idle state by clearing PxCMD.ST and waiting for
+        // PxCMD.CR to return ‘0’ when read. Software should wait at least 500 milliseconds for
+        // this to occur. If PxCMD.FRE is set to ‘1’, software should clear it to ‘0’ and wait at least
+        // 500 milliseconds for PxCMD.FR to return ‘0’ when read. If PxCMD.CR or PxCMD.FR do
+        // not clear to ‘0’ correctly, then software may attempt a port reset or a full HBA reset to
+        // recover.
         self.stop(&hba);
 
         for i in 0..32 {
@@ -165,16 +162,25 @@ impl HbaPort {
             cmdheader.prdtl.write(0);
         }
 
+        // 5. For each implemented port, system software shall allocate memory for and program:
+        // PxCLB and PxCLBU (if CAP.S64A is set to ‘1’)
+        // PxFB and PxFBU (if CAP.S64A is set to ‘1’)
+        // It is good practice for system software to ‘zero-out’ the memory allocated and referenced
+        // by PxCLB and PxFB. After setting PxFB and PxFBU to the physical address of the FIS
+        // receive area, system software shall set PxCMD.FRE to ‘1’.
+        // TODO: 64 bit address will overflow here
         hba.bar.write_port_reg_idx(self.port, AhciPortArrayRegs::Clb, 0, clb.physical() as u32);
         hba.bar.write_port_reg_idx(self.port, AhciPortArrayRegs::Clb, 1, (clb.physical() >> 32) as u32);
         hba.bar.write_port_reg_idx(self.port, AhciPortArrayRegs::Fb, 0, fb.physical() as u32);
         hba.bar.write_port_reg_idx(self.port, AhciPortArrayRegs::Fb, 1, (fb.physical() >> 32) as u32);
 
-        let is = hba.bar.read_port_reg(self.port, AhciPortRegs::Is);
-        hba.bar.write_port_reg(self.port, AhciPortRegs::Is, is);
+        // Disable interrupt
         hba.bar.write_port_reg(self.port, AhciPortRegs::Ie, 0 /* TODO: Enable interrupts: 0b10111*/);
-        let serr = hba.bar.read_port_reg(self.port, AhciPortRegs::Serr);
-        hba.bar.write_port_reg(self.port, AhciPortRegs::Serr, serr);
+        // hba.bar.write_port_reg(self.port, AhciPortRegs::Serr, serr);
+
+        // TODO:
+        // 6. For each implemented port, clear the PxSERR register, by writing ‘1s’ to each
+        // implemented bit location.
 
         // Disable power management
         let sctl = hba.bar.read_port_reg(self.port, AhciPortRegs::Sctl);
