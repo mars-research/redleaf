@@ -104,6 +104,8 @@ lazy_static! {
         #[cfg(not(feature="page_fault_on_ist"))]
         idt.page_fault.set_handler_fn(page_fault);
         
+        idt.spurious_interrupt_bug.set_handler_fn(spurious_interrupt_bug);
+
         idt.x87_floating_point.set_handler_fn(coprocessor_error);
         idt.alignment_check.set_handler_fn(alignment_check);
         idt.machine_check.set_handler_fn(machine_check);
@@ -361,6 +363,14 @@ extern fn do_page_fault(pt_regs: &mut PtRegs, error_code: isize) {
 
     crate::panic::backtrace_exception(pt_regs);
     crate::halt();
+}
+
+// 15: Spurious interrupt bug
+#[no_mangle]
+extern fn do_spurious_interrupt_bug(pt_regs: &mut PtRegs, error_code: isize) {
+    println!("SPURIOUS INTERRUPT BUG");
+    println!("Error Code: {:x}", error_code);
+    println!("{:#?}", pt_regs);
 }
 
 // 16: x87 Floating-Point Exception
