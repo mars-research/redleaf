@@ -305,7 +305,7 @@ idtentry stack_segment		do_stack_segment	has_error_code=1
 
 idtentry general_protection	do_general_protection	has_error_code=1
 trace_idtentry page_fault	do_page_fault		has_error_code=1
-
+trace_idtentry spurious_interrupt_bug	do_spurious_interrupt_bug has_error_code=0
 //idtentry machine_check		do_machine_check	has_error_code=0	paranoid=1 
 idtentry machine_check		do_machine_check	has_error_code=0
 
