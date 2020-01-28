@@ -24,7 +24,6 @@ use super::fis::{FisType, FisRegH2D};
 const ATA_CMD_READ_DMA_EXT: u8 = 0x25;
 const ATA_CMD_WRITE_DMA_EXT: u8 = 0x35;
 const ATA_CMD_IDENTIFY: u8 = 0xEC;
-const ATA_CMD_IDENTIFY_PACKET: u8 = 0xA1;
 const ATA_CMD_PACKET: u8 = 0xA0;
 const ATA_DEV_BUSY: u8 = 0x80;
 const ATA_DEV_DRQ: u8 = 0x08;
@@ -228,10 +227,6 @@ impl HbaPort {
         self.identify_inner(ATA_CMD_IDENTIFY, clb, ctbas)
     }
 
-    pub fn identify_packet(&mut self, clb: &mut Dma<[HbaCmdHeader; 32]>, ctbas: &mut [Dma<HbaCmdTable>; 32]) -> Option<u64> {
-        self.identify_inner(ATA_CMD_IDENTIFY_PACKET, clb, ctbas)
-    }
-
     // Shared between identify() and identify_packet()
     fn identify_inner(&mut self, cmd: u8, clb: &mut Dma<[HbaCmdHeader; 32]>, ctbas: &mut [Dma<HbaCmdTable>; 32]) -> Option<u64> {
         let dest: Dma<[u16; 256]> = allocate_dma().unwrap();
@@ -250,65 +245,62 @@ impl HbaPort {
             cmdfis.counth.write(0);
         })?;
 
-        if self.ata_stop(slot).is_ok() {
-            let mut serial = String::new();
-            for word in 10..20 {
-                let d = dest[word];
-                let a = ((d >> 8) as u8) as char;
-                if a != '\0' {
-                    serial.push(a);
-                }
-                let b = (d as u8) as char;
-                if b != '\0' {
-                    serial.push(b);
-                }
+        self.ata_stop(slot).ok()?;
+        let mut serial = String::new();
+        for word in 10..20 {
+            let d = dest[word];
+            let a = ((d >> 8) as u8) as char;
+            if a != '\0' {
+                serial.push(a);
             }
-
-            let mut firmware = String::new();
-            for word in 23..27 {
-                let d = dest[word];
-                let a = ((d >> 8) as u8) as char;
-                if a != '\0' {
-                    firmware.push(a);
-                }
-                let b = (d as u8) as char;
-                if b != '\0' {
-                    firmware.push(b);
-                }
+            let b = (d as u8) as char;
+            if b != '\0' {
+                serial.push(b);
             }
-
-            let mut model = String::new();
-            for word in 27..47 {
-                let d = dest[word];
-                let a = ((d >> 8) as u8) as char;
-                if a != '\0' {
-                    model.push(a);
-                }
-                let b = (d as u8) as char;
-                if b != '\0' {
-                    model.push(b);
-                }
-            }
-
-            let mut sectors = (dest[100] as u64) |
-                              ((dest[101] as u64) << 16) |
-                              ((dest[102] as u64) << 32) |
-                              ((dest[103] as u64) << 48);
-
-            let lba_bits = if sectors == 0 {
-                sectors = (dest[60] as u64) | ((dest[61] as u64) << 16);
-                28
-            } else {
-                48
-            };
-
-            print!("   + Serial: {} Firmware: {} Model: {} {}-bit LBA Size: {} MB\n",
-                        serial.trim(), firmware.trim(), model.trim(), lba_bits, sectors / 2048);
-
-            Some(sectors * 512)
-        } else {
-            None
         }
+
+        let mut firmware = String::new();
+        for word in 23..27 {
+            let d = dest[word];
+            let a = ((d >> 8) as u8) as char;
+            if a != '\0' {
+                firmware.push(a);
+            }
+            let b = (d as u8) as char;
+            if b != '\0' {
+                firmware.push(b);
+            }
+        }
+
+        let mut model = String::new();
+        for word in 27..47 {
+            let d = dest[word];
+            let a = ((d >> 8) as u8) as char;
+            if a != '\0' {
+                model.push(a);
+            }
+            let b = (d as u8) as char;
+            if b != '\0' {
+                model.push(b);
+            }
+        }
+
+        let mut sectors = (dest[100] as u64) |
+                            ((dest[101] as u64) << 16) |
+                            ((dest[102] as u64) << 32) |
+                            ((dest[103] as u64) << 48);
+
+        let lba_bits = if sectors == 0 {
+            sectors = (dest[60] as u64) | ((dest[61] as u64) << 16);
+            28
+        } else {
+            48
+        };
+
+        print!("   + Serial: {} Firmware: {} Model: {} {}-bit LBA Size: {} MB\n",
+                    serial.trim(), firmware.trim(), model.trim(), lba_bits, sectors / 2048);
+
+        Some(sectors * 512)
     }
 
     pub fn ata_dma(&mut self, block: u64, sectors: u16, write: bool, clb: &mut Dma<[HbaCmdHeader; 32]>, ctbas: &mut [Dma<HbaCmdTable>; 32], buf: &[u8]) -> Option<u32> {
