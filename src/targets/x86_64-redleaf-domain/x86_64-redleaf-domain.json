@@ -12,5 +12,13 @@
   "disable-redzone": true,
   "eliminate-frame-pointer": false,
   "features": "-mmx,-sse,+soft-float",
+  "pre-link-args": {
+    "gcc": [
+      "-n",
+      "-pie",
+      "--no-dynamic-linker",
+      "--gc-sections"
+    ]
+  },
   "stack-probes": true
 }
