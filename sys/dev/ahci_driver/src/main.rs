@@ -1,4 +1,5 @@
 #![no_std]
+#![no_main]
 #![feature(abi_x86_interrupt)]
 #![feature(
     asm,
@@ -137,7 +138,7 @@ impl usr::bdev::BDev for Ahci {
 
 
 #[no_mangle]
-pub fn ahci_init(s: Box<dyn Syscall + Send + Sync>,
+pub fn init(s: Box<dyn Syscall + Send + Sync>,
                  pci: Box<dyn syscalls::PCI>) -> Box<dyn usr::bdev::BDev> {
     libsyscalls::syscalls::init(s);
 

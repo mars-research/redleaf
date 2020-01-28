@@ -7,7 +7,7 @@ SECTIONS {
 
   /* . = 0x227000;  */
 
-  ENTRY(ahci_init)
+  ENTRY(init)
 
   .rodata :
   {
