@@ -140,6 +140,7 @@ impl HbaPort {
     }
 
     // OS Dev equivelant: port_rebase
+    // Read AHCI Spec r1.3.1 section 10.1.2
     pub fn init(&mut self, clb: &mut Dma<[HbaCmdHeader; 32]>, ctbas: &mut [Dma<HbaCmdTable>; 32], fb: &mut Dma<[u8; 256]>) {
         let hba = self.hbaarc.lock();
 
@@ -182,8 +183,8 @@ impl HbaPort {
         hba.bar.write_port_reg(self.port, AhciPortRegs::Serr, 0xFF_FF_FF_FF);
 
         // Disable power management
-        let sctl = hba.bar.read_port_reg(self.port, AhciPortRegs::Sctl);
-        hba.bar.write_port_reg(self.port, AhciPortRegs::Sctl, sctl | 7 << 8);
+        const HBA_PORT_SCTL_IPM_DISABLE: u32 = 0x7 << 8;
+        hba.bar.write_port_regf(self.port, AhciPortRegs::Sctl, HBA_PORT_SCTL_IPM_DISABLE, true);
 
         // Power on and spin up device
         hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, 1 << 2 | 1 << 1, true);
