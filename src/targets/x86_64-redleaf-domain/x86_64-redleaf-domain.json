@@ -14,10 +14,8 @@
   "features": "-mmx,-sse,+soft-float",
   "pre-link-args": {
     "gcc": [
-      "-n",
-      "-pie",
-      "--no-dynamic-linker",
-      "--gc-sections"
+      "-Wl,-n,-pie,--no-dynamic-linker",
+      "-Wl,--gc-sections"
     ]
   },
   "stack-probes": true
