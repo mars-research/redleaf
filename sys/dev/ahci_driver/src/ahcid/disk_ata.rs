@@ -105,18 +105,16 @@ impl Disk for DiskATA {
 
     fn read(&mut self, block: u64, buffer: &mut [u8]) {
         // Synchronous read
-        if let Ok(slot) = self.submit(block, false, unsafe { Box::from_raw(buffer as *mut [u8]) }) {
-            while let None = self.poll(slot).unwrap() {}
-        } else {
-            panic!("You suck");
+        if let Ok(slot) = self.submit(block, false, unsafe { Box::from_raw(buffer as *mut [u8]) }).unwrap();
+        while let None = self.poll(slot).unwrap() {
+            // Spin
         }
     }
 
     fn write(&mut self, block: u64, buffer: &[u8]) {
-        if let Ok(slot) = self.submit(block, true, unsafe { Box::from_raw(buffer as *const [u8] as *mut [u8]) }) {
-            while let None = self.poll(slot).unwrap() {}
-        } else {
-            panic!("You suck");
+        let slot = self.submit(block, true, unsafe { Box::from_raw(buffer as *const [u8] as *mut [u8]) }).unwrap();
+        while let None = self.poll(slot).unwrap() {
+            // Spin
         }
     }
 
