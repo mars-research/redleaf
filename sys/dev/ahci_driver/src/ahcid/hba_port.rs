@@ -192,9 +192,8 @@ impl HbaPort {
         print!("   - AHCI init {:X}\n", hba.bar.read_port_reg(self.port, AhciPortRegs::Cmd));
     }
 
+    // COMRESET
     fn reset(&self, hba: &Hba) {
-        // Reset port 
-
         // Prerequite
         hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_ST, false);
         // TODO: set timeout
@@ -375,11 +374,11 @@ impl HbaPort {
                 let acmd = unsafe { &mut *(&mut cmdtbl.acmd as *mut _) };
 
                 callback(cmdheader, cmdfis, prdt_entry, acmd);
-                println!("{:?} {:?} {:?}", cmdheader, prdt_entry[0], cmdfis);
+                // println!("{:?} {:?} {:?}", cmdheader, prdt_entry[0], cmdfis);
             }
 
             while hba.bar.read_port_regf(self.port, AhciPortRegs::Tfd, (ATA_DEV_BUSY | ATA_DEV_DRQ) as u32) {
-                sys_yield();
+                println!("Tfd: {:X}", hba.bar.read_port_reg(self.port, AhciPortRegs::Tfd));
             }
 
             hba.bar.write_port_regf(self.port, AhciPortRegs::Ci, 1 << slot, true);
@@ -395,13 +394,14 @@ impl HbaPort {
 
     pub fn ata_running(&self, slot: u32) -> bool {
         let hba = self.hbaarc.lock();
-
+        hba_port_dump(self.port, &hba.bar);
         (hba.bar.read_port_regf(self.port, AhciPortRegs::Ci, 1 << slot) || hba.bar.read_port_regf(self.port, AhciPortRegs::Tfd, 0x80)) && hba.bar.read_port_reg(self.port, AhciPortRegs::Is) & HBA_PORT_IS_ERR == 0
     }
 
     pub fn ata_stop(&mut self, slot: u32) -> Result<()> {
         while self.ata_running(slot) {
-            sys_yield();
+            // spin
+            hba_port_dump(self.port, &self.hbaarc.lock().bar);
         }
 
         let hba = self.hbaarc.lock();
@@ -412,10 +412,33 @@ impl HbaPort {
             // FIXME
             hba_port_dump(self.port, &hba.bar);
             
-            hba.bar.write_port_reg(self.port, AhciPortRegs::Is, u32::MAX);
+            // hba.bar.write_port_reg(self.port, AhciPortRegs::Is, u32::MAX);
+            core::mem::drop(hba);
+            self.recover();
             Err(Error::new(EIO))
         } else {
             Ok(())
         }
+    }
+
+    // This could be complicated if we have multiple requests in flight
+    pub fn recover(&mut self) {
+        let hba = self.hbaarc.lock();
+        // Clears PxCMD.ST to ‘0’ to reset the PxCI register, waits for PxCMD.CR to clear to ‘0’
+        hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_ST, false);
+        while hba.bar.read_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_CR) {
+            // Spin
+        }
+        // Clears any error bits in PxSERR to enable capturing new errors.
+        hba.bar.write_port_reg(self.port, AhciPortRegs::Serr, 0);
+        // Clears status bits in PxIS as appropriate
+        hba.bar.write_port_reg(self.port, AhciPortRegs::Is, 0);
+        // If PxTFD.STS.BSY or PxTFD.STS.DRQ is set to ‘1’, issue a COMRESET to the device to put
+        // it in an idle state
+        self.reset(&hba);
+        // Sets PxCMD.ST to ‘1’ to enable issuing new commands
+        // hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_ST, true);
+        hba_port_dump(self.port, &hba.bar);
+        hba.bar.write_port_reg(self.port, AhciPortRegs::Serr, 0xFF_FF_FF_FF);
     }
 }

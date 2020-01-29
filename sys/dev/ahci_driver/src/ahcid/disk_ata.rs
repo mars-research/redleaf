@@ -24,6 +24,7 @@ use core::ptr;
 
 use alloc::boxed::Box;
 
+use console::println;
 use syscalls::errors::Result;
 use syscalls::errors::{Error, EBUSY, EINVAL};
 use libsyscalls::syscalls::sys_yield;
@@ -113,8 +114,24 @@ impl Disk for DiskATA {
 
     fn write(&mut self, block: u64, buffer: &[u8]) {
         let slot = self.submit(block, true, unsafe { Box::from_raw(buffer as *const [u8] as *mut [u8]) }).unwrap();
-        while let None = self.poll(slot).unwrap() {
-            // Spin
+        loop {
+            match self.poll(slot) {
+                Ok(opt) => {
+                    match opt {
+                        Some(_) => { 
+                            return; 
+                        },
+                        None => { 
+                            console::println!("waiting slot#{} to finish", slot);
+                            continue;
+                        },
+                    }
+                },
+                Err(e) => {
+                    console::println!("Failed to read: {:?}", e);
+                    return self.write(block, buffer);
+                }
+            }
         }
     }
 
@@ -154,9 +171,9 @@ impl Disk for DiskATA {
             Ok(None)
         } else {
             // Finished (errored or otherwise)
-            self.port.ata_stop(slot)?;
             let opt = self.requests_opt[slot as usize].take().unwrap();
             self.port.set_slot_ready(slot, true);
+            self.port.ata_stop(slot)?;
             Ok(Some(opt.buffer))
         }
     }
