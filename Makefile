@@ -82,7 +82,7 @@ qemu-gdb: $(iso) $(xv6fs_img)
 
 .PHONY: qemu-kvm-gdb
 qemu-kvm-gdb: $(iso) $(xv6fs_img)
-	${QEMU_KVM} $(qemu_kvm_args) $(qemu_x) -S
+	${QEMU_KVM} $(qemu_kvm_args) $(qemu_nox) -S
 
 
 .PHONY: qemu-gdb-nox
