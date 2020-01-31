@@ -25,6 +25,8 @@ use x86_64::instructions::segmentation::load_gs;
 use x86_64::instructions::segmentation::load_ss;
 use x86_64::PrivilegeLevel::{Ring0};
 
+use x86::controlregs;
+
 //use crate::paging::PAGE_SIZE;
 pub const PAGE_SIZE: usize = 4096;
 
@@ -228,6 +230,11 @@ pub unsafe fn init_global_gdt() {
     load_ss(SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring0));
 }
 
+#[inline]
+pub unsafe fn writefs(fs: u64) {
+    asm!("wrfsbase $0" :: "r"(fs) :: "volatile");
+}
+
 /// Initialize GDT with TLS
 /// In other words take a TCB offset and load it into the GDT
 pub unsafe fn init_percpu_gdt(tcb_offset: u64) {
@@ -237,9 +244,17 @@ pub unsafe fn init_percpu_gdt(tcb_offset: u64) {
     // Load the initial GDT, before we have access to thread locals
     x86::dtables::lgdt(&INIT_GDT_DESC);
 
+    // Enable wrfsbase
+    let mut cr4 = controlregs::cr4();
+    cr4 = cr4 | controlregs::Cr4::CR4_ENABLE_FSGSBASE; 
+    controlregs::cr4_write(cr4);
+
+
     // Load fs
-    use x86::msr::{IA32_FS_BASE, wrmsr};
-    wrmsr(IA32_FS_BASE, tcb_offset);
+    //use x86::msr::{IA32_FS_BASE, wrmsr};
+    //wrmsr(IA32_FS_BASE, tcb_offset);
+
+    writefs(tcb_offset); 
 
     // Now that we have access to thread locals, setup the AP's individual GDT
     GDT_DESC.limit = (GDT.len() * mem::size_of::<GdtEntry>() - 1) as u16;
@@ -277,8 +292,14 @@ pub unsafe fn init_percpu_gdt(tcb_offset: u64) {
     segmentation::load_gs(SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring0));
     segmentation::load_ss(SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring0));
 
-    // Load fs
-    wrmsr(IA32_FS_BASE, tcb_offset);
+    // Enable wrfsbase
+    let mut cr4 = controlregs::cr4();
+    cr4 = cr4 | controlregs::Cr4::CR4_ENABLE_FSGSBASE; 
+    controlregs::cr4_write(cr4);
+
+    writefs(tcb_offset); 
+
+    //wrmsr(IA32_FS_BASE, tcb_offset);
 
     // Load the task register
     task::load_tr(x86::segmentation::SegmentSelector::new(GDT_TSS as u16, x86::Ring::Ring0));
