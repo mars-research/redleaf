@@ -37,8 +37,12 @@ const HBA_PORT_CMD_CR: u32 = 1 << 15;
 // FIS Receive Running
 const HBA_PORT_CMD_FR: u32 = 1 << 14;
 const HBA_PORT_CMD_FRE: u32 = 1 << 4;
+// Power on device
+const HBA_PORT_CMD_POD: u32 = 1 << 2;
+// Spin-up device
+const HBA_PORT_CMD_SUD: u32 = 1 << 1;
 // Start
-const HBA_PORT_CMD_ST: u32 = 1;
+const HBA_PORT_CMD_ST: u32 = 1 << 0;
 
 const HBA_PORT_IS_ERR: u32 = 1 << 30 | 1 << 29 | 1 << 28 | 1 << 27;
 const HBA_SSTS_PRESENT: u32 = 0x3;
@@ -174,25 +178,26 @@ impl HbaPort {
         hba.bar.write_port_reg_idx(self.port, AhciPortArrayRegs::Fb, 0, fb.physical() as u32);
         hba.bar.write_port_reg_idx(self.port, AhciPortArrayRegs::Fb, 1, (fb.physical() >> 32) as u32);
         hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_FRE, true);
-
+        
         // Disable interrupt
         hba.bar.write_port_reg(self.port, AhciPortRegs::Ie, 0 /* TODO: Enable interrupts: 0b10111*/);
         
         // 6. For each implemented port, clear the PxSERR register, by writing ‘1s’ to each
         // implemented bit location.
         hba.bar.write_port_reg(self.port, AhciPortRegs::Serr, 0xFF_FF_FF_FF);
-
+        
         // Disable power management
         const HBA_PORT_SCTL_IPM_DISABLE: u32 = 0x7 << 8;
         hba.bar.write_port_regf(self.port, AhciPortRegs::Sctl, HBA_PORT_SCTL_IPM_DISABLE, true);
-
+        
         // Power on and spin up device
-        hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, 1 << 2 | 1 << 1, true);
-
-        print!("   - AHCI init {:X}\n", hba.bar.read_port_reg(self.port, AhciPortRegs::Cmd));
+        hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_POD | HBA_PORT_CMD_SUD, true);
+        
+        println!("   - AHCI init {:X}", hba.bar.read_port_reg(self.port, AhciPortRegs::Cmd));
+        hba_port_dump(self.port, &hba.bar);
     }
 
-    // COMRESET
+    // 10.4.2: COMRESET
     fn reset(&self, hba: &Hba) {
         // Prerequite
         hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_ST, false);
@@ -204,10 +209,7 @@ impl HbaPort {
         // Actual reset
         hba.bar.write_port_regf(self.port, AhciPortRegs::Sctl, HBA_PORT_SCTL_DET_INIT, true);
         // Spin for one second
-        let start_time = get_rdtsc();
-        while get_rdtsc() < start_time + 2_400_000_000 {
-            // Spin
-        }
+        libtime::sys_ns_sleep(1_000_000_000);
         hba.bar.write_port_regf(self.port, AhciPortRegs::Sctl, HBA_PORT_SCTL_DET_INIT, false);
 
         // Device presence detected and phy communication established.
