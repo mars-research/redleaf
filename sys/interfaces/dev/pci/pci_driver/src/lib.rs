@@ -6,7 +6,7 @@ pub use pci_class::PciClass;
 
 extern crate alloc;
 use alloc::boxed::Box;
-use ixgbe::IxgbeBarRegion;
+use ixgbe::BarRegion;
 use ahci::AhciBarRegion;
 
 pub trait PciDriver {
@@ -18,7 +18,7 @@ pub trait PciDriver {
 
 pub enum BarRegions {
     Ahci(Box <dyn AhciBarRegion>),
-    Ixgbe(Box <dyn IxgbeBarRegion>),
+    Ixgbe(Box <dyn BarRegion>),
     None
 }
 

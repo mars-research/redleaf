@@ -54,7 +54,7 @@ impl PciDevice {
 impl PciBar for PciDevice {
     fn get_bar_region(&self, base: u64, size: usize,
                         pci_device: pci_driver::PciDrivers) -> pci_driver::BarRegions {
-        use crate::dev::ixgbe::IxgbeBar;
+        use crate::dev::ixgbe::Bar;
         use crate::dev::ahci::AhciBar;
 
         crate::interrupt::disable_irq();
@@ -67,7 +67,7 @@ impl PciBar for PciDevice {
                 vspace.map_identity(PAddr::from(base), PAddr::from(base + size as u64),
                                      MapAction::ReadWriteKernelNoCache);
 
-                pci_driver::BarRegions::Ixgbe(Box::new(IxgbeBar::new(base, size)))
+                pci_driver::BarRegions::Ixgbe(Box::new(Bar::new(base as usize, size)))
             },
             pci_driver::PciDrivers::AhciDriver => {
                 let ref mut vspace = *VSPACE.lock();

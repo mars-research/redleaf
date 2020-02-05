@@ -2,7 +2,7 @@
 
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-use ixgbe::IxgbeBarRegion;
+use ixgbe::BarRegion;
 use libdma::Dma;
 use libdma::ahci::allocate_dma;
 use crate::ixgbe_desc::*;
@@ -30,7 +30,7 @@ pub struct Intel8259x {
     transmit_index: usize,
     transmit_clean_index: usize,
     next_id: usize,
-    pub bar: Box<dyn IxgbeBarRegion>,
+    pub bar: Box<dyn BarRegion>,
     counter: usize,
     gcounter: usize,
 }
@@ -39,9 +39,76 @@ fn wrap_ring(index: usize, ring_size: usize) -> usize {
     (index + 1) & (ring_size - 1)
 }
 
+const fn IXGBE_RAL(i: usize) -> usize {
+    IxgbeArrayRegs::RAL as usize + (i * 8)
+}
+const fn IXGBE_RAH(i: usize) -> usize {
+    IxgbeArrayRegs::RAH as usize + (i * 8)
+}
+const fn IXGBE_RDBAL(i: usize) -> usize {
+    IxgbeArrayRegs::RDBAL as usize + (i * 0x40)
+}
+const fn IXGBE_RDBAH(i: usize) -> usize {
+    IxgbeArrayRegs::RDBAH as usize + (i * 0x40)
+}
+const fn IXGBE_RDLEN(i: usize) -> usize {
+    IxgbeArrayRegs::RDLEN as usize + (i * 0x40)
+}
+const fn IXGBE_RDH(i: usize) -> usize {
+    IxgbeArrayRegs::RDH as usize + (i * 0x40)
+}
+const fn IXGBE_RDT(i: usize) -> usize {
+    IxgbeArrayRegs::RDT as usize + (i * 0x40)
+}
+const fn IXGBE_TDBAL(i: usize) -> usize {
+    IxgbeArrayRegs::TDBAL as usize + (i * 0x40)
+}
+const fn IXGBE_TDBAH(i: usize) -> usize {
+    IxgbeArrayRegs::TDBAH as usize + (i * 0x40)
+}
+const fn IXGBE_TDLEN(i: usize) -> usize {
+    IxgbeArrayRegs::TDLEN as usize + (i * 0x40)
+}
+const fn IXGBE_TXDCTL(i: usize) -> usize {
+    IxgbeArrayRegs::TXDCTL as usize + (i * 0x40)
+}
+const fn IXGBE_RXPBSIZE(i: usize) -> usize {
+    IxgbeArrayRegs::RXPBSIZE as usize + (i * 4)
+}
+const fn IXGBE_SRRCTL(i: usize) -> usize {
+    IxgbeArrayRegs::SRRCTL as usize + (i * 0x40)
+}
+const fn IXGBE_TXPBSIZE(i: usize) -> usize {
+    IxgbeArrayRegs::TXPBSIZE as usize + (i * 4)
+}
+const fn IXGBE_TDH(i: usize) -> usize {
+    IxgbeArrayRegs::TDH as usize + (i * 4)
+}
+pub const fn IXGBE_TDT(i: usize) -> usize {
+    IxgbeArrayRegs::TDT as usize + (i * 4)
+}
+const fn IXGBE_IVAR(i: usize) -> usize {
+    IxgbeArrayRegs::IVAR as usize + (i * 4)
+}
+const fn IXGBE_DCA_RXCTRL(i: usize) -> usize {
+    IxgbeArrayRegs::DCA_RXCTRL as usize + (i * 0x40)
+}
+const fn IXGBE_TXPBTHRESH(i: usize) -> usize {
+    IxgbeArrayRegs::TXPBTHRESH as usize + (i * 4)
+}
+const fn IXGBE_QPTC(i: usize) -> usize {
+    IxgbeArrayRegs::QPTC as usize + (i * 0x40)
+}
+const fn IXGBE_EITR(i: usize) -> usize {
+    IxgbeArrayRegs::EITR as usize + (i * 4)
+}
+const fn IXGBE_RXDCTL(i: usize) -> usize {
+    IxgbeArrayRegs::RXDCTL as usize + (i * 0x40)
+}
+
 impl Intel8259x {
     /// Returns an initialized `Intel8259x` on success.
-    pub fn new(bar: Box<dyn IxgbeBarRegion>) -> Result<Self> {
+    pub fn new(bar: Box<dyn BarRegion>) -> Result<Self> {
         #[rustfmt::skip]
         let mut module = Intel8259x {
             receive_buffer: [
@@ -74,9 +141,25 @@ impl Intel8259x {
         Ok(module)
     }
 
+    pub fn read_reg(&self, register:IxgbeRegs) -> u64 {
+        self.bar.read_reg(register as usize)
+    }
+
+    fn read_reg_idx(&self, offset: usize) -> u64 {
+        self.bar.read_reg(offset)
+    }
+
+    fn write_reg(&self, register: IxgbeRegs, val: u64) {
+        self.bar.write_reg(register as usize, val);
+    }
+
+    pub fn write_reg_idx(&self, offset: usize, val: u64) {
+        self.bar.write_reg(offset, val);
+    }
+
     fn wait_clear_reg(&self, register: IxgbeRegs, value: u64) {
         loop {
-            let current = self.bar.read_reg(register);
+            let current = self.read_reg(register);
             if (current & value) == 0 {
                 break;
             }
@@ -86,7 +169,7 @@ impl Intel8259x {
 
     fn wait_write_reg(&self, register: IxgbeRegs, value: u64) {
         loop {
-            let current = self.bar.read_reg(register);
+            let current = self.read_reg(register);
             if (current & value) == value {
                 break;
             }
@@ -94,9 +177,9 @@ impl Intel8259x {
         }
     }
 
-    fn wait_write_reg_idx(&self, register: IxgbeArrayRegs, idx: u64, value: u64) {
+    fn wait_write_reg_idx(&self, offset: usize, value: u64) {
         loop {
-            let current = self.bar.read_reg_idx(register, idx);
+            let current = self.bar.read_reg(offset);
             if (current & value) == value {
                 break;
             }
@@ -105,32 +188,32 @@ impl Intel8259x {
     }
 
     fn write_flag(&self, register: IxgbeRegs, flags: u64) {
-        self.bar.write_reg(register, self.bar.read_reg(register) | flags);
+        self.write_reg(register, self.read_reg(register) | flags);
     }
 
-    fn write_flag_idx(&self, register: IxgbeArrayRegs, idx: u64, flags: u64) {
-        self.bar.write_reg_idx(register, idx, self.bar.read_reg_idx(register, idx) | flags);
+    fn write_flag_idx(&self, offset: usize, flags: u64) {
+        self.bar.write_reg(offset, self.bar.read_reg(offset) | flags);
     }
 
     fn clear_flag(&self, register: IxgbeRegs, flags: u64) {
-        self.bar.write_reg(register, self.bar.read_reg(register) & !flags);
+        self.write_reg(register, self.read_reg(register) & !flags);
     }
 
-    fn clear_flag_idx(&self, register: IxgbeArrayRegs, idx: u64, flags: u64) {
-        self.bar.write_reg_idx(register, idx, self.bar.read_reg_idx(register, idx) & !flags);
+    fn clear_flag_idx(&self, offset: usize, flags: u64) {
+        self.bar.write_reg(offset, self.bar.read_reg(offset) & !flags);
     }
 
     /// Clear all interrupt masks for all queues.
     fn clear_interrupts(&self) {
         // Clear interrupt mask
-        self.bar.write_reg(IxgbeRegs::Eimc, IXGBE_IRQ_CLEAR_MASK);
-        self.bar.read_reg(IxgbeRegs::Eicr);
+        self.write_reg(IxgbeRegs::EIMC, IXGBE_IRQ_CLEAR_MASK);
+        self.read_reg(IxgbeRegs::EICR);
     }
 
     /// Disable all interrupts for all queues.
     fn disable_interrupts(&self) {
         // Clear interrupt mask to stop from interrupts being generated
-        self.bar.write_reg(IxgbeRegs::Eims, 0x0000_0000);
+        self.write_reg(IxgbeRegs::EIMS, 0x0000_0000);
         self.clear_interrupts();
     }
 
@@ -140,14 +223,14 @@ impl Intel8259x {
         self.disable_interrupts();
 
         println!("Writing regs");
-        self.bar.write_reg(IxgbeRegs::Ctrl, IXGBE_CTRL_PCIE_MASTER_DISABLE); 
+        self.write_reg(IxgbeRegs::CTRL, IXGBE_CTRL_PCIE_MASTER_DISABLE); 
 
-        self.wait_clear_reg(IxgbeRegs::Status, IXGBE_STATUS_PCIE_MASTER_STATUS); 
+        self.wait_clear_reg(IxgbeRegs::STATUS, IXGBE_STATUS_PCIE_MASTER_STATUS); 
 
         // section 4.6.3.2
-        self.bar.write_reg(IxgbeRegs::Ctrl, IXGBE_CTRL_RST_MASK);
+        self.write_reg(IxgbeRegs::CTRL, IXGBE_CTRL_RST_MASK);
 
-        self.wait_clear_reg(IxgbeRegs::Ctrl, IXGBE_CTRL_RST_MASK);
+        self.wait_clear_reg(IxgbeRegs::CTRL, IXGBE_CTRL_RST_MASK);
         println!("Sleep");
         sys_ns_loopsleep(ONE_MS_IN_NS * 100);
 
@@ -158,13 +241,13 @@ impl Intel8259x {
 
         println!("No snoop disable bit");
         // check for no snoop disable bit
-        let ctrl_ext = self.bar.read_reg(IxgbeRegs::Ctrlext);
+        let ctrl_ext = self.read_reg(IxgbeRegs::CTRLEXT);
         if (ctrl_ext & IXGBE_CTRL_EXT_NS_DIS) == 0 {
-            self.bar.write_reg(IxgbeRegs::Ctrlext, ctrl_ext | IXGBE_CTRL_EXT_NS_DIS);
+            self.write_reg(IxgbeRegs::CTRLEXT, ctrl_ext | IXGBE_CTRL_EXT_NS_DIS);
         }
-        self.bar.write_reg(IxgbeRegs::Ctrlext, IXGBE_CTRL_EXT_DRV_LOAD);
+        self.write_reg(IxgbeRegs::CTRLEXT, IXGBE_CTRL_EXT_DRV_LOAD);
 
-        self.bar.write_reg(IxgbeRegs::Ctrlext, IXGBE_CTRL_EXT_DRV_LOAD);
+        self.write_reg(IxgbeRegs::CTRLEXT, IXGBE_CTRL_EXT_DRV_LOAD);
 
         let mac = self.get_mac_addr();
 
@@ -184,10 +267,10 @@ impl Intel8259x {
         );*/
 
         // section 4.6.3 - wait for EEPROM auto read completion
-        self.wait_write_reg(IxgbeRegs::Eec, IXGBE_EEC_ARD);
+        self.wait_write_reg(IxgbeRegs::EEC, IXGBE_EEC_ARD);
 
         // section 4.6.3 - wait for dma initialization done
-        self.wait_write_reg(IxgbeRegs::Rdrxctl, IXGBE_RDRXCTL_DMAIDONE);
+        self.wait_write_reg(IxgbeRegs::RDRXCTL, IXGBE_RDRXCTL_DMAIDONE);
 
         // section 4.6.4 - initialize link (auto negotiation)
         self.init_link();
@@ -226,8 +309,8 @@ impl Intel8259x {
 
     /// Returns the mac address of this device.
     pub fn get_mac_addr(&self) -> [u8; 6] {
-        let low = self.bar.read_reg_idx(IxgbeArrayRegs::Ral, 0);
-        let high = self.bar.read_reg_idx(IxgbeArrayRegs::Rah, 0);
+        let low = self.bar.read_reg(IXGBE_RAL(0));
+        let high = self.bar.read_reg(IXGBE_RAH(0));
 
         [
             (low & 0xff) as u8,
@@ -249,136 +332,137 @@ impl Intel8259x {
         let high: u32 = u32::from(mac[4]) + (u32::from(mac[5]) << 8);
 
 
-        self.bar.write_reg_idx(IxgbeArrayRegs::Ral, 0, low as u64);
-        self.bar.write_reg_idx(IxgbeArrayRegs::Rah, 0, high as u64);
+        self.write_reg_idx(IXGBE_RAL(0), low as u64);
+        self.write_reg_idx(IXGBE_RAH(0), high as u64);
     }
 
     // see section 4.6.4
     /// Initializes the link of this device.
     fn init_link(&self) {
         // link auto-configuration register should already be set correctly, we're resetting it anyway
-        self.bar.write_reg(
-            IxgbeRegs::Autoc,
-            (self.bar.read_reg(IxgbeRegs::Autoc) & !IXGBE_AUTOC_LMS_MASK) | IXGBE_AUTOC_LMS_10G_SERIAL,
+        self.write_reg(
+            IxgbeRegs::AUTOC,
+            (self.read_reg(IxgbeRegs::AUTOC) & !IXGBE_AUTOC_LMS_MASK) | IXGBE_AUTOC_LMS_10G_SERIAL,
         );
-        self.bar.write_reg(
-            IxgbeRegs::Autoc,
-            (self.bar.read_reg(IxgbeRegs::Autoc) & !IXGBE_AUTOC_10G_PMA_PMD_MASK) | IXGBE_AUTOC_10G_XAUI,
+        self.write_reg(
+            IxgbeRegs::AUTOC,
+            (self.read_reg(IxgbeRegs::AUTOC) & !IXGBE_AUTOC_10G_PMA_PMD_MASK) | IXGBE_AUTOC_10G_XAUI,
         );
         // negotiate link
-        self.write_flag(IxgbeRegs::Autoc, IXGBE_AUTOC_AN_RESTART);
+        self.write_flag(IxgbeRegs::AUTOC, IXGBE_AUTOC_AN_RESTART);
         // datasheet wants us to wait for the link here, but we can continue and wait afterwards
     }
 
     /// Resets the stats of this device.
     fn reset_stats(&self) {
-        self.bar.read_reg(IxgbeRegs::Gprc);
-        self.bar.read_reg(IxgbeRegs::Gptc);
-        self.bar.read_reg(IxgbeRegs::Gorcl);
-        self.bar.read_reg(IxgbeRegs::Gorch);
-        self.bar.read_reg(IxgbeRegs::Gotcl);
-        self.bar.read_reg(IxgbeRegs::Gotch);
+        self.read_reg(IxgbeRegs::GPRC);
+        self.read_reg(IxgbeRegs::GPTC);
+        self.read_reg(IxgbeRegs::GORCL);
+        self.read_reg(IxgbeRegs::GORCH);
+        self.read_reg(IxgbeRegs::GOTCL);
+        self.read_reg(IxgbeRegs::GOTCH);
     }
 
     // sections 4.6.7
     /// Initializes the rx queues of this device.
     fn init_rx(&mut self) {
         // disable rx while re-configuring it
-        self.clear_flag(IxgbeRegs::Rxctrl, IXGBE_RXCTRL_RXEN);
+        self.clear_flag(IxgbeRegs::RXCTRL, IXGBE_RXCTRL_RXEN);
 
         // section 4.6.11.3.4 - allocate all queues and traffic to PB0
-        self.bar.write_reg_idx(IxgbeArrayRegs::Rxpbsize, 0, IXGBE_RXPBSIZE_128KB);
+        self.bar.write_reg(IXGBE_RXPBSIZE(0), IXGBE_RXPBSIZE_128KB);
 
         for i in 1..8 {
-            self.bar.write_reg_idx(IxgbeArrayRegs::Rxpbsize, i, 0);
+            self.bar.write_reg(IXGBE_RXPBSIZE(i), 0);
         }
 
         // enable CRC offloading
-        self.write_flag(IxgbeRegs::Hlreg0, IXGBE_HLREG0_RXCRCSTRP);
-        self.write_flag(IxgbeRegs::Rdrxctl, IXGBE_RDRXCTL_CRCSTRIP);
+        self.write_flag(IxgbeRegs::HLREG0, IXGBE_HLREG0_RXCRCSTRP);
+        self.write_flag(IxgbeRegs::RDRXCTL, IXGBE_RDRXCTL_CRCSTRIP);
 
         // accept broadcast packets
-        self.write_flag(IxgbeRegs::Fctrl, IXGBE_FCTRL_BAM);
+        self.write_flag(IxgbeRegs::FCTRL, IXGBE_FCTRL_BAM);
 
         // configure a single receive queue/ring
-        let i: u64 = 0;
+        let i: usize = 0;
 
         // enable advanced rx descriptors
-        self.bar.write_reg_idx(
-            IxgbeArrayRegs::Srrctl, i,
-            (self.bar.read_reg_idx(IxgbeArrayRegs::Srrctl, i) & !IXGBE_SRRCTL_DESCTYPE_MASK)
+        self.bar.write_reg(
+            IXGBE_SRRCTL(i),
+            (self.bar.read_reg(IXGBE_SRRCTL(i)) & !IXGBE_SRRCTL_DESCTYPE_MASK)
                 | IXGBE_SRRCTL_DESCTYPE_ADV_ONEBUF,
         );
+
         // let nic drop packets if no rx descriptor is available instead of buffering them
-        self.write_flag_idx(IxgbeArrayRegs::Srrctl, i, IXGBE_SRRCTL_DROP_EN);
+        self.write_flag_idx(IXGBE_SRRCTL(i), IXGBE_SRRCTL_DROP_EN);
 
-        self.bar.write_reg_idx(IxgbeArrayRegs::Rdbal, i, self.receive_ring.physical() as u64);
+        self.write_reg_idx(IXGBE_RDBAL(i), self.receive_ring.physical() as u64);
 
-        self.bar.write_reg_idx(IxgbeArrayRegs::Rdbah, i, (self.receive_ring.physical() >> 32) as u64);
-        self.bar.write_reg_idx(
-            IxgbeArrayRegs::Rdlen, i,
+        self.write_reg_idx(IXGBE_RDBAH(i), (self.receive_ring.physical() >> 32) as u64);
+
+        self.write_reg_idx(IXGBE_RDLEN(i),
             (self.receive_ring.len() * mem::size_of::<ixgbe_adv_rx_desc>()) as u64,
         );
 
         // set ring to empty at start
-        self.bar.write_reg_idx(IxgbeArrayRegs::Rdh, i, 0);
-        self.bar.write_reg_idx(IxgbeArrayRegs::Rdt, i, 0);
+        self.write_reg_idx(IXGBE_RDH(i), 0);
+        self.write_reg_idx(IXGBE_RDT(i), 0);
 
         // last sentence of section 4.6.7 - set some magic bits
-        self.write_flag(IxgbeRegs::Ctrlext, IXGBE_CTRL_EXT_NS_DIS);
+        self.write_flag(IxgbeRegs::CTRLEXT, IXGBE_CTRL_EXT_NS_DIS);
 
         // probably a broken feature, this flag is initialized with 1 but has to be set to 0
-        self.clear_flag_idx(IxgbeArrayRegs::DcaRxctrl, i, 1 << 12);
+        self.clear_flag_idx(IXGBE_DCA_RXCTRL(i), 1 << 12);
 
         // start rx
-        self.write_flag(IxgbeRegs::Rxctrl, IXGBE_RXCTRL_RXEN);
+        self.write_flag(IxgbeRegs::RXCTRL, IXGBE_RXCTRL_RXEN);
     }
 
     fn enable_loopback(&self) {
-        self.write_flag(IxgbeRegs::Hlreg0, IXGBE_HLREG0_LPBK);
+        self.write_flag(IxgbeRegs::HLREG0, IXGBE_HLREG0_LPBK);
     }
 
     // section 4.6.8
     /// Initializes the tx queues of this device.
     fn init_tx(&mut self) {
         // crc offload and small packet padding
-        self.write_flag(IxgbeRegs::Hlreg0, IXGBE_HLREG0_TXCRCEN | IXGBE_HLREG0_TXPADEN);
+        self.write_flag(IxgbeRegs::HLREG0, IXGBE_HLREG0_TXCRCEN | IXGBE_HLREG0_TXPADEN);
 
         // section 4.6.11.3.4 - set default buffer size allocations
-        self.bar.write_reg_idx(IxgbeArrayRegs::Txpbsize, 0, IXGBE_TXPBSIZE_40KB);
+        self.write_reg_idx(IXGBE_TXPBSIZE(0), IXGBE_TXPBSIZE_40KB);
         for i in 1..8 {
-            self.bar.write_reg_idx(IxgbeArrayRegs::Txpbsize, i, 0);
+            self.write_reg_idx(IXGBE_TXPBSIZE(i), 0);
         }
 
-        self.bar.write_reg_idx(IxgbeArrayRegs::TxpbThresh, 0, 0xA0);
+        self.write_reg_idx(IXGBE_TXPBTHRESH(0), 0xA0);
 
         for i in 1..8 {
-            self.bar.write_reg_idx(IxgbeArrayRegs::TxpbThresh, i, 0);
+            self.write_reg_idx(IXGBE_TXPBTHRESH(i), 0);
         }
 
         // required when not using DCB/VTd
-        self.bar.write_reg(IxgbeRegs::Dtxmxszrq, 0xffff);
-        self.clear_flag(IxgbeRegs::Rttdcs, IXGBE_RTTDCS_ARBDIS);
+        self.write_reg(IxgbeRegs::DTXMXSZRQ, 0xffff);
+        self.clear_flag(IxgbeRegs::RTTDCS, IXGBE_RTTDCS_ARBDIS);
 
         // configure a single transmit queue/ring
-        let i: u64 = 0;
+        let i: usize = 0;
 
         // section 7.1.9 - setup descriptor ring
 
-        self.bar.write_reg_idx(IxgbeArrayRegs::Tdbal, i,
+        self.write_reg_idx(IXGBE_TDBAL(i),
                                 self.transmit_ring.physical() as u64);
-        self.bar.write_reg_idx(IxgbeArrayRegs::Tdbah, i,
+        self.write_reg_idx(IXGBE_TDBAH(i),
                                (self.transmit_ring.physical() >> 32) as u64);
 
         println!("tx ring {} phys addr: {:#x}", i, self.transmit_ring.physical());
-        self.bar.write_reg_idx(IxgbeArrayRegs::Tdlen, i,
+        self.write_reg_idx(IXGBE_TDLEN(i),
             (self.transmit_ring.len() * mem::size_of::<ixgbe_adv_tx_desc>()) as u64
         );
 
         // descriptor writeback magic values, important to get good performance and low PCIe overhead
         // see 7.2.3.4.1 and 7.2.3.5 for an explanation of these values and how to find good ones
         // we just use the defaults from DPDK here, but this is a potentially interesting point for optimizations
-        //let mut txdctl = self.bar.read_reg_idx(IxgbeArrayRegs::Txdctl, i);
+        //let mut txdctl = self.read_reg_idx(IxgbeArrayRegs::Txdctl, i);
         // there are no defines for this in ixgbe.rs for some reason
         // pthresh: 6:0, hthresh: 14:8, wthresh: 22:16
         //txdctl &= !(0x3F | (0x3F << 8) | (0x3F << 16));
@@ -389,15 +473,15 @@ impl Intel8259x {
 
         txdctl |= (1 << 8) | 32;
 
-        self.bar.write_reg_idx(IxgbeArrayRegs::Txdctl, i, txdctl);
+        self.write_reg_idx(IXGBE_TXDCTL(i), txdctl);
 
         // final step: enable DMA
-        self.bar.write_reg(IxgbeRegs::Dmatxctl, IXGBE_DMATXCTL_TE);
+        self.write_reg(IxgbeRegs::DMATXCTL, IXGBE_DMATXCTL_TE);
     }
 
     /// Returns the link speed of this device.
     fn get_link_speed(&self) -> u16 {
-        let speed = self.bar.read_reg(IxgbeRegs::Links);
+        let speed = self.read_reg(IxgbeRegs::LINKS);
         if (speed & IXGBE_LINKS_UP) == 0 {
             return 0;
         }
@@ -426,18 +510,17 @@ impl Intel8259x {
         }
 
         // enable queue and wait if necessary
-        self.write_flag_idx(IxgbeArrayRegs::Rxdctl, u64::from(queue_id),
+        self.write_flag_idx(IXGBE_RXDCTL(usize::from(queue_id)),
                                         IXGBE_RXDCTL_ENABLE);
-        self.wait_write_reg_idx(IxgbeArrayRegs::Rxdctl, u64::from(queue_id),
+        self.wait_write_reg_idx(IXGBE_RXDCTL(usize::from(queue_id)),
                                         IXGBE_RXDCTL_ENABLE);
 
         // rx queue starts out full
-        self.bar.write_reg_idx(IxgbeArrayRegs::Rdh, u64::from(queue_id), 0);
+        self.write_reg_idx(IXGBE_RDH(usize::from(queue_id)), 0);
 
         // was set to 0 before in the init function
-        self.bar.write_reg_idx(
-            IxgbeArrayRegs::Rdt,
-            u64::from(queue_id),
+        self.write_reg_idx(
+            IXGBE_RDT(usize::from(queue_id)),
             (self.receive_ring.len() - 1) as u64
         );
     }
@@ -459,22 +542,22 @@ impl Intel8259x {
         }*/
 
         // tx queue starts out empty
-        self.bar.write_reg_idx(IxgbeArrayRegs::Tdh, u64::from(queue_id), 0);
-        self.bar.write_reg_idx(IxgbeArrayRegs::Tdt, u64::from(queue_id), 0);
+        self.write_reg_idx(IXGBE_TDH(usize::from(queue_id)), 0);
+        self.write_reg_idx(IXGBE_TDT(usize::from(queue_id)), 0);
 
         // enable queue and wait if necessary
-        self.write_flag_idx(IxgbeArrayRegs::Txdctl, u64::from(queue_id),
+        self.write_flag_idx(IXGBE_TXDCTL(usize::from(queue_id)),
                                             IXGBE_TXDCTL_ENABLE);
-        self.wait_write_reg_idx(IxgbeArrayRegs::Txdctl, u64::from(queue_id),
+        self.wait_write_reg_idx(IXGBE_TXDCTL(usize::from(queue_id)),
                                             IXGBE_TXDCTL_ENABLE);
     }
 
     /// Enables or disables promisc mode of this device.
     fn set_promisc(&self, enabled: bool) {
         if enabled {
-            self.write_flag(IxgbeRegs::Fctrl, IXGBE_FCTRL_MPE | IXGBE_FCTRL_UPE);
+            self.write_flag(IxgbeRegs::FCTRL, IXGBE_FCTRL_MPE | IXGBE_FCTRL_UPE);
         } else {
-            self.clear_flag(IxgbeRegs::Fctrl, IXGBE_FCTRL_MPE | IXGBE_FCTRL_UPE);
+            self.clear_flag(IxgbeRegs::FCTRL, IXGBE_FCTRL_MPE | IXGBE_FCTRL_UPE);
         }
     }
 
@@ -533,7 +616,7 @@ impl Intel8259x {
         self.transmit_index = wrap_ring(self.transmit_index, self.transmit_ring.len());
         self.transmit_ring_free -= 1;
 
-        self.bar.write_reg_idx(IxgbeArrayRegs::Tdt, 0, self.transmit_index as u64);
+        self.write_reg_idx(IXGBE_TDT(0), self.transmit_index as u64);
 
         Ok(Some(0))
     }
@@ -626,7 +709,7 @@ impl Intel8259x {
  
         //println!("updating tail {}", self.transmit_index);
         if sent > 0 {
-            self.bar.write_reg_tdt(0, self.transmit_index as u64);
+            self.write_reg_idx(IXGBE_TDT(0), self.transmit_index as u64);
         }
         //println!("wrote {} packets", sent);
 
@@ -638,11 +721,11 @@ impl Intel8259x {
 
         msix_vector |= IXGBE_IVAR_ALLOC_VAL as u8;
 
-        let mut ivar = self.bar.read_reg_idx(IxgbeArrayRegs::Ivar, u64::from(queue_id >> 1));
+        let mut ivar = self.read_reg_idx(IXGBE_IVAR(usize::from(queue_id >> 1)));
         ivar &= !(0xFF << index);
         ivar |= u64::from(msix_vector << index);
 
-        self.bar.write_reg_idx(IxgbeArrayRegs::Ivar, u64::from(queue_id >> 1), ivar);
+        self.write_reg_idx(IXGBE_IVAR(usize::from(queue_id >> 1)), ivar);
     }
 
 
@@ -650,10 +733,10 @@ impl Intel8259x {
     fn enable_msix_interrupt(&mut self, queue_id: u16) {
         // Step 1: The software driver associates between interrupt causes and MSI-X vectors and the
         //throttling timers EITR[n] by programming the IVAR[n] and IVAR_MISC registers.
-        let mut gpie: u64 = self.bar.read_reg(IxgbeRegs::Gpie);
+        let mut gpie: u64 = self.read_reg(IxgbeRegs::GPIE);
         gpie |= IXGBE_GPIE_MSIX_MODE | IXGBE_GPIE_PBA_SUPPORT | IXGBE_GPIE_EIAME;
 
-        self.bar.write_reg(IxgbeRegs::Gpie, gpie as u64);
+        self.write_reg(IxgbeRegs::GPIE, gpie as u64);
 
         self.set_ivar(0, queue_id, queue_id as u8);
 
@@ -663,95 +746,95 @@ impl Intel8259x {
         // Step 3: The EIAC[n] registers should be set to auto clear for transmit and receive interrupt
         // causes (for best performance). The EIAC bits that control the other and TCP timer
         // interrupt causes should be set to 0b (no auto clear).
-        self.bar.write_reg(IxgbeRegs::Eiac, IXGBE_EICR_RTX_QUEUE);
+        self.write_reg(IxgbeRegs::EIAC, IXGBE_EICR_RTX_QUEUE);
 
-        self.bar.write_reg_idx(IxgbeArrayRegs::Eitr, queue_id as u64, 0x028);
+        self.write_reg_idx(IXGBE_EITR(queue_id as usize), 0x028);
         // Step 4: Set the auto mask in the EIAM register according to the preferred mode of operation.
 
         // Step 5: Set the interrupt throttling in EITR[n] and GPIE according to the preferred mode of operation.
 
         // Step 6: Software enables the required interrupt causes by setting the EIMS register
-        let mut mask: u32 = self.bar.read_reg(IxgbeRegs::Eims) as u32;
+        let mut mask: u32 = self.read_reg(IxgbeRegs::EIMS) as u32;
         mask |= 1 << queue_id;
 
-        self.bar.write_reg(IxgbeRegs::Eims, mask as u64);
+        self.write_reg(IxgbeRegs::EIMS, mask as u64);
     }
 
     pub fn dump_stats(&self) {
         println!("Ixgbe statistics:");
         let mut string = format!("Stats regs:\n\tGPRC {:08X} GPTC {:08X}\n\tGORCL {:08X} GORCH {:08X}\n\tGOTCL {:08X} GOTCH {:08X}\n\tTXDGPC {:08X} TXDGBCH {:08X} TXDGBCL {:08X} QPTC(0) {:08X}\n",
-                                self.bar.read_reg(IxgbeRegs::Gprc) as u32,
-                                self.bar.read_reg(IxgbeRegs::Gptc) as u32,
-                                self.bar.read_reg(IxgbeRegs::Gorcl) as u32,
-                                self.bar.read_reg(IxgbeRegs::Gorch) as u32,
-                                self.bar.read_reg(IxgbeRegs::Gotcl) as u32,
-                                self.bar.read_reg(IxgbeRegs::Gotch) as u32,
-                                self.bar.read_reg(IxgbeRegs::Txdgpc) as u32,
-                                self.bar.read_reg(IxgbeRegs::Txdgbch) as u32,
-                                self.bar.read_reg(IxgbeRegs::Txdgbcl) as u32,
-                                self.bar.read_reg_idx(IxgbeArrayRegs::Qptc, 0) as u32,
+                                self.read_reg(IxgbeRegs::GPRC) as u32,
+                                self.read_reg(IxgbeRegs::GPTC) as u32,
+                                self.read_reg(IxgbeRegs::GORCL) as u32,
+                                self.read_reg(IxgbeRegs::GORCH) as u32,
+                                self.read_reg(IxgbeRegs::GOTCL) as u32,
+                                self.read_reg(IxgbeRegs::GOTCH) as u32,
+                                self.read_reg(IxgbeRegs::TXDGPC) as u32,
+                                self.read_reg(IxgbeRegs::TXDGBCH) as u32,
+                                self.read_reg(IxgbeRegs::TXDGBCL) as u32,
+                                self.read_reg_idx(IXGBE_QPTC(0)) as u32,
                                 );
         print!("{}", string);
     }
 
     pub fn dump_all_regs(&self) { 
         let mut string = format!("Interrupt regs:\n\tEICR: {:08X} EIMS: {:08X} EIMC: {:08X}\n\tEITR {:08X} GPIE {:08X}\n\tIVAR(0) {:08X}\n",
-                    self.bar.read_reg(IxgbeRegs::Eicr) as u32,
-                    self.bar.read_reg(IxgbeRegs::Eims) as u32,
-                    self.bar.read_reg(IxgbeRegs::Eimc) as u32,
-                    self.bar.read_reg_idx(IxgbeArrayRegs::Eitr, 0) as u32,
-                    self.bar.read_reg(IxgbeRegs::Gpie) as u32,
-                    self.bar.read_reg_idx(IxgbeArrayRegs::Ivar, 0) as u32, 
+                    self.read_reg(IxgbeRegs::EICR) as u32,
+                    self.read_reg(IxgbeRegs::EIMS) as u32,
+                    self.read_reg(IxgbeRegs::EIMC) as u32,
+                    self.read_reg_idx(IXGBE_EITR(0)) as u32,
+                    self.read_reg(IxgbeRegs::GPIE) as u32,
+                    self.read_reg_idx(IXGBE_IVAR(0)) as u32, 
                     );
 
         string.push_str(&format!("Control regs:\n\tCTRL {:08X} CTRL_EXT {:08X}\n",
-                                 self.bar.read_reg(IxgbeRegs::Ctrl) as u32,
-                                 self.bar.read_reg(IxgbeRegs::Ctrlext) as u32, 
+                                 self.read_reg(IxgbeRegs::CTRL) as u32,
+                                 self.read_reg(IxgbeRegs::CTRLEXT) as u32, 
                                  ));
 
         string.push_str(&format!("EEPROM regs:\n\tEEC_ARD {:08X}\n",
-                                 self.bar.read_reg(IxgbeRegs::Eec) as u32));
+                                 self.read_reg(IxgbeRegs::EEC) as u32));
 
         string.push_str(&format!("AUTOC {:08X}\n",
-                                 self.bar.read_reg(IxgbeRegs::Autoc) as u32));
+                                 self.read_reg(IxgbeRegs::AUTOC) as u32));
 
         string.push_str(&format!("Receive regs:\n\tRDRXCTRL {:08X} RXCTRL {:08X} RXPBSIZE(0): {:08X}\n\tHLREG0 {:08X} FCTRL {:08X}\n\tSRRCTL(0) {:08X} RDBAL(0) {:08X} RDBAH(0) {:08X} RDLEN(0) {:08X}\nRDH(0) {:08X} RDT(0) {:08X}\n",
-                                 self.bar.read_reg(IxgbeRegs::Rdrxctl) as u32,
-                                 self.bar.read_reg(IxgbeRegs::Rxctrl) as u32,
-                                 self.bar.read_reg_idx(IxgbeArrayRegs::Rxpbsize, 0) as u32,
-                                 self.bar.read_reg(IxgbeRegs::Hlreg0) as u32,
-                                 self.bar.read_reg(IxgbeRegs::Fctrl) as u32,
-                                 self.bar.read_reg_idx(IxgbeArrayRegs::Srrctl, 0) as u32,
-                                 self.bar.read_reg_idx(IxgbeArrayRegs::Rdbal, 0) as u32,
-                                 self.bar.read_reg_idx(IxgbeArrayRegs::Rdbah, 0) as u32,
-                                 self.bar.read_reg_idx(IxgbeArrayRegs::Rdlen, 0) as u32,
-                                 self.bar.read_reg_idx(IxgbeArrayRegs::Rdh, 0) as u32,
-                                 self.bar.read_reg_idx(IxgbeArrayRegs::Rdt, 0) as u32,
+                                 self.read_reg(IxgbeRegs::RDRXCTL) as u32,
+                                 self.read_reg(IxgbeRegs::RXCTRL) as u32,
+                                 self.read_reg_idx(IXGBE_RXPBSIZE(0)) as u32,
+                                 self.read_reg(IxgbeRegs::HLREG0) as u32,
+                                 self.read_reg(IxgbeRegs::FCTRL) as u32,
+                                 self.read_reg_idx(IXGBE_SRRCTL(0)) as u32,
+                                 self.read_reg_idx(IXGBE_RDBAL(0)) as u32,
+                                 self.read_reg_idx(IXGBE_RDBAH(0)) as u32,
+                                 self.read_reg_idx(IXGBE_RDLEN(0)) as u32,
+                                 self.read_reg_idx(IXGBE_RDH(0)) as u32,
+                                 self.read_reg_idx(IXGBE_RDT(0)) as u32,
                                  ));
 
         string.push_str(&format!("Transmit regs:\n\tTXDCTL(0) {:08X} TXPBSIZE(0): {:08X}\n\tDTXMSSZRQ {:08X} RTTDCS {:08X}\n\tDMATXCTL: {:08X} TDBAL(0) {:08X} TDBAH(0) {:08X} TDLEN(0) {:08X}\n\tTDH(0) {:08X} TDT(0) {:08X}\n",
-                                 self.bar.read_reg_idx(IxgbeArrayRegs::Txdctl, 0) as u32,
-                                 self.bar.read_reg_idx(IxgbeArrayRegs::Txpbsize, 0) as u32,
-                                 self.bar.read_reg(IxgbeRegs::Dtxmxszrq) as u32,
-                                 self.bar.read_reg(IxgbeRegs::Rttdcs) as u32,
-                                 self.bar.read_reg(IxgbeRegs::Dmatxctl) as u32,
-                                 self.bar.read_reg_idx(IxgbeArrayRegs::Tdbal, 0) as u32,
-                                 self.bar.read_reg_idx(IxgbeArrayRegs::Tdbah, 0) as u32,
-                                 self.bar.read_reg_idx(IxgbeArrayRegs::Tdlen, 0) as u32,
-                                 self.bar.read_reg_idx(IxgbeArrayRegs::Tdh, 0) as u32,
-                                 self.bar.read_reg_idx(IxgbeArrayRegs::Tdt, 0) as u32,
+                                 self.read_reg_idx(IXGBE_TXDCTL(0)) as u32,
+                                 self.read_reg_idx(IXGBE_TXPBSIZE(0)) as u32,
+                                 self.read_reg(IxgbeRegs::DTXMXSZRQ) as u32,
+                                 self.read_reg(IxgbeRegs::RTTDCS) as u32,
+                                 self.read_reg(IxgbeRegs::DMATXCTL) as u32,
+                                 self.read_reg_idx(IXGBE_TDBAL(0)) as u32,
+                                 self.read_reg_idx(IXGBE_TDBAH(0)) as u32,
+                                 self.read_reg_idx(IXGBE_TDLEN(0)) as u32,
+                                 self.read_reg_idx(IXGBE_TDH(0)) as u32,
+                                 self.read_reg_idx(IXGBE_TDT(0)) as u32,
                                  ));
         string.push_str(&format!("Stats regs:\n\tGPRC {:08X} GPTC {:08X}\n\tGORCL {:08X} GORCH {:08X}\n\tGOTCL {:08X} GOTCH {:08X}\n\tTXDGPC {:08X} TXDGBCH {:08X} TXDGBCL {:08X} QPTC(0) {:08X}\n",
-                                self.bar.read_reg(IxgbeRegs::Gprc) as u32,
-                                self.bar.read_reg(IxgbeRegs::Gptc) as u32,
-                                self.bar.read_reg(IxgbeRegs::Gorcl) as u32,
-                                self.bar.read_reg(IxgbeRegs::Gorch) as u32,
-                                self.bar.read_reg(IxgbeRegs::Gotcl) as u32,
-                                self.bar.read_reg(IxgbeRegs::Gotch) as u32,
-                                self.bar.read_reg(IxgbeRegs::Txdgpc) as u32,
-                                self.bar.read_reg(IxgbeRegs::Txdgbch) as u32,
-                                self.bar.read_reg(IxgbeRegs::Txdgbcl) as u32,
-                                self.bar.read_reg_idx(IxgbeArrayRegs::Qptc, 0) as u32,
+                                self.read_reg(IxgbeRegs::GPRC) as u32,
+                                self.read_reg(IxgbeRegs::GPTC) as u32,
+                                self.read_reg(IxgbeRegs::GORCL) as u32,
+                                self.read_reg(IxgbeRegs::GORCH) as u32,
+                                self.read_reg(IxgbeRegs::GOTCL) as u32,
+                                self.read_reg(IxgbeRegs::GOTCH) as u32,
+                                self.read_reg(IxgbeRegs::TXDGPC) as u32,
+                                self.read_reg(IxgbeRegs::TXDGBCH) as u32,
+                                self.read_reg(IxgbeRegs::TXDGBCL) as u32,
+                                self.read_reg_idx(IXGBE_QPTC(0)) as u32,
                                 ));
         print!("{}", string);
         self.dump_stats();

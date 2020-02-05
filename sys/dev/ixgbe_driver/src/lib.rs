@@ -26,7 +26,7 @@ use syscalls::{Syscall,PCI};
 use libsyscalls::syscalls::{sys_println, sys_alloc, sys_create_thread};
 use console::println;
 use pci_driver::BarRegions;
-use ixgbe::IxgbeBarRegion;
+use ixgbe::BarRegion;
 use core::mem::MaybeUninit;
 pub use libsyscalls::errors::Result;
 use crate::device::Intel8259x;
@@ -44,10 +44,6 @@ struct Ixgbe {
     device: RefCell<Option<Intel8259x>>
 }
 
-/*struct IxgbeBar<'a> {
-    ixgbe_bar: &'a dyn IxgbeBarRegion,
-}*/
-
 impl Ixgbe {
     fn new() -> Ixgbe {
         Ixgbe {
@@ -63,17 +59,6 @@ impl Ixgbe {
         self.device_initialized
     }
 }
-/*
-static mut ixgbe_bar: MaybeUninit<IxgbeBar> = MaybeUninit::uninit();
-
-impl<'a> IxgbeBar<'a> {
-    fn new(bar: &'a dyn IxgbeBarRegion) -> IxgbeBar<'a> {
-        IxgbeBar {
-            ixgbe_bar: bar
-        }
-    }
-}
-*/
 
 fn calc_ipv4_checksum(ipv4_header: &[u8]) -> u16 {
     assert!(ipv4_header.len() % 2 == 0);
@@ -616,7 +601,7 @@ fn run_read_reg_test(dev: &Ixgbe) {
         let mut sum: usize = 0;
         let start = rdtsc();
         while sum <= 20_000_000 {
-            dev.bar.read_reg(IxgbeRegs::Gptc);
+            dev.read_reg(IxgbeRegs::GPTC);
             sum += 1;
         }
         let elapsed = rdtsc() - start;
@@ -626,12 +611,13 @@ fn run_read_reg_test(dev: &Ixgbe) {
 
 fn run_write_reg_test(dev: &Ixgbe) {
 
+    use crate::device::IXGBE_TDT;
     if let Some(mut device) = dev.device.borrow_mut().as_mut() {
         let dev: &mut Intel8259x = device;
         let mut sum: usize = 0;
         let start = rdtsc();
         while sum <= 20_000_000 {
-            dev.bar.write_reg_tdt(0, 0);
+            dev.write_reg_idx(IXGBE_TDT(0), 0);
             sum += 1;
         }
         let elapsed = rdtsc() - start;
