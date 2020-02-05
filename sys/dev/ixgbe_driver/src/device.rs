@@ -141,23 +141,23 @@ impl Intel8259x {
         Ok(module)
     }
 
-    pub fn read_reg(&self, register:IxgbeRegs) -> u64 {
-        self.bar.read_reg(register as usize)
+    pub fn read_reg(&self, register:IxgbeRegs) -> u32 {
+        self.bar.read_reg32(register as usize)
     }
 
-    fn read_reg_idx(&self, offset: usize) -> u64 {
-        self.bar.read_reg(offset)
+    fn read_reg_idx(&self, offset: usize) -> u32 {
+        self.bar.read_reg32(offset)
     }
 
-    fn write_reg(&self, register: IxgbeRegs, val: u64) {
-        self.bar.write_reg(register as usize, val);
+    fn write_reg(&self, register: IxgbeRegs, val: u32) {
+        self.bar.write_reg32(register as usize, val);
     }
 
-    pub fn write_reg_idx(&self, offset: usize, val: u64) {
-        self.bar.write_reg(offset, val);
+    pub fn write_reg_idx(&self, offset: usize, val: u32) {
+        self.bar.write_reg32(offset, val);
     }
 
-    fn wait_clear_reg(&self, register: IxgbeRegs, value: u64) {
+    fn wait_clear_reg(&self, register: IxgbeRegs, value: u32) {
         loop {
             let current = self.read_reg(register);
             if (current & value) == 0 {
@@ -167,7 +167,7 @@ impl Intel8259x {
         }
     }
 
-    fn wait_write_reg(&self, register: IxgbeRegs, value: u64) {
+    fn wait_write_reg(&self, register: IxgbeRegs, value: u32) {
         loop {
             let current = self.read_reg(register);
             if (current & value) == value {
@@ -177,9 +177,9 @@ impl Intel8259x {
         }
     }
 
-    fn wait_write_reg_idx(&self, offset: usize, value: u64) {
+    fn wait_write_reg_idx(&self, offset: usize, value: u32) {
         loop {
-            let current = self.bar.read_reg(offset);
+            let current = self.bar.read_reg32(offset);
             if (current & value) == value {
                 break;
             }
@@ -187,20 +187,20 @@ impl Intel8259x {
         }
     }
 
-    fn write_flag(&self, register: IxgbeRegs, flags: u64) {
+    fn write_flag(&self, register: IxgbeRegs, flags: u32) {
         self.write_reg(register, self.read_reg(register) | flags);
     }
 
-    fn write_flag_idx(&self, offset: usize, flags: u64) {
-        self.bar.write_reg(offset, self.bar.read_reg(offset) | flags);
+    fn write_flag_idx(&self, offset: usize, flags: u32) {
+        self.bar.write_reg32(offset, self.bar.read_reg32(offset) | flags);
     }
 
-    fn clear_flag(&self, register: IxgbeRegs, flags: u64) {
+    fn clear_flag(&self, register: IxgbeRegs, flags: u32) {
         self.write_reg(register, self.read_reg(register) & !flags);
     }
 
-    fn clear_flag_idx(&self, offset: usize, flags: u64) {
-        self.bar.write_reg(offset, self.bar.read_reg(offset) & !flags);
+    fn clear_flag_idx(&self, offset: usize, flags: u32) {
+        self.bar.write_reg32(offset, self.bar.read_reg32(offset) & !flags);
     }
 
     /// Clear all interrupt masks for all queues.
@@ -309,8 +309,8 @@ impl Intel8259x {
 
     /// Returns the mac address of this device.
     pub fn get_mac_addr(&self) -> [u8; 6] {
-        let low = self.bar.read_reg(IXGBE_RAL(0));
-        let high = self.bar.read_reg(IXGBE_RAH(0));
+        let low = self.bar.read_reg32(IXGBE_RAL(0));
+        let high = self.bar.read_reg32(IXGBE_RAH(0));
 
         [
             (low & 0xff) as u8,
@@ -332,8 +332,8 @@ impl Intel8259x {
         let high: u32 = u32::from(mac[4]) + (u32::from(mac[5]) << 8);
 
 
-        self.write_reg_idx(IXGBE_RAL(0), low as u64);
-        self.write_reg_idx(IXGBE_RAH(0), high as u64);
+        self.write_reg_idx(IXGBE_RAL(0), low as u32);
+        self.write_reg_idx(IXGBE_RAH(0), high as u32);
     }
 
     // see section 4.6.4
@@ -370,10 +370,10 @@ impl Intel8259x {
         self.clear_flag(IxgbeRegs::RXCTRL, IXGBE_RXCTRL_RXEN);
 
         // section 4.6.11.3.4 - allocate all queues and traffic to PB0
-        self.bar.write_reg(IXGBE_RXPBSIZE(0), IXGBE_RXPBSIZE_128KB);
+        self.bar.write_reg32(IXGBE_RXPBSIZE(0), IXGBE_RXPBSIZE_128KB);
 
         for i in 1..8 {
-            self.bar.write_reg(IXGBE_RXPBSIZE(i), 0);
+            self.bar.write_reg32(IXGBE_RXPBSIZE(i), 0);
         }
 
         // enable CRC offloading
@@ -387,21 +387,21 @@ impl Intel8259x {
         let i: usize = 0;
 
         // enable advanced rx descriptors
-        self.bar.write_reg(
+        self.bar.write_reg32(
             IXGBE_SRRCTL(i),
-            (self.bar.read_reg(IXGBE_SRRCTL(i)) & !IXGBE_SRRCTL_DESCTYPE_MASK)
+            (self.bar.read_reg32(IXGBE_SRRCTL(i)) & !IXGBE_SRRCTL_DESCTYPE_MASK)
                 | IXGBE_SRRCTL_DESCTYPE_ADV_ONEBUF,
         );
 
         // let nic drop packets if no rx descriptor is available instead of buffering them
         self.write_flag_idx(IXGBE_SRRCTL(i), IXGBE_SRRCTL_DROP_EN);
 
-        self.write_reg_idx(IXGBE_RDBAL(i), self.receive_ring.physical() as u64);
+        self.write_reg_idx(IXGBE_RDBAL(i), self.receive_ring.physical() as u32);
 
-        self.write_reg_idx(IXGBE_RDBAH(i), (self.receive_ring.physical() >> 32) as u64);
+        self.write_reg_idx(IXGBE_RDBAH(i), (self.receive_ring.physical() >> 32) as u32);
 
         self.write_reg_idx(IXGBE_RDLEN(i),
-            (self.receive_ring.len() * mem::size_of::<ixgbe_adv_rx_desc>()) as u64,
+            (self.receive_ring.len() * mem::size_of::<ixgbe_adv_rx_desc>()) as u32,
         );
 
         // set ring to empty at start
@@ -450,13 +450,13 @@ impl Intel8259x {
         // section 7.1.9 - setup descriptor ring
 
         self.write_reg_idx(IXGBE_TDBAL(i),
-                                self.transmit_ring.physical() as u64);
+                                self.transmit_ring.physical() as u32);
         self.write_reg_idx(IXGBE_TDBAH(i),
-                               (self.transmit_ring.physical() >> 32) as u64);
+                               (self.transmit_ring.physical() >> 32) as u32);
 
         println!("tx ring {} phys addr: {:#x}", i, self.transmit_ring.physical());
         self.write_reg_idx(IXGBE_TDLEN(i),
-            (self.transmit_ring.len() * mem::size_of::<ixgbe_adv_tx_desc>()) as u64
+            (self.transmit_ring.len() * mem::size_of::<ixgbe_adv_tx_desc>()) as u32
         );
 
         // descriptor writeback magic values, important to get good performance and low PCIe overhead
@@ -521,7 +521,7 @@ impl Intel8259x {
         // was set to 0 before in the init function
         self.write_reg_idx(
             IXGBE_RDT(usize::from(queue_id)),
-            (self.receive_ring.len() - 1) as u64
+            (self.receive_ring.len() - 1) as u32
         );
     }
 
@@ -537,7 +537,7 @@ impl Intel8259x {
         /*
         for i in 0..self.transmit_ring.len() {
             unsafe {
-                self.transmit_ring[i].read.buffer_addr = self.transmit_buffer[i].physical() as u64;
+                self.transmit_ring[i].read.buffer_addr = self.transmit_buffer[i].physical() as u32;
             }
         }*/
 
@@ -616,7 +616,7 @@ impl Intel8259x {
         self.transmit_index = wrap_ring(self.transmit_index, self.transmit_ring.len());
         self.transmit_ring_free -= 1;
 
-        self.write_reg_idx(IXGBE_TDT(0), self.transmit_index as u64);
+        self.write_reg_idx(IXGBE_TDT(0), self.transmit_index as u32);
 
         Ok(Some(0))
     }
@@ -709,7 +709,7 @@ impl Intel8259x {
  
         //println!("updating tail {}", self.transmit_index);
         if sent > 0 {
-            self.write_reg_idx(IXGBE_TDT(0), self.transmit_index as u64);
+            self.write_reg_idx(IXGBE_TDT(0), self.transmit_index as u32);
         }
         //println!("wrote {} packets", sent);
 
@@ -723,7 +723,7 @@ impl Intel8259x {
 
         let mut ivar = self.read_reg_idx(IXGBE_IVAR(usize::from(queue_id >> 1)));
         ivar &= !(0xFF << index);
-        ivar |= u64::from(msix_vector << index);
+        ivar |= u32::from(msix_vector << index);
 
         self.write_reg_idx(IXGBE_IVAR(usize::from(queue_id >> 1)), ivar);
     }
@@ -733,10 +733,10 @@ impl Intel8259x {
     fn enable_msix_interrupt(&mut self, queue_id: u16) {
         // Step 1: The software driver associates between interrupt causes and MSI-X vectors and the
         //throttling timers EITR[n] by programming the IVAR[n] and IVAR_MISC registers.
-        let mut gpie: u64 = self.read_reg(IxgbeRegs::GPIE);
+        let mut gpie: u32 = self.read_reg(IxgbeRegs::GPIE);
         gpie |= IXGBE_GPIE_MSIX_MODE | IXGBE_GPIE_PBA_SUPPORT | IXGBE_GPIE_EIAME;
 
-        self.write_reg(IxgbeRegs::GPIE, gpie as u64);
+        self.write_reg(IxgbeRegs::GPIE, gpie as u32);
 
         self.set_ivar(0, queue_id, queue_id as u8);
 
@@ -757,7 +757,7 @@ impl Intel8259x {
         let mut mask: u32 = self.read_reg(IxgbeRegs::EIMS) as u32;
         mask |= 1 << queue_id;
 
-        self.write_reg(IxgbeRegs::EIMS, mask as u64);
+        self.write_reg(IxgbeRegs::EIMS, mask as u32);
     }
 
     pub fn dump_stats(&self) {

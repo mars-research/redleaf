@@ -63,6 +63,9 @@ pub enum IxgbeArrayRegs {
 }
 
 pub trait BarRegion {
-    fn read_reg(&self, offset: usize) -> u64;
-    fn write_reg(&self, offset: usize, val: u64);
+    fn read_reg32(&self, offset: usize) -> u32;
+    fn write_reg32(&self, offset: usize, val: u32);
+
+    fn read_reg64(&self, offset: usize) -> u64;
+    fn write_reg64(&self, offset: usize, val: u64);
 }
