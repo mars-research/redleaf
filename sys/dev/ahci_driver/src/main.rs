@@ -71,7 +71,7 @@ impl pci_driver::PciDriver for Ahci {
 
         println!("Initializing with base = {:x}", bar.get_base());
 
-        let mut disks = self::ahcid::disks(bar);
+        let mut disks = self::ahcid::create_disks(bar);
         // Filter out all disk that already has an OS on it
         let have_magic_number: Vec<bool> = disks
                         .iter_mut()

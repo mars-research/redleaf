@@ -30,22 +30,18 @@ pub trait Disk {
     fn poll(&mut self, slot: u32) -> Result<Option<Box<[u8]>>>;
 }
 
-pub fn disks(bar: Box<dyn AhciBarRegion>) -> Vec<Box<dyn Disk>> {
+pub fn create_disks(bar: Box<dyn AhciBarRegion>) -> Vec<Box<dyn Disk>> {
     let base: usize = bar.get_base() as usize;
     let name: &str = "rlahci";
 
-    let hbaarc = Arc::new(Mutex::new(Hba::new(bar)));
-
-    let pi = {
-        let hba = hbaarc.lock();
-        hba.init();
-        hba.bar.read_reg(AhciRegs::Pi)
-    };
+    let hba = Arc::new(Hba::new(bar));
+    hba.init();
+    let pi = hba.bar.read_reg(AhciRegs::Pi);
 
     let disks: Vec<Box<dyn Disk>> = (0..32)
-          .filter(|&i| pi & 1 << i as i32 == 1 << i as i32)
+          .filter(|&i| pi & 1 << i as i32 != 0)
           .filter_map(|i| {
-              let mut port = HbaPort::new(hbaarc.clone(), i as u64);
+              let mut port = HbaPort::new(hba.clone(), i as u64);
               let port_type = port.probe();
               print!("{}-{}: {:?}\n", name, i, port_type);
 
