@@ -11,7 +11,7 @@ use spin::Mutex;
 
 use ahci::{AhciBarRegion, AhciRegs};
 
-use console::{print, println};
+use console::dbg;
 
 use core::mem::MaybeUninit;
 
@@ -43,14 +43,14 @@ pub fn create_disks(bar: Box<dyn AhciBarRegion>) -> Vec<Box<dyn Disk>> {
           .filter_map(|i| {
               let mut port = HbaPort::new(hba.clone(), i as u64);
               let port_type = port.probe();
-              print!("{}-{}: {:?}\n", name, i, port_type);
+              dbg!("HBA port {}-{}: {:?}", name, i, port_type);
 
               let disk: Option<Box<dyn Disk>> = match port_type {
                   HbaPortType::SATA => {
                       match DiskATA::new(i, port) {
                           Ok(disk) => Some(Box::new(disk)),
                           Err(err) => {
-                              print!("{}: {}\n", i, err);
+                              dbg!("Failed to create disk for port#{}: {}", i, err);
                               None
                           }
                       }
