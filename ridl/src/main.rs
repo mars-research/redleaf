@@ -1,15 +1,37 @@
-use syntex_syntax::*;
-use parse::*;
-use codemap::*;
-use std::vec::Vec;
-use std::path::Path;
+use std::fs::File;
+use std::io::Read;
+use std::env;
 
 fn main() {
-    let sess = ParseSess::new(FilePathMapping::new(Vec::new()));
-    let path = Path::new("../rtool/test.rs");
-    let mut parser = new_parser_from_file(&sess, &path);
-    match parser.parse_crate_mod() {
-        Ok(v) => println!("{:?}", v),
-        Err(e) => println!("{:?}", e)
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 2 {
+        println!("Usage: <invocation> <filepath>");
+        return
+    }
+    let mut file = match File::open(&args[1]) {
+        Ok(v) => v,
+        Err(e) => {
+            println!("{}", e);
+            return
+        }
     };
+    let mut content = String::new();
+    file.read_to_string(&mut content).unwrap();
+    let ast = syn::parse_file(&content).unwrap();
+    let mut traits : Vec<syn::ItemTrait> = Vec::new();
+    for item in ast.items {
+        match item {
+            syn::Item::Trait(tr) => traits.push(tr),
+            _ => ()
+        }
+    }
+    for tr in traits {
+        let name = tr.ident.to_string();
+        for item in tr.items {
+            match item {
+                syn::TraitItem::Method(m) => println!("{}::{}", name, m.sig.ident),
+                _ => ()
+            }
+        }
+    }
 }
