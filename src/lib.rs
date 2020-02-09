@@ -26,6 +26,7 @@ extern crate backtracer;
 extern crate pcid;
 extern crate elfloader;
 use crate::interrupt::{disable_irq, enable_irq};
+use core::sync::atomic::{AtomicU32, Ordering};
 
 #[macro_use]
 mod console;
@@ -34,11 +35,13 @@ mod entryother;
 mod redsys;
 mod drivers;
 mod heap;
+mod buildinfo;
 pub mod gdt;
 
 
 mod multibootv2;
 mod memory;
+mod rtc;
 
 #[macro_use]
 mod prelude;
@@ -65,6 +68,7 @@ use crate::multibootv2::BootInformation;
 
 pub static mut ap_entry_running: bool = true;
 pub const MAX_CPUS: u32 = 4;
+static RUNNING_CPUS: AtomicU32 = AtomicU32::new(0);
 
 static mut elf_found: bool = false;
 
@@ -72,6 +76,11 @@ extern "C" {
     #[no_mangle]
     static _bootinfo: usize;
 }
+
+pub fn active_cpus() -> u32 {
+    RUNNING_CPUS.load(Ordering::Relaxed)
+}
+
 
 // Note, the bootstrap CPU runs on a statically allocated
 // stack that is defined in boot.asm
@@ -87,13 +96,17 @@ pub fn init_ap_cpus() {
             ap_cpu_stack + (crate::thread::STACK_SIZE_IN_PAGES * BASE_PAGE_SIZE) as u32);
 
         unsafe {
-            ap_entry_running = true;
+            ptr::write_volatile(&mut ap_entry_running as *mut bool, true);
             interrupt::init_cpu(cpu,
                 ap_cpu_stack + (crate::thread::STACK_SIZE_IN_PAGES * BASE_PAGE_SIZE) as u32,
                 rust_main_ap as u64);
         }
 
-        while unsafe { ap_entry_running } {}
+        while unsafe { ptr::read_volatile(&ap_entry_running as *const bool) } {}
+    }
+
+    while RUNNING_CPUS.load(Ordering::SeqCst) != (MAX_CPUS - 1) {
+        // We can't halt here, interrupts are still off
     }
 
     println!("Done initializing APs");
@@ -136,23 +149,6 @@ pub fn init_backtrace_kernel_elf(bootinfo: &BootInformation) {
     }
 }
 
-pub extern fn hello1() {
-    loop {
-        println!("hello 1");
-    }
-}
-
-pub extern fn hello2() {
-    loop {
-        println!("hello 2");
-    }
-}
-
-fn test_threads() {
-    crate::thread::create_thread("hello 1", hello1);
-    crate::thread::create_thread("hello 2", hello2);
-}
-
 // Create sys/init domain and execute its init function
 extern fn init_user() {
     // die() enables interrupts as it thinks it is
@@ -166,8 +162,6 @@ fn start_init_thread() {
     crate::thread::create_thread("init", init_user);
 }
 
-
-
 #[no_mangle]
 pub extern "C" fn rust_main() -> ! {
 
@@ -175,6 +169,10 @@ pub extern "C" fn rust_main() -> ! {
         Some(vendor) => println!("RedLeaf booting (CPU model: {})", vendor.as_string()),
         None => println!("RedLeaf booting on (CPU model: unknown)"),
     }
+
+    println!("Version: {}", buildinfo::BUILD_VERSION);
+
+    rtc::print_date();
 
     let featureInfo = CpuId::new().get_feature_info()
         .expect("CPUID unavailable");
@@ -234,7 +232,7 @@ pub extern "C" fn rust_main() -> ! {
 #[no_mangle]
 pub extern "C" fn rust_main_ap() -> ! {
     unsafe {
-        ap_entry_running = false;
+        ptr::write_volatile(&mut ap_entry_running as *mut bool, false);
     }
 
     let featureInfo = CpuId::new().get_feature_info()
@@ -249,7 +247,7 @@ pub extern "C" fn rust_main_ap() -> ! {
         }
 
         let tcb_offset = tls::init_per_cpu_vars(cpu_id);
-        gdt::init_percpu_gdt(tcb_offset);
+        gdt::init_percpu_gdt(tcb_offset as u64);
 
         // Update cpuid of this CPU
         tls::set_cpuid(cpu_id as usize);
@@ -271,72 +269,36 @@ pub extern "C" fn rust_main_ap() -> ! {
     if cpu_id == 0 {
         domain::domain::init_domains();
 
-        // We initialized kernel domain, it's safe to start
-        // other CPUs
+    }
+
+    // Init threads marking this boot thread as "idle" 
+    // the scheduler will treat it specially and will never schedule 
+    // it unless there is really no runnable threads
+    // on this CPU
+    thread::init_threads(); 
+
+    if cpu_id == 0 {
+        // We initialized kernel domain, and the idle thread on this CPU
+        // it's safe to start other CPUs, nothing will get migrated to us 
+        // (CPU0), but even if it will we're ready to handle it
+
         #[cfg(feature="smp")]
         init_ap_cpus();
+
+        // Create the init thread
+        //
+        // We add it to the scheduler queue on this CPU. 
+        // When we enable the interrupts below the timer interrupt will 
+        // kick the scheduler
+        start_init_thread(); 
     }
 
     println!("cpu{}: Initialized", cpu_id);
-    thread::init_threads();
-
-    /*
-    // Initialize hello driver
-    if cpu_id == 0 {
-        use drivers::hello::Hello;
-
-        println!("Initializing hello driver");
-        let driver = Arc::new(Mutex::new(Hello::new()));
-
-        {
-            let registrar = unsafe { interrupt::get_irq_registrar(driver.clone()) };
-            driver.lock().set_irq_registrar(registrar);
-        }
-    }
-
-    // Initialize IDE driver
-    if cpu_id == 0 {
-        use drivers::ide::IDE;
-
-        println!("Initializing IDE");
-
-        let ataPioDevice = unsafe { Arc::new(Mutex::new(redsys::devices::ATAPIODevice::primary())) };
-        let driver = Arc::new(Mutex::new(IDE::new(ataPioDevice, false)));
-
-        {
-            let registrar = unsafe { interrupt::get_irq_registrar(driver.clone()) };
-            driver.lock().set_irq_registrar(registrar);
-            driver.lock().init();
-        }
-
-        println!("IDE Initialized!");
-
-        println!("Writing");
-        // Write a block of 5s
-        let data: [u32; 512] = [5u32; 512];
-        driver.lock().write(20, &data);
-        println!("Data written");
-
-        // Read the block back
-        let mut rdata: [u32; 512] = [0u32; 512];
-        driver.lock().read(20, &mut rdata);
-        println!("First byte read is {}", data[0]);
-        println!("Data read");
-    }
-
-    */
-
     println!("cpu{}: Ready to enable interrupts", cpu_id);
 
-    if cpu_id == 0 {
-        //test_threads();
+    RUNNING_CPUS.fetch_add(1, Ordering::SeqCst);
 
-        // The first user system call will re-enable interrupts on
-        // exit to user
-        start_init_thread();
-    }
-
-    // Enable interrupts and the timer will schedule the next thread
+    // Enable interrupts; the timer interrupt will schedule the next thread
     enable_irq();
 
     halt();

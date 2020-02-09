@@ -357,7 +357,7 @@ impl VSpace {
                     return Ok(());
                 }
             } else {
-                trace_vspace!(
+                trace!(
                     "Mapping 0x{:x} -- 0x{:x} is smaller than 2 MiB, going deeper.",
                     vbase,
                     vbase + psize

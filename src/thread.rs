@@ -18,6 +18,7 @@ use crate::arch::memory::{BASE_PAGE_SIZE, PAddr};
 use core::alloc::Layout;
 use crate::memory::buddy::BUDDY;
 use crate::memory::{PhysicalAllocator, Frame};
+use crate::active_cpus; 
 
 /// This should be a cryptographically secure number, for now 
 /// just sequential ID
@@ -34,6 +35,9 @@ static SCHED: RefCell<Scheduler> = RefCell::new(Scheduler::new());
 /// Per-CPU current thread
 #[thread_local]
 pub static CURRENT: RefCell<Option<Arc<Mutex<Thread>>>> = RefCell::new(None);
+
+//#[thread_local]
+//static IDLE: RefCell<Option<Arc<Mutex<Thread>>>> = RefCell::new(None); 
 
 static mut REBALANCE_FLAGS: RebalanceFlags = RebalanceFlags::new();
 static REBALANCE_QUEUES: Mutex<RebalanceQueues> = Mutex::new(RebalanceQueues::new());
@@ -139,14 +143,14 @@ fn rb_pop_thread(queue: usize) -> Option<Arc<Mutex<Thread>>> {
 }
 
 fn rb_queue_signal(queue: usize) {
-    println!("cpu({}): rb queue signal, queue:{}", cpuid(), queue);
+    println!("rb queue signal, queue:{}", queue);
     unsafe {
         REBALANCE_FLAGS.flags[queue].rebalance = true; 
     };
 }
 
 fn rb_queue_clear_signal(queue: usize) {
-    println!("cpu({}): rb clear signal, queue:{}", cpuid(), queue);
+    println!("rb clear signal, queue:{}", queue);
     unsafe {
         REBALANCE_FLAGS.flags[queue].rebalance = false; 
     };
@@ -177,6 +181,8 @@ pub enum ThreadState {
     Runnable = 1,
     Paused = 2,
     Waiting = 3, 
+    Idle = 4,
+    Rebalanced = 5,
 }
 
 // AB: Watch out! if you change format of this line 
@@ -223,6 +229,7 @@ struct SchedulerQueue {
 }
 
 pub struct Scheduler {
+    idle: Option<Arc<Mutex<Thread>>>,
     active: bool,
     active_queue: SchedulerQueue,
     passive_queue: SchedulerQueue,
@@ -389,11 +396,27 @@ impl  Scheduler {
 
     pub const fn new() -> Scheduler {
         Scheduler {
+            idle: None, 
             active: true,
             active_queue: SchedulerQueue::new(),
             passive_queue: SchedulerQueue::new(),
         }
     }
+
+    fn set_idle_thread(&mut self, thread: Arc<Mutex<Thread>>) {
+        trace_sched!("setting idle thread"); 
+        self.idle = Some(thread); 
+    }
+
+    fn get_idle_thread(&mut self) -> Arc<Mutex<Thread>> {
+
+        if let Some(thread) = self.idle.take() {
+            thread
+        } else {
+            panic!("No idle thread");
+        } 
+    }
+
 
     pub fn put_thread_in_passive(&mut self, thread: Arc<Mutex<Thread>>) {
         /* put thread in the currently passive queue */
@@ -416,7 +439,38 @@ impl  Scheduler {
 
     
     pub fn get_next(&mut self) -> Option<Arc<Mutex<Thread>>> {
-        return self.get_next_active();
+        loop {
+            let next_thread = match self.get_next_active() 
+            {
+                Some(t) => {
+                    // Skip over non-runnable threads
+                    let state = t.lock().state; 
+                    match state {
+                        ThreadState::Runnable => {
+                            return Some(t);
+                        },
+
+                        ThreadState::Rebalanced => {
+                            return Some(t);
+                        },
+                         _ => {
+                            // Thread is not runnable, put it back into the passive queue
+                            // We will look at it again after flipping the queues but
+                            // nontheless exit the loop after that
+                            self.put_thread_in_passive(t); 
+                            continue; 
+                        }
+                    }
+       
+                },
+                None => {
+                    return None;
+                }
+
+            };
+        };
+        // Shouldn't reach this point
+        None 
     }   
 
     // Flip active and passive queue making active queue passive
@@ -448,14 +502,18 @@ impl  Scheduler {
     /// Process rebalance queue
     fn process_rb_queue(&mut self) {
         let cpu_id = cpuid(); 
-        println!("cpu({}): process rb queue", cpuid());
+        println!("process rb queue");
         loop{
             if let Some(thread) = rb_pop_thread(cpu_id) {
 
-                println!("cpu({}): found rb thread: {}", cpuid(), thread.lock().name);
+                println!("found rb thread: {}", thread.lock().name);
 
                 {
-                    thread.lock().rebalance = false; 
+                    let mut t = thread.lock(); 
+
+                    t.rebalance = false; 
+                    t.state = ThreadState::Runnable;
+
                 }
 
                 self.put_thread_in_passive(thread); 
@@ -537,6 +595,11 @@ pub unsafe fn switch(prev: *mut Thread, next: *mut Thread) {
     asm!("mov rbp, $0" : : "r"((*next).context.rbp) : "memory" : "intel", "volatile");
 }
 
+//fn set_idle(t: Arc<Mutex<Thread>>) {
+//    IDLE.replace(Some(t)); 
+//}
+
+
 fn set_current(t: Arc<Mutex<Thread>>) {
     CURRENT.replace(Some(t)); 
 }
@@ -581,10 +644,30 @@ pub fn schedule() {
         let next_thread = match s.next() {
             Some(t) => t,
             None => {
-                // Nothing again, current is the only runnable thread, no need to
-                // context switch
-                trace_sched!("cpu({}): no runnable threads", cpuid());
-                return; 
+                // Check if current is runnable
+                let c = get_current_ref();
+                let state = c.lock().state; 
+                match state {
+                    ThreadState::Runnable => {
+                        // Current is the only runnable thread, no need to
+                        // context switch
+                        trace_sched!("[{}] is the only runnable thread", c.lock().name);
+                        return;
+                    },
+
+                    ThreadState::Idle => {
+                        // Idle thread is the only runnable thread, no need to
+                        // context switch
+                        trace_sched!("[{}] is the only runnable thread", c.lock().name);
+                        return;
+                    },
+                    _ => {
+                        // Current is not runnable, and it was the only 
+                        // running thread, switch to idle
+                        break s.get_idle_thread(); 
+                    }
+                }
+
             }
 
         };
@@ -617,13 +700,22 @@ pub fn schedule() {
     };
 
 
-    trace_sched!("cpu({}): switch to {}", cpuid(), next_thread.borrow().name); 
+    trace_sched!("switch to {}", next_thread.lock().name); 
 
     // Make next thread current
     set_current(next_thread.clone()); 
 
-    // put the old thread back in the scheduling queue
-    s.put_thread_in_passive(c.clone());
+    let state = c.lock().state; 
+    match state {
+        ThreadState::Idle => {
+            // We don't put idle thread in the thread queue
+            s.set_idle_thread(c.clone()); 
+        },
+        _ => {
+            // put the old thread back in the scheduling queue
+            s.put_thread_in_passive(c.clone());
+        }
+    }
 
     drop(s); 
 
@@ -689,9 +781,9 @@ impl syscalls::Thread for PThread {
     fn set_affinity(&self, affinity: u64) {
         disable_irq(); 
 
-        if affinity as usize >= crate::tls::active_cpus() {
+        if affinity as u32 >= active_cpus() {
             println!("Error: trying to set affinity:{} for {} but only {} cpus are active", 
-                affinity, self.thread.lock().name, crate::tls::active_cpus());
+                affinity, self.thread.lock().name, active_cpus());
             enable_irq();
             return; 
         }
@@ -702,8 +794,9 @@ impl syscalls::Thread for PThread {
             println!("Setting affinity:{} for {}", affinity, thread.name);
             thread.affinity = affinity; 
             thread.rebalance = true; 
-
+            thread.state = ThreadState::Rebalanced;
         }
+
         enable_irq(); 
     }
 
@@ -774,9 +867,17 @@ pub fn init_threads() {
     
     let kernel_domain = KERNEL_DOMAIN.r#try().expect("Kernel domain is not initialized");
 
-    idle.lock().domain = Some(kernel_domain.clone());
+    {
+        let mut t = idle.lock();
+        t.domain = Some(kernel_domain.clone());
+        t.state = ThreadState::Idle;
+    }
+
+    let mut s = SCHED.borrow_mut();
+    s.set_idle_thread(idle.clone());
 
     // Make idle the current thread
     set_current(idle);   
 }
+
 

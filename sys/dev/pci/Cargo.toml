@@ -34,3 +34,6 @@ features = ["spin_no_std"]
 [dependencies.num-traits]
 version = "0.2.8"
 default-features = false
+
+[features]
+c220g2_ixgbe = []

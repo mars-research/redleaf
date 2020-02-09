@@ -3,8 +3,8 @@ use alloc::boxed::Box;
 use libsyscalls::errors::Result;
 
 use self::disk_ata::DiskATA;
-use self::hba::HbaPortType;
-use self::hba::{Hba, HbaPort};
+use self::hba::Hba;
+use self::hba_port::{HbaPort, HbaPortType};
 
 use alloc::sync::Arc;
 use spin::Mutex;
@@ -18,6 +18,7 @@ use core::mem::MaybeUninit;
 pub mod disk_ata;
 pub mod fis;
 pub mod hba;
+pub mod hba_port;
 
 pub trait Disk {
     fn id(&self) -> usize;

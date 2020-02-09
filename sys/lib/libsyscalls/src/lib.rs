@@ -1,7 +1,6 @@
 #![no_std]
 pub mod heap;
 pub mod syscalls;
-pub mod time; 
 
 pub use ::syscalls::errors;
 

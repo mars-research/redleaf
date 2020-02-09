@@ -1,5 +1,5 @@
-compiler: main.o parser.o
-	g++ -g main.o parser.o -o compiler
+rtool: main.o parser.o
+	g++ -g main.o parser.o -o rtool
 
 main.o: main.cpp
 	g++ -c -g main.cpp -o main.o

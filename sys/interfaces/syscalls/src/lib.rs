@@ -4,15 +4,18 @@
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-use crate::errors::Result;
-use spin::MutexGuard;
+use spin::{MutexGuard, Mutex};
 use core::alloc::Layout;
+use alloc::sync::Arc;
+use protocol::UdpPacket;
+use pci_driver::PciClass;
 
 pub mod errors;
 
 pub trait Syscall {
     fn sys_print(&self, s: &str);
     fn sys_println(&self, s: &str);
+    fn sys_cpuid(&self) -> u32;
     fn sys_yield(&self);
     fn sys_create_thread(&self, name: &str, func: extern fn()) -> Box<dyn Thread>;
     fn sys_current_thread(&self) -> Box<dyn Thread>;
@@ -21,6 +24,7 @@ pub trait Syscall {
     fn sys_alloc_huge(&self, sz: u64) -> *mut u8;
     fn sys_free_huge(&self, p: *mut u8);
     fn sys_backtrace(&self);
+    fn sys_dummy(&self);
 }
 
 #[derive(Clone,Copy,Debug)]
@@ -41,7 +45,7 @@ pub trait Thread {
 
 /// RedLeaf PCI bus driver interface
 pub trait PCI {
-    fn pci_register_driver(&self, pci_driver: &mut dyn pci_driver::PciDriver, bar_index: usize);
+    fn pci_register_driver(&self, pci_driver: &mut dyn pci_driver::PciDriver, bar_index: usize, class: Option<(PciClass, u8)>) -> Result<(), ()>;
     /// Boxed trait objects cannot be cloned trivially!
     /// https://users.rust-lang.org/t/solved-is-it-possible-to-clone-a-boxed-trait-object/1714/6
     fn pci_clone(&self) -> Box<dyn PCI>;
@@ -49,6 +53,8 @@ pub trait PCI {
 
 /// RedLeaf network interface
 pub trait Net {
+    fn send(&self, buf: &[u8]) -> u32;
+    fn send_udp_from_ixgbe(&self, packet: &[u8]) -> u32;
 }
 
 /// RedLeaf Domain interface

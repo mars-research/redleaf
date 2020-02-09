@@ -4,9 +4,6 @@ version = "0.1.0"
 authors = ["RedLeaf Team"]
 edition = "2018"
 
-[lib]
-crate-type = ["staticlib"]
-
 [profile.dev]
 panic = "abort"
 
@@ -19,6 +16,7 @@ syscalls = { path = "../../../sys/interfaces/syscalls", version = "0.1.0" }
 usr = { path = "../../../sys/interfaces/usr", version = "0.1.0" }
 libsyscalls = { path = "../../../sys/lib/libsyscalls", version = "0.1.0" }
 libusr = { path = "../../../sys/lib/libusr", version = "0.1.0" }
+libtime = { path = "../../../sys/lib/libtime", version = "0.1.0" }
 console = { path = "../../../sys/lib/console", version = "0.1.0" }
 malloc = { path = "../../../sys/lib/malloc", version = "0.1.0" }
 libdma = { path = "../../../sys/lib/libdma", version = "0.1.0" }
@@ -38,6 +36,3 @@ features = ["spin_no_std"]
 [dependencies.num-traits]
 version = "0.2.8"
 default-features = false
-
-[features]
-cloudlab = []

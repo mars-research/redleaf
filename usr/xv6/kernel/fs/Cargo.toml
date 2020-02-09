@@ -26,6 +26,7 @@ usr = { path = "../../../../sys/interfaces/usr", version = "0.1.0" }
 libusr = { path = "../../../../sys/lib/libusr", version = "0.1.0" }
 sleeplock = { path = "../../lib/sleeplock", version = "0.1.0" }
 libsyscalls = { path = "../../../../sys/lib/libsyscalls", version = "0.1.0" }
+libtime = { path = "../../../../sys/lib/libtime", version = "0.1.0" }
 console = { path = "../../../../sys/lib/console", version = "0.1.0" }
 malloc = { path = "../../../../sys/lib/malloc", version = "0.1.0" }
 tls = { path = "../../../../sys/lib/tls", version = "0.1.0" }

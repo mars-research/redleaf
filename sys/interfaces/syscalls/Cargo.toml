@@ -8,3 +8,4 @@ edition = "2018"
 [dependencies]
 spin = { path = "../../../lib/spin-rs" }
 pci_driver = { path = "../dev/pci/pci_driver/", version = "0.1.0" }
+protocol = { path = "../protocol/", version = "0.1.0" }

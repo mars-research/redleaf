@@ -2,6 +2,6 @@
 *.o
 *.pyc
 peg_peg.py
-compiler
+rtool
 parser.cpp
 parser.h

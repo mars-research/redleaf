@@ -1,0 +1,1 @@
+pub const BUILD_VERSION: &'static str = "$BUILD_VERSION";

@@ -1,9 +1,9 @@
 pub use crate::bar::PciBar;
 pub use crate::bus::{PciBus, PciBusIter};
-pub use crate::class::PciClass;
 pub use crate::dev::{PciDev, PciDevIter};
 pub use crate::func::PciFunc;
 pub use crate::header::{PciHeader, PciHeaderError, PciHeaderType};
+use pci_driver::PciClass;
 use syscalls::PciResource;
 
 pub struct Pci<'a> {

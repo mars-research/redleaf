@@ -32,7 +32,7 @@ use alloc::vec::Vec;
 use console::println;
 use core::panic::PanicInfo;
 use syscalls::Syscall;
-use libsyscalls::time::get_rdtsc;
+use libtime::get_rdtsc;
 
 mod bcache;
 mod block;

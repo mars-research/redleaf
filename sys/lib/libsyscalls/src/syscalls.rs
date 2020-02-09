@@ -30,6 +30,11 @@ pub fn sys_println(s: &str) {
     scalls.sys_println(s);
 }
 
+pub fn sys_cpuid() -> u32 {
+    let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
+    scalls.sys_cpuid()
+}
+
 pub fn sys_yield() {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
     scalls.sys_yield();
@@ -68,4 +73,9 @@ pub fn sys_free_huge(p: *mut u8) {
 pub fn sys_backtrace() {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
     return scalls.sys_backtrace();
+}
+
+pub fn sys_dummy() {
+    let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
+    return scalls.sys_dummy();
 }

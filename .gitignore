@@ -5,7 +5,13 @@
 *.sw*
 Cargo.lock
 serial.log
-build/*
+src/buildinfo.rs
 disk.img
 sata.img
 .gdb_history
+
+**/*.o
+**/*.pyc
+**/*.swp
+**/*.sw*
+**/*.log

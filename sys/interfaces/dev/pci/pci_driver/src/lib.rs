@@ -1,5 +1,9 @@
 #![no_std]
 
+mod pci_class;
+
+pub use pci_class::PciClass;
+
 extern crate alloc;
 use alloc::boxed::Box;
 use ixgbe::IxgbeBarRegion;
@@ -22,4 +26,10 @@ pub enum BarRegions {
 pub enum PciDrivers {
     IxgbeDriver,
     AhciDriver,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum PciDeviceMatcher {
+    DeviceId((u16, u16)),
+    Class((u8, u8)),
 }

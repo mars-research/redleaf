@@ -23,7 +23,18 @@ macro_rules! print {
 #[macro_export]
 macro_rules! println {
     () => ($crate::print!("\n"));
-    ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
+    ($($arg:tt)*) => ($crate::print!("cpu({}):{}\n", libsyscalls::syscalls::sys_cpuid(), format_args!($($arg)*)));
+}
+
+#[macro_export]
+macro_rules! code_origin {
+    () => (format_args!("{}:{}:{}", core::file!(), core::line!(), core::column!()));
+}
+
+#[macro_export]
+macro_rules! dbg {
+    () => ($crate::print!("{}", code_origin!()));
+    ($($arg:tt)*) => ($crate::println!("{}:{}", $crate::code_origin!(), format_args!($($arg)*)));
 }
 
 #[doc(hidden)]

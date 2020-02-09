@@ -1,4 +1,5 @@
 #![no_std]
+#![no_main]
 #![feature(abi_x86_interrupt)]
 #![feature(
     asm,
@@ -26,19 +27,18 @@ use core::panic::PanicInfo;
 use core::cell::RefCell;
 use syscalls::{Syscall};
 use libsyscalls::errors::Result;
-use libsyscalls::syscalls::{sys_print, sys_alloc, sys_backtrace};
+use libsyscalls::syscalls::sys_backtrace;
 use console::println;
-use pci_driver::BarRegions;
-use ahci::AhciBarRegion;
+use pci_driver::{BarRegions, PciClass};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use spin::Once;
 use rref::RRef;
+use byteorder::{LittleEndian, ByteOrder};
 
 use core::iter::Iterator;
 
 use self::ahcid::Disk;
-use self::ahcid::hba::Hba;
 
 struct Ahci {
     vendor_id: u16,
@@ -47,21 +47,13 @@ struct Ahci {
     disks: RefCell<Vec<Box<dyn Disk>>>,
 }
 
-#[cfg(feature = "cloudlab")]
-const AHCI_DEVICE_ID: u16 = 0x8d62;
-#[cfg(feature = "cloudlab")]
-const DISK_INDEX: usize = 1;
-
-#[cfg(not(feature = "cloudlab"))]
-const AHCI_DEVICE_ID: u16 = 0x2922;
-#[cfg(not(feature = "cloudlab"))]
-const DISK_INDEX: usize = 0;
-
 impl Ahci {
     fn new() -> Ahci {
         Ahci {
-            vendor_id: 0x8086,
-            device_id: AHCI_DEVICE_ID,
+            // Dummy values. We will use class based matching
+            // so vendor_id and device_id won't be used
+            vendor_id: 0x1234,
+            device_id: 0x1234,
             driver: pci_driver::PciDrivers::AhciDriver,
             disks: RefCell::new(Vec::new()),
         }
@@ -82,6 +74,27 @@ impl pci_driver::PciDriver for Ahci {
         println!("Initializing with base = {:x}", bar.get_base());
 
         let mut disks = self::ahcid::disks(bar);
+        // Filter out all disk that already has an OS on it
+        let have_magic_number: Vec<bool> = disks
+                        .iter_mut()
+                        .map(|d| {
+                            let mut buf = [0u8; 512];
+                            const MBR_MAGIC: u16 = 0xAA55;
+                            d.read(0, &mut buf);
+                            LittleEndian::read_u16(&buf[510..]) == MBR_MAGIC
+                        })
+                        .collect();
+        let mut disks = disks
+                        .into_iter()
+                        .zip(have_magic_number)
+                        .filter_map(|(d, has_magic_num)| {
+                            if has_magic_num {
+                                None
+                            } else {
+                                Some(d)
+                            }
+                        })
+                        .collect();
         self.disks = RefCell::new(disks);
 
         for (i, disk) in self.disks.borrow_mut().iter_mut().enumerate() {
@@ -106,22 +119,22 @@ impl pci_driver::PciDriver for Ahci {
 
 impl usr::bdev::BDev for Ahci {
     fn read(&self, block: u32, data: &mut RRef<[u8; 512]>) {
-        self.disks.borrow_mut()[DISK_INDEX].read(block as u64, &mut **data);
+        self.disks.borrow_mut()[0].read(block as u64, &mut **data);
     }
     fn read_contig(&self, block: u32, data: &mut [u8]) {
-        self.disks.borrow_mut()[DISK_INDEX].read(block as u64, data);
+        self.disks.borrow_mut()[0].read(block as u64, data);
     }
     fn write(&self, block: u32, data: &[u8; 512]) {
-        println!("WARNING: BDEV.write is currently disabled");
-        // self.disks.borrow_mut()[DISK_INDEX].write(block as u64, data);
+        // println!("WARNING: BDEV.write is currently disabled");
+        self.disks.borrow_mut()[0].write(block as u64, data);
     }
 
     fn submit(&self, block: u64, write: bool, buf: Box<[u8]>) -> Result<u32> {
-        self.disks.borrow_mut()[DISK_INDEX].submit(block, write, buf)
+        self.disks.borrow_mut()[0].submit(block, write, buf)
     }
 
     fn poll(&self, slot: u32) -> Result<Option<Box<[u8]>>> {
-        self.disks.borrow_mut()[DISK_INDEX].poll(slot)
+        self.disks.borrow_mut()[0].poll(slot)
     }
 
     fn foo(&self) {
@@ -134,12 +147,14 @@ impl usr::bdev::BDev for Ahci {
 
 
 #[no_mangle]
-pub fn ahci_init(s: Box<dyn Syscall + Send + Sync>,
+pub fn init(s: Box<dyn Syscall + Send + Sync>,
                  pci: Box<dyn syscalls::PCI>) -> Box<dyn usr::bdev::BDev> {
     libsyscalls::syscalls::init(s);
 
     let mut ahci = Ahci::new();
-    pci.pci_register_driver(&mut ahci, 5);
+    if let Err(_) = pci.pci_register_driver(&mut ahci, /*ABAR index*/5, Some((PciClass::Storage, /*SATA*/0x06))) {
+        println!("WARNING: Failed to register AHCI device");
+    }
 
     let ahci: Box<dyn usr::bdev::BDev> = Box::new(ahci);
 
@@ -160,11 +175,11 @@ fn benchmark_ahci(bdev: &Box<dyn usr::bdev::BDev>, blocks_to_read: u32, blocks_p
     assert!(blocks_per_patch <= 0xFFFF);
     let mut buf = alloc::vec![0 as u8; 512 * blocks_per_patch as usize];
 
-    let start = libsyscalls::time::get_rdtsc();
+    let start = libtime::get_rdtsc();
     for i in (0..blocks_to_read).step_by(blocks_per_patch as usize) {
         bdev.read_contig(i, &mut buf);
     }
-    let end = libsyscalls::time::get_rdtsc();
+    let end = libtime::get_rdtsc();
     println!("AHCI benchmark: reading {} blocks, {} blocks at a time, takes {} cycles", blocks_to_read, blocks_per_patch, end - start);
 }
 
@@ -180,7 +195,7 @@ fn benchmark_ahci_async(bdev: &Box<dyn usr::bdev::BDev>, blocks_to_read: u32, bl
     }
     let mut pending = Vec::<u32>::new();
 
-    let start = libsyscalls::time::get_rdtsc();
+    let start = libtime::get_rdtsc();
     for i in (0..blocks_to_read).step_by(blocks_per_patch as usize) {
         while buffers.is_empty() {
             assert!(!pending.is_empty());
@@ -205,7 +220,7 @@ fn benchmark_ahci_async(bdev: &Box<dyn usr::bdev::BDev>, blocks_to_read: u32, bl
             // spin
         }
     }
-    let end = libsyscalls::time::get_rdtsc();
+    let end = libtime::get_rdtsc();
     println!("AHCI async benchmark: reading {} blocks, {} blocks at a time, takes {} cycles", blocks_to_read, blocks_per_patch, end - start);
 }
 

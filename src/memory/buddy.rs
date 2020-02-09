@@ -1,3 +1,5 @@
+// Taken from Bespin OS
+
 //! A buddy allocator for managing physical memory.
 //!
 //! Some of this code was inspired by

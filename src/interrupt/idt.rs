@@ -355,7 +355,7 @@ pub struct InterruptDescriptorTable {
     pub page_fault: Entry<HandlerFunc>,
 
     /// vector nr. 15
-    reserved_1: Entry<HandlerFunc>,
+    pub spurious_interrupt_bug: Entry<HandlerFunc>,
 
     /// The x87 Floating-Point Exception-Pending exception (`#MF`) is used to handle unmasked x87
     /// floating-point exceptions. In 64-bit mode, the x87 floating point unit is not used
@@ -461,7 +461,7 @@ impl InterruptDescriptorTable {
             stack_segment_fault: Entry::missing(),
             general_protection_fault: Entry::missing(),
             page_fault: Entry::missing(),
-            reserved_1: Entry::missing(),
+            spurious_interrupt_bug: Entry::missing(),
             x87_floating_point: Entry::missing(),
             alignment_check: Entry::missing(),
             machine_check: Entry::missing(),
@@ -491,7 +491,7 @@ impl InterruptDescriptorTable {
         self.stack_segment_fault = Entry::missing();
         self.general_protection_fault = Entry::missing();
         self.page_fault = Entry::missing();
-        self.reserved_1 = Entry::missing();
+        self.spurious_interrupt_bug = Entry::missing();
         self.x87_floating_point = Entry::missing();
         self.alignment_check = Entry::missing();
         self.machine_check = Entry::missing();
@@ -550,7 +550,7 @@ impl Index<usize> for InterruptDescriptorTable {
             12 => &self.stack_segment_fault,
             13 => &self.general_protection_fault,
             14 => &self.page_fault, 
-            15 => &self.reserved_1,
+            15 => &self.spurious_interrupt_bug,
             16 => &self.x87_floating_point,
             17 => &self.alignment_check,
             18 => &self.machine_check,
@@ -595,7 +595,7 @@ impl IndexMut<usize> for InterruptDescriptorTable {
             12 => &mut self.stack_segment_fault,
             13 => &mut self.general_protection_fault,
             14 => &mut self.page_fault, 
-            15 => &mut self.reserved_1,
+            15 => &mut self.spurious_interrupt_bug,
             16 => &mut self.x87_floating_point,
             17 => &mut self.alignment_check,
             18 => &mut self.machine_check,

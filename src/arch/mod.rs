@@ -1,3 +1,5 @@
+// Adapted from Bespin OS
+
 pub mod memory;
 pub mod vspace;
 
@@ -8,6 +10,11 @@ use crate::memory::PhysicalAllocator;
 use crate::memory::buddy::BUDDY;
 
 const KERNEL_START: u64 = 0x10_0000;
+
+#[cfg(feature = "large_mem")]
+const MEM_THRESHOLD: usize = 0x1_0000_0000;
+#[cfg(not(feature = "large_mem"))]
+const MEM_THRESHOLD: usize = 0x2EE_0000;
 
 pub fn kernel_end() -> u64 {
     extern {
@@ -31,7 +38,7 @@ pub fn init_buddy(bootinfo: &BootInformation) {
             println!("{:x?}", region);
             if region.typ() == 1 {
                 let mut base = region.start_address();
-                let size: usize = region.size() as usize;
+                let mut size: usize = region.size() as usize;
                 let kernel_end = unsafe { KERNEL_END };
 
                 if base >= KERNEL_START && base < kernel_end {
@@ -41,7 +48,12 @@ pub fn init_buddy(bootinfo: &BootInformation) {
 
                 // TODO BAD: We can only add one region to the buddy allocator, so we need
                 // to pick a big one weee
-                if base > KERNEL_START && size > BASE_PAGE_SIZE && size > 49152000 {
+                if (base >= 1_0000_0000 as u64) && size > BASE_PAGE_SIZE && size >= MEM_THRESHOLD {
+                    // downsize the region to 4GiB
+                    if size > 4 * 0x1_0000_0000 {
+                        size = 4 * 0x1_0000_0000 as usize;
+                    }
+
                     println!("region.base = {:#x} region.size = {:#x}", base, size);
                     unsafe {
                         let f = Frame::new(PAddr::from(base), size);
@@ -61,5 +73,12 @@ pub fn init_buddy(bootinfo: &BootInformation) {
             }
         }
     }
-    println!("added memory regions");
+
+    if let Some(ref mut buddy) = *BUDDY.lock() {
+        if buddy.get_region().size() == 0 {
+            panic!("No memory regions were added!");
+        } else {
+            println!("added memory regions");
+        }
+    }
 }

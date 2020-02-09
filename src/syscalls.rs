@@ -80,15 +80,23 @@ impl syscalls::Syscall for PDomain {
     // Print a string and a newline
     fn sys_println(&self, s: &str) {
         disable_irq();
-        println!("{}", s);
+        usrprintln!("{}", s);
         enable_irq(); 
+    }
+
+    // Get physical CPU id number (we use it for print) 
+    fn sys_cpuid(&self) -> u32 {
+        disable_irq();
+        let cpuid = crate::console::cpuid();
+        enable_irq();
+        cpuid
     }
 
     fn sys_alloc(&self) -> *mut u8 {
         disable_irq();
         let paddr: PAddr = VSpace::allocate_one_page();
         let vaddr: VAddr = paddr_to_kernel_vaddr(paddr);
-        println!("sys_alloc: returning {:x}", vaddr.as_u64());
+        //println!("sys_alloc: returning {:x}", vaddr.as_u64());
         enable_irq();
         vaddr.as_mut_ptr()
     }
@@ -98,7 +106,7 @@ impl syscalls::Syscall for PDomain {
         disable_irq();
         let paddr: PAddr = VSpace::allocate_pages(how_many, ResourceType::Memory);
         let vaddr: VAddr = paddr_to_kernel_vaddr(paddr);
-        println!("sys_alloc_huge: returning {:x}", vaddr.as_u64());
+        //println!("sys_alloc_huge: returning {:x}", vaddr.as_u64());
         enable_irq();
         vaddr.as_mut_ptr()
     }
@@ -117,7 +125,6 @@ impl syscalls::Syscall for PDomain {
 
     // Yield to any thread
     fn sys_yield(&self) {
-
         disable_irq();
         trace_sched!("sys_yield"); 
         do_yield();
@@ -144,6 +151,11 @@ impl syscalls::Syscall for PDomain {
         disable_irq();
         backtrace();
         enable_irq();
+    }
+
+    fn sys_dummy(&self) {
+        enable_irq();
+        disable_irq();
     }
 }
 
