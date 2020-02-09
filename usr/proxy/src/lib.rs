@@ -5,7 +5,7 @@ extern crate alloc;
 use rref::RRef;
 use syscalls;
 use libsyscalls;
-use libsyscalls::time::get_rdtsc;
+use libtime::get_rdtsc;
 use syscalls::Syscall;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
