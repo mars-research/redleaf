@@ -26,6 +26,9 @@ pub struct RRef<T> where T: 'static + Send {
     pointer: *mut SharedHeapObject<T>
 }
 
+unsafe impl<T> Send for RRef<T> where T: Send {}
+unsafe impl<T> Sync for RRef<T> where T: Send {}
+
 impl<T> RRef<T> where T: Send {
     // TODO: we move the value into this. any better way of doing it?
     pub fn new(domain_id: u64, value: T) -> RRef<T> {
