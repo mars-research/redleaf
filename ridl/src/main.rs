@@ -26,11 +26,38 @@ fn main() {
         }
     }
     for tr in traits {
-        let name = tr.ident.to_string();
+        println!("{}", tr.ident);
         for item in tr.items {
-            match item {
-                syn::TraitItem::Method(m) => println!("{}::{}", name, m.sig.ident),
-                _ => ()
+            let method = match item {
+                syn::TraitItem::Method(m) => m,
+                _ => continue
+            };
+            println!("\t{}", method.sig.ident);
+            for arg in method.sig.inputs {
+                match arg {
+                    syn::FnArg::Typed(a) => println!("\t\t{}", match *a.pat {
+                        syn::Pat::Ident(id) => id.ident,
+                        _ => continue
+                    }),
+                    syn::FnArg::Receiver(r) => {
+                        print!("\t\t");
+                        match r.reference {
+                            Some(t) => {
+                                print!("&");
+                                match t.1 {
+                                    Some(l) => print!("{} ", l),
+                                    None => ()
+                                }
+                            }
+                            None => ()
+                        }
+                        match r.mutability {
+                            Some(_) => print!("mut "),
+                            None => ()
+                        }
+                        println!("self")
+                    }
+                }
             }
         }
     }
