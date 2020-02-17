@@ -13,7 +13,7 @@ struct Arg {
     typ: String
 }
 
-fn get_path(p: &syn::Path) -> String {
+fn get_path(p: &syn::Path, known: &Vec<String>) -> String {
     let mut t = String::new();
     let mut colon = match p.leading_colon {
         Some(_) => true,
@@ -35,7 +35,7 @@ fn get_path(p: &syn::Path) -> String {
                     }
                     comma = true;
                     match arg {
-                        syn::GenericArgument::Type(nt) => t += &get_type(nt),
+                        syn::GenericArgument::Type(nt) => t += &get_type(nt, false, known),
                         _ => {println!("[ERROR] Non-type generic arguments not supported"); panic!()}
                     }
                 }
@@ -45,10 +45,22 @@ fn get_path(p: &syn::Path) -> String {
         }
         colon = true;
     }
+    let l = p.segments.len();
+    let last = &p.segments[l - 1];
+    let mut found = false;
+    for k in known {
+        if *k == last.ident.to_string() {
+            found = true;
+            break;
+        }
+    }
+    if !found {
+        println!("[WARNING] Unrecognized type {}", last.ident)
+    }
     t
 }
 
-fn get_type(ty: &syn::Type) -> String {
+fn get_type(ty: &syn::Type, top: bool, known: &Vec<String>) -> String {
     let mut t = String::new();
     match ty {
         syn::Type::Reference(r) => {
@@ -61,11 +73,11 @@ fn get_type(ty: &syn::Type) -> String {
                 Some(_) => t += "mut ",
                 None => ()
             }
-            t += &get_type(&*r.elem)
+            t += &get_type(&*r.elem, false, known)
         },
         syn::Type::Array(a) => {
             t += "[";
-            t += &get_type(&*a.elem);
+            t += &get_type(&*a.elem, false, known);
             t += "; ";
             t += &match &a.len {
                 syn::Expr::Lit(l) => match &l.lit {
@@ -77,9 +89,13 @@ fn get_type(ty: &syn::Type) -> String {
             t += "]"
         },
         syn::Type::Path(p) => {
-            t += &get_path(&p.path)
+            t += &get_path(&p.path, known)
         },
         syn::Type::Tuple(tup) => {
+            if top {
+                println!("[ERROR] This type not allowed here")
+            }
+
             t += "(";
             let mut comma = false;
             for item in &tup.elems {
@@ -87,11 +103,15 @@ fn get_type(ty: &syn::Type) -> String {
                     t += ", "
                 }
                 comma = true;
-                t += &get_type(&item)
+                t += &get_type(&item, false, known)
             }
             t += ")"
         },
         syn::Type::TraitObject(tr) => {
+            if top {
+                println!("[ERROR] This type not allowed here")
+            }
+
             match &tr.dyn_token {
                 Some(_) => t += "dyn ",
                 None => ()
@@ -101,13 +121,17 @@ fn get_type(ty: &syn::Type) -> String {
                 panic!()
             }
             match &tr.bounds[0] {
-                syn::TypeParamBound::Trait(tr) => t += &get_path(&tr.path),
+                syn::TypeParamBound::Trait(tr) => t += &get_path(&tr.path, known),
                 _ => {println!("[ERROR] Must be a trait"); panic!()}
             }
         },
         syn::Type::Slice(s) => {
+            if top {
+                println!("[ERROR] This type not allowed here")
+            }
+
             t += "[";
-            t += &get_type(&*s.elem);
+            t += &get_type(&*s.elem, false, known);
             t += "]"
         },
         _ => {println!("[ERROR] This type not allowed"); panic!()}
@@ -115,16 +139,16 @@ fn get_type(ty: &syn::Type) -> String {
     t
 }
 
-fn process_typed(typed: syn::PatType) -> Arg {
+fn process_typed(typed: syn::PatType, known: &Vec<String>) -> Arg {
     match *typed.pat {
-        syn::Pat::Ident(id) => Arg {name: id.ident.to_string(), typ: get_type(&*typed.ty)},
+        syn::Pat::Ident(id) => Arg {name: id.ident.to_string(), typ: get_type(&*typed.ty, true, known)},
         _ => panic!()
     }
 }
 
-fn process_arg(arg: syn::FnArg) -> Arg {
+fn process_arg(arg: syn::FnArg, known: &Vec<String>) -> Arg {
     match arg {
-        syn::FnArg::Typed(a) => process_typed(a),
+        syn::FnArg::Typed(a) => process_typed(a, known),
         syn::FnArg::Receiver(_) => Arg {name: "self".to_string(), typ: String::new()}
     }
 }
@@ -134,9 +158,38 @@ fn extract(ast: syn::File) -> (Vec<Scope>, Vec<Scope>, Vec<Arg>) {
     let mut args: Vec<Arg> = Vec::new();
     let mut funcs: Vec<Scope> = Vec::new();
     let mut traits: Vec<Scope> = Vec::new();
+    let mut known: Vec<String> = Vec::new();
     for item in ast.items {
         let tr = match item {
-            syn::Item::Trait(tr) => tr,
+            syn::Item::Trait(tr) => {
+                println!("Found trait {}", tr.ident);
+                known.push(tr.ident.to_string());
+                tr
+            },
+            syn::Item::Enum(e) => {
+                println!("Found enum {}", e.ident);
+                known.push(e.ident.to_string());
+                continue
+            },
+            syn::Item::Struct(e) => {
+                println!("Found struct {}", e.ident);
+                known.push(e.ident.to_string());
+                continue
+            },
+            syn::Item::TraitAlias(e) => {
+                println!("Found trait alias {}", e.ident);
+                known.push(e.ident.to_string());
+                continue
+            },
+            syn::Item::Type(e) => {
+                println!("Found type alias {}", e.ident);
+                known.push(e.ident.to_string());
+                continue
+            },
+            syn::Item::Use(_) => {
+                println!("Found use decl (WARNING: incomplete handling)");
+                continue
+            }
             _ => continue
         };
 
@@ -160,10 +213,10 @@ fn extract(ast: syn::File) -> (Vec<Scope>, Vec<Scope>, Vec<Arg>) {
             };
             let mut fscope = Scope {name: func.sig.ident.to_string(), start: args.len(), end: 0};
             for item in func.sig.inputs {
-                args.push(process_arg(item))
+                args.push(process_arg(item, &known))
             }
             let rt = match func.sig.output {
-                syn::ReturnType::Type(_, ty) => get_type(&ty),
+                syn::ReturnType::Type(_, ty) => get_type(&ty, true, &known),
                 _ => "()".to_string()
             };
             args.push(Arg {name: "__rt".to_string(), typ: rt});
