@@ -318,7 +318,7 @@ impl HbaPort {
             let num_chuncks = chuncks.len() as u16;
             for (chunck, mut prdt_entry) in chuncks.zip(prdt_entries.iter_mut()) {
                 prdt_entry.dba.write(chunck.as_ptr() as u64);
-                prdt_entry.dbc.write((chunck.len() as u32) | 1);
+                prdt_entry.dbc.write((chunck.len() as u32) - 1);
             }
             
             cmdheader.prdtl.write(num_chuncks);
