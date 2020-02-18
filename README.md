@@ -134,5 +134,5 @@ Naked functions for exceptions: https://os.phil-opp.com/first-edition/extra/nake
 #### Machines that the disk driver(AHCI driver) supprots
 
 * d430(HDD)
-* c220g1(SSD)
-* c220g2(SSD)
+* c240g1(SSD)
+* c240g2(SSD)
