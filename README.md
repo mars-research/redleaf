@@ -128,3 +128,11 @@ Naked functions for exceptions: https://os.phil-opp.com/first-edition/extra/nake
 
 * If you are using an outdated version of redleaf it won't boot, try `git cherry-pick 11e80df000bc5f4ea49e67d5147ca94a992a4fbd f2e973019e85171fd298e229472a020d93b880aa 7d55606b309486a2a3d17574edae9dbd7ccad836` to apply patches that fixes some hardware issue.
 * The device id of the disk on Zhaofeng's PC: `0x8c82`
+
+### Supported Cloudlab Machines
+
+#### Machines that the disk driver(AHCI driver) supprots
+
+* d430(HDD)
+* c220g1(SSD)
+* c220g2(SSD)
