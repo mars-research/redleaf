@@ -58,9 +58,8 @@ impl Hba {
         }
     }
 
-    pub fn init(&self) {
+    pub fn request_ownership_from_bios(&self) {
         let bar = &self.bar;
-
         // AHCI r1.3.1 10.6.3
         // Request HBA ownership from BIOS
         println!("Requesting ownership from BIOS");
@@ -73,7 +72,10 @@ impl Hba {
             println!("BIOS still has outstanding requests. Wait for two more seconds");
             libtime::sys_ns_sleep(2_000_000_000);
         }
+    }
 
+    pub fn init(&self) {
+        let bar = &self.bar;
         bar.write_regf(AhciRegs::Ghc, HBA_GHC_AE, true);
         println!("   - AHCI CAP {:X} GHC {:X} IS {:X} PI {:X} VS {:X} CAP2 {:X} BOHC {:X}",
             bar.read_reg(AhciRegs::Cap), bar.read_reg(AhciRegs::Ghc), bar.read_reg(AhciRegs::Is), bar.read_reg(AhciRegs::Pi),

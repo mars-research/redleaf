@@ -107,26 +107,12 @@ impl HbaPort {
     // Stop command engine
     // See 10.1.2
     fn stop(&self, hba: &Hba) {
-        // Clear ST (bit0)
-        self.hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_ST, false);
-        // Wait until FR CR (bit15) is cleared
-        libtime::sys_ns_sleep(1_000_000_000);
-        while (self.hba.bar.read_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_CR)) {
+        // Clear ST and FRE
+        self.hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_ST | HBA_PORT_CMD_FRE, false);
+        while self.hba.bar.read_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_CR)
+                || self.hba.bar.read_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_FR) {
             // Spin
         }
-
-        // Clear FRE
-        self.hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_FRE, false);
-        // Wait until FR (bit14) is cleared
-        libtime::sys_ns_sleep(1_000_000_000);
-        while (self.hba.bar.read_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_FR)) {
-            // Spin
-        }
-
-        // TODO: If PxCMD.CR or PxCMD.FR do
-        // not clear to ‘0’ correctly, then software may 
-        // attempt a port reset or a full HBA reset to
-        // recover.
     }
 
     fn slot(&self, hba: &Hba) -> Option<u32> {
