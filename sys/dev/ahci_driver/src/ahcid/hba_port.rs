@@ -15,7 +15,7 @@ use libsyscalls::syscalls::sys_yield;
 use libtime::get_rdtsc;
 
 use super::disk_ata::{MAX_SECTORS_PER_PRDT_ENTRY, MAX_BYTES_PER_PRDT_ENTRY};
-use super::hba::{Hba, hba_port_dump};
+use super::hba::Hba;
 use super::fis::{FisType, FisRegH2D};
 
 
@@ -175,7 +175,7 @@ impl HbaPort {
         self.hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_POD | HBA_PORT_CMD_SUD, true);
         
         println!("   - AHCI init {:X}", self.hba.bar.read_port_reg(self.port, AhciPortRegs::Cmd));
-        hba_port_dump(self.port, &self.hba.bar);
+        self.dump_port_regs(&self.hba.bar);
     }
 
     // 10.4.2: COMRESET
@@ -374,21 +374,19 @@ impl HbaPort {
     }
 
     pub fn ata_running(&self, slot: u32) -> bool {
-        hba_port_dump(self.port, &self.hba.bar);
         (self.hba.bar.read_port_regf(self.port, AhciPortRegs::Ci, 1 << slot) || self.hba.bar.read_port_regf(self.port, AhciPortRegs::Tfd, 0x80)) && self.hba.bar.read_port_reg(self.port, AhciPortRegs::Is) & HBA_PORT_IS_ERR == 0
     }
 
     pub fn ata_stop(&mut self, slot: u32) -> Result<()> {
         while self.ata_running(slot) {
             // spin
-            hba_port_dump(self.port, &self.hba.bar);
         }
 
         self.stop(&self.hba);
 
         if self.hba.bar.read_port_reg(self.port, AhciPortRegs::Is) & HBA_PORT_IS_ERR != 0 {
             // FIXME
-            hba_port_dump(self.port, &self.hba.bar);
+            self.dump_port_regs(&self.hba.bar);
             
             // self.hba.bar.write_port_reg(self.port, AhciPortRegs::Is, u32::MAX);
             self.recover();
@@ -414,7 +412,41 @@ impl HbaPort {
         self.reset(&self.hba);
         // Sets PxCMD.ST to ‘1’ to enable issuing new commands
         // self.hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_ST, true);
-        hba_port_dump(self.port, &self.hba.bar);
+        self.dump_port_regs(&self.hba.bar);
         self.hba.bar.write_port_reg(self.port, AhciPortRegs::Serr, 0xFF_FF_FF_FF);
+    }
+
+    pub fn dump_port_regs(&self, bar: &Box<dyn AhciBarRegion>) {
+        let port = self.port;
+        print!(
+            "
+            Is:{:08X}
+            Ie:{:08X}
+            Cmd:{:08X}
+            Rsv0:{:08X}
+            Tfd:{:08X}
+            Sig:{:08X}
+            Ssts:{:08X}
+            Sctl:{:08X}
+            Serr:{:08X}
+            Sact:{:08X}
+            Ci:{:08X}
+            Sntf:{:08X}
+            Fbs:{:08X}
+            ",
+            bar.read_port_reg(port, AhciPortRegs::Is),
+            bar.read_port_reg(port, AhciPortRegs::Ie),
+            bar.read_port_reg(port, AhciPortRegs::Cmd),
+            bar.read_port_reg(port, AhciPortRegs::Rsv0),
+            bar.read_port_reg(port, AhciPortRegs::Tfd),
+            bar.read_port_reg(port, AhciPortRegs::Sig),
+            bar.read_port_reg(port, AhciPortRegs::Ssts),
+            bar.read_port_reg(port, AhciPortRegs::Sctl),
+            bar.read_port_reg(port, AhciPortRegs::Serr),
+            bar.read_port_reg(port, AhciPortRegs::Sact),
+            bar.read_port_reg(port, AhciPortRegs::Ci),
+            bar.read_port_reg(port, AhciPortRegs::Sntf),
+            bar.read_port_reg(port, AhciPortRegs::Fbs),
+        );
     }
 }

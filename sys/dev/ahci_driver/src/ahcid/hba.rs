@@ -87,36 +87,3 @@ impl Hba {
         &*self.bar
     }
 }
-
-pub fn hba_port_dump(port: u64, bar: &Box<dyn AhciBarRegion>) {
-    print!(
-        "
-        Is:{:08X}
-        Ie:{:08X}
-        Cmd:{:08X}
-        Rsv0:{:08X}
-        Tfd:{:08X}
-        Sig:{:08X}
-        Ssts:{:08X}
-        Sctl:{:08X}
-        Serr:{:08X}
-        Sact:{:08X}
-        Ci:{:08X}
-        Sntf:{:08X}
-        Fbs:{:08X}
-        ",
-        bar.read_port_reg(port, AhciPortRegs::Is),
-        bar.read_port_reg(port, AhciPortRegs::Ie),
-        bar.read_port_reg(port, AhciPortRegs::Cmd),
-        bar.read_port_reg(port, AhciPortRegs::Rsv0),
-        bar.read_port_reg(port, AhciPortRegs::Tfd),
-        bar.read_port_reg(port, AhciPortRegs::Sig),
-        bar.read_port_reg(port, AhciPortRegs::Ssts),
-        bar.read_port_reg(port, AhciPortRegs::Sctl),
-        bar.read_port_reg(port, AhciPortRegs::Serr),
-        bar.read_port_reg(port, AhciPortRegs::Sact),
-        bar.read_port_reg(port, AhciPortRegs::Ci),
-        bar.read_port_reg(port, AhciPortRegs::Sntf),
-        bar.read_port_reg(port, AhciPortRegs::Fbs),
-    );
-}
