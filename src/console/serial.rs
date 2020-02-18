@@ -84,10 +84,13 @@ pub static mut EMERGENCY_SERIAL1: SerialPort = SerialPort::new(COM1_PORT);
 lazy_static! {
     pub static ref SERIAL1: Mutex<SerialPort> = {
         unsafe {
-            #[cfg(feature = "c220g2_ixgbe")]
             let serial_port = SerialPort::new(COM1_PORT);
-
-            #[cfg(not(feature = "c220g2_ixgbe"))]
+            serial_port.init();
+            Mutex::new(serial_port)
+        }
+    };
+    pub static ref SERIAL2: Mutex<SerialPort> = {
+        unsafe {
             let serial_port = SerialPort::new(COM2_PORT);
             serial_port.init();
             Mutex::new(serial_port)
