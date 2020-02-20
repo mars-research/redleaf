@@ -11,6 +11,8 @@ test_sleeplock = []
 
 [lib]
 crate-type = ["staticlib"]
+test = false
+bench = false
 
 [profile.dev]
 panic = "abort"
