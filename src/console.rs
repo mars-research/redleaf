@@ -45,8 +45,9 @@ macro_rules! usrprintln {
 pub fn _print(args: core::fmt::Arguments) {
     unsafe {
         if IN_A_CRASH {
-                EMERGENCY_SERIAL1.write_fmt(args).unwrap();
-                return; 
+            WRITER.lock().write_fmt(args).unwrap();
+            EMERGENCY_SERIAL1.write_fmt(args).unwrap();
+            return; 
         }
     }
 
