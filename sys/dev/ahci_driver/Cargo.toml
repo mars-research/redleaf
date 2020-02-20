@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["RedLeaf Team"]
 edition = "2018"
 
+[lib]
+crate-type = ["staticlib"]
+
 [profile.dev]
 panic = "abort"
 

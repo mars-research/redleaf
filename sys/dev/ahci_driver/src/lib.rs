@@ -1,5 +1,4 @@
 #![no_std]
-#![no_main]
 #![feature(abi_x86_interrupt)]
 #![feature(
     asm,
@@ -27,16 +26,19 @@ use core::panic::PanicInfo;
 use core::cell::RefCell;
 use syscalls::{Syscall};
 use libsyscalls::errors::Result;
-use libsyscalls::syscalls::sys_backtrace;
+use libsyscalls::syscalls::{sys_print, sys_alloc, sys_backtrace};
 use console::println;
 use pci_driver::{BarRegions, PciClass};
+use ahci::AhciBarRegion;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
+use spin::Once;
 use byteorder::{LittleEndian, ByteOrder};
 
 use core::iter::Iterator;
 
 use self::ahcid::Disk;
+use self::ahcid::hba::Hba;
 
 struct Ahci {
     vendor_id: u16,
@@ -138,7 +140,7 @@ impl usr::bdev::BDev for Ahci {
 
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>,
+pub fn ahci_init(s: Box<dyn Syscall + Send + Sync>,
                  pci: Box<dyn syscalls::PCI>) -> Box<dyn usr::bdev::BDev> {
     libsyscalls::syscalls::init(s);
 
@@ -149,7 +151,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
 
     let ahci: Box<dyn usr::bdev::BDev> = Box::new(ahci);
 
-    benchmark_ahci(&ahci, 256, 1);
+    // benchmark_ahci(&ahci, 256, 1);
     // benchmark_ahci_async(&ahci, 256, 1);
     // benchmark_ahci(&ahci, 8192, 8192);
     // benchmark_ahci_async(&ahci, 8192, 8192);
@@ -157,8 +159,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
     // benchmark_ahci_async(&ahci, 8192 * 128, 8192);
     // benchmark_ahci(&ahci, 32768, 32768);
     // benchmark_ahci(&ahci, 0xFFFF * 128, 0xFFFF);
-    // benchmark_ahci_async(&ahci, 0xFFFF * 128, 0xFFFF);
-    panic!("meow");
+    benchmark_ahci_async(&ahci, 0xFFFF * 128, 0xFFFF);
     ahci
 }
 

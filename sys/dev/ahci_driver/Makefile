@@ -3,13 +3,11 @@ include $(root)/common_flags.mk
 
 bin_name := ahci_driver
 arch ?= x86_64
-target := $(arch)-redleaf-domain
 bin := build/$(bin_name)
-rbin := target/$(target)/$(TARGET_SUB_DIR)/$(bin_name)
+linker_script := linker.ld
 
-target_dir ?= $(root)/src/targets/$(target)
-target_spec ?= $(target_dir)/$(target).json
-target_link ?= $(target_dir)/linker.ld
+target ?= $(arch)-$(bin_name)
+lib := target/$(target)/$(TARGET_SUB_DIR)/lib$(bin_name).a
 
 .PHONY: all
 all: $(bin) checkstack
@@ -22,10 +20,12 @@ clean:
 	rm -rf build
 	cargo clean
 
-.PHONY: $(bin)
-$(bin):
-	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes -C link-args=-T$(target_link)" cargo xbuild ${CARGO_FLAGS} --target $(target_spec) $(FEATURES)
+$(bin): lib $(linker_script)
 	mkdir -p build
-	cp $(rbin) $(bin)
+	ld -n -pie --no-dynamic-linker --gc-sections -T $(linker_script) -o $(bin) $(lib)
+
+.PHONY: lib
+lib:
+	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo xbuild ${CARGO_FLAGS} --target x86_64-${bin_name}.json $(FEATURES)
 
 include $(root)/checkstack.mk
