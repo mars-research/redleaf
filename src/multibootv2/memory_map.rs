@@ -38,7 +38,7 @@ impl MemoryArea {
     }
 
     pub fn end_address(&self) -> u64 {
-        (self.base_addr + self.length)
+        self.base_addr + self.length
     }
 
     pub fn size(&self) -> u64 {

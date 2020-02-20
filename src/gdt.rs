@@ -8,7 +8,7 @@ use x86_64::structures::tss::TaskStateSegment;
 use x86_64::VirtAddr;
 */
 
-use x86_64::VirtAddr;
+
 use core::mem;
 //use x86::current::segmentation::set_cs;
 use x86::current::task::TaskStateSegment;

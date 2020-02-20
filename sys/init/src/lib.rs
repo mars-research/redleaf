@@ -72,7 +72,7 @@ fn test_dummy_syscall() {
     let NUM_ITER: u64 = 20_000_000;
     let start = get_rdtsc();
 
-    for i in 0..NUM_ITER {
+    for _i in 0..NUM_ITER {
         sys_dummy();
     }
 
@@ -165,7 +165,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
     // test_dummy_syscall();
 
     println!("about to create proxy");
-    let (dom_proxy, proxy) = create_proxy.create_domain_proxy(heap);
+    let (_dom_proxy, proxy) = create_proxy.create_domain_proxy(heap);
     println!("created proxy");
 
     let ptr = proxy.foo();
@@ -176,15 +176,15 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
 
     let pci_bar = create_pci.get_pci_bar();
 
-    let (dom_pci, pci) = create_pci.create_domain_pci(pci_resource, pci_bar);
+    let (_dom_pci, pci) = create_pci.create_domain_pci(pci_resource, pci_bar);
 
     let pci2 = pci.pci_clone();
 
-    let (dom_ahci, bdev) = create_ahci.create_domain_ahci(pci);
+    let (_dom_ahci, bdev) = create_ahci.create_domain_ahci(pci);
 
-    let (dom_ixgbe, net) = create_ixgbe.create_domain_ixgbe(pci2);
+    let (_dom_ixgbe, _net) = create_ixgbe.create_domain_ixgbe(pci2);
 
-    let dom_xv6 = create_xv6.create_domain_xv6kernel(ints_clone, create_xv6fs, create_xv6usr, bdev); 
+    let _dom_xv6 = create_xv6.create_domain_xv6kernel(ints_clone, create_xv6fs, create_xv6usr, bdev); 
 
 }
 

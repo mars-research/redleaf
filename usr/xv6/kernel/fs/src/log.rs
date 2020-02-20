@@ -3,7 +3,7 @@
 use core::mem::size_of;
 use byteorder::{ByteOrder, LittleEndian};
 use spin::Once;
-use usr::bdev::BDevPtr;
+
 
 use crate::fs::SuperBlock;
 use crate::params;
@@ -65,12 +65,12 @@ impl Log {
             committing: false,
             dev,
             logheader: LogHeader{
-                n: 123456,
-                block_nums: [123456; params::LOGSIZE]
+                n: 123_456,
+                block_nums: [123_456; params::LOGSIZE]
             },
         };
         log.recover_from_log();
-        return log;
+        log
     }
 
     // Copy committed blocks from log to their home location
@@ -130,7 +130,7 @@ impl Log {
             return false;
         }
         self.outstanding += 1;
-        return true;
+        true
     }
 
     pub fn begin_op(&mut self) {

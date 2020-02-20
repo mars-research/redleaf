@@ -51,10 +51,9 @@ impl FileMode {
 
 pub fn sys_dup(fd: usize) -> Option<usize> {
     FD_TABLE.with(|fdtable| {
-        fdtable
+        if let Some(f) = fdtable
             .get_mut(fd)?
-            .as_mut()
-            .map(|f| f.dup());
+            .as_mut() { f.dup() }
         Some(fd)
     })
 }

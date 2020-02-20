@@ -27,7 +27,7 @@ use core::panic::PanicInfo;
 use core::cell::RefCell;
 use syscalls::{Syscall};
 use libsyscalls::errors::Result;
-use libsyscalls::syscalls::sys_backtrace;
+
 use console::println;
 use pci_driver::{BarRegions, PciClass};
 use alloc::boxed::Box;
@@ -82,7 +82,7 @@ impl pci_driver::PciDriver for Ahci {
                             LittleEndian::read_u16(&buf[510..]) == MBR_MAGIC
                         })
                         .collect();
-        let mut disks = disks
+        let disks = disks
                         .into_iter()
                         .zip(have_magic_number)
                         .filter_map(|(d, has_magic_num)| {
@@ -209,9 +209,9 @@ fn benchmark_ahci_async(bdev: &Box<dyn usr::bdev::BDev>, blocks_to_read: u32, bl
                 .filter(|slot|  {
                     if let Some(buf) = bdev.poll(*slot).unwrap() {
                         buffers.push(buf);
-                        return false;
+                        false
                     } else {
-                        return true;
+                        true
                     }
                 })
                 .collect();

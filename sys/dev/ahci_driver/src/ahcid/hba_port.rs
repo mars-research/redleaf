@@ -1,8 +1,8 @@
 use alloc::string::String;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-use ahci::{AhciBarRegion, AhciRegs, AhciArrayRegs, AhciPortRegs, AhciPortArrayRegs};
-use byteorder::{ByteOrder, LE};
+use ahci::{AhciBarRegion, AhciPortRegs, AhciPortArrayRegs};
+
 use console::{print, println};
 use core::mem::size_of;
 use core::ops::DerefMut;
@@ -11,10 +11,10 @@ use syscalls::errors::{Error, Result, EIO};
 use libdma::{Mmio, Dma};
 use libdma::ahci::{HbaPrdtEntry, HbaCmdTable, HbaCmdHeader};
 use libdma::ahci::allocate_dma;
-use libsyscalls::syscalls::sys_yield;
-use libtime::get_rdtsc;
 
-use super::disk_ata::{MAX_SECTORS_PER_PRDT_ENTRY, MAX_BYTES_PER_PRDT_ENTRY};
+
+
+use super::disk_ata::{MAX_BYTES_PER_PRDT_ENTRY};
 use super::hba::Hba;
 use super::fis::{FisType, FisRegH2D};
 
@@ -45,10 +45,10 @@ const HBA_PORT_CMD_ST: u32 = 1 << 0;
 
 const HBA_PORT_IS_ERR: u32 = 1 << 30 | 1 << 29 | 1 << 28 | 1 << 27;
 const HBA_SSTS_PRESENT: u32 = 0x3;
-const HBA_SIG_ATA: u32 = 0x00000101;
-const HBA_SIG_ATAPI: u32 = 0xEB140101;
-const HBA_SIG_PM: u32 = 0x96690101;
-const HBA_SIG_SEMB: u32 = 0xC33C0101;
+const HBA_SIG_ATA: u32 = 0x0000_0101;
+const HBA_SIG_ATAPI: u32 = 0xEB14_0101;
+const HBA_SIG_PM: u32 = 0x9669_0101;
+const HBA_SIG_SEMB: u32 = 0xC33C_0101;
 
 #[derive(Debug)]
 pub enum HbaPortType {
@@ -96,7 +96,7 @@ impl HbaPort {
         self.slotReady[slot as usize] = ready;
     }
 
-    fn start(&self, hba: &Hba) {
+    fn start(&self, _hba: &Hba) {
         while self.hba.bar.read_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_CR) {
             // spin
         }
@@ -106,7 +106,7 @@ impl HbaPort {
 
     // Stop command engine
     // See 10.1.2
-    fn stop(&self, hba: &Hba) {
+    fn stop(&self, _hba: &Hba) {
         // Clear ST and FRE
         self.hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_ST | HBA_PORT_CMD_FRE, false);
         while self.hba.bar.read_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_CR)
@@ -115,7 +115,7 @@ impl HbaPort {
         }
     }
 
-    fn slot(&self, hba: &Hba) -> Option<u32> {
+    fn slot(&self, _hba: &Hba) -> Option<u32> {
         let slots = self.hba.bar.read_port_reg(self.port, AhciPortRegs::Sact) | self.hba.bar.read_port_reg(self.port, AhciPortRegs::Ci);
 
         for i in 0..32 {
@@ -179,7 +179,7 @@ impl HbaPort {
     }
 
     // 10.4.2: COMRESET
-    fn reset(&self, hba: &Hba) {
+    fn reset(&self, _hba: &Hba) {
         // Prerequite
         self.hba.bar.write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_ST, false);
         // TODO: set timeout
@@ -288,7 +288,7 @@ impl HbaPort {
 
     pub fn ata_dma(&mut self, block: u64, sectors: u16, write: bool, clb: &mut Dma<[HbaCmdHeader; 32]>, ctbas: &mut [Dma<HbaCmdTable>; 32], buf: &[u8]) -> Option<u32> {
         println!("AHCI {} DMA BLOCK: {:X} SECTORS: {} WRITE: {}", self.port, block, sectors, write);
-        if (sectors > 0xFFFF) {
+        if sectors > 0xFFFF {
             println!("Cannot R/W to more than {} sectors at a time", 0xFFFF);
             return None;
         }
@@ -302,7 +302,7 @@ impl HbaPort {
 
             let chuncks = buf.chunks(MAX_BYTES_PER_PRDT_ENTRY);
             let num_chuncks = chuncks.len() as u16;
-            for (chunck, mut prdt_entry) in chuncks.zip(prdt_entries.iter_mut()) {
+            for (chunck, prdt_entry) in chuncks.zip(prdt_entries.iter_mut()) {
                 prdt_entry.dba.write(chunck.as_ptr() as u64);
                 prdt_entry.dbc.write((chunck.len() as u32) - 1);
             }
@@ -342,7 +342,7 @@ impl HbaPort {
                 let cmdheader = &mut clb[slot as usize];
                 let cfl = (size_of::<FisRegH2D>() / size_of::<u32>()) as u8;
                 // CFL is 04:00
-                assert!(cfl < 0b00011111);
+                assert!(cfl < 0b0001_1111);
                 cmdheader.cfl.write(cfl);
 
                 let cmdtbl = &mut ctbas[slot as usize];

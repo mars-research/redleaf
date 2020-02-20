@@ -1,10 +1,10 @@
 #![feature(alloc)]
 
-use crate::pci::{Pci, PciBar, PciHeader, PciHeaderError};
+use crate::pci::{Pci, PciHeader, PciHeaderError};
 use syscalls::PciResource;
 use console::println;
 use alloc::format;
-use hashbrown::HashMap;
+
 use lazy_static::lazy_static;
 use alloc::vec::Vec;
 use spin::Mutex;
@@ -35,7 +35,7 @@ fn print_header(bus_num: u8,
                              bus_num, dev_num, func_num, header.vendor_id(), header.device_id(), raw_class,
                              header.subclass(), header.interface(), header.revision(), header.class());
 
-    let pci_device = PciDevice { vendor_id: header.vendor_id(), device_id: header.device_id() };
+    let _pci_device = PciDevice { vendor_id: header.vendor_id(), device_id: header.device_id() };
 
     match header.class() {
         PciClass::Storage => match header.subclass() {
@@ -102,7 +102,7 @@ pub fn scan_pci_devs(pci_resource: &dyn PciResource) {
                         pci_devices.push(header);
                     }
                     Err(PciHeaderError::NoDevice) => {},
-                    Err(PciHeaderError::UnknownHeaderType(id)) => {
+                    Err(PciHeaderError::UnknownHeaderType(_id)) => {
                         //println!("pcid: unknown header type: {}", id);
                     }
                 }

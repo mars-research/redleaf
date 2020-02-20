@@ -170,7 +170,7 @@ impl BufferCache {
             }
             // println!("bread block#{}: {:X?}", block_number, &guard.data[..]);
         }
-        return buffer;
+        buffer
     }
 
     // Write b's contents to disk 

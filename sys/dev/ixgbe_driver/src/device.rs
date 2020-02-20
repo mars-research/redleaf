@@ -10,11 +10,11 @@ use libdma::ixgbe::{ixgbe_adv_rx_desc, ixgbe_adv_tx_desc};
 use crate::Result;
 use ixgbe::{IxgbeRegs, IxgbeArrayRegs};
 use console::{println, print};
-use core::{mem, slice, cmp};
+use core::{mem};
 use libtime::sys_ns_loopsleep;
 use alloc::format;
 use protocol::UdpPacket;
-use byteorder::{ByteOrder, BigEndian, LittleEndian};
+
 
 const ONE_MS_IN_NS: u64 = 100_0000;
 const TX_CLEAN_BATCH: usize = 32;
@@ -484,7 +484,7 @@ impl Intel8259x {
         let mut speed = self.get_link_speed();
         let mut count = 0;
         while speed == 0 && count < 100 {
-            count = count + 1;
+            count += 1;
             sys_ns_loopsleep(ONE_MS_IN_NS * 100);
             speed = self.get_link_speed();
         }
@@ -540,7 +540,7 @@ impl Intel8259x {
 
     fn clean_tx_queue(&mut self) -> usize {
         let mut clean_index = self.transmit_clean_index;
-        let cur_index = self.transmit_index;
+        let _cur_index = self.transmit_index;
 
         loop {
             let num_descriptors = self.transmit_ring.len();
@@ -571,8 +571,8 @@ impl Intel8259x {
             let clean_index = self.clean_tx_queue();
             let num_descriptors = self.transmit_ring.len();
 
-            for mut packet in packets {
-                let mut pslice = packet.as_slice();
+            for packet in packets {
+                let pslice = packet.as_slice();
 
                 let next_index = wrap_ring(cur_index, num_descriptors);
 
@@ -679,7 +679,7 @@ impl Intel8259x {
 
     pub fn dump_stats(&self) {
         println!("Ixgbe statistics:");
-        let mut string = format!("Stats regs:\n\tGPRC {:08X} GPTC {:08X}\n\tGORCL {:08X} GORCH {:08X}\n\tGOTCL {:08X} GOTCH {:08X}\n\tTXDGPC {:08X} TXDGBCH {:08X} TXDGBCL {:08X} QPTC(0) {:08X}\n",
+        let string = format!("Stats regs:\n\tGPRC {:08X} GPTC {:08X}\n\tGORCL {:08X} GORCH {:08X}\n\tGOTCL {:08X} GOTCH {:08X}\n\tTXDGPC {:08X} TXDGBCH {:08X} TXDGBCL {:08X} QPTC(0) {:08X}\n",
                                 self.bar.read_reg(IxgbeRegs::Gprc) as u32,
                                 self.bar.read_reg(IxgbeRegs::Gptc) as u32,
                                 self.bar.read_reg(IxgbeRegs::Gorcl) as u32,

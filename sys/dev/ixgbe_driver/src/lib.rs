@@ -23,17 +23,17 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::panic::PanicInfo;
 use syscalls::{Syscall,PCI};
-use libsyscalls::syscalls::{sys_println, sys_alloc, sys_create_thread};
+
 use console::println;
 use pci_driver::BarRegions;
 use ixgbe::IxgbeBarRegion;
-use core::mem::MaybeUninit;
+
 pub use libsyscalls::errors::Result;
 use crate::device::Intel8259x;
 use core::cell::RefCell;
-use protocol::{UdpPacket, MTU_SZ};
-use alloc::sync::Arc;
-use spin::Mutex;
+use protocol::{UdpPacket};
+
+
 use libtime::get_rdtsc as rdtsc;
 
 struct Ixgbe {
@@ -93,27 +93,25 @@ fn calc_ipv4_checksum(ipv4_header: &[u8]) -> u16 {
 
 impl syscalls::Net for Ixgbe {
     fn send(&self, buf: &[u8]) -> u32 {
-        if self.device_initialized == false {
+        if !self.device_initialized {
             0
-        } else {
-            if self.active() {
-                if let Some(mut device) = self.device.borrow_mut().as_mut() {
-                    let dev: &mut Intel8259x = device;
-                    if let Ok(Some(opt)) = dev.write(buf) {
-                        opt as u32
-                    } else {
-                        0
-                    }
+        } else if self.active() {
+            if let Some(device) = self.device.borrow_mut().as_mut() {
+                let dev: &mut Intel8259x = device;
+                if let Ok(Some(opt)) = dev.write(buf) {
+                    opt as u32
                 } else {
                     0
                 }
             } else {
                 0
             }
+        } else {
+            0
         }
     }
 
-    fn send_udp_from_ixgbe(&self, packet: &[u8]) -> u32 {
+    fn send_udp_from_ixgbe(&self, _packet: &[u8]) -> u32 {
         const PAYLOAD_SZ: usize = 64;
         let mac_data = [
             0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x50, // Dst mac
@@ -170,27 +168,25 @@ impl syscalls::Net for Ixgbe {
             }
         }
 
-        if self.device_initialized == false {
+        if !self.device_initialized {
             0
-        } else {
-            if self.active() {
-                if let Some(mut device) = self.device.borrow_mut().as_mut() {
-                    let dev: &mut Intel8259x = device;
-                    let mut ret: usize = 0;
-                    let start = rdtsc();
-                    for i in 0..5_00_000 {
-                        ret += dev.tx_batch(&pvec);
-                    }
-                    let end = rdtsc();
-                    println!("From ixgbe layer: {} iterations took {} cycles (avg = {})", 20_000_000, end-start, (end - start) / ret as u64);
-
-                    ret as u32
-                } else {
-                    0
+        } else if self.active() {
+            if let Some(device) = self.device.borrow_mut().as_mut() {
+                let dev: &mut Intel8259x = device;
+                let mut ret: usize = 0;
+                let start = rdtsc();
+                for _i in 0..500_000 {
+                    ret += dev.tx_batch(&pvec);
                 }
+                let end = rdtsc();
+                println!("From ixgbe layer: {} iterations took {} cycles (avg = {})", 20_000_000, end-start, (end - start) / ret as u64);
+
+                ret as u32
             } else {
                 0
             }
+        } else {
+            0
         }
     }
 
@@ -305,7 +301,7 @@ fn run_udp_test_64(dev: &Ixgbe) {
 
     //println!("{:?}", pvec[0]);
 
-    if let Some(mut device) = dev.device.borrow_mut().as_mut() {
+    if let Some(device) = dev.device.borrow_mut().as_mut() {
         let dev: &mut Intel8259x = device;
         let mut sum: usize = 0;
         let start = rdtsc();
@@ -376,7 +372,7 @@ fn run_udp_test_128(dev: &Ixgbe) {
         }
     }
 
-    if let Some(mut device) = dev.device.borrow_mut().as_mut() {
+    if let Some(device) = dev.device.borrow_mut().as_mut() {
         let dev: &mut Intel8259x = device;
         let mut sum: usize = 0;
         let start = rdtsc();
@@ -448,7 +444,7 @@ fn run_udp_test_256(dev: &Ixgbe) {
     }
 
 
-    if let Some(mut device) = dev.device.borrow_mut().as_mut() {
+    if let Some(device) = dev.device.borrow_mut().as_mut() {
         let dev: &mut Intel8259x = device;
         let mut sum: usize = 0;
         let start = rdtsc();
@@ -519,7 +515,7 @@ fn run_udp_test_512(dev: &Ixgbe) {
         }
     }
 
-    if let Some(mut device) = dev.device.borrow_mut().as_mut() {
+    if let Some(device) = dev.device.borrow_mut().as_mut() {
         let dev: &mut Intel8259x = device;
         let mut sum: usize = 0;
         let start = rdtsc();
@@ -591,7 +587,7 @@ fn run_udp_test_MTU(dev: &Ixgbe) {
         }
     }
 
-    if let Some(mut device) = dev.device.borrow_mut().as_mut() {
+    if let Some(device) = dev.device.borrow_mut().as_mut() {
         let dev: &mut Intel8259x = device;
         let mut sum: usize = 0;
         let start = rdtsc();
@@ -607,11 +603,11 @@ fn run_udp_test_MTU(dev: &Ixgbe) {
     }
 }
 
-use ixgbe::{IxgbeRegs, IxgbeArrayRegs};
+use ixgbe::{IxgbeRegs};
 
 fn run_read_reg_test(dev: &Ixgbe) {
 
-    if let Some(mut device) = dev.device.borrow_mut().as_mut() {
+    if let Some(device) = dev.device.borrow_mut().as_mut() {
         let dev: &mut Intel8259x = device;
         let mut sum: usize = 0;
         let start = rdtsc();
@@ -626,7 +622,7 @@ fn run_read_reg_test(dev: &Ixgbe) {
 
 fn run_write_reg_test(dev: &Ixgbe) {
 
-    if let Some(mut device) = dev.device.borrow_mut().as_mut() {
+    if let Some(device) = dev.device.borrow_mut().as_mut() {
         let dev: &mut Intel8259x = device;
         let mut sum: usize = 0;
         let start = rdtsc();

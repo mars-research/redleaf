@@ -5,7 +5,7 @@
 
 pub const IXGBE_CTRL_LNK_RST: u64               = 0x00000008; /* Link Reset. Resets everything. */
 pub const IXGBE_CTRL_RST: u64                   = 0x04000000; /* Reset (SW) */
-pub const IXGBE_CTRL_RST_MASK: u64              = (IXGBE_CTRL_LNK_RST | IXGBE_CTRL_RST);
+pub const IXGBE_CTRL_RST_MASK: u64              = IXGBE_CTRL_LNK_RST | IXGBE_CTRL_RST;
 pub const IXGBE_CTRL_PCIE_MASTER_DISABLE: u64              = 1 << 2;
 
 pub const IXGBE_STATUS_PCIE_MASTER_STATUS: u64  = 1 << 19;
@@ -15,11 +15,11 @@ pub const IXGBE_EEC_ARD: u64                    = 0x00000200; /* EEPROM Auto Rea
 pub const IXGBE_RDRXCTL_DMAIDONE: u64           = 0x00000008; /* DMA init cycle done */
 
 pub const IXGBE_AUTOC_LMS_SHIFT: u64            = 13;
-pub const IXGBE_AUTOC_LMS_MASK: u64             = (0x7 << IXGBE_AUTOC_LMS_SHIFT);
-pub const IXGBE_AUTOC_LMS_10G_SERIAL: u64       = (0x3 << IXGBE_AUTOC_LMS_SHIFT);
+pub const IXGBE_AUTOC_LMS_MASK: u64             = 0x7 << IXGBE_AUTOC_LMS_SHIFT;
+pub const IXGBE_AUTOC_LMS_10G_SERIAL: u64       = 0x3 << IXGBE_AUTOC_LMS_SHIFT;
 pub const IXGBE_AUTOC_10G_PMA_PMD_MASK: u64     = 0x00000180;
 pub const IXGBE_AUTOC_10G_PMA_PMD_SHIFT: u64    = 7;
-pub const IXGBE_AUTOC_10G_XAUI: u64             = (0x0 << IXGBE_AUTOC_10G_PMA_PMD_SHIFT);
+pub const IXGBE_AUTOC_10G_XAUI: u64             = 0x0 << IXGBE_AUTOC_10G_PMA_PMD_SHIFT;
 pub const IXGBE_AUTOC_AN_RESTART: u64           = 0x00001000;
 
 pub const IXGBE_RXCTRL_RXEN: u64                = 0x00000001; /* Enable Receiver */

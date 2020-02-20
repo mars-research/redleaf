@@ -1,7 +1,7 @@
 use core::ptr;
 use ahci::{AhciBarRegion, AhciRegs, AhciArrayRegs, AhciPortRegs, AhciPortArrayRegs};
-use syscalls::PciBar;
-use alloc::boxed::Box;
+
+
 
 
 macro_rules! reg_ahci {

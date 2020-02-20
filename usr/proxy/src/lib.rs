@@ -3,8 +3,8 @@
 extern crate malloc;
 extern crate alloc;
 use rref::RRef;
-use syscalls;
-use libsyscalls;
+
+
 use syscalls::Syscall;
 use alloc::boxed::Box;
 use console::println;
@@ -23,7 +23,7 @@ impl usr::proxy::Proxy for Proxy {
     fn foo(&self) -> usize {
         let ptr = libsyscalls::heap::sys_heap_alloc(10, Layout::new::<u64>());
         unsafe { *(ptr as *mut u64) = 0xf00; } // 3840
-        return ptr as usize;
+        ptr as usize
     }
     fn new_value(&self, value: usize) -> RRef<usize> {
         // TODO: get domain id

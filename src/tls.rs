@@ -1,6 +1,6 @@
 use core::{mem, ptr};
-use core::sync::atomic::{AtomicUsize, Ordering};
-use crate::memory::VSPACE;
+
+
 use crate::arch::memory::{BASE_PAGE_SIZE, PAddr};
 use core::alloc::Layout;
 use crate::memory::buddy::BUDDY;

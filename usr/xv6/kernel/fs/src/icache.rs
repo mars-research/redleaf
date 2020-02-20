@@ -3,13 +3,13 @@ use alloc::vec::Vec;
 use byteorder::{ByteOrder, LittleEndian};
 use core::convert::TryInto;
 use core::mem;
-use core::mem::MaybeUninit;
+
 use core::ops::Drop;
 use core::sync::atomic::{AtomicBool, Ordering};
 use num_traits::FromPrimitive;
 use spin::{Mutex, MutexGuard};
 
-use crate::bcache::{BufferBlock, BCACHE};
+use crate::bcache::{BCACHE};
 use crate::block::Block;
 use crate::directory::{DirectoryEntry, DirectoryEntryDisk};
 use crate::fs::{SUPER_BLOCK, block_num_for_node};
@@ -281,7 +281,7 @@ impl INodeDataGuard<'_> {
         drop(buffer);
         BCACHE.release(&mut bguard);
 
-        return address;
+        address
     }
 
     // Look for a directory entry in a directory.
@@ -501,7 +501,7 @@ impl INode {
         // console::println!("ilock inode#{}: {:?}", self.meta.inum, data);
         INodeDataGuard {
             node: &self,
-            data: data,
+            data,
         }
     }
 }
@@ -528,7 +528,7 @@ impl ICache {
             // Okay, there're a lot of copying happening here but we don't have time to make it nice.
             const DINODE_SIZE: usize = mem::size_of::<DINode>();
             let dinode_offset = (inum as usize % params::IPB) * DINODE_SIZE;
-            let mut dinode_slice = &mut buffer.data[dinode_offset..dinode_offset + DINODE_SIZE];
+            let dinode_slice = &mut buffer.data[dinode_offset..dinode_offset + DINODE_SIZE];
             let mut dinode = DINode::from_bytes(dinode_slice);
 
             if dinode.file_type == INodeFileType::Unitialized {
@@ -565,14 +565,14 @@ impl ICache {
         }
 
         match empty {
-            None => return None,
+            None => None,
             Some(node) => {
                 // we just checked that strong_count == 1, and self is locked, so this should never fail
                 let node_mut = Arc::get_mut(node).unwrap();
                 node_mut.meta.device = device;
                 node_mut.meta.inum = inum;
                 node_mut.meta.valid.store(false, Ordering::Relaxed);
-                return Some(node.clone());
+                Some(node.clone())
             }
         }
     }
@@ -604,7 +604,7 @@ impl ICache {
     // Must be called inside a transaction since it calls iput().
     fn namex(path: &str, parent: bool) -> Option<(Arc<INode>, &str)> {
         let mut inode: Arc<INode>;
-        if path.starts_with("/") {
+        if path.starts_with('/') {
             if let Some(root) = ICACHE.lock().get(params::ROOTDEV, params::ROOTINO) {
                 inode = root;
             } else {
@@ -661,7 +661,7 @@ impl ICache {
     }
 
     pub fn create(path: &str, file_type: INodeFileType, major: i16, minor: i16) -> Option<Arc<INode>> {
-        return match ICache::nameiparent(path) {
+        match ICache::nameiparent(path) {
             None => None,
             Some((dirnode, name)) => {
                 // found parent directory

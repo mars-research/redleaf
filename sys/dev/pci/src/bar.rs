@@ -18,10 +18,10 @@ impl PciBar {
 
 impl From<u32> for PciBar {
     fn from(bar: u32) -> Self {
-        if bar & 0xFFFFFFFC == 0 {
+        if bar & 0xFFFF_FFFC == 0 {
             PciBar::None
         } else if bar & 1 == 0 {
-            PciBar::Memory(bar & 0xFFFFFFF0)
+            PciBar::Memory(bar & 0xFFFF_FFF0)
         } else {
             PciBar::Port((bar & 0xFFFC) as u16)
         }

@@ -28,7 +28,7 @@ mod header;
 mod pci;
 mod parser;
 
-use crate::parser::{PciDevice, PCI_DEVICES};
+use crate::parser::{PCI_DEVICES};
 use crate::header::PciHeader;
 
 use core::panic::PanicInfo;
@@ -65,8 +65,7 @@ impl syscalls::PCI for PCI {
                 .iter()
                 .filter(|header| {
                     header.class() == class && header.subclass() == subclass
-                })
-                .nth(0)
+                }).next()
                 .ok_or(())
             }, 
             None => {
@@ -74,8 +73,7 @@ impl syscalls::PCI for PCI {
                 .iter()
                 .filter(|header| {
                     header.vendor_id() == vendor_id && header.device_id() == device_id
-                })
-                .nth(0)
+                }).next()
                 .ok_or(())
             }
         }?;

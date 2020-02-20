@@ -20,14 +20,14 @@
 
 // Each entry(item) in PRDT contains a pointer(physical address) to the buffer(up to 4MB) that the device can DMA to
 
-use core::ptr;
+
 
 use alloc::boxed::Box;
 
 use console::println;
 use syscalls::errors::Result;
 use syscalls::errors::{Error, EBUSY, EINVAL};
-use libsyscalls::syscalls::sys_yield;
+
 
 use libdma::Dma;
 use libdma::ahci::{HbaCmdTable, HbaCmdHeader};
@@ -83,13 +83,13 @@ impl DiskATA {
         let size = port.identify(&mut clb, &mut ctbas).unwrap_or(0);
 
         Ok(DiskATA {
-            id: id,
-            port: port,
-            size: size,
+            id,
+            port,
+            size,
             // request_opt: None,
             requests_opt: array_init::array_init(|_| None),
-            clb: clb,
-            ctbas: ctbas,
+            clb,
+            ctbas,
             _fb: fb,
         })
     }
@@ -125,7 +125,7 @@ impl Disk for DiskATA {
         Ok(512)
     }
 
-    fn submit(&mut self, block: u64, write: bool, mut buffer: Box<[u8]>) -> Result<u32> {
+    fn submit(&mut self, block: u64, write: bool, buffer: Box<[u8]>) -> Result<u32> {
         assert!(buffer.len() % 512 == 0, "Must read a multiple of block size number of bytes");
 
         let address = &*buffer as *const [u8] as *const () as usize;
@@ -138,7 +138,7 @@ impl Disk for DiskATA {
                 address,
                 start_sector: block,
                 total_sectors,
-                buffer: buffer,
+                buffer,
                 start_time: libtime::get_rdtsc(),
             });
             Ok(slot)

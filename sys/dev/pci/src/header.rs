@@ -14,15 +14,15 @@ bitflags! {
     /// Flags found in the status register of a PCI device
     pub struct PciHeaderType: u8 {
         /// A general PCI device (Type 0x01).
-        const GENERAL       = 0b00000000;
+        const GENERAL       = 0b0000_0000;
         /// A PCI-to-PCI bridge device (Type 0x01).
-        const PCITOPCI      = 0b00000001;
+        const PCITOPCI      = 0b0000_0001;
         /// A PCI-to-PCI bridge device (Type 0x02).
-        const CARDBUSBRIDGE = 0b00000010;
+        const CARDBUSBRIDGE = 0b0000_0010;
         /// A multifunction device.
-        const MULTIFUNCTION = 0b01000000;
+        const MULTIFUNCTION = 0b0100_0000;
         /// Mask used for fetching the header type.
-        const HEADER_TYPE   = 0b00000011;
+        const HEADER_TYPE   = 0b0000_0011;
     }
 }
 
@@ -93,7 +93,7 @@ impl PciHeader {
     /// Parse the bytes found in the Configuration Space of the PCI device into
     /// a more usable PciHeader.
     pub fn from_reader<T: ConfigReader>(reader: T) -> Result<PciHeader, PciHeaderError> {
-        if reader.read_u32(0) != 0xffffffff {
+        if reader.read_u32(0) != 0xffff_ffff {
             // Read the initial 16 bytes and set variables used by all header types.
             let bytes = reader.read_range(0, 16);
             let vendor_id = LittleEndian::read_u16(&bytes[0..2]);

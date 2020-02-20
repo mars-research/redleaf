@@ -1,12 +1,12 @@
 use byteorder::{ByteOrder, LittleEndian};
-use libusr::sysbdev;
+
 use spin::Once;
-use usr::bdev::BDevPtr;
+
 
 use crate::params;
 use crate::log::{Log, LOG};
-use crate::icache::ICache;
-use crate::bcache::{BCACHE, BufferCache};
+
+use crate::bcache::{BCACHE};
 
 pub static SUPER_BLOCK: Once<SuperBlock> = Once::new();
 
@@ -73,7 +73,7 @@ fn read_superblock(dev: u32) -> SuperBlock {
 
 // TODO: better name and place
 pub fn block_num_for_node(inum: u16, super_block: &SuperBlock) -> u32 {
-    return inum as u32 / params::IPB as u32 + super_block.inodestart;
+    inum as u32 / params::IPB as u32 + super_block.inodestart
 }
 
 pub fn fsinit(dev: u32) {	

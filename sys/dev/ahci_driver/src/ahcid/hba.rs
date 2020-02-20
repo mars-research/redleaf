@@ -1,26 +1,26 @@
-use core::mem::size_of;
-use core::ops::DerefMut;
-use core::{ptr, u32};
 
-use alloc::string::String;
+
+use core::{u32};
+
+
 use alloc::boxed::Box;
-use alloc::sync::Arc;
 
-use spin::{Mutex, MutexGuard};
 
-use libdma::{Mmio, Dma};
-use libdma::ahci::{HbaPrdtEntry, HbaCmdTable, HbaCmdHeader};
-use libdma::ahci::allocate_dma;
 
-use syscalls::errors::{Error, Result, EIO};
-use libsyscalls::syscalls::sys_yield;
-use libtime::get_rdtsc;
 
-use ahci::{AhciBarRegion, AhciRegs, AhciArrayRegs, AhciPortRegs, AhciPortArrayRegs};
 
-use crate::ahcid::disk_ata::{MAX_SECTORS_PER_PRDT_ENTRY, MAX_BYTES_PER_PRDT_ENTRY};
 
-use console::{print, println};
+
+
+
+
+
+
+use ahci::{AhciBarRegion, AhciRegs};
+
+
+
+use console::{println};
 
 // HBA reset
 const HBA_GHC_HR: u32 = 1 << 0;
@@ -45,7 +45,7 @@ pub struct Hba {
 impl Hba {
     pub fn new(bar: Box<dyn AhciBarRegion>) -> Hba {
         Hba {
-            bar: bar,
+            bar,
         }
     }
 
