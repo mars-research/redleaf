@@ -149,29 +149,30 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
 
     let ahci: Box<dyn usr::bdev::BDev> = Box::new(ahci);
     
-    let disk_offset = 10000;
-    let buff = [123u8; 512];
-    ahci.write(disk_offset, &buff);
+    verify_write(&ahci);
 
-    let mut buff = [222u8; 512];
-    ahci.read(disk_offset, &mut buff);
-    for i in buff.iter() {
-        console::print!("{} ", i);
-    }
-    console::print!("\n");
-    panic!("Stop here");
-
-
-    // benchmark_ahci(&ahci, 256, 1);
-    // benchmark_ahci_async(&ahci, 256, 1);
+    benchmark_ahci(&ahci, 1, 1);
+    benchmark_ahci_async(&ahci, 256, 1);
     // benchmark_ahci(&ahci, 8192, 8192);
-    // benchmark_ahci_async(&ahci, 8192, 8192);
+    benchmark_ahci_async(&ahci, 8192, 8192);
     // benchmark_ahci(&ahci, 8192 * 128, 8192);
-    // benchmark_ahci_async(&ahci, 8192 * 128, 8192);
+    benchmark_ahci_async(&ahci, 8192 * 128, 8192);
     // benchmark_ahci(&ahci, 32768, 32768);
     // benchmark_ahci(&ahci, 0xFFFF * 128, 0xFFFF);
-    // benchmark_ahci_async(&ahci, 0xFFFF * 128, 0xFFFF);
+    benchmark_ahci_async(&ahci, 0xFFFF * 128, 0xFFFF);
     ahci
+}
+
+fn verify_write(bdev: &Box<dyn usr::bdev::BDev>) {
+    let disk_offset = 10000;
+    let buff = [123u8; 512];
+    bdev.write(disk_offset, &buff);
+
+    let mut buff = [222u8; 512];
+    bdev.read(disk_offset, &mut buff);
+    for i in buff.iter() {
+        assert!(*i == 123u8);
+    }
 }
 
 fn benchmark_ahci(bdev: &Box<dyn usr::bdev::BDev>, blocks_to_read: u32, blocks_per_patch: u32) {

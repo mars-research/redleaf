@@ -114,25 +114,10 @@ impl Disk for DiskATA {
     }
 
     fn write(&mut self, block: u64, buffer: &[u8]) {
+        // Synchronous read
         let slot = self.submit(block, true, unsafe { Box::from_raw(buffer as *const [u8] as *mut [u8]) }).unwrap();
-        loop {
-            match self.poll(slot) {
-                Ok(opt) => {
-                    match opt {
-                        Some(_) => { 
-                            return; 
-                        },
-                        None => { 
-                            console::println!("waiting slot#{} to finish", slot);
-                            continue;
-                        },
-                    }
-                },
-                Err(e) => {
-                    console::println!("Failed to read: {:?}", e);
-                    return self.write(block, buffer);
-                }
-            }
+        while let None = self.poll(slot).unwrap() {
+            // Spin
         }
     }
 
