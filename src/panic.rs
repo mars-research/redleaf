@@ -183,7 +183,13 @@ fn backtrace_format(
 }
 
 
+#[cfg(not(feature = "backtrace"))]
+pub fn backtrace(){
+    return;
+}
+
 #[inline(always)]
+#[cfg(feature = "backtrace")]
 pub fn backtrace() {
 
     let context = match ELF_CONTEXT.r#try() {

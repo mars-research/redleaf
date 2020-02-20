@@ -25,6 +25,10 @@ FEATURES += --features "c220g2_ixgbe"
 PCI_FEATURES += --features "c220g2_ixgbe"
 endif
 
+ifeq ($(BACKTRACE),true)
+	CARGO_FLAGS += --features "backtrace"
+endif
+
 export PCI_FEATURES
 
 target ?= $(arch)-redleaf
