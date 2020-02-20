@@ -46,9 +46,10 @@ pub const MAX_PRDT_ENTRIES: usize = 65_535;
 
 struct Request {
     address: usize,
-    total_sectors: usize,
-    sector: usize,
+    start_sector: u64,
+    total_sectors: u64,
     buffer: Box<[u8]>,
+    start_time: u64,
 }
 
 pub struct DiskATA {
@@ -143,16 +144,17 @@ impl Disk for DiskATA {
         assert!(buffer.len() % 512 == 0, "Must read a multiple of block size number of bytes");
 
         let address = &*buffer as *const [u8] as *const () as usize;
-        let total_sectors = buffer.len() / 512;
+        let total_sectors = buffer.len() as u64 / 512;
 
         if let Some(slot) = self.port.ata_dma(block, total_sectors as u16, write, &mut self.clb, &mut self.ctbas, &*buffer) {
             // Submitted, create the corresponding Request in self.requests_opt
             self.port.set_slot_ready(slot, false);
             self.requests_opt[slot as usize] = Some(Request {
                 address,
+                start_sector: block,
                 total_sectors,
-                sector: 0,
                 buffer: buffer,
+                start_time: libtime::get_rdtsc(),
             });
             Ok(slot)
         } else {
@@ -171,10 +173,11 @@ impl Disk for DiskATA {
             Ok(None)
         } else {
             // Finished (errored or otherwise)
-            let opt = self.requests_opt[slot as usize].take().unwrap();
+            let req = self.requests_opt[slot as usize].take().unwrap();
             self.port.set_slot_ready(slot, true);
             self.port.ata_stop(slot)?;
-            Ok(Some(opt.buffer))
+            println!("Request to {}-{} sectors takes {} cycles", req.start_sector, req.start_sector + req.total_sectors, libtime::get_rdtsc() - req.start_time);
+            Ok(Some(req.buffer))
         }
     }
 }
