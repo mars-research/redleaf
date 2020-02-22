@@ -3,11 +3,11 @@ include $(root)/common_flags.mk
 
 bin_name := ahci_driver
 arch ?= x86_64
-target := $(arch)-redleaf-domain
+target := $(arch)-redleaf
 bin := build/$(bin_name)
 rbin := target/$(target)/$(TARGET_SUB_DIR)/$(bin_name)
 
-target_dir ?= $(root)/src/targets/$(target)
+target_dir ?= $(root)
 target_spec ?= $(target_dir)/$(target).json
 target_link ?= $(target_dir)/linker.ld
 

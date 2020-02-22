@@ -31,7 +31,10 @@ endif
 
 export PCI_FEATURES
 
-target ?= $(arch)-redleaf
+target := $(arch)-redleaf
+target_dir ?= $(root)
+target_spec ?= $(target_dir)/$(target).json
+target_link ?= $(target_dir)/linker.ld
 rust_os := target/$(target)/$(TARGET_SUB_DIR)/libredleaf.a
 xv6fs_img = usr/mkfs/build/fs.img
 root := ./
@@ -151,7 +154,7 @@ init:
 .PHONY: kernel
 kernel:
 	cat src/buildinfo.template | BUILD_VERSION=$$(date) envsubst > src/buildinfo.rs
-	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo ${CARGO_COMMAND} ${CARGO_FLAGS} --target x86_64-redleaf.json $(FEATURES)
+	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo ${CARGO_COMMAND} ${CARGO_FLAGS} --target $(target_spec) $(FEATURES)
 
 
 # compile assembly files for the exception entry code

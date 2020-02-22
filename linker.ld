@@ -3,23 +3,16 @@ OUTPUT_ARCH(i386:x86-64)
 ENTRY(start)
 
 SECTIONS {
-  . = 0x100000; /* Tells GRUB to load the kernel starting at the 1MiB mark */
+  . = 0x0; /* Link at 0x0 */
+
+  /* . = 0x227000;  */
+
+  ENTRY(init)
 
   .rodata :
   {
-    /* ensure that the multiboot header is at the beginning */
-    KEEP(*(.multiboot_header))
     *(.rodata .rodata.*)
     . = ALIGN(4K);
-  }
-
-  .entry.text :
-  {
-    __entry_text_start = .;
-    KEEP(*(.entry.text))
-    *(.entry.text .entry.text.*)
-    . = ALIGN(4K);
-    __entry_text_end = .;
   }
 
   .text :
@@ -94,6 +87,7 @@ SECTIONS {
   {
     KEEP(*(.stack_sizes));
   }
-  . = ALIGN(4K);
+
   __end = .;
+
 }

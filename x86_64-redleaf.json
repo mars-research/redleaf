@@ -7,11 +7,16 @@
   "target-c-int-width": "32",
   "os": "none",
   "executables": true,
-  "linker-flavor": "ld.lld",
-  "linker": "rust-lld",
+  "linker-flavor": "gcc",
   "panic-strategy": "abort",
   "disable-redzone": true,
   "eliminate-frame-pointer": false,
   "features": "-mmx,-sse,+soft-float",
+  "pre-link-args": {
+    "gcc": [
+      "-Wl,-n,-pie,--no-dynamic-linker",
+      "-Wl,--gc-sections"
+    ]
+  },
   "stack-probes": true
 }
