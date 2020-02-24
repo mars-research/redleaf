@@ -14,16 +14,18 @@ struct Bar {
     values: [u64; 10],
 }
 
-impl RRefDrop for Foo {
-    fn drop(self) {
+impl RRefContainer for Foo {
+    fn drop_rrefs(self) {
         for bar in IntoIter::new(self.bars) {
             RRef::drop(bar);
         }
     }
 }
 
-pub trait RRefDrop {
-    fn drop(self);
+pub trait RRefContainer: Sized {
+    fn drop_rrefs(self) {
+        // default impl is blank
+    }
 }
 
 // Shared heap allocated value, something like Box<SharedHeapObject<T>>
@@ -87,24 +89,23 @@ impl<T> RRef<T> where T: Send {
 
     pub fn drop(self) {
         unsafe {
+            // TODO: is this drop correct? dropping T should only be necessary for cleanup code,
+            //       but calling drop may be undefined behavior
             drop(&mut (*self.pointer).value);
             let layout = Layout::new::<SharedHeapObject<T>>();
             sys_heap_dealloc((*self.pointer).domain_id, self.pointer as *mut u8, Layout::new::<SharedHeapObject<T>>());
-        }
+        };
     }
 }
 
-// TODO: figure out how to make this work
-//impl<T> RRef<T> where T: Send + RRefDrop {
-//    pub fn drop(self) {
-//        RRefDrop::drop(self);
-//        RRef::drop(self);
-//    }
-//}
-
-impl<T> Drop for RRef<T> where T: Send {
-    fn drop(&mut self) {
-        // overload drop to do nothing - we invoke drop manually due to domain boundaries
+impl<T> RRef<T> where T: Send + RRefContainer {
+    pub fn deep_drop(self) {
+        unsafe {
+            let ref_t: &T = &(*self.pointer).value;
+            let val_t: T = core::ptr::read(ref_t as *const T);
+            RRefContainer::drop_rrefs(val_t);
+        };
+        RRef::drop(self);
     }
 }
 
