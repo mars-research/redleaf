@@ -1,9 +1,30 @@
 #![no_std]
+#![feature(array_value_iter)]
 extern crate alloc;
 use core::ops::{Deref, DerefMut, Drop};
-use alloc::boxed::Box;
 use libsyscalls::heap::{sys_heap_alloc, sys_heap_dealloc, sys_change_domain};
 use core::alloc::Layout;
+use core::array::IntoIter;
+
+struct Foo {
+    bars: [RRef<Bar>; 10],
+}
+
+struct Bar {
+    values: [u64; 10],
+}
+
+impl RRefDrop for Foo {
+    fn drop(self) {
+        for bar in IntoIter::new(self.bars) {
+            RRef::drop(bar);
+        }
+    }
+}
+
+pub trait RRefDrop {
+    fn drop(self);
+}
 
 // Shared heap allocated value, something like Box<SharedHeapObject<T>>
 struct SharedHeapObject<T> where T: 'static + Send {
@@ -72,6 +93,14 @@ impl<T> RRef<T> where T: Send {
         }
     }
 }
+
+// TODO: figure out how to make this work
+//impl<T> RRef<T> where T: Send + RRefDrop {
+//    pub fn drop(self) {
+//        RRefDrop::drop(self);
+//        RRef::drop(self);
+//    }
+//}
 
 impl<T> Drop for RRef<T> where T: Send {
     fn drop(&mut self) {
