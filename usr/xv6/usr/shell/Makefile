@@ -4,15 +4,10 @@ include $(root)/common_flags.mk
 bin_name := shell
 arch ?= x86_64
 bin := build/$(bin_name)
-rbin := target/$(target)/$(TARGET_SUB_DIR)/$(bin_name)
-
-target_dir ?= $(root)
-target_spec ?= $(target_dir)/$(target).json
-target_link ?= $(target_dir)/linker.ld
 
 linker_script := linker.ld
 
-target := $(arch)-redleaf
+target ?= $(arch)-$(bin_name)
 lib := target/$(target)/$(TARGET_SUB_DIR)/lib$(bin_name).a
 
 .PHONY: all
@@ -32,6 +27,6 @@ $(bin): lib $(linker_script)
 
 .PHONY: lib
 lib:
-	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo ${CARGO_COMMAND} ${CARGO_FLAGS} --target $(target_spec)
+	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo ${CARGO_COMMAND} ${CARGO_FLAGS} --target x86_64-${bin_name}.json
 
 include $(root)/checkstack.mk

@@ -1,19 +1,13 @@
 root := ../../
 include $(root)/common_flags.mk
 
-bin_name := init
 arch ?= x86_64
-bin := build/$(bin_name)
-rbin := target/$(target)/$(TARGET_SUB_DIR)/$(bin_name)
-
-target_dir ?= $(root)
-target_spec ?= $(target_dir)/$(target).json
-target_link ?= $(target_dir)/linker.ld
+bin := build/init
 
 linker_script := linker.ld
 
-target := $(arch)-redleaf
-lib := target/$(target)/$(TARGET_SUB_DIR)/lib$(bin_name).a
+target ?= $(arch)-init
+lib := target/$(target)/$(TARGET_SUB_DIR)/libinit.a
 
 FEATURES = 
 #FEATURES += --features "test_guard_page"
@@ -38,6 +32,6 @@ $(bin): lib $(linker_script)
 
 .PHONY: lib
 lib:
-	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo ${CARGO_COMMAND} ${CARGO_FLAGS} --target $(target_spec) $(FEATURES)
+	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo ${CARGO_COMMAND} ${CARGO_FLAGS} --target x86_64-init.json $(FEATURES)
 
 include $(root)/checkstack.mk
