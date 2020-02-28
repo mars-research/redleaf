@@ -531,6 +531,16 @@ pub fn construct_pt() {
             MapAction::ReadWriteExecuteKernel,
         );
 
+        // Map TPM hardware region (5 pages) to our address space
+        // From qemu doc at: https://www.qemu.org/docs/master/specs/tpm.html
+        // The TIS interface makes a memory mapped IO region in the area 0xfed40000-0xfed44fff
+        // available to the guest operating system.
+        vspace.map_identity(
+            PAddr(0xfed4_0000u64),
+            PAddr(0xfed4_0000u64 + 5 * BASE_PAGE_SIZE as u64),
+            MapAction::ReadWriteExecuteKernel,
+        );
+
         vspace.map_identity(
             PAddr(0xfee0_0000u64),
             PAddr(0xfee0_0000u64 + BASE_PAGE_SIZE as u64),
