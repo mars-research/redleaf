@@ -24,6 +24,7 @@ console = { path = "../lib/console", version = "0.1.0" }
 malloc = { path = "../lib/malloc", version = "0.1.0" }
 libtime = { path = "../lib/libtime", version = "0.1.0" }
 spin = "0.5.2"
+pc-keyboard = "0.3.1"
 
 [dependencies.lazy_static]
 version = "1.3.0"

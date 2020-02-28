@@ -16,8 +16,9 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::panic::PanicInfo;
-use libsyscalls::syscalls::{sys_create_thread, sys_yield, sys_recv_int, sys_backtrace};
-use console::println;
+use libsyscalls::syscalls::{sys_create_thread, sys_yield, sys_recv_int, sys_backtrace, sys_readch_kbd};
+use console::{println, print};
+use pc_keyboard::{DecodedKey};
 
 #[cfg(feature = "test_guard_page")]
 fn test_stack_exhaustion() -> u64 {
@@ -106,6 +107,25 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
 
     let ints_clone = ints.int_clone(); 
     libsyscalls::syscalls::init_interrupts(ints);
+
+    println!("---------------- Waiting for *any* 10 keystrokes from STDIN -------------------");
+
+    let mut count:usize = 0;
+    loop {
+        match sys_readch_kbd() {
+            Ok(key) => {
+                match key {
+                    DecodedKey::Unicode(ch) => {println!("Ch {:?}", ch)}
+                    DecodedKey::RawKey(key) => {println!("Rawkey {:?}", key)}
+                }
+                count+= 1;
+            },
+            _ => {sys_yield();},
+        };
+        if count == 10 {
+            break;
+        }
+    }
 
     //let b = Box::new(4);
     //let r = sys_alloc();
