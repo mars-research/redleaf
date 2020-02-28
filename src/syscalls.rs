@@ -10,6 +10,8 @@ use alloc::sync::Arc;
 use crate::domain::domain::{Domain}; 
 use syscalls::{Thread, PciResource, PciBar};
 use crate::round_up;
+use crate::kbd::{KBDCTRL};
+use pc_keyboard::{DecodedKey};
 
 //use crate::domain::domain::BOOTING_DOMAIN; 
 
@@ -146,6 +148,10 @@ impl syscalls::Syscall for PDomain {
     fn sys_dummy(&self) {
         enable_irq();
         disable_irq();
+    }
+
+    fn sys_readch_kbd(&self) -> Result<DecodedKey, &'static str> {
+        KBDCTRL.lock().readch()
     }
 }
 

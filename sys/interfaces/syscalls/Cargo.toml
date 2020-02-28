@@ -9,3 +9,4 @@ edition = "2018"
 spin = "0.5.2"
 pci_driver = { path = "../dev/pci/pci_driver/", version = "0.1.0" }
 protocol = { path = "../protocol/", version = "0.1.0" }
+pc-keyboard = "0.3.1"

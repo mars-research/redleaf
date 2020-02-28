@@ -3,6 +3,7 @@ use spin::Once;
 use alloc::boxed::Box;
 use syscalls::{Syscall, Thread, Interrupt};
 use core::alloc::Layout;
+use pc_keyboard::{DecodedKey};
 
 static SYSCALL: Once<Box<dyn Syscall + Send + Sync>> = Once::new();
 static INT: Once<Box<dyn Interrupt + Send + Sync>> = Once::new();
@@ -78,4 +79,9 @@ pub fn sys_backtrace() {
 pub fn sys_dummy() {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
     return scalls.sys_dummy();
+}
+
+pub fn sys_readch_kbd() -> Result<DecodedKey, &'static str> {
+    let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
+    return scalls.sys_readch_kbd();
 }

@@ -9,6 +9,7 @@ use core::alloc::Layout;
 use alloc::sync::Arc;
 use protocol::UdpPacket;
 use pci_driver::PciClass;
+use pc_keyboard::{DecodedKey};
 
 pub mod errors;
 
@@ -26,6 +27,8 @@ pub trait Syscall {
     fn sys_free_huge(&self, p: *mut u8);
     fn sys_backtrace(&self);
     fn sys_dummy(&self);
+    // call this one for reads from stdin
+    fn sys_readch_kbd(&self) -> Result<DecodedKey, &'static str>; 
 }
 
 #[derive(Clone,Copy,Debug)]
