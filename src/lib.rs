@@ -36,6 +36,8 @@ mod redsys;
 mod drivers;
 mod heap;
 mod buildinfo;
+mod kbd;
+mod cb;
 pub mod gdt;
 
 
@@ -268,6 +270,12 @@ pub extern "C" fn rust_main_ap() -> ! {
 
     if cpu_id == 0 {
         domain::domain::init_domains();
+        use kbd::KBDCTRL;
+        use crate::drivers::Driver;
+        {
+            let registrar = unsafe { interrupt::get_irq_registrar(KBDCTRL.clone()) };
+            KBDCTRL.lock().set_irq_registrar(registrar);
+        }
 
     }
 
