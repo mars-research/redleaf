@@ -68,12 +68,12 @@ impl pci_driver::PciDriver for Ixgbe {
     fn probe(&mut self, bar_region: BarRegions) {
         match bar_region {
             BarRegions::Ixgbe(bar) => {
-                let ixgbebar = IxgbeBar::new(bar.as_ref());
+                //let ixgbebar = IxgbeBar::new(bar.as_ref());
                 println!("got ixgbe bar region");
-                unsafe {
-                    ixgbe_bar.write(ixgbebar);
-                }
-                Intel8259x::new(bar);
+                //unsafe {
+                //    ixgbe_bar.write(ixgbebar);
+                //}
+                //Intel8259x::new(bar);
             }
             _ => { println!("Got unknown bar region") }
         }
