@@ -1,0 +1,4 @@
+trait Syscalls {
+    fn do_thing() -> bool;
+    fn do_widgets(is_widget: bool, widget_count: u64) -> RRef<[u8; 512]>;
+}
