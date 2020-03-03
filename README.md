@@ -114,6 +114,10 @@ set to "false".
 | [usr/mkfs](usr/mkfs)            | Make the file system for the rv6 fs.                        |
 | [usr/xv6](usr/xv6)              | The rv6 kernel and it's user programs.                      |
 
+### Known issues
+
+* Qemu does not run on certain machines.[#18](https://github.com/mars-research/redleaf/issues/18)
+
 ### Notes
 
 The baremetal Rust setup (features, linking, etc. is best describe in https://os.phil-opp.com/set-up-rust/).
