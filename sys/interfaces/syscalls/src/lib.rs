@@ -3,11 +3,11 @@
 
 extern crate alloc;
 use alloc::boxed::Box;
-use alloc::vec::Vec;
-use spin::{MutexGuard, Mutex};
+
+use spin::{MutexGuard};
 use core::alloc::Layout;
-use alloc::sync::Arc;
-use protocol::UdpPacket;
+
+
 use pci_driver::PciClass;
 use pc_keyboard::{DecodedKey};
 

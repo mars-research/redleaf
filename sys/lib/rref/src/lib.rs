@@ -1,7 +1,7 @@
 #![no_std]
 extern crate alloc;
 use core::ops::{Deref, DerefMut, Drop};
-use alloc::boxed::Box;
+
 use libsyscalls::heap::{sys_heap_alloc, sys_heap_dealloc, sys_change_domain};
 use core::alloc::Layout;
 
@@ -65,7 +65,7 @@ impl<T> RRef<T> where T: Send {
 impl<T> Drop for RRef<T> where T: Send {
     fn drop(&mut self) {
         unsafe {
-            let layout = Layout::new::<SharedHeapObject<T>>();
+            let _layout = Layout::new::<SharedHeapObject<T>>();
             drop(&mut (*self.pointer).value);
             sys_heap_dealloc((*self.pointer).domain_id, self.pointer as *mut u8, Layout::new::<SharedHeapObject<T>>());
         }

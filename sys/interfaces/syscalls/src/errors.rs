@@ -36,7 +36,7 @@ pub type Result<T> = result::Result<T, Error>;
 
 impl Error {
     pub fn new(errno: i32) -> Error {
-        Error { errno: errno }
+        Error { errno }
     }
 
     pub fn mux(result: Result<usize>) -> usize {
@@ -56,7 +56,7 @@ impl Error {
     }
 
     pub fn text(&self) -> &'static str {
-        STR_ERROR.get(self.errno as usize).map(|&x| x).unwrap_or("Unknown Error")
+        STR_ERROR.get(self.errno as usize).copied().unwrap_or("Unknown Error")
     }
 }
 
@@ -204,7 +204,7 @@ pub const EKEYREJECTED: i32 = 129; /* Key was rejected by service */
 pub const EOWNERDEAD: i32 = 130; /* Owner died */
 pub const ENOTRECOVERABLE: i32 = 131; /* State not recoverable */
 
-pub static STR_ERROR: [&'static str; 132] = ["Success",
+pub static STR_ERROR: [&str; 132] = ["Success",
                                              "Operation not permitted",
                                              "No such file or directory",
                                              "No such process",
