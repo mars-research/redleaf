@@ -1,6 +1,6 @@
 extern crate alloc;
 use spin::Once;
-use alloc::boxed::Box;
+
 use usr::bdev::BDevPtr;
 
 pub static BDEV: Once<BDevPtr> = Once::new();

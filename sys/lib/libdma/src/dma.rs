@@ -23,7 +23,7 @@
 //   OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 //   WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-use core::{mem, ptr};
+use core::{mem};
 use core::ops::{Deref, DerefMut};
 use alloc::boxed::Box;
 

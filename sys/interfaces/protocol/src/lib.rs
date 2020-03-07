@@ -3,7 +3,7 @@
 
 extern crate bitfield;
 
-use core::convert::TryInto;
+
 
 mod headers;
 
@@ -27,7 +27,7 @@ pub struct UdpPacket<T> {
     pub payload: T,
 }
 
-use core::convert::AsMut;
+
 
 /*
 fn copy_into_array<T>(slice: &[u8]) -> T
@@ -74,7 +74,7 @@ impl<T> UdpPacket<T> {
             eth_hdr: EthernetHeader([0u8; ETH_HDR_SZ]),
             ip_hdr: IpV4Header([0u8; IP_HDR_SZ]),
             udp_hdr: UdpHeader([0u8; UDP_HDR_SZ]),
-            payload: payload
+            payload
         }
     }
 

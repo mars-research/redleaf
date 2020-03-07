@@ -1,6 +1,6 @@
 #![feature(alloc)]
 
-use crate::pci::{Pci, PciBar, PciHeader, PciHeaderError};
+use crate::pci::{Pci, PciHeader, PciHeaderError};
 use syscalls::PciResource;
 use console::println;
 use alloc::format;
