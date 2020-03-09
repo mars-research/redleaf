@@ -9,6 +9,12 @@ SECTIONS {
 
   ENTRY(init)
 
+  .REDLEAF_INTERFACES :
+  {
+    KEEP(*(.REDLEAF_INTERFACES))
+    *(.REDLEAF_INTERFACES*)
+  }
+
   .rodata :
   {
     *(.rodata .rodata.*)
