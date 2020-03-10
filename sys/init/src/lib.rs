@@ -164,11 +164,10 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
         drop(t2); 
     }
 
-    let mut proxy_bdev: Arc<(Option<u64>, Option<Box<dyn usr::bdev::BDev>>)> = Arc::new((None, None));
     // test_dummy_syscall();
 
     println!("about to create proxy");
-    let (dom_proxy, proxy) = create_proxy.create_domain_proxy(heap, proxy_bdev.clone());
+    let (dom_proxy, proxy) = create_proxy.create_domain_proxy();
     println!("created proxy");
 
     let pci_resource = create_pci.get_pci_resource();
@@ -180,13 +179,6 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
     let pci2 = pci.pci_clone();
 
     let (dom_ahci, bdev) = create_ahci.create_domain_ahci(pci);
-
-    // TODO: threadsafe?
-    unsafe {
-        let mut proxy_bdev = Arc::get_mut_unchecked(&mut proxy_bdev);
-        proxy_bdev.0.replace(dom_ahci.get_domain_id());
-        proxy_bdev.1.replace(bdev);
-    }
 
     let (dom_ixgbe, net) = create_ixgbe.create_domain_ixgbe(pci2);
 

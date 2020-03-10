@@ -146,7 +146,7 @@ impl INodeDataGuard<'_> {
         // TODO: global superblock
         let super_block = SUPER_BLOCK.r#try().expect("fs not initialized");
 
-        let mut bguard = BCACHE.read(
+        let mut bguard = BCACHE.force_get().read(
             self.node.meta.device,
             block_num_for_node(self.node.meta.inum, &super_block),
         );
@@ -159,7 +159,7 @@ impl INodeDataGuard<'_> {
         // TODO: log_write
 
         drop(buffer);
-        BCACHE.release(&mut bguard);
+        BCACHE.force_get().release(&mut bguard);
     }
 
     // Discard contents of node
@@ -175,7 +175,7 @@ impl INodeDataGuard<'_> {
 
         if self.data.addresses[params::NDIRECT] != 0 {
             let mut bguard =
-                BCACHE.read(self.node.meta.device, self.data.addresses[params::NDIRECT]);
+                BCACHE.force_get().read(self.node.meta.device, self.data.addresses[params::NDIRECT]);
             let buffer = bguard.lock();
 
             let mut chunks_iter = buffer.data.chunks_exact(core::mem::size_of::<u32>());
@@ -188,7 +188,7 @@ impl INodeDataGuard<'_> {
                 }
             }
             drop(buffer);
-            BCACHE.release(&mut bguard);
+            BCACHE.force_get().release(&mut bguard);
 
             self.data.addresses[params::NDIRECT] = 0;
         }
@@ -238,7 +238,7 @@ impl INodeDataGuard<'_> {
             self.data.addresses[params::NDIRECT] = address;
         }
 
-        let mut bguard = BCACHE.read(self.node.meta.device, address);
+        let mut bguard = BCACHE.force_get().read(self.node.meta.device, address);
         let buffer = bguard.lock();
 
         // The index of the level 1 table entry that this block belongs to
@@ -257,10 +257,10 @@ impl INodeDataGuard<'_> {
         }
 
         drop(buffer);
-        BCACHE.release(&mut bguard);
+        BCACHE.force_get().release(&mut bguard);
 
         // Load level 2 indirect block, allocating if necessary.
-        let mut bguard = BCACHE.read(self.node.meta.device, address);
+        let mut bguard = BCACHE.force_get().read(self.node.meta.device, address);
         let buffer = bguard.lock();
 
         // The index of the level 1 table entry that this block belongs to
@@ -279,7 +279,7 @@ impl INodeDataGuard<'_> {
         }
 
         drop(buffer);
-        BCACHE.release(&mut bguard);
+        BCACHE.force_get().release(&mut bguard);
 
         return address;
     }
@@ -365,7 +365,7 @@ impl INodeDataGuard<'_> {
         let mut user_offset = 0usize;
 
         while total < bytes_to_read {
-            let mut bguard = BCACHE.read(
+            let mut bguard = BCACHE.force_get().read(
                 self.node.meta.device,
                 self.block_map((offset / params::BSIZE) as u32),
             );
@@ -377,7 +377,7 @@ impl INodeDataGuard<'_> {
             user_buffer[user_offset..(user_offset + bytes_read)].copy_from_slice(&buffer.data[start..(start + bytes_read)]);
 
             drop(buffer);
-            BCACHE.release(&mut bguard);
+            BCACHE.force_get().release(&mut bguard);
 
             total += bytes_read;
             offset += bytes_read;
@@ -405,7 +405,7 @@ impl INodeDataGuard<'_> {
         let mut user_offset = 0usize;
 
         while total < bytes_to_write {
-            let mut bguard = BCACHE.read(
+            let mut bguard = BCACHE.force_get().read(
                 self.node.meta.device,
                 self.block_map((offset / params::BSIZE) as u32),
             );
@@ -419,7 +419,7 @@ impl INodeDataGuard<'_> {
 
             // TODO: log_write here
             drop(buffer);
-            BCACHE.release(&mut bguard);
+            BCACHE.force_get().release(&mut bguard);
 
             total += bytes_written;
             offset += bytes_written;
@@ -477,7 +477,7 @@ impl INode {
 
         if !self.meta.valid.load(Ordering::Relaxed) {
             // if not valid, load from disk
-            let mut bguard = BCACHE.read(
+            let mut bguard = BCACHE.force_get().read(
                 self.meta.device,
                 block_num_for_node(self.meta.inum, super_block),
             );
@@ -488,7 +488,7 @@ impl INode {
             data.copy_from_bytes(&buffer.data[dinode_offset..dinode_offset + DINODE_SIZE]);
 
             drop(buffer);
-            BCACHE.release(&mut bguard);
+            BCACHE.force_get().release(&mut bguard);
 
             self.meta.valid.store(true, Ordering::Relaxed);
 
@@ -522,7 +522,7 @@ impl ICache {
     pub fn alloc(&mut self, device: u32, file_type: INodeFileType) -> Option<Arc<INode>> {
         let super_block = SUPER_BLOCK.r#try().expect("fs not initialized");
         for inum in 1..super_block.ninodes as u16 {
-            let mut bguard = BCACHE.read(device, block_num_for_node(inum, super_block));
+            let mut bguard = BCACHE.force_get().read(device, block_num_for_node(inum, super_block));
             let mut buffer = bguard.lock();
 
             // Okay, there're a lot of copying happening here but we don't have time to make it nice.
@@ -540,11 +540,11 @@ impl ICache {
                 dinode.to_bytes(dinode_slice);
                 // TODO: log_write here
                 drop(buffer);
-                BCACHE.release(&mut bguard);
+                BCACHE.force_get().release(&mut bguard);
                 return self.get(device, inum);
             }
             drop(buffer);
-            BCACHE.release(&mut bguard);
+            BCACHE.force_get().release(&mut bguard);
         }
         None
     }

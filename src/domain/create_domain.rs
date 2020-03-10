@@ -133,9 +133,7 @@ pub fn create_domain_xv6usr(name: &str, xv6: Box<dyn usr::xv6::Xv6>) -> Box<dyn 
     build_domain_xv6usr(name, binary_range, xv6)
 }
 
-pub fn create_domain_proxy(heap: Box<dyn Heap>,
-                           bdev: Arc<(Option<u64>, Option<Box<dyn usr::bdev::BDev>>)>
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::proxy::Proxy>) {
+pub fn create_domain_proxy() -> (Box<dyn syscalls::Domain>, Box<dyn usr::proxy::Proxy>) {
     extern "C" {
         fn _binary_usr_proxy_build_proxy_start();
         fn _binary_usr_proxy_build_proxy_end();
@@ -146,7 +144,7 @@ pub fn create_domain_proxy(heap: Box<dyn Heap>,
         _binary_usr_proxy_build_proxy_end as *const u8
     );
 
-    build_domain_proxy("proxy", binary_range, heap, bdev)
+    build_domain_proxy("proxy", binary_range)
 }
 
 // AB: XXX: The following is is not supported in Rust at the moment
@@ -305,11 +303,9 @@ pub fn build_domain_fs(name: &str,
 }
 
 pub fn build_domain_proxy(name: &str,
-                          binary_range: (*const u8, *const u8),
-                          heap: Box<dyn Heap>,
-                          bdev: Arc<(Option<u64>, Option<Box<dyn usr::bdev::BDev>>)>
+                          binary_range: (*const u8, *const u8)
 ) -> (Box<dyn syscalls::Domain>, Box<dyn Proxy>) {
-    type UserInit = fn(Box<dyn Syscall>, Box<dyn Heap>, Arc<(Option<u64>, Option<Box<dyn usr::bdev::BDev>>)>) -> Box<dyn Proxy>;
+    type UserInit = fn(Box<dyn Syscall>) -> Box<dyn Proxy>;
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)
@@ -323,7 +319,7 @@ pub fn build_domain_proxy(name: &str,
 
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
-    let proxy = user_ep(pdom, heap, bdev);
+    let proxy = user_ep(pdom);
     disable_irq();
 
     println!("domain/{}: returned from entry point", name);

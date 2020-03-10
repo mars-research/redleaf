@@ -3,9 +3,9 @@
 extern crate malloc;
 extern crate alloc;
 use rref::RRef;
+use create;
 use syscalls;
 use libsyscalls;
-use libtime::get_rdtsc;
 use syscalls::Syscall;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
@@ -14,86 +14,62 @@ use core::alloc::Layout;
 use core::panic::PanicInfo;
 
 #[inline(always)]
-fn get_caller_domain() -> u64 {
-    libsyscalls::heap::sys_get_current_domain_id()
-}
+fn get_caller_domain() -> u64 { libsyscalls::syscalls::sys_get_current_domain_id() }
 
 #[inline(always)]
 fn update_caller_domain_id(new_domain_id: u64) -> u64 {
-    libsyscalls::heap::sys_update_current_domain_id(new_domain_id)
+    unsafe { libsyscalls::syscalls::sys_update_current_domain_id(new_domain_id) }
 }
 
-#[derive(Clone)]
 struct Proxy {
-    bdev: Arc<(Option<u64>, Option<Box<dyn usr::bdev::BDev + Send + Sync>>)>,
 }
+
+unsafe impl Send for Proxy {}
+unsafe impl Sync for Proxy {}
 
 impl Proxy {
-    fn new(bdev: Arc<(Option<u64>, Option<Box<dyn usr::bdev::BDev + Send + Sync>>)>) -> Proxy {
+    fn new() -> Proxy {
         Proxy {
-            bdev
         }
     }
 }
 
 impl usr::proxy::Proxy for Proxy {
-    fn proxy_clone(&self) -> Box<dyn usr::proxy::Proxy> {
-        Box::new((*self).clone())
+    fn proxy_clone(&self) -> Box<dyn usr::proxy::Proxy + Send + Sync> {
+        Box::new(Proxy::new())
     }
 
-    fn proxy_bench(&self, iterations: u64) {
-        x86_64::instructions::interrupts::disable();
-        let start = get_rdtsc();
-        for _ in 0..iterations {
-            // "dummy" kernel crossings
-            let callee_domain = 666;
-            let caller_domain = update_caller_domain_id(callee_domain);
-            // no-op
-            update_caller_domain_id(caller_domain);
+    fn proxy_bdev(&self, bdev: Box<dyn usr::bdev::BDev + Send + Sync>) -> Box<dyn usr::bdev::BDev + Send + Sync> {
+        Box::new(BDevProxy::new(get_caller_domain(), bdev))
+    }
+}
+
+struct BDevProxy {
+    domain: Box<dyn usr::bdev::BDev>,
+    domain_id: u64,
+}
+
+impl BDevProxy {
+    fn new(domain_id: u64, domain: Box<dyn usr::bdev::BDev>) -> Self {
+        Self {
+            domain,
+            domain_id,
         }
-        let end = get_rdtsc();
-        x86_64::instructions::interrupts::enable();
-        println!("[kernel domain crossing] delta: {}, per iteration: {}, per crossing: {}",
-                 end - start, (end - start) / iterations, (end - start) / iterations / 2);
     }
-    fn proxy_foo(&self) {
-        // no-op
-    }
+}
 
-    fn proxy_bar(&self) {
-        // hardcode proxy domain for now
-        let callee_domain = 666;
+unsafe impl Sync for BDevProxy {}
+unsafe impl Send for BDevProxy {}
 
+impl usr::bdev::BDev for BDevProxy {
+    fn read(&self, block: u32, data: &mut RRef<[u8; 512]>) {
         // move thread to next domain
-        let caller_domain = update_caller_domain_id(callee_domain);
+        let caller_domain = update_caller_domain_id(self.domain_id);
 
-        // no-op
+        println!("[proxy::bdev_read] caller: {}, callee: {}", caller_domain, self.domain_id);
 
-        // move thread back
-        update_caller_domain_id(caller_domain);
-    }
-
-    fn bdev_new_data(&self, data: [u8; 512]) -> RRef<[u8; 512]> {
-        let caller_domain = get_caller_domain();
-        let rref = RRef::new(caller_domain, data);
-        rref
-    }
-    fn bdev_drop_data(&self, data: RRef<[u8; 512]>) {
-        RRef::drop(data);
-    }
-
-    fn bdev_read(&self, block: u32, data: &mut RRef<[u8; 512]>) {
-        // TODO: Option::expect panics, instead return a Result::Err
-        let callee_domain = self.bdev.0.expect("BDev interface not initialized.");
-        let bdev = self.bdev.1.as_deref().expect("BDev interface not initialized.");
-
-        // move thread to next domain
-        let caller_domain = update_caller_domain_id(callee_domain);
-
-        println!("[proxy::bdev_read] caller: {}, callee: {}", caller_domain, callee_domain);
-
-        data.move_to(callee_domain);
-        let r = bdev.read(block, data);
+        data.move_to(self.domain_id);
+        let r = self.domain.read(block, data);
         data.move_to(caller_domain);
 
         // move thread back
@@ -102,15 +78,12 @@ impl usr::proxy::Proxy for Proxy {
         r
     }
 
-    fn bdev_write(&self, block: u32, data: &[u8; 512]) {
-        let callee_domain = self.bdev.0.expect("BDev interface not initialized.");
-        let bdev = self.bdev.1.as_deref().expect("BDev interface not initialized.");
-
+    fn write(&self, block: u32, data: &[u8; 512]) {
         // move thread to next domain
-        let caller_domain = update_caller_domain_id(callee_domain);
+        let caller_domain = update_caller_domain_id(self.domain_id);
 
 //        data.move_to(callee_domain);
-        let r = bdev.write(block, data);
+        let r = self.domain.write(block, data);
 //        data.move_to(caller_domain);
 
         // move thread back
@@ -118,50 +91,13 @@ impl usr::proxy::Proxy for Proxy {
 
         r
     }
-
-    fn bdev_foo(&self) {
-        let callee_domain = self.bdev.0.expect("BDev interface not initialized.");
-        let bdev = self.bdev.1.as_deref().expect("BDev interface not initialized.");
-
-        // move thread to next domain
-        let caller_domain = update_caller_domain_id(callee_domain);
-
-        bdev.foo();
-
-        // move thread back
-        update_caller_domain_id(caller_domain);
-    }
-    fn bdev_bar(&self, data: &mut RRef<[u8; 512]>) {
-        let callee_domain = self.bdev.0.expect("BDev interface not initialized.");
-        let bdev = self.bdev.1.as_deref().expect("BDev interface not initialized.");
-
-        // move thread to next domain
-        let caller_domain = update_caller_domain_id(callee_domain);
-
-        data.move_to(callee_domain);
-        bdev.bar(data);
-        data.move_to(caller_domain);
-
-        // move thread back
-        update_caller_domain_id(caller_domain);
-    }
 }
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>,
-            heap: Box<dyn syscalls::Heap + Send + Sync>,
-            bdev: Arc<(Option<u64>, Option<Box<dyn usr::bdev::BDev + Send + Sync>>)>) -> Box<dyn usr::proxy::Proxy + Send + Sync> {
+pub fn init(s: Box<dyn Syscall + Send + Sync>) -> Box<dyn usr::proxy::Proxy> {
     libsyscalls::syscalls::init(s);
-    libsyscalls::heap::init(heap);
 
-    println!("entered proxy!");
-
-    let rref = RRef::<u64>::new(0, 10);
-    println!("RRef's value: {}", *rref);
-    RRef::drop(rref);
-    println!("Dropped RRef");
-
-    Box::new(Proxy::new(bdev))
+    Box::new(Proxy::new())
 }
 
 // This function is called on panic.

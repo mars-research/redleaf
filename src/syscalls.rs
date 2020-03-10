@@ -8,10 +8,10 @@ use alloc::boxed::Box;
 use spin::Mutex;
 use alloc::sync::Arc; 
 use crate::domain::domain::{Domain}; 
-use syscalls::{Thread, PciResource, PciBar};
+use syscalls::{PciResource, PciBar};
 use crate::round_up;
-
-//use crate::domain::domain::BOOTING_DOMAIN; 
+use crate::thread;
+//use crate::domain::domain::BOOTING_DOMAIN;
 
 extern crate syscalls; 
 
@@ -41,7 +41,7 @@ impl PDomain {
         }
     }
     
-    fn create_domain_thread(&self, name: &str, func: extern fn()) -> Box<dyn Thread>  {
+    fn create_domain_thread(&self, name: &str, func: extern fn()) -> Box<dyn syscalls::Thread>  {
 
         println!("sys_create_thread"); 
         let pt = create_thread(name, func);
@@ -132,18 +132,50 @@ impl syscalls::Syscall for PDomain {
     }
 
     // Create a new thread
-    fn sys_create_thread(&self, name: &str, func: extern fn()) -> Box<dyn Thread>  {
+    fn sys_create_thread(&self, name: &str, func: extern fn()) -> Box<dyn syscalls::Thread>  {
         disable_irq();
         let pt = self.create_domain_thread(name, func); 
         enable_irq();
         pt
     }
 
-    fn sys_current_thread(&self) -> Box<dyn Thread> {
+    fn sys_current_thread(&self) -> Box<dyn syscalls::Thread> {
         disable_irq();
         let current = crate::thread::get_current_pthread();
         enable_irq();
         current
+    }
+
+    fn sys_get_current_domain_id(&self) -> u64 {
+        disable_irq();
+        let domain_id = {
+            // get domain id without locking the current thread
+            let thread_option: &Option<Arc<Mutex<thread::Thread>>> = &thread::CURRENT.borrow();
+            let thread_arc: &Arc<Mutex<thread::Thread>> = thread_option.as_ref().unwrap();
+            let thread_mutex: &mut Mutex<thread::Thread> = unsafe {
+                &mut *((&**thread_arc) as *const Mutex<thread::Thread> as *mut Mutex<thread::Thread>)
+            };
+            thread_mutex.get_mut().current_domain_id
+        };
+        enable_irq();
+        domain_id
+    }
+
+    unsafe fn sys_update_current_domain_id(&self, new_domain_id: u64) -> u64 {
+//        disable_irq();
+        let mut old_domain_id = new_domain_id;
+        {
+            // swap domain id without locking the current thread
+            let thread_option: &Option<Arc<Mutex<thread::Thread>>> = &thread::CURRENT.borrow();
+            let thread_arc: &Arc<Mutex<thread::Thread>> = thread_option.as_ref().unwrap();
+            let thread_mutex: &mut Mutex<thread::Thread> = unsafe {
+                &mut *((&**thread_arc) as *const Mutex<thread::Thread> as *mut Mutex<thread::Thread>)
+            };
+            let mut thread = thread_mutex.get_mut();
+            core::mem::swap(&mut thread.current_domain_id, &mut old_domain_id);
+        }
+//        enable_irq();
+        old_domain_id
     }
 
     fn sys_backtrace(&self) {
@@ -242,12 +274,10 @@ impl create::CreateXv6Usr for PDomain {
 }
 
 impl create::CreateProxy for PDomain {
-    fn create_domain_proxy(&self,
-                           heap: Box<dyn syscalls::Heap>,
-                           bdev: Arc<(Option<u64>, Option<Box<dyn usr::bdev::BDev>>)>)
+    fn create_domain_proxy(&self)
         -> (Box<dyn syscalls::Domain>, Box<dyn usr::proxy::Proxy>) {
         disable_irq();
-        let r = crate::domain::create_domain::create_domain_proxy(heap, bdev);
+        let r = crate::domain::create_domain::create_domain_proxy();
         enable_irq();
         r
     }

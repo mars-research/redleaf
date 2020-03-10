@@ -1,5 +1,4 @@
 #![no_std]
-pub mod heap;
 pub mod syscalls;
 
 pub use ::syscalls::errors;

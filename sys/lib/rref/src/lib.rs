@@ -2,30 +2,15 @@
 #![feature(array_value_iter)]
 extern crate alloc;
 use core::ops::{Deref, DerefMut, Drop};
-use libsyscalls::heap::{sys_heap_alloc, sys_heap_dealloc, sys_change_domain};
 use core::alloc::Layout;
 use core::array::IntoIter;
+use spin::Once;
+use alloc::boxed::Box;
+use libsyscalls;
 
-struct Foo {
-    bars: [RRef<Bar>; 10],
-}
-
-struct Bar {
-    values: [u64; 10],
-}
-
-impl RRefContainer for Foo {
-    fn drop_rrefs(self) {
-        for bar in IntoIter::new(self.bars) {
-            RRef::drop(bar);
-        }
-    }
-}
-
-pub trait RRefContainer: Sized {
-    fn drop_rrefs(self) {
-        // default impl is blank
-    }
+static HEAP: Once<Box<dyn syscalls::Heap + Send + Sync>> = Once::new();
+pub fn init(heap: Box<dyn syscalls::Heap + Send + Sync>) {
+    HEAP.call_once(|| heap);
 }
 
 // Shared heap allocated value, something like Box<SharedHeapObject<T>>
@@ -54,14 +39,15 @@ unsafe impl<T> Sync for RRef<T> where T: Send {}
 
 impl<T> RRef<T> where T: Send {
     // TODO: we move the value into this. any better way of doing it?
-    pub fn new(domain_id: u64, value: T) -> RRef<T> {
+    pub fn new(value: T) -> RRef<T> {
         // We allocate the shared heap memory by hand. It will be deallocated in one of two cases:
         //   1. RRef<T> gets dropped, and so the memory under it should be freed.
         //   2. The domain owning the RRef dies, and so the shared heap gets cleaned,
         //        and the memory under this RRef is wiped.
 
+        let domain_id = libsyscalls::syscalls::sys_get_current_domain_id();
         let layout = Layout::new::<SharedHeapObject<T>>();
-        let memory = sys_heap_alloc(domain_id, layout);
+        let memory = unsafe { HEAP.force_get().alloc(domain_id, layout) };
 
         let pointer = unsafe {
             // reinterpret allocated bytes as this type
@@ -82,30 +68,21 @@ impl<T> RRef<T> where T: Send {
         unsafe {
             let from_domain = (*self.pointer).domain_id;
             let layout = Layout::new::<SharedHeapObject<T>>();
-            sys_change_domain(from_domain, new_domain_id, self.pointer as *mut u8, layout);
+            HEAP.force_get().change_domain(from_domain, new_domain_id, self.pointer as *mut u8, layout);
             (*self.pointer).domain_id = new_domain_id
         };
     }
+}
 
-    pub fn drop(self) {
+impl<T> Drop for RRef<T> where T: Send {
+    fn drop(&mut self) {
         unsafe {
             // TODO: is this drop correct? dropping T should only be necessary for cleanup code,
             //       but calling drop may be undefined behavior
             drop(&mut (*self.pointer).value);
             let layout = Layout::new::<SharedHeapObject<T>>();
-            sys_heap_dealloc((*self.pointer).domain_id, self.pointer as *mut u8, Layout::new::<SharedHeapObject<T>>());
+            HEAP.force_get().dealloc((*self.pointer).domain_id, self.pointer as *mut u8, Layout::new::<SharedHeapObject<T>>());
         };
-    }
-}
-
-impl<T> RRef<T> where T: Send + RRefContainer {
-    pub fn deep_drop(self) {
-        unsafe {
-            let ref_t: &T = &(*self.pointer).value;
-            let val_t: T = core::ptr::read(ref_t as *const T);
-            RRefContainer::drop_rrefs(val_t);
-        };
-        RRef::drop(self);
     }
 }
 

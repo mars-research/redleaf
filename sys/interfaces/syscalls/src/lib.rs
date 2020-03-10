@@ -19,6 +19,8 @@ pub trait Syscall {
     fn sys_yield(&self);
     fn sys_create_thread(&self, name: &str, func: extern fn()) -> Box<dyn Thread>;
     fn sys_current_thread(&self) -> Box<dyn Thread>;
+    fn sys_get_current_domain_id(&self) -> u64;
+    unsafe fn sys_update_current_domain_id(&self, new_domain_id: u64) -> u64;
     fn sys_alloc(&self) -> *mut u8;
     fn sys_free(&self, p: *mut u8);
     fn sys_alloc_huge(&self, sz: u64) -> *mut u8;
@@ -64,13 +66,9 @@ pub trait Domain {
 
 /// Shared heap interface
 pub trait Heap {
-    fn alloc(&self, domain_id: u64, layout: Layout) -> *mut u8;
-    fn dealloc(&self, domain_id: u64, ptr: *mut u8, layout: Layout);
-    fn change_domain(&self, from_domain_id: u64, to_domain_id: u64, ptr: *mut u8, layout: Layout);
-
-    // TODO: move out of heap
-    fn get_current_domain_id(&self) -> u64;
-    fn update_current_domain_id(&self, new_domain_id: u64) -> u64;
+    unsafe fn alloc(&self, domain_id: u64, layout: Layout) -> *mut u8;
+    unsafe fn dealloc(&self, domain_id: u64, ptr: *mut u8, layout: Layout);
+    unsafe fn change_domain(&self, from_domain_id: u64, to_domain_id: u64, ptr: *mut u8, layout: Layout);
 }
 
 pub static IRQ_TIMER: u8 = 32;

@@ -75,37 +75,37 @@ impl Log {
     // Copy committed blocks from log to their home location
     fn install_trans(&mut self) {
         for tail in 0..self.logheader.n {
-            let mut lbuf = BCACHE.read(self.dev, self.start + tail + 1);
-            let mut dbuf = BCACHE.read(self.dev, self.logheader.block_nums[tail as usize]);
+            let mut lbuf = BCACHE.force_get().read(self.dev, self.start + tail + 1);
+            let mut dbuf = BCACHE.force_get().read(self.dev, self.logheader.block_nums[tail as usize]);
             {
                 let mut locked_dbuf = dbuf.lock();
                 locked_dbuf.data = lbuf.lock().data;
-                BCACHE.write(dbuf.block_number(), &mut locked_dbuf);  // write dst to disk
+                BCACHE.force_get().write(dbuf.block_number(), &mut locked_dbuf);  // write dst to disk
             }
             // Pin this buffer if using the riscv one
-            BCACHE.release(&mut lbuf);
-            BCACHE.release(&mut dbuf);
+            BCACHE.force_get().release(&mut lbuf);
+            BCACHE.force_get().release(&mut dbuf);
         }
     }
 
     // Read the log header from disk into the in-memory log header
     fn read_head(&mut self) {
-        let mut buf = BCACHE.read(self.dev, self.start);
+        let mut buf = BCACHE.force_get().read(self.dev, self.start);
         self.logheader.from_buffer_block(&buf.lock().data);
-        BCACHE.release(&mut buf);
+        BCACHE.force_get().release(&mut buf);
     }
 
     // Write in-memory log header to disk.
     // This is the true point at which the
     // current transaction commits.
     fn write_head(&self) {
-        let mut buf = BCACHE.read(self.dev, self.start); 
+        let mut buf = BCACHE.force_get().read(self.dev, self.start);
         {
             let mut locked_buf = buf.lock();
             self.logheader.to_buffer_block(&mut locked_buf.data);
-            BCACHE.write(buf.block_number(), &mut locked_buf);
+            BCACHE.force_get().write(buf.block_number(), &mut locked_buf);
         }
-        BCACHE.release(&mut buf);
+        BCACHE.force_get().release(&mut buf);
     }
 
     fn recover_from_log(&mut self) {
@@ -181,15 +181,15 @@ impl Log {
     // Copy modified blocks from cache to log.
     fn write_log(&mut self) {
         for tail in 0..self.logheader.n {
-            let mut to = BCACHE.read(self.dev, self.start + tail + 1); // log block
-            let mut from = BCACHE.read(self.dev, self.logheader.block_nums[tail as usize]); // cache block
+            let mut to = BCACHE.force_get().read(self.dev, self.start + tail + 1); // log block
+            let mut from = BCACHE.force_get().read(self.dev, self.logheader.block_nums[tail as usize]); // cache block
             {
                 let mut locked_to = to.lock();
                 locked_to.data = from.lock().data;
-                BCACHE.write(to.block_number(), &mut locked_to);  // write the log
+                BCACHE.force_get().write(to.block_number(), &mut locked_to);  // write the log
             }
-            BCACHE.release(&mut from);
-            BCACHE.release(&mut to);
+            BCACHE.force_get().release(&mut from);
+            BCACHE.force_get().release(&mut to);
         }
     }
 
