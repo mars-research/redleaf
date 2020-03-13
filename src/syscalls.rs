@@ -274,10 +274,10 @@ impl create::CreateXv6Usr for PDomain {
 }
 
 impl create::CreateProxy for PDomain {
-    fn create_domain_proxy(&self)
+    fn create_domain_proxy(&self, create_ahci: Arc<dyn create::CreateAHCI>)
         -> (Box<dyn syscalls::Domain>, Box<dyn usr::proxy::Proxy>) {
         disable_irq();
-        let r = crate::domain::create_domain::create_domain_proxy();
+        let r = crate::domain::create_domain::create_domain_proxy(create_ahci);
         enable_irq();
         r
     }

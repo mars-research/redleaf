@@ -22,21 +22,34 @@ fn update_caller_domain_id(new_domain_id: u64) -> u64 {
 }
 
 struct Proxy {
+//    create_pci: Arc<dyn create::CreatePCI>,
+    create_ahci: Arc<dyn create::CreateAHCI>,
+//    create_ixgbe: Arc<dyn create::CreateIxgbe>,
+//    create_xv6fs: Arc<dyn create::CreateXv6FS>,
 }
 
 unsafe impl Send for Proxy {}
 unsafe impl Sync for Proxy {}
 
 impl Proxy {
-    fn new() -> Proxy {
+    fn new(
+//        create_pci: Arc<dyn create::CreatePCI>,
+        create_ahci: Arc<dyn create::CreateAHCI>,
+//        create_ixgbe: Arc<dyn create::CreateIxgbe>,
+//        create_xv6fs: Arc<dyn create::CreateXv6FS>
+    ) -> Proxy {
         Proxy {
+//            create_pci,
+            create_ahci,
+//            create_ixgbe,
+//            create_xv6fs,
         }
     }
 }
 
 impl usr::proxy::Proxy for Proxy {
     fn proxy_clone(&self) -> Box<dyn usr::proxy::Proxy + Send + Sync> {
-        Box::new(Proxy::new())
+        Box::new(Proxy::new(self.create_ahci.clone()))
     }
 
     fn proxy_bdev(&self, bdev: Box<dyn usr::bdev::BDev + Send + Sync>) -> Box<dyn usr::bdev::BDev + Send + Sync> {
@@ -44,10 +57,21 @@ impl usr::proxy::Proxy for Proxy {
     }
 }
 
+impl create::CreateAHCI for Proxy {
+    fn create_domain_ahci(&self, pci: Box<dyn syscalls::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev>) {
+        let (domain, ahci) = self.create_ahci.create_domain_ahci(pci);
+        let domain_id = domain.get_domain_id();
+        return (domain, Box::new(BDevProxy::new(domain_id, ahci)));
+    }
+}
+
 struct BDevProxy {
     domain: Box<dyn usr::bdev::BDev>,
     domain_id: u64,
 }
+
+unsafe impl Sync for BDevProxy {}
+unsafe impl Send for BDevProxy {}
 
 impl BDevProxy {
     fn new(domain_id: u64, domain: Box<dyn usr::bdev::BDev>) -> Self {
@@ -57,9 +81,6 @@ impl BDevProxy {
         }
     }
 }
-
-unsafe impl Sync for BDevProxy {}
-unsafe impl Send for BDevProxy {}
 
 impl usr::bdev::BDev for BDevProxy {
     fn read(&self, block: u32, data: &mut RRef<[u8; 512]>) {
@@ -94,10 +115,12 @@ impl usr::bdev::BDev for BDevProxy {
 }
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>) -> Box<dyn usr::proxy::Proxy> {
+pub fn init(s: Box<dyn Syscall + Send + Sync>, create_ahci: Arc<dyn create::CreateAHCI>) -> Box<dyn usr::proxy::Proxy> {
     libsyscalls::syscalls::init(s);
 
-    Box::new(Proxy::new())
+    Box::new(Proxy::new(
+        create_ahci
+    ))
 }
 
 // This function is called on panic.

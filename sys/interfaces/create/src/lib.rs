@@ -7,7 +7,7 @@ use syscalls::{Heap, Domain, PCI, PciBar, PciResource, Net, Interrupt};
 use usr::{proxy::Proxy, bdev::BDev, vfs::VFS, xv6::Xv6};
 
 pub trait CreateProxy {
-    fn create_domain_proxy(&self) -> (Box<dyn Domain>, Box<dyn Proxy>);
+    fn create_domain_proxy(&self, create_ahci: Arc<dyn CreateAHCI>) -> (Box<dyn Domain>, Box<dyn Proxy>);
 }
 
 pub trait CreatePCI {

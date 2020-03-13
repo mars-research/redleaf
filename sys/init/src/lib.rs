@@ -102,7 +102,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
             create_xv6usr: Box<dyn create::CreateXv6Usr>,
             create_pci: Box<dyn create::CreatePCI>,
             create_ixgbe: Box<dyn create::CreateIxgbe>,
-            create_ahci: Box<dyn create::CreateAHCI>) 
+            create_ahci: Arc<dyn create::CreateAHCI>)
 {
     libsyscalls::syscalls::init(s);
 
@@ -167,7 +167,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
     // test_dummy_syscall();
 
     println!("about to create proxy");
-    let (dom_proxy, proxy) = create_proxy.create_domain_proxy();
+    let (dom_proxy, proxy) = create_proxy.create_domain_proxy(create_ahci.clone());
     println!("created proxy");
 
     let pci_resource = create_pci.get_pci_resource();
