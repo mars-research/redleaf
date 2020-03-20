@@ -63,6 +63,8 @@ impl<T> RRef<T> where T: Send {
         }
     }
 
+    // TODO: mark unsafe so user domain can't call it?
+    // TODO: use &mut self?
     pub fn move_to(&self, new_domain_id: u64) {
         // TODO: race here
         unsafe {
