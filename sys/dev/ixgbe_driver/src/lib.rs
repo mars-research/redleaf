@@ -23,10 +23,10 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::panic::PanicInfo;
 use syscalls::{Syscall,PCI};
-
 use console::println;
 use pci_driver::BarRegions;
 use ixgbe::IxgbeBarRegion;
+use libsyscalls::syscalls::sys_backtrace;
 
 pub use libsyscalls::errors::Result;
 use crate::device::Intel8259x;
@@ -114,8 +114,8 @@ impl syscalls::Net for Ixgbe {
     fn send_udp_from_ixgbe(&self, _packet: &[u8]) -> u32 {
         const PAYLOAD_SZ: usize = 64;
         let mac_data = [
-            0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x50, // Dst mac
-            0x90, 0xe2, 0xba, 0xb5, 0x14, 0xf5, // Src mac
+            0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81, // Dst mac
+            0x90, 0xe2, 0xba, 0xac, 0x16, 0x58, // Src mac
             0x08, 0x00,                         // Protocol
         ];
         let mut ip_data = [
@@ -246,8 +246,8 @@ impl pci_driver::PciDriver for Ixgbe {
 fn run_udp_test_64(dev: &Ixgbe) {
     const PAYLOAD_SZ: usize = 64;
     let mac_data = [
-        0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x50, // Dst mac
-        0x90, 0xe2, 0xba, 0xb5, 0x14, 0xf5, // Src mac
+        0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81, // Dst mac
+        0x90, 0xe2, 0xba, 0xac, 0x16, 0x58, // Src mac
         0x08, 0x00,                         // Protocol
     ];
     let mut ip_data = [
@@ -319,8 +319,8 @@ fn run_udp_test_64(dev: &Ixgbe) {
 fn run_udp_test_128(dev: &Ixgbe) {
     const PAYLOAD_SZ: usize = 128;
     let mac_data = [
-        0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x50, // Dst mac
-        0x90, 0xe2, 0xba, 0xb5, 0x14, 0xf5, // Src mac
+        0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81, // Dst mac
+        0x90, 0xe2, 0xba, 0xac, 0x16, 0x58, // Src mac
         0x08, 0x00,                         // Protocol
     ];
     let mut ip_data = [
@@ -390,8 +390,8 @@ fn run_udp_test_128(dev: &Ixgbe) {
 fn run_udp_test_256(dev: &Ixgbe) {
     const PAYLOAD_SZ: usize = 256;
     let mac_data = [
-        0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x50, // Dst mac
-        0x90, 0xe2, 0xba, 0xb5, 0x14, 0xf5, // Src mac
+        0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81, // Dst mac
+        0x90, 0xe2, 0xba, 0xac, 0x16, 0x58, // Src mac
         0x08, 0x00,                         // Protocol
     ];
     let mut ip_data = [
@@ -462,8 +462,8 @@ fn run_udp_test_256(dev: &Ixgbe) {
 fn run_udp_test_512(dev: &Ixgbe) {
     const PAYLOAD_SZ: usize = 512;
     let mac_data = [
-        0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x50, // Dst mac
-        0x90, 0xe2, 0xba, 0xb5, 0x14, 0xf5, // Src mac
+        0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81, // Dst mac
+        0x90, 0xe2, 0xba, 0xac, 0x16, 0x58, // Src mac
         0x08, 0x00,                         // Protocol
     ];
     let mut ip_data = [
@@ -534,8 +534,8 @@ fn run_udp_test_512(dev: &Ixgbe) {
 fn run_udp_test_MTU(dev: &Ixgbe) {
     const PAYLOAD_SZ: usize = 1472;
     let mac_data = [
-        0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x50, // Dst mac
-        0x90, 0xe2, 0xba, 0xb5, 0x14, 0xf5, // Src mac
+        0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81, // Dst mac
+        0x90, 0xe2, 0xba, 0xac, 0x16, 0x58, // Src mac
         0x08, 0x00,                         // Protocol
     ];
     let mut ip_data = [
@@ -650,10 +650,17 @@ pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
     run_read_reg_test(&ixgbe);
     run_write_reg_test(&ixgbe);
 
+    println!("running 64B test");
     run_udp_test_64(&ixgbe);
+
+    println!("running 128B test");
     run_udp_test_128(&ixgbe);
+
+    println!("running 256B test");
     run_udp_test_256(&ixgbe);
+    println!("running 512B test");
     run_udp_test_512(&ixgbe);
+    println!("running MTU test");
     run_udp_test_MTU(&ixgbe);
     Box::new(ixgbe)
 }
@@ -661,5 +668,6 @@ pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
 // This function is called on panic.
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
+    sys_backtrace();
     loop {}
 }

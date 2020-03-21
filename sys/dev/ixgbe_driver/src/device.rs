@@ -221,7 +221,7 @@ impl Intel8259x {
 
         // sleep for 10 seconds. Just stabilize the hardware
         // Well. this ugliness costed us two days of debugging.
-        sys_ns_loopsleep(ONE_MS_IN_NS * 1000 * 3);
+        sys_ns_loopsleep(ONE_MS_IN_NS * 1000 * 10);
     }
 
     /// Returns the mac address of this device.
@@ -540,10 +540,25 @@ impl Intel8259x {
 
     fn clean_tx_queue(&mut self) -> usize {
         let mut clean_index = self.transmit_clean_index;
-        let _cur_index = self.transmit_index;
+        let cur_index = self.transmit_index;
 
         loop {
+            let mut cleanable = cur_index as i32 - clean_index as i32;
             let num_descriptors = self.transmit_ring.len();
+
+            if cleanable < 0 {
+                cleanable += num_descriptors as i32;
+            }
+
+            if cleanable < TX_CLEAN_BATCH as i32 {
+                break;
+            }
+
+            let mut cleanup_to = clean_index + TX_CLEAN_BATCH - 1;
+
+            if cleanup_to >= num_descriptors {
+                cleanup_to -= num_descriptors;
+            }
 
             let status = unsafe {
                 core::ptr::read_volatile(&(*self.transmit_ring.as_ptr().add(clean_index)).wb.status
