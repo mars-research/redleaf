@@ -25,11 +25,11 @@ impl<T> Drop for SharedHeapObject<T> where T: Send {
     }
 }
 
-// RRef (remote reference) has an unowned reference to an object on shared heap.
+// RRef (remote reference) is an owned reference to an object on shared heap.
 // Only one domain can hold an RRef at a single time, so therefore we can "safely" mutate it.
 // A global table retains all memory allocated on the shared heap. When a domain dies, all of
 //   its shared heap objects are dropped, which gives us the guarantee that RRef's
-//   unowned reference will be safe to dereference as long as its domain is alive.
+//   owned reference will be safe to dereference as long as its domain is alive.
 pub struct RRef<T> where T: 'static + Send {
     pointer: *mut SharedHeapObject<T>
 }
