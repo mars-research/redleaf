@@ -431,6 +431,25 @@ extern fn do_security(pt_regs: &mut PtRegs, _error_code: isize) {
     crate::halt(); 
 }
 
+static mut timer_count: u8 = 0;
+
+use crate::panic::backtrace;
+fn dump_proc(pt_regs: &PtRegs) {
+    unsafe {
+        timer_count += 1;
+
+        if timer_count == 20 {
+            timer_count  = 0;
+            let rip = pt_regs.rip as *const u64 as *const u8;
+            println!("rip 0x{:x} rsp 0x{:x}", pt_regs.rip, pt_regs.rsp);
+            for x in 0..32 {
+                print!("{:02x} ", *rip.offset(x) as u8);
+            }
+            println!("");
+        }
+    }
+}
+
 #[no_mangle]
 extern fn do_IRQ(pt_regs: &mut PtRegs) -> u64 {
     let vector = pt_regs.orig_ax;
@@ -439,6 +458,7 @@ extern fn do_IRQ(pt_regs: &mut PtRegs) -> u64 {
     if vector == (InterruptIndex::Timer as u64) {
         // Timer (IRQ 0)
         timer_interrupt_handler(pt_regs);
+        //dump_proc(&pt_regs);
     } else if vector >= (IRQ_OFFSET as u64) && vector <= 255 {
         // IRQs
         let irq: u8 = (vector - (IRQ_OFFSET as u64)) as u8;
