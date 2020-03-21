@@ -1,13 +1,14 @@
 use elfloader::ElfBinary;
 use super::Domain;
 use syscalls::{Syscall, Heap, PCI, PciResource, Net, PciBar};
-use usr::{bdev::BDev, vfs::VFS, proxy::Proxy};
+use usr::{bdev::BDev, vfs::VFS};
 use crate::syscalls::{PDomain, Interrupt};
 use core::mem::transmute;
 use crate::interrupt::{disable_irq, enable_irq};
 use spin::Mutex;
 use alloc::sync::Arc; 
 use alloc::boxed::Box;
+use proxy;
 use crate::heap::PHeap;
 //use syscalls::BootSyscall;
 //use crate::domain::domain::BOOTING_DOMAIN; 
@@ -77,8 +78,7 @@ pub fn create_domain_ixgbe(pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box
 
 pub fn create_domain_xv6kernel(ints: Box<dyn syscalls::Interrupt>,
                                create_xv6fs: Box<dyn create::CreateXv6FS>,
-                               create_xv6usr: Box<dyn create::CreateXv6Usr>,
-                               proxy: Box<dyn usr::proxy::Proxy>) -> Box<dyn syscalls::Domain> {
+                               create_xv6usr: Box<dyn create::CreateXv6Usr>) -> Box<dyn syscalls::Domain> {
     extern "C" {
         fn _binary_usr_xv6_kernel_core_build_xv6kernel_start();
         fn _binary_usr_xv6_kernel_core_build_xv6kernel_end();
@@ -89,10 +89,10 @@ pub fn create_domain_xv6kernel(ints: Box<dyn syscalls::Interrupt>,
         _binary_usr_xv6_kernel_core_build_xv6kernel_end as *const u8
     );
 
-    build_domain_xv6kernel("xv6kernel", binary_range, ints, create_xv6fs, create_xv6usr, proxy)
+    build_domain_xv6kernel("xv6kernel", binary_range, ints, create_xv6fs, create_xv6usr)
 }
 
-pub fn create_domain_xv6fs(proxy: Box<dyn usr::proxy::Proxy>) ->(Box<dyn syscalls::Domain>, Box<dyn VFS>) {
+pub fn create_domain_xv6fs() ->(Box<dyn syscalls::Domain>, Box<dyn VFS>) {
 
     extern "C" {
         fn _binary_usr_xv6_kernel_fs_build_xv6fs_start();
@@ -104,7 +104,7 @@ pub fn create_domain_xv6fs(proxy: Box<dyn usr::proxy::Proxy>) ->(Box<dyn syscall
         _binary_usr_xv6_kernel_fs_build_xv6fs_end as *const u8
     );
 
-    build_domain_fs("xv6fs", binary_range, proxy)
+    build_domain_fs("xv6fs", binary_range)
 }
 
 // AB: We have to split ukern syscalls into some that are
@@ -133,7 +133,13 @@ pub fn create_domain_xv6usr(name: &str, xv6: Box<dyn usr::xv6::Xv6>) -> Box<dyn 
     build_domain_xv6usr(name, binary_range, xv6)
 }
 
-pub fn create_domain_proxy(create_ahci: Arc<dyn create::CreateAHCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::proxy::Proxy>) {
+pub fn create_domain_proxy(
+    create_pci: Box<dyn create::CreatePCI>,
+    create_ahci: Box<dyn create::CreateAHCI>,
+    create_ixgbe: Box<dyn create::CreateIxgbe>,
+    create_xv6fs: Box<dyn create::CreateXv6FS>,
+    create_xv6usr: Box<dyn create::CreateXv6Usr>,
+    create_xv6: Box<dyn create::CreateXv6>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
     extern "C" {
         fn _binary_usr_proxy_build_proxy_start();
         fn _binary_usr_proxy_build_proxy_end();
@@ -144,7 +150,15 @@ pub fn create_domain_proxy(create_ahci: Arc<dyn create::CreateAHCI>) -> (Box<dyn
         _binary_usr_proxy_build_proxy_end as *const u8
     );
 
-    build_domain_proxy("proxy", binary_range, create_ahci)
+    build_domain_proxy(
+        "dom_proxy",
+        binary_range,
+        create_pci,
+        create_ahci,
+        create_ixgbe,
+        create_xv6fs,
+        create_xv6usr,
+        create_xv6)
 }
 
 // AB: XXX: The following is is not supported in Rust at the moment
@@ -164,7 +178,7 @@ pub fn build_domain_init(name: &str,
     type UserInit = fn(Box<dyn syscalls::Syscall>, 
                          Box<dyn syscalls::Interrupt>,
                          Box<dyn syscalls::Heap>,
-                         Box<dyn create::CreateProxy>,
+                         Box<dyn proxy::CreateProxy>,
                          Box<dyn create::CreateXv6>,
                          Box<dyn create::CreateXv6FS>,
                          Box<dyn create::CreateXv6Usr>,
@@ -278,10 +292,9 @@ pub fn create_domain_net(name: &str,
 }
 
 pub fn build_domain_fs(name: &str, 
-                                 binary_range: (*const u8, *const u8),
-                                 proxy: Box<dyn usr::proxy::Proxy>) -> (Box<dyn syscalls::Domain>, Box<dyn VFS>)
+                                 binary_range: (*const u8, *const u8)) -> (Box<dyn syscalls::Domain>, Box<dyn VFS>)
 {
-    type UserInit = fn(Box<dyn Syscall>, Box<dyn usr::proxy::Proxy>) -> Box<dyn VFS>;
+    type UserInit = fn(Box<dyn Syscall>) -> Box<dyn VFS>;
     
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)
@@ -295,7 +308,7 @@ pub fn build_domain_fs(name: &str,
     
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
-    let vfs = user_ep(pdom, proxy);
+    let vfs = user_ep(pdom);
     disable_irq();
 
     println!("domain/{}: returned from entry point", name);
@@ -305,9 +318,20 @@ pub fn build_domain_fs(name: &str,
 pub fn build_domain_proxy(
     name: &str,
     binary_range: (*const u8, *const u8),
-    create_ahci: Arc<dyn create::CreateAHCI>
-) -> (Box<dyn syscalls::Domain>, Box<dyn Proxy>) {
-    type UserInit = fn(Box<dyn Syscall>, Arc<dyn create::CreateAHCI>) -> Box<dyn Proxy>;
+    create_pci: Box<dyn create::CreatePCI>,
+    create_ahci: Box<dyn create::CreateAHCI>,
+    create_ixgbe: Box<dyn create::CreateIxgbe>,
+    create_xv6fs: Box<dyn create::CreateXv6FS>,
+    create_xv6usr: Box<dyn create::CreateXv6Usr>,
+    create_xv6: Box<dyn create::CreateXv6>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
+    type UserInit = fn(
+        Box<dyn Syscall>,
+        create_pci: Box<dyn create::CreatePCI>,
+        create_ahci: Box<dyn create::CreateAHCI>,
+        create_ixgbe: Box<dyn create::CreateIxgbe>,
+        create_xv6fs: Box<dyn create::CreateXv6FS>,
+        create_xv6usr: Box<dyn create::CreateXv6Usr>,
+        create_xv6: Box<dyn create::CreateXv6>) -> Arc<dyn proxy::Proxy>;
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)
@@ -321,7 +345,14 @@ pub fn build_domain_proxy(
 
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
-    let proxy = user_ep(pdom, create_ahci);
+    let proxy = user_ep(
+        pdom,
+        create_pci,
+        create_ahci,
+        create_ixgbe,
+        create_xv6fs,
+        create_xv6usr,
+        create_xv6);
     disable_irq();
 
     println!("domain/{}: returned from entry point", name);
@@ -332,14 +363,12 @@ pub fn build_domain_xv6kernel(name: &str,
                                  binary_range: (*const u8, *const u8),
                                  ints: Box<dyn syscalls::Interrupt>,
                                  create_xv6fs: Box<dyn create::CreateXv6FS>,
-                                 create_xv6usr: Box<dyn create::CreateXv6Usr>,
-                                 proxy: Box<dyn usr::proxy::Proxy>) -> Box<dyn syscalls::Domain>
+                                 create_xv6usr: Box<dyn create::CreateXv6Usr>) -> Box<dyn syscalls::Domain>
 {
     type UserInit = fn(Box<dyn Syscall>,
                        Box<dyn syscalls::Interrupt>,
                        Box<dyn create::CreateXv6FS>,
-                       Box<dyn create::CreateXv6Usr>,
-                       Box<dyn usr::proxy::Proxy>);
+                       Box<dyn create::CreateXv6Usr>);
     
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)
@@ -353,7 +382,7 @@ pub fn build_domain_xv6kernel(name: &str,
     
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
-    user_ep(pdom, ints, create_xv6fs, create_xv6usr, proxy);
+    user_ep(pdom, ints, create_xv6fs, create_xv6usr);
     disable_irq(); 
 
     println!("domain/{}: returned from entry point", name);

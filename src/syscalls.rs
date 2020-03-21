@@ -11,6 +11,8 @@ use crate::domain::domain::{Domain};
 use syscalls::{PciResource, PciBar};
 use crate::round_up;
 use crate::thread;
+use usr;
+use proxy;
 //use crate::domain::domain::BOOTING_DOMAIN;
 
 extern crate syscalls; 
@@ -241,31 +243,27 @@ impl create::CreateXv6 for PDomain {
     fn create_domain_xv6kernel(&self,
                                 ints: Box<dyn syscalls::Interrupt>,
                                 create_xv6fs: Box<dyn create::CreateXv6FS>,
-                                create_xv6usr: Box<dyn create::CreateXv6Usr>,
-                                proxy: Box<dyn usr::proxy::Proxy>) -> Box<dyn syscalls::Domain> {
+                                create_xv6usr: Box<dyn create::CreateXv6Usr>) -> Box<dyn syscalls::Domain> {
         disable_irq();
         let r = crate::domain::create_domain::create_domain_xv6kernel(ints, 
                         create_xv6fs,
-                        create_xv6usr,
-                        proxy);
+                        create_xv6usr);
         enable_irq();
         r
     }
 }   
 
 impl create::CreateXv6FS for PDomain {
-    fn create_domain_xv6fs(&self,
-                           proxy: Box<dyn usr::proxy::Proxy>) ->(Box<dyn syscalls::Domain>, Box<dyn usr::vfs::VFS>) {
+    fn create_domain_xv6fs(&self) ->(Box<dyn syscalls::Domain>, Box<dyn usr::vfs::VFS>) {
         disable_irq();
-        let r = crate::domain::create_domain::create_domain_xv6fs(proxy);
+        let r = crate::domain::create_domain::create_domain_xv6fs();
         enable_irq();
         r
     }
 }   
 
 impl create::CreateXv6Usr for PDomain {
-    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>) -> Box<dyn syscalls::Domain>
-    {
+    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>) -> Box<dyn syscalls::Domain> {
         disable_irq();
         let r = crate::domain::create_domain::create_domain_xv6usr(name, xv6);
         enable_irq();
@@ -273,11 +271,23 @@ impl create::CreateXv6Usr for PDomain {
     }
 }
 
-impl create::CreateProxy for PDomain {
-    fn create_domain_proxy(&self, create_ahci: Arc<dyn create::CreateAHCI>)
-        -> (Box<dyn syscalls::Domain>, Box<dyn usr::proxy::Proxy>) {
+impl proxy::CreateProxy for PDomain {
+    fn create_domain_proxy(
+        &self,
+        create_pci: Box<dyn create::CreatePCI>,
+        create_ahci: Box<dyn create::CreateAHCI>,
+        create_ixgbe: Box<dyn create::CreateIxgbe>,
+        create_xv6fs: Box<dyn create::CreateXv6FS>,
+        create_xv6usr: Box<dyn create::CreateXv6Usr>,
+        create_xv6: Box<dyn create::CreateXv6>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
         disable_irq();
-        let r = crate::domain::create_domain::create_domain_proxy(create_ahci);
+        let r = crate::domain::create_domain::create_domain_proxy(
+            create_pci,
+            create_ahci,
+            create_ixgbe,
+            create_xv6fs,
+            create_xv6usr,
+            create_xv6);
         enable_irq();
         r
     }
