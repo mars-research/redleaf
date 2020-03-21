@@ -78,7 +78,7 @@ impl create::CreateIxgbe for Proxy {
 impl create::CreateXv6FS for Proxy {
     fn create_domain_xv6fs(&self) ->(Box<dyn Domain>, Box<dyn VFS>) {
         // TODO: write Xv6FSProxy
-        self.create_xv6fs.create_doain_xv6fs()
+        self.create_xv6fs.create_domain_xv6fs()
     }
 }
 
