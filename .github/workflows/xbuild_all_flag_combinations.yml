@@ -1,0 +1,22 @@
+name: xbuild with all possible combinations of flags
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    container: gitlet/redleaf_build:0.0
+
+    strategy:
+      matrix:
+        debug: ["true", "false"]
+        ixgbe: ["true", "false"]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build
+      run:  make DEBUG={{ matrix.debug }} IXGBE={{ matrix.ixgbe }}
