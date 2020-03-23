@@ -11,7 +11,7 @@ jobs:
 
     runs-on: ubuntu-18.04
 
-    container: gitlet/redleaf_build:0.0
+    container: gitlet/redleaf_build:0.1
 
     strategy:
       matrix:
