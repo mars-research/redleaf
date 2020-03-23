@@ -1,4 +1,4 @@
-![](https://github.com/mars-research/redleaf/workflows/xbuild_all.yml/badge.svg)
+![](https://github.com/mars-research/redleaf/workflows/XBuild%20All/badge.svg)
 
 ### Setup
 ```
