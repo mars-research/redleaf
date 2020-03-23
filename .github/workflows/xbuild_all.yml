@@ -1,4 +1,5 @@
-name: xbuild with all possible combinations of flags
+# xbuild with all possible combinations of flags
+name: XBuild All
 
 on:
   push:
