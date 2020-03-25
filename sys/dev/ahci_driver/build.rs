@@ -48,6 +48,7 @@ fn main() {
     Command::new("objcopy")
         .args(&["-I", "binary"])
         .args(&["-O", "elf64-x86-64"])
+        .args(&["-B", "i386"])
         .arg("--rename-section=.data=.REDLEAF_INTERFACES,alloc,load,data,contents")
         .arg("interfaces.fingerprint")
         .arg("interfaces.fingerprint.o")
