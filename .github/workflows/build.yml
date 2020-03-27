@@ -1,5 +1,5 @@
 # xbuild with all possible combinations of flags
-name: XBuild All
+name: build
 
 on:
   push:
@@ -9,7 +9,6 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-18.04
 
     container: gitlet/redleaf_build:0.2
@@ -18,8 +17,9 @@ jobs:
       matrix:
         debug: ["true", "false"]
         ixgbe: ["true", "false"]
+        large_mem: ["true", "false"]
 
     steps:
     - uses: actions/checkout@v2
-    - name: Build
-      run:  make DEBUG=${{ matrix.debug }} IXGBE=${{ matrix.ixgbe }}
+    - name: Build DEBUG=${{ matrix.debug }} IXGBE=${{ matrix.ixgbe }} LARGE_MEM=${{ matrix.large_mem }}
+      run:  make DEBUG=${{ matrix.debug }} IXGBE=${{ matrix.ixgbe }} LARGE_MEM=${{ matrix.large_mem }}
