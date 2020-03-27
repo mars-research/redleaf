@@ -19,7 +19,9 @@ jobs:
         ixgbe: ["true", "false"]
         large_mem: ["true", "false"]
 
+    name: DEBUG=${{ matrix.debug }} IXGBE=${{ matrix.ixgbe }} LARGE_MEM=${{ matrix.large_mem }}
+
     steps:
     - uses: actions/checkout@v2
-    - name: Build DEBUG=${{ matrix.debug }} IXGBE=${{ matrix.ixgbe }} LARGE_MEM=${{ matrix.large_mem }}
+    - name: Build
       run:  make DEBUG=${{ matrix.debug }} IXGBE=${{ matrix.ixgbe }} LARGE_MEM=${{ matrix.large_mem }}
