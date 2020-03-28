@@ -77,8 +77,8 @@ pub fn create_domain_ixgbe(pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box
 }
 
 pub fn create_domain_xv6kernel(ints: Box<dyn syscalls::Interrupt>,
-                               create_xv6fs: Box<dyn create::CreateXv6FS>,
-                               create_xv6usr: Box<dyn create::CreateXv6Usr>) -> Box<dyn syscalls::Domain> {
+                               create_xv6fs: &dyn create::CreateXv6FS,
+                               create_xv6usr: &dyn create::CreateXv6Usr) -> Box<dyn syscalls::Domain> {
     extern "C" {
         fn _binary_usr_xv6_kernel_core_build_xv6kernel_start();
         fn _binary_usr_xv6_kernel_core_build_xv6kernel_end();
@@ -141,13 +141,13 @@ pub fn create_domain_proxy(
     create_xv6usr: Box<dyn create::CreateXv6Usr>,
     create_xv6: Box<dyn create::CreateXv6>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
     extern "C" {
-        fn _binary_usr_proxy_build_proxy_start();
-        fn _binary_usr_proxy_build_proxy_end();
+        fn _binary_usr_proxy_build_dom_proxy_start();
+        fn _binary_usr_proxy_build_dom_proxy_end();
     }
 
     let binary_range = (
-        _binary_usr_proxy_build_proxy_start as *const u8,
-        _binary_usr_proxy_build_proxy_end as *const u8
+        _binary_usr_proxy_build_dom_proxy_start as *const u8,
+        _binary_usr_proxy_build_dom_proxy_end as *const u8
     );
 
     build_domain_proxy(
@@ -362,13 +362,13 @@ pub fn build_domain_proxy(
 pub fn build_domain_xv6kernel(name: &str, 
                                  binary_range: (*const u8, *const u8),
                                  ints: Box<dyn syscalls::Interrupt>,
-                                 create_xv6fs: Box<dyn create::CreateXv6FS>,
-                                 create_xv6usr: Box<dyn create::CreateXv6Usr>) -> Box<dyn syscalls::Domain>
+                                 create_xv6fs: &dyn create::CreateXv6FS,
+                                 create_xv6usr: &dyn create::CreateXv6Usr) -> Box<dyn syscalls::Domain>
 {
     type UserInit = fn(Box<dyn Syscall>,
                        Box<dyn syscalls::Interrupt>,
-                       Box<dyn create::CreateXv6FS>,
-                       Box<dyn create::CreateXv6Usr>);
+                       &dyn create::CreateXv6FS,
+                       &dyn create::CreateXv6Usr);
     
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)

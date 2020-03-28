@@ -15,6 +15,7 @@
 extern crate malloc;
 extern crate alloc;
 use alloc::boxed::Box;
+use alloc::sync::Arc;
 use core::panic::PanicInfo;
 use syscalls::{Syscall};
 use libsyscalls::syscalls::{sys_create_thread, sys_current_thread, sys_yield, sys_recv_int};
@@ -96,8 +97,8 @@ fn test_sleeplock() {
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>,
             ints: Box<dyn syscalls::Interrupt + Send + Sync>,
-            create_xv6fs: Box<dyn create::CreateXv6FS>,
-            create_xv6usr: Box<dyn create::CreateXv6Usr>)
+            create_xv6fs: &dyn create::CreateXv6FS,
+            create_xv6usr: &dyn create::CreateXv6Usr)
 {
    
     libsyscalls::syscalls::init(s);

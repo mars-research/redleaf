@@ -83,7 +83,7 @@ impl<T> Drop for RRef<T> where T: Send {
             //       but calling drop may be undefined behavior
             drop(&mut (*self.pointer).value);
             let layout = Layout::new::<SharedHeapObject<T>>();
-            HEAP.force_get().dealloc((*self.pointer).domain_id, self.pointer as *mut u8, Layout::new::<SharedHeapObject<T>>());
+            HEAP.force_get().dealloc((*self.pointer).domain_id, self.pointer as *mut u8, layout);
         };
     }
 }

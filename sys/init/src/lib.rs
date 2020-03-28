@@ -20,6 +20,8 @@ use alloc::sync::Arc;
 use core::panic::PanicInfo;
 use libsyscalls::syscalls::{sys_create_thread, sys_yield, sys_recv_int, sys_backtrace};
 use console::println;
+use create::*;
+use proxy;
 
 #[cfg(feature = "test_guard_page")]
 fn test_stack_exhaustion() -> u64 {
@@ -96,13 +98,13 @@ fn test_dummy_syscall() {
 pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
             ints: Box<dyn syscalls::Interrupt + Send + Sync>,
             heap: Box<dyn syscalls::Heap + Send + Sync>,
-            create_proxy: Box<dyn create::CreateProxy>,
+            create_proxy: Box<dyn proxy::CreateProxy>,
             create_xv6: Box<dyn create::CreateXv6>,
             create_xv6fs: Box<dyn create::CreateXv6FS>,
             create_xv6usr: Box<dyn create::CreateXv6Usr>,
             create_pci: Box<dyn create::CreatePCI>,
             create_ixgbe: Box<dyn create::CreateIxgbe>,
-            create_ahci: Arc<dyn create::CreateAHCI>)
+            create_ahci: Box<dyn create::CreateAHCI>)
 {
     libsyscalls::syscalls::init(s);
 
@@ -167,22 +169,29 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
     // test_dummy_syscall();
 
     println!("about to create proxy");
-    let (dom_proxy, proxy) = create_proxy.create_domain_proxy(create_ahci.clone());
+    let (dom_proxy, proxy) = create_proxy.create_domain_proxy(
+        create_pci,
+        create_ahci,
+        create_ixgbe,
+        create_xv6fs,
+        create_xv6usr,
+        create_xv6
+    );
     println!("created proxy");
 
-    let pci_resource = create_pci.get_pci_resource();
+    let pci_resource = proxy.as_create_pci().get_pci_resource();
 
-    let pci_bar = create_pci.get_pci_bar();
+    let pci_bar = proxy.as_create_pci().get_pci_bar();
 
-    let (dom_pci, pci) = create_pci.create_domain_pci(pci_resource, pci_bar);
+    let (dom_pci, pci) = proxy.as_create_pci().create_domain_pci(pci_resource, pci_bar);
 
     let pci2 = pci.pci_clone();
 
-    let (dom_ahci, bdev) = create_ahci.create_domain_ahci(pci);
+    let (dom_ahci, bdev) = proxy.as_create_ahci().create_domain_ahci(pci);
 
-    let (dom_ixgbe, net) = create_ixgbe.create_domain_ixgbe(pci2);
+    let (dom_ixgbe, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci2);
 
-    let dom_xv6 = create_xv6.create_domain_xv6kernel(ints_clone, create_xv6fs, create_xv6usr, proxy.proxy_clone());
+    let dom_xv6 = proxy.as_create_xv6().create_domain_xv6kernel(ints_clone, proxy.as_create_xv6fs(), proxy.as_create_xv6usr());
 }
 
 // This function is called on panic.

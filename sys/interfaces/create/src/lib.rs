@@ -2,6 +2,7 @@
 #![feature(associated_type_defaults)]
 extern crate alloc;
 use alloc::boxed::Box;
+use alloc::sync::Arc;
 use syscalls::{Heap, Domain, PCI, PciBar, PciResource, Net, Interrupt};
 use usr::{bdev::BDev, vfs::VFS, xv6::Xv6};
 
@@ -31,6 +32,6 @@ pub trait CreateXv6Usr {
 pub trait CreateXv6 {
     fn create_domain_xv6kernel(&self,
                                ints: Box<dyn Interrupt>,
-                               create_xv6fs: Box<dyn CreateXv6FS>,
-                               create_xv6usr: Box<dyn CreateXv6Usr>) -> Box<dyn Domain>;
+                               create_xv6fs: &dyn CreateXv6FS,
+                               create_xv6usr: &dyn CreateXv6Usr) -> Box<dyn Domain>;
 }

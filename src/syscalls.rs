@@ -242,8 +242,8 @@ impl create::CreateIxgbe for PDomain {
 impl create::CreateXv6 for PDomain {
     fn create_domain_xv6kernel(&self,
                                 ints: Box<dyn syscalls::Interrupt>,
-                                create_xv6fs: Box<dyn create::CreateXv6FS>,
-                                create_xv6usr: Box<dyn create::CreateXv6Usr>) -> Box<dyn syscalls::Domain> {
+                                create_xv6fs: &dyn create::CreateXv6FS,
+                                create_xv6usr: &dyn create::CreateXv6Usr) -> Box<dyn syscalls::Domain> {
         disable_irq();
         let r = crate::domain::create_domain::create_domain_xv6kernel(ints, 
                         create_xv6fs,

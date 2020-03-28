@@ -3,6 +3,7 @@ use proxy;
 use usr;
 use create;
 use alloc::boxed::Box;
+use alloc::sync::Arc;
 use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain_id};
 use syscalls::{Heap, Domain, PCI, PciBar, PciResource, Net, Interrupt};
 use usr::{bdev::BDev, vfs::VFS, xv6::Xv6};
@@ -43,6 +44,25 @@ impl Proxy {
 impl proxy::Proxy for Proxy {
     fn proxy_bdev(&self, bdev: Box<dyn usr::bdev::BDev + Send + Sync>) -> Box<dyn usr::bdev::BDev + Send + Sync> {
         Box::new(BDevProxy::new(sys_get_current_domain_id(), bdev))
+    }
+
+    fn as_create_pci(&self) -> &dyn create::CreatePCI {
+        self as &dyn create::CreatePCI
+    }
+    fn as_create_ahci(&self) -> &dyn create::CreateAHCI {
+        self as &dyn create::CreateAHCI
+    }
+    fn as_create_ixgbe(&self) -> &dyn create::CreateIxgbe {
+        self as &dyn create::CreateIxgbe
+    }
+    fn as_create_xv6fs(&self) -> &dyn create::CreateXv6FS {
+        self as &dyn create::CreateXv6FS
+    }
+    fn as_create_xv6usr(&self) -> &dyn create::CreateXv6Usr {
+        self as &dyn create::CreateXv6Usr
+    }
+    fn as_create_xv6(&self) -> &dyn create::CreateXv6 {
+        self as &dyn create::CreateXv6
     }
 }
 
@@ -92,8 +112,8 @@ impl create::CreateXv6Usr for Proxy {
 impl create::CreateXv6 for Proxy {
     fn create_domain_xv6kernel(&self,
                                ints: Box<dyn Interrupt>,
-                               create_xv6fs: Box<dyn create::CreateXv6FS>,
-                               create_xv6usr: Box<dyn create::CreateXv6Usr>) -> Box<dyn Domain> {
+                               create_xv6fs: &dyn create::CreateXv6FS,
+                               create_xv6usr: &dyn create::CreateXv6Usr) -> Box<dyn Domain> {
         // TODO: write Xv6KernelProxy
         self.create_xv6.create_domain_xv6kernel(ints, create_xv6fs, create_xv6usr)
     }
