@@ -29,6 +29,25 @@ pub enum IxgbeRegs {
     Txdgpc,
     Txdgbch,
     Txdgbcl,
+    Crcerrs,
+    Illerrc,
+    Errbc,
+    Mlfc,
+    Mrfc,
+    Rlec,
+    Lxonrxcnt,
+    Lxoffrxcnt,
+    Rxdgpc,
+    Rxdgbcl,
+    Rxdgbch,
+    Ruc,
+    Rjc,
+    Rfc,
+    Roc,
+    Bprc,
+    Mprc,
+    Bptc,
+    Mptc,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -56,6 +75,7 @@ pub enum IxgbeArrayRegs {
     Ivar,
     Eitr,
     Qptc,
+    Rxmpc,
 }
 
 pub trait IxgbeBarRegion {
@@ -65,5 +85,5 @@ pub trait IxgbeBarRegion {
     fn read_reg_idx(&self, reg: IxgbeArrayRegs, idx: u64) -> u64;
     fn write_reg_idx(&self, reg: IxgbeArrayRegs, idx: u64, val: u64);
     fn write_reg_tdt(&self, idx: u64, val: u64);
-
+    fn write_reg_rdt(&self, idx: u64, val: u64);
 }

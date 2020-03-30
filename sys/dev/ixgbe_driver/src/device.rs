@@ -694,7 +694,11 @@ impl Intel8259x {
 
     pub fn dump_stats(&self) {
         println!("Ixgbe statistics:");
-        let string = format!("Stats regs:\n\tGPRC {:08X} GPTC {:08X}\n\tGORCL {:08X} GORCH {:08X}\n\tGOTCL {:08X} GOTCH {:08X}\n\tTXDGPC {:08X} TXDGBCH {:08X} TXDGBCL {:08X} QPTC(0) {:08X}\n",
+        let mut string = format!("Stats regs:\n\tGPRC {:08X} GPTC {:08X}\n \
+                                 \tGORCL {:08X} GORCH {:08X}\n \
+                                 \tGOTCL {:08X} GOTCH {:08X}\n \
+                                 \tTXDGPC {:08X} TXDGBCH {:08X} TXDGBCL {:08X} QPTC(0) {:08X}\n \
+                                 \t MPTC {:08X} BPTC {:08X}\n",
                                 self.bar.read_reg(IxgbeRegs::Gprc) as u32,
                                 self.bar.read_reg(IxgbeRegs::Gptc) as u32,
                                 self.bar.read_reg(IxgbeRegs::Gorcl) as u32,
@@ -705,7 +709,35 @@ impl Intel8259x {
                                 self.bar.read_reg(IxgbeRegs::Txdgbch) as u32,
                                 self.bar.read_reg(IxgbeRegs::Txdgbcl) as u32,
                                 self.bar.read_reg_idx(IxgbeArrayRegs::Qptc, 0) as u32,
+                                self.bar.read_reg(IxgbeRegs::Mptc) as u32,
+                                self.bar.read_reg(IxgbeRegs::Bptc) as u32,
                                 );
+
+        string.push_str(&format!("CRCERRS {:08X} ILLERRC {:08X} ERRBC {:08X}\n \
+                                    \tMLFC {:08X} MRFC {:08X} RXMPC[0] {:08X}\n \
+                                    \tRLEC {:08X} LXONRXCNT {:08X} LXONRXCNT {:08X}\n \
+                                    \tRXDGPC {:08X} RXDGBCL {:08X} RXDGBCH {:08X}\n \
+                                    \tRUC {:08X} RFC {:08X} ROC {:08X}\n \
+                                    \tRJC {:08X} BPRC {:08X} MPRC {:08X}\n",
+                                 self.bar.read_reg(IxgbeRegs::Crcerrs) as u32,
+                                 self.bar.read_reg(IxgbeRegs::Illerrc) as u32,
+                                 self.bar.read_reg(IxgbeRegs::Errbc) as u32,
+                                 self.bar.read_reg(IxgbeRegs::Mlfc) as u32,
+                                 self.bar.read_reg(IxgbeRegs::Mrfc) as u32,
+                                 self.bar.read_reg_idx(IxgbeArrayRegs::Rxmpc, 0) as u32,
+                                 self.bar.read_reg(IxgbeRegs::Rlec) as u32,
+                                 self.bar.read_reg(IxgbeRegs::Lxonrxcnt) as u32,
+                                 self.bar.read_reg(IxgbeRegs::Lxoffrxcnt) as u32,
+                                 self.bar.read_reg(IxgbeRegs::Rxdgpc) as u32,
+                                 self.bar.read_reg(IxgbeRegs::Rxdgbch) as u32,
+                                 self.bar.read_reg(IxgbeRegs::Rxdgbcl) as u32,
+                                 self.bar.read_reg(IxgbeRegs::Ruc) as u32,
+                                 self.bar.read_reg(IxgbeRegs::Rfc) as u32,
+                                 self.bar.read_reg(IxgbeRegs::Roc) as u32,
+                                 self.bar.read_reg(IxgbeRegs::Rjc) as u32,
+                                 self.bar.read_reg(IxgbeRegs::Bprc) as u32,
+                                 self.bar.read_reg(IxgbeRegs::Mprc) as u32,
+                                 ));
         print!("{}", string);
     }
 

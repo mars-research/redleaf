@@ -86,6 +86,27 @@ pub struct IxgbeBar {
     txdgbch: Register,
     txdgbcl: Register,
     qptc: ArrayRegister,
+
+    crcerrs: Register,
+    illerrc: Register,
+    errbc: Register,
+    mlfc: Register,
+    mrfc: Register,
+    rxmpc: ArrayRegister,
+    rlec: Register,
+    lxonrxcnt: Register,
+    lxoffrxcnt: Register,
+    rxdgpc: Register,
+    rxdgbcl: Register,
+    rxdgbch: Register,
+    ruc: Register,
+    rjc: Register,
+    rfc: Register,
+    roc: Register,
+    bprc: Register,
+    mprc: Register,
+    bptc: Register,
+    mptc: Register,
 }
 
 impl IxgbeBar {
@@ -150,6 +171,33 @@ impl IxgbeBar {
     const TXDGBCH: u64 = 0x087A8;
     const QPTC: u64 = 0x06030;
 
+    const CRCERRS: u64 = 0x04000;
+    const ILLERRC: u64 = 0x04004;
+    const ERRBC: u64 = 0x04008;
+    const MLFC: u64 = 0x04034;
+    const MRFC: u64 = 0x04038;
+    const RLEC: u64 = 0x04040;
+
+    const RXMPC: u64 = 0x03FA0;
+
+    const LXONRXCNT: u64 = 0x041A4;
+    const LXOFFRXCNT: u64 = 0x041A8;
+
+    const RXDGPC: u64 = 0x02F50;
+    const RXDGBCL: u64 = 0x02F54;
+    const RXDGBCH: u64 = 0x02F58;
+
+    const BPRC: u64 = 0x04078;
+    const MPRC: u64 = 0x0407c;
+
+    const BPTC: u64 = 0x040F4;
+    const MPTC: u64 = 0x040F0;
+
+    const RUC: u64 = 0x040A4;
+    const RFC: u64 = 0x040A8;
+    const ROC: u64 = 0x040AC;
+    const RJC: u64 = 0x040B0;
+
     pub fn new(base: u64, size: usize) -> IxgbeBar {
         IxgbeBar {
             base,
@@ -208,6 +256,27 @@ impl IxgbeBar {
             txdgbcl: reg_ixgbe!(TXDGBCL),
             qptc: reg_ixgbe_mult!(QPTC, 16, 0x40),
             txpbthresh: reg_ixgbe_mult!(TXPBTHRESH, 8, 0x4),
+
+            crcerrs: reg_ixgbe!(CRCERRS),
+            illerrc: reg_ixgbe!(ILLERRC),
+            errbc: reg_ixgbe!(ERRBC),
+            mlfc: reg_ixgbe!(MLFC),
+            mrfc: reg_ixgbe!(MRFC),
+            rxmpc: reg_ixgbe_mult!(RXMPC, 8, 0x4),
+            rlec: reg_ixgbe!(RLEC),
+            lxonrxcnt: reg_ixgbe!(LXONRXCNT),
+            lxoffrxcnt: reg_ixgbe!(LXOFFRXCNT),
+            rxdgpc: reg_ixgbe!(RXDGPC),
+            rxdgbcl: reg_ixgbe!(RXDGBCL),
+            rxdgbch: reg_ixgbe!(RXDGBCH),
+            ruc: reg_ixgbe!(RUC),
+            rjc: reg_ixgbe!(RJC),
+            rfc: reg_ixgbe!(RFC),
+            roc: reg_ixgbe!(ROC),
+            bprc: reg_ixgbe!(BPRC),
+            mprc: reg_ixgbe!(MPRC),
+            bptc: reg_ixgbe!(BPTC),
+            mptc: reg_ixgbe!(MPTC),
         }
     }
 
@@ -241,6 +310,26 @@ impl IxgbeBar {
             IxgbeRegs::Txdgpc => { self.txdgpc.offset },
             IxgbeRegs::Txdgbch => { self.txdgbch.offset },
             IxgbeRegs::Txdgbcl => { self.txdgbcl.offset },
+            IxgbeRegs::Mptc => { self.mptc.offset },
+            IxgbeRegs::Bptc => { self.bptc.offset },
+
+            IxgbeRegs::Crcerrs => { self.crcerrs.offset },
+            IxgbeRegs::Illerrc => { self.illerrc.offset },
+            IxgbeRegs::Errbc => { self.errbc.offset },
+            IxgbeRegs::Mlfc => { self.mlfc.offset },
+            IxgbeRegs::Mrfc => { self.mrfc.offset },
+            IxgbeRegs::Rlec => { self.rlec.offset },
+            IxgbeRegs::Lxonrxcnt => { self.lxonrxcnt.offset },
+            IxgbeRegs::Lxoffrxcnt => { self.lxoffrxcnt.offset },
+            IxgbeRegs::Rxdgpc => { self.rxdgpc.offset },
+            IxgbeRegs::Rxdgbcl => { self.rxdgbcl.offset },
+            IxgbeRegs::Rxdgbch => { self.rxdgbch.offset },
+            IxgbeRegs::Ruc => { self.ruc.offset },
+            IxgbeRegs::Rjc => { self.rjc.offset },
+            IxgbeRegs::Rfc => { self.rfc.offset },
+            IxgbeRegs::Roc => { self.roc.offset },
+            IxgbeRegs::Bprc => { self.bprc.offset },
+            IxgbeRegs::Mprc => { self.mprc.offset },
          }
     }
 
@@ -270,6 +359,7 @@ impl IxgbeBar {
             IxgbeArrayRegs::Ivar => { self.ivar },
             IxgbeArrayRegs::Eitr => { self.eitr },
             IxgbeArrayRegs::Qptc => { self.qptc },
+            IxgbeArrayRegs::Rxmpc => { self.rxmpc },
         }
     }
 }
@@ -316,6 +406,17 @@ impl IxgbeBarRegion for IxgbeBar {
     fn write_reg_tdt(&self, idx: u64, val: u64) {
         disable_irq();
         let reg = self.tdt;
+
+        unsafe {
+            ptr::write_volatile((self.base + reg.offset + reg.multiplier * idx) as *mut u32, val as u32)
+        }
+        enable_irq();
+    }
+
+    #[inline(always)]
+    fn write_reg_rdt(&self, idx: u64, val: u64) {
+        disable_irq();
+        let reg = self.rdt;
 
         unsafe {
             ptr::write_volatile((self.base + reg.offset + reg.multiplier * idx) as *mut u32, val as u32)
