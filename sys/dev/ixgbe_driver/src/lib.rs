@@ -27,14 +27,29 @@ use console::{println, print};
 use pci_driver::BarRegions;
 use ixgbe::IxgbeBarRegion;
 use libsyscalls::syscalls::sys_backtrace;
+use libdma::Dma;
+use libdma::ixgbe::allocate_dma;
 
 pub use libsyscalls::errors::Result;
 use crate::device::Intel8259x;
 use core::cell::RefCell;
 use protocol::{UdpPacket};
 
-
 use libtime::get_rdtsc as rdtsc;
+
+struct Packet {
+    data: Dma<[u8; 2048]>,
+    len: u32,
+}
+
+impl Packet {
+    pub fn new() -> Packet {
+        Packet {
+            data: allocate_dma().unwrap(),
+            len: 2048,
+        }
+    }
+}
 
 struct Ixgbe {
     vendor_id: u16,
@@ -663,6 +678,42 @@ fn run_rx_udptest_64(dev: &Ixgbe) {
 
 }
 
+fn run_rx_udptest(dev: &Ixgbe) {
+    let mut packets: Vec<Packet> = Vec::new();
+    let mut collect: Vec<Option<&[u8]>> = Vec::new();
+    //let mut collect: Vec<&[u8]> = Vec::new();
+
+    for i in 0..32 {
+        packets.push(Packet::new());
+    }
+
+    if let Some(device) = dev.device.borrow_mut().as_mut() {
+        let dev: &mut Intel8259x = device;
+        let mut sum: usize = 0;
+        let start = rdtsc();
+
+        while sum <= 20_000_000 {
+            let ret = dev.submit_and_poll(&mut packets, &mut collect);
+            sum += ret;
+            /*for p in collect.iter() {
+                match p {
+                    Some(pkt) => println!("packet {:#?}", pkt),
+                    _ => continue,
+                }
+            }*/
+            //if ret > 0 {
+            //    println!("reaped {} packets", ret);
+            //}
+            collect.clear();
+        }
+
+        let elapsed = rdtsc() - start;
+        println!("sum {}", sum);
+        println!("==> rx batch MTU: {} iterations took {} cycles (avg = {})", sum, elapsed, elapsed / sum as u64);
+        dev.dump_stats();
+    }
+}
+
 #[no_mangle]
 pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
                  pci: Box<dyn syscalls::PCI>) -> Box<dyn syscalls::Net> {
@@ -695,7 +746,7 @@ pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
     run_udp_test_MTU(&ixgbe);
 
     println!("running Rx test");
-    run_rx_udptest_64(&ixgbe);
+    run_rx_udptest(&ixgbe);
 
     Box::new(ixgbe)
 }

@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use ixgbe::IxgbeBarRegion;
 use libdma::Dma;
-use libdma::ahci::allocate_dma;
+use libdma::ixgbe::allocate_dma;
 use crate::ixgbe_desc::*;
 use libdma::ixgbe::{ixgbe_adv_rx_desc, ixgbe_adv_tx_desc};
 use crate::Result;
@@ -738,6 +738,78 @@ impl Intel8259x {
             //println!("Received {} packets", received_packets);
         }
         received_packets
+    }
+
+    pub fn submit_and_poll(&mut self, submit_queue: &mut Vec<Packet>, reap_queue: &mut Vec<Option<&[u8]>>) -> usize {
+        let mut rx_index;
+        let mut last_rx_index;
+        let mut received_packets = 0;
+
+        {
+            rx_index = self.receive_index;
+            last_rx_index = self.receive_index;
+
+            for (i, packet) in submit_queue.iter_mut().enumerate() {
+                let mut desc = unsafe { &mut*(self.receive_ring.as_ptr().add(rx_index) as *mut ixgbe_adv_rx_desc) };
+
+                let status = unsafe {
+                    core::ptr::read_volatile(&mut (*desc).wb.upper.status_error as *mut u32) };
+
+                unsafe {
+                    //println!("pkt_addr {:08X} rx_Buffer {:08X}",
+                    //            (*desc).read.pkt_addr as *const u64 as u64,
+                    //            self.receive_buffer[rx_index].physical());
+                }
+
+                if (status & IXGBE_RXDADV_STAT_DD) == 0 {
+                    break;
+                }
+
+                if (status & IXGBE_RXDADV_STAT_EOP) == 0 {
+                    panic!("increase buffer size or decrease MTU")
+                }
+
+                // Reset the status DD bit
+                unsafe {
+                    core::ptr::write_volatile(&mut (*desc).wb.upper.status_error as *mut u32, 0);
+                }
+
+                //println!("Found packet {}", rx_index);
+                let length = unsafe { core::ptr::read_volatile(
+                            &(*desc).wb.upper.length as *const u16) as isize
+                };
+
+                if length > 0 {
+                   //println!("Got a packet with len {}", length);
+                }
+
+                //let pslice_ptr = packet.as_mut_slice().as_mut_ptr();
+
+                unsafe {
+                    let rx_buffer = self.receive_buffer[rx_index].physical() as *mut u64 as *mut u8;
+                    let rx_slice = core::slice::from_raw_parts(rx_buffer, 2048);
+                    reap_queue.push(Some(&rx_slice));
+                    // switch to a new buffer
+                    self.receive_ring[rx_index].read.pkt_addr = packet.data.physical() as u64;
+                }
+
+                last_rx_index = rx_index;
+                rx_index = wrap_ring(rx_index, self.receive_ring.len());
+                received_packets = i + 1;
+            }
+        }
+
+        if rx_index != last_rx_index {
+            //println!("Update rdt from {} to {}", self.bar.read_reg_idx(IxgbeArrayRegs::Rdt, 0), last_rx_index);
+            self.bar.write_reg_rdt(0, last_rx_index as u64);
+            self.receive_index = rx_index;
+        }
+
+        if received_packets > 0 {
+            //println!("Received {} packets", received_packets);
+        }
+        received_packets
+
     }
 
     fn set_ivar(&mut self, direction: i8, queue_id: u16, mut msix_vector: u8) {
