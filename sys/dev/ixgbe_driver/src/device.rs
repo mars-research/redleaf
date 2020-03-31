@@ -21,8 +21,9 @@ const TX_CLEAN_BATCH: usize = 32;
 const PACKET_SIZE: usize = 60;
 
 pub struct Intel8259x {
-    receive_buffer: [Dma<[u8; 2048]>; 32],
-    receive_ring: Dma<[ixgbe_adv_rx_desc; 32]>,
+    // SRRCTL 4:0 states 2KiB
+    receive_buffer: [Dma<[u8; 2048]>; 64],
+    receive_ring: Dma<[ixgbe_adv_rx_desc; 64]>,
     receive_index: usize,
     //transmit_buffer: [Dma<[u8; 2048]>; 512],
     transmit_ring: Dma<[ixgbe_adv_tx_desc; 512]>,
@@ -53,7 +54,17 @@ impl Intel8259x {
                 allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
                 allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
                 allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
+
+                allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
+                allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
+                allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
+                allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
+                allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
+                allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
+                allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
+                allocate_dma()?, allocate_dma()?, allocate_dma()?, allocate_dma()?,
             ],
+
             receive_ring: allocate_dma()?,
             receive_index: 0,
             transmit_ring: allocate_dma()?,
@@ -221,7 +232,9 @@ impl Intel8259x {
 
         // sleep for 10 seconds. Just stabilize the hardware
         // Well. this ugliness costed us two days of debugging.
-        sys_ns_loopsleep(ONE_MS_IN_NS * 1000 * 10);
+        println!("Sleep for 15 seconds");
+        sys_ns_loopsleep(ONE_MS_IN_NS * 1000 * 3);
+        println!("Resuming sleep");
     }
 
     /// Returns the mac address of this device.
@@ -312,9 +325,12 @@ impl Intel8259x {
         // let nic drop packets if no rx descriptor is available instead of buffering them
         self.write_flag_idx(IxgbeArrayRegs::Srrctl, i, IXGBE_SRRCTL_DROP_EN);
 
-        self.bar.write_reg_idx(IxgbeArrayRegs::Rdbal, i, self.receive_ring.physical() as u64);
+        self.bar.write_reg_idx(IxgbeArrayRegs::Rdbal, i, (self.receive_ring.physical() & 0xffff_ffff) as u64);
 
         self.bar.write_reg_idx(IxgbeArrayRegs::Rdbah, i, (self.receive_ring.physical() >> 32) as u64);
+
+        println!("rx ring {} phys addr: {:#x}", i, self.receive_ring.physical());
+
         self.bar.write_reg_idx(
             IxgbeArrayRegs::Rdlen, i,
             (self.receive_ring.len() * mem::size_of::<ixgbe_adv_rx_desc>()) as u64,
@@ -421,7 +437,7 @@ impl Intel8259x {
         for i in 0..self.receive_ring.len() {
             unsafe {
                 self.receive_ring[i].read.pkt_addr = self.receive_buffer[i].physical() as u64;
-                self.receive_ring[i].read.hdr_addr = 0;
+                println!("{:x}:{:08x}", i, self.receive_buffer[i].physical() as u64);
             }
         }
 
@@ -435,9 +451,7 @@ impl Intel8259x {
         self.bar.write_reg_idx(IxgbeArrayRegs::Rdh, u64::from(queue_id), 0);
 
         // was set to 0 before in the init function
-        self.bar.write_reg_idx(
-            IxgbeArrayRegs::Rdt,
-            u64::from(queue_id),
+        self.bar.write_reg_rdt(u64::from(queue_id),
             (self.receive_ring.len() - 1) as u64
         );
     }
@@ -639,13 +653,91 @@ impl Intel8259x {
             }
         }
  
-        //println!("updating tail {}", self.transmit_index);
         if sent > 0 {
+            //println!("updating tail {}", self.bar.read_reg_idx(IxgbeArrayRegs::Tdt, 0));
             self.bar.write_reg_tdt(0, self.transmit_index as u64);
         }
         //println!("wrote {} packets", sent);
 
         sent
+    }
+
+    /// Pushes up to `num_packets` received `Packet`s onto `buffer`.
+    pub fn rx_batch<T>(&mut self, packets: &mut Vec<UdpPacket<T>>) -> usize {
+        let mut rx_index;
+        let mut last_rx_index;
+        let mut received_packets = 0;
+
+        {
+            rx_index = self.receive_index;
+            last_rx_index = self.receive_index;
+
+            for (i, packet) in packets.iter_mut().enumerate() {
+                let mut desc = unsafe { &mut*(self.receive_ring.as_ptr().add(rx_index) as *mut ixgbe_adv_rx_desc) };
+
+                let status = unsafe {
+                    core::ptr::read_volatile(&mut (*desc).wb.upper.status_error as *mut u32) };
+
+                unsafe {
+                    //println!("pkt_addr {:08X} rx_Buffer {:08X}",
+                    //            (*desc).read.pkt_addr as *const u64 as u64,
+                    //            self.receive_buffer[rx_index].physical());
+                }
+
+                if (status & IXGBE_RXDADV_STAT_DD) == 0 {
+                    break;
+                }
+
+                if (status & IXGBE_RXDADV_STAT_EOP) == 0 {
+                    panic!("increase buffer size or decrease MTU")
+                }
+
+
+                //println!("Found packet {}", rx_index);
+                let length = unsafe { core::ptr::read_volatile(
+                            &(*desc).wb.upper.length as *const u16) as isize
+                };
+
+                if length > 0 {
+                   //println!("Got a packet with len {}", length);
+                }
+
+                let pslice_ptr = packet.as_mut_slice().as_mut_ptr();
+
+                unsafe {
+                    core::ptr::copy(
+                        self.receive_buffer[rx_index].physical() as *const u64 as *const u8,
+                        pslice_ptr,
+                        length as usize);
+
+                    //let raw_buffer = (*desc).read.pkt_addr as *const u64 as *const u8;
+                    //let ptr_buffer = core::ptr::read_volatile(&mut (*desc).read.pkt_addr as *mut u64) as *const u32 as *const u8;
+                    //let buffer = self.receive_buffer[rx_index].physical() as *const u64 as *const u8;
+
+                    //println!("raw_pktaddr {:08x} pkt_addr {:08x} rx_buffer[i] {:08x}",
+                    //                raw_buffer as u64, ptr_buffer as u64, self.receive_buffer[rx_index].physical());
+                    //for i in 0..length {
+                    //    print!("{:02x} ", *buffer.offset(i));
+                    //}
+                    //print!("\n");
+                }
+
+                last_rx_index = rx_index;
+                rx_index = wrap_ring(rx_index, self.receive_ring.len());
+                received_packets = i + 1;
+            }
+        }
+
+        if rx_index != last_rx_index {
+            //println!("Update rdt from {} to {}", self.bar.read_reg_idx(IxgbeArrayRegs::Rdt, 0), last_rx_index);
+            self.bar.write_reg_rdt(0, last_rx_index as u64);
+            self.receive_index = rx_index;
+        }
+
+        if received_packets > 0 {
+            //println!("Received {} packets", received_packets);
+        }
+        received_packets
     }
 
     fn set_ivar(&mut self, direction: i8, queue_id: u16, mut msix_vector: u8) {

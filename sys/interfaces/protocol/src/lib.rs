@@ -86,6 +86,16 @@ impl<T> UdpPacket<T> {
             )
         }
     }
+
+    pub fn as_mut_slice(&mut self) -> &mut [u8] {
+        unsafe {
+            core::slice::from_raw_parts_mut(
+                self as *mut Self as *mut u8,
+                core::mem::size_of::<Self>()
+            )
+        }
+    }
+
 }
 
 #[cfg(test)]
