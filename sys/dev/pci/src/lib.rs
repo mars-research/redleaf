@@ -90,7 +90,7 @@ impl syscalls::PCI for PCI {
 
         println!("Getting bar region {:x}", bar);
 
-        let bar_region = pci_bar.get_bar_region(bar as u64, 512 * 1024 as usize, pci_driver.get_driver_type());
+        let bar_region = pci_bar.get_bar_region(bar as u64, 1024 * 1024 as usize, pci_driver.get_driver_type());
 
         println!("Probing device...");
 
