@@ -27,6 +27,6 @@ $(bin): lib $(linker_script)
 
 .PHONY: lib
 lib:
-	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo xbuild ${CARGO_FLAGS} --target x86_64-${bin_name}.json $(PCI_FEATURES)
+	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo ${CARGO_COMMAND} ${CARGO_FLAGS} --target x86_64-${bin_name}.json $(PCI_FEATURES)
 
 include $(root)/checkstack.mk

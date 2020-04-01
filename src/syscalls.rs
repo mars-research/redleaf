@@ -2,7 +2,7 @@ use crate::interrupt::{disable_irq, enable_irq};
 use crate::thread::{do_yield, create_thread};
 use x86::bits64::paging::{PAddr, VAddr};
 use crate::arch::vspace::{VSpace, ResourceType};
-use crate::memory::{paddr_to_kernel_vaddr, MEM_PROVIDER};
+use crate::memory::{paddr_to_kernel_vaddr};
 use x86::bits64::paging::BASE_PAGE_SIZE;
 use alloc::boxed::Box; 
 use spin::Mutex;
@@ -254,9 +254,9 @@ impl create::CreateXv6 for PDomain {
 }   
 
 impl create::CreateXv6FS for PDomain {
-    fn create_domain_xv6fs(&self) ->(Box<dyn syscalls::Domain>, Box<dyn usr::vfs::VFS>) {
+    fn create_domain_xv6fs(&self, bdev: Box<dyn usr::bdev::BDev>) ->(Box<dyn syscalls::Domain>, Box<dyn usr::vfs::VFS>) {
         disable_irq();
-        let r = crate::domain::create_domain::create_domain_xv6fs();
+        let r = crate::domain::create_domain::create_domain_xv6fs(bdev);
         enable_irq();
         r
     }

@@ -147,7 +147,7 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
             Pager::BASE_PAGE_SIZE => Pager.dealloc_page(ptr, Pager::BASE_PAGE_SIZE),
             Pager::LARGE_PAGE_SIZE => Pager.dealloc_page(ptr, Pager::LARGE_PAGE_SIZE),
 
-            sz => sys_free_huge(ptr),
+            _sz => sys_free_huge(ptr),
             /*0..=ZoneAllocator::MAX_ALLOC_SIZE => {
                 if let Some(nptr) = NonNull::new(ptr) {
                     self.0

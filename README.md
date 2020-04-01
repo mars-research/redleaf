@@ -1,3 +1,5 @@
+![](https://github.com/mars-research/redleaf/workflows/build/badge.svg)
+
 ### Setup
 ```
 curl https://sh.rustup.rs -sSf | sh
@@ -114,6 +116,10 @@ set to "false".
 | [usr/mkfs](usr/mkfs)            | Make the file system for the rv6 fs.                        |
 | [usr/xv6](usr/xv6)              | The rv6 kernel and it's user programs.                      |
 
+### Known issues
+
+* Qemu does not run on certain machines.[#18](https://github.com/mars-research/redleaf/issues/18)
+
 ### Notes
 
 The baremetal Rust setup (features, linking, etc. is best describe in https://os.phil-opp.com/set-up-rust/).
@@ -128,3 +134,12 @@ Naked functions for exceptions: https://os.phil-opp.com/first-edition/extra/nake
 
 * If you are using an outdated version of redleaf it won't boot, try `git cherry-pick 11e80df000bc5f4ea49e67d5147ca94a992a4fbd f2e973019e85171fd298e229472a020d93b880aa 7d55606b309486a2a3d17574edae9dbd7ccad836` to apply patches that fixes some hardware issue.
 * The device id of the disk on Zhaofeng's PC: `0x8c82`
+* `grep` for `v=` when you want to see what interrupt that qemu's sending to the kernel.
+
+### Supported Cloudlab Machines
+
+#### Machines that the disk driver(AHCI driver) supprots
+
+* d430(HDD)
+* c240g1(SSD)
+* c240g2(SSD)

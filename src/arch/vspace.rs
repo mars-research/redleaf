@@ -463,7 +463,7 @@ impl VSpace {
         }
 
         let pd = self.get_pd(pdpt[pdpt_idx]);
-        let mut pd_idx = pd_index(vbase);
+        let pd_idx = pd_index(vbase);
 
         if !pd[pd_idx].is_present() {
             trace_vspace!("Mapping not found! Forgot to map? {:?} @ PD[{}]", vbase, pd_idx);
@@ -471,7 +471,7 @@ impl VSpace {
         }
 
         let pt = self.get_pt(pd[pd_idx]);
-        let mut pt_idx = pt_index(vbase);
+        let pt_idx = pt_index(vbase);
 
         if !pt[pt_idx].is_present() {
             trace_vspace!("Mapping not found! Forgot to map? {:?} @ PT[{}]", vbase, pt_idx);
@@ -509,7 +509,7 @@ impl VSpace {
         }
 
         let pd = self.get_pd(pdpt[pdpt_idx]);
-        let mut pd_idx = pd_index(vbase);
+        let pd_idx = pd_index(vbase);
 
         if !pd[pd_idx].is_present() {
             trace_vspace!("Mapping not found! Forgot to map? {:?} @ PD[{}]", vbase, pd_idx);
@@ -517,7 +517,7 @@ impl VSpace {
         }
 
         let pt = self.get_pt(pd[pd_idx]);
-        let mut pt_idx = pt_index(vbase);
+        let pt_idx = pt_index(vbase);
 
         if !pt[pt_idx].is_present() {
             trace_vspace!("Mapping not found! Forgot to map? {:?} @ PT[{}]", vbase, pt_idx);

@@ -18,10 +18,11 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::panic::PanicInfo;
 use syscalls::{Syscall};
-use libsyscalls::syscalls::{sys_create_thread, sys_current_thread, sys_yield, sys_recv_int};
-use libtime::sys_ns_sleep;
+use libsyscalls::syscalls::{sys_current_thread, sys_yield, sys_recv_int};
+use usr::bdev::BDev;
+
 use console::println;
-use sleeplock::sleeplock::SleepLock;
+
 
 struct Xv6Syscalls {}
 
@@ -98,7 +99,8 @@ fn test_sleeplock() {
 pub fn init(s: Box<dyn Syscall + Send + Sync>,
             ints: Box<dyn syscalls::Interrupt + Send + Sync>,
             create_xv6fs: &dyn create::CreateXv6FS,
-            create_xv6usr: &dyn create::CreateXv6Usr)
+            create_xv6usr: &dyn create::CreateXv6Usr,
+            bdev: Box<dyn BDev + Send + Sync>)
 {
    
     libsyscalls::syscalls::init(s);
@@ -115,11 +117,11 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
     #[cfg(feature = "test_sleeplock")]
     test_sleeplock();
 
-    let (dom_xv6fs, vfs)  = create_xv6fs.create_domain_xv6fs();
-    
+    let (_dom_xv6fs, _vfs)  = create_xv6fs.create_domain_xv6fs(bdev);
+
     let xv6 = Box::new(Xv6Syscalls::new());
 
-    let dom_shell  = create_xv6usr.create_domain_xv6usr("shell", xv6);
+    let _dom_shell  = create_xv6usr.create_domain_xv6usr("shell", xv6);
 
 }
 

@@ -7,13 +7,13 @@ use self::hba::Hba;
 use self::hba_port::{HbaPort, HbaPortType};
 
 use alloc::sync::Arc;
-use spin::Mutex;
+
 
 use ahci::{AhciBarRegion, AhciRegs};
 
-use console::{print, println};
+use console::dbg;
 
-use core::mem::MaybeUninit;
+
 
 pub mod disk_ata;
 pub mod fis;
@@ -30,31 +30,27 @@ pub trait Disk {
     fn poll(&mut self, slot: u32) -> Result<Option<Box<[u8]>>>;
 }
 
-pub fn disks(bar: Box<dyn AhciBarRegion>) -> Vec<Box<dyn Disk>> {
-    let base: usize = bar.get_base() as usize;
+pub fn create_disks(bar: Box<dyn AhciBarRegion>) -> Vec<Box<dyn Disk>> {
+    let _base: usize = bar.get_base() as usize;
     let name: &str = "rlahci";
 
-    let hbaarc = Arc::new(Mutex::new(Hba::new(bar)));
-
-    let pi = {
-        let hba = hbaarc.lock();
-        hba.init();
-        hba.bar.read_reg(AhciRegs::Pi)
-    };
+    let hba = Arc::new(Hba::new(bar));
+    hba.init();
+    let pi = hba.bar.read_reg(AhciRegs::Pi);
 
     let disks: Vec<Box<dyn Disk>> = (0..32)
-          .filter(|&i| pi & 1 << i as i32 == 1 << i as i32)
+          .filter(|&i| pi & 1 << i as i32 != 0)
           .filter_map(|i| {
-              let mut port = HbaPort::new(hbaarc.clone(), i as u64);
+              let port = HbaPort::new(hba.clone(), i as u64);
               let port_type = port.probe();
-              print!("{}-{}: {:?}\n", name, i, port_type);
+              dbg!("HBA port {}-{}: {:?}", name, i, port_type);
 
               let disk: Option<Box<dyn Disk>> = match port_type {
                   HbaPortType::SATA => {
                       match DiskATA::new(i, port) {
                           Ok(disk) => Some(Box::new(disk)),
                           Err(err) => {
-                              print!("{}: {}\n", i, err);
+                              dbg!("Failed to create disk for port#{}: {}", i, err);
                               None
                           }
                       }

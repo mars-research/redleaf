@@ -62,9 +62,9 @@ impl File {
                 let mut iguard = inode.lock();
                 if let Some(bytes) = iguard.read(user_buffer, *offset) {
                     *offset += bytes;
-                    return Some(bytes);
+                    Some(bytes)
                 } else {
-                    return None;
+                    None
                 }
             },
             // TODO: device, pipe

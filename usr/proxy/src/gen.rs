@@ -96,9 +96,9 @@ impl create::CreateIxgbe for Proxy {
 }
 
 impl create::CreateXv6FS for Proxy {
-    fn create_domain_xv6fs(&self) ->(Box<dyn Domain>, Box<dyn VFS>) {
+    fn create_domain_xv6fs(&self, bdev: Box<dyn BDev>) ->(Box<dyn Domain>, Box<dyn VFS>) {
         // TODO: write Xv6FSProxy
-        self.create_xv6fs.create_domain_xv6fs()
+        self.create_xv6fs.create_domain_xv6fs(bdev)
     }
 }
 
@@ -158,6 +158,20 @@ impl usr::bdev::BDev for BDevProxy {
         // data.move_to(callee_domain);
         let r = self.domain.write(block, data);
         // data.move_to(caller_domain);
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
+    }
+
+    fn read_contig(&self, block: u32, data: &mut RRef<[u8; 512]>) {
+        // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        data.move_to(self.domain_id);
+        let r = self.domain.read(block, data);
+        data.move_to(caller_domain);
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };

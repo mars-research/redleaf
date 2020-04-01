@@ -17,13 +17,13 @@ extern crate alloc;
 
 use core::panic::PanicInfo;
 use syscalls::Syscall;
-use libsyscalls::syscalls::{sys_println, sys_alloc};
+use libsyscalls::syscalls::{sys_println};
 use usr::xv6::Xv6;
-use console::println;
+
 use alloc::boxed::Box;
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>, xv6: Box<dyn Xv6>) {
+pub fn init(s: Box<dyn Syscall + Send + Sync>, _xv6: Box<dyn Xv6>) {
     libsyscalls::syscalls::init(s);
 
     sys_println("xv6 shell domain");

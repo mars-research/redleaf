@@ -440,7 +440,7 @@ impl  Scheduler {
     
     pub fn get_next(&mut self) -> Option<Arc<Mutex<Thread>>> {
         loop {
-            let next_thread = match self.get_next_active() 
+            let _next_thread = match self.get_next_active() 
             {
                 Some(t) => {
                     // Skip over non-runnable threads

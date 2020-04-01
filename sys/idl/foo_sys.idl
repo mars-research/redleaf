@@ -1,0 +1,6 @@
+use b_dev;
+
+pub trait Syscalls {
+    fn do_thing(&self) -> bool;
+    fn do_widgets(&self, is_widget: bool, widget_count: u64) -> &'static dyn b_dev::BDev;
+}

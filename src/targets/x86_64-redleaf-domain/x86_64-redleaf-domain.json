@@ -15,7 +15,9 @@
   "pre-link-args": {
     "gcc": [
       "-Wl,-n,-pie,--no-dynamic-linker",
-      "-Wl,--gc-sections"
+      "-Wl,--gc-sections",
+	  "-T./linker.ld",
+	  "interfaces.fingerprint.o"
     ]
   },
   "stack-probes": true

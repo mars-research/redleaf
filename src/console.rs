@@ -5,7 +5,7 @@ mod vga;
 use x86::cpuid::CpuId;
 use core::fmt::{Write};
 use crate::console::vga::WRITER;
-use crate::console::serial::{SERIAL1, EMERGENCY_SERIAL1};
+use crate::console::serial::{SERIAL1, SERIAL2, EMERGENCY_SERIAL1};
 
 pub static mut IN_A_CRASH: bool = false; 
 
@@ -45,8 +45,9 @@ macro_rules! usrprintln {
 pub fn _print(args: core::fmt::Arguments) {
     unsafe {
         if IN_A_CRASH {
-                EMERGENCY_SERIAL1.write_fmt(args).unwrap();
-                return; 
+            WRITER.lock().write_fmt(args).unwrap();
+            EMERGENCY_SERIAL1.write_fmt(args).unwrap();
+            return; 
         }
     }
 
@@ -63,6 +64,7 @@ pub fn _print(args: core::fmt::Arguments) {
     // kernel interrupts are off all the time
     WRITER.lock().write_fmt(args).unwrap();
     SERIAL1.lock().write_fmt(args).unwrap(); 
+    SERIAL2.lock().write_fmt(args).unwrap();
 }
 
 // The debug version

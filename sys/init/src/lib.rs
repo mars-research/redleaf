@@ -76,7 +76,7 @@ fn test_dummy_syscall() {
     let NUM_ITER: u64 = 20_000_000;
     let start = get_rdtsc();
 
-    for i in 0..NUM_ITER {
+    for _i in 0..NUM_ITER {
         sys_dummy();
     }
 

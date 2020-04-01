@@ -2,7 +2,7 @@ extern crate alloc;
 use spin::Once;
 use alloc::boxed::Box;
 use syscalls::{Syscall, Thread, Interrupt};
-use core::alloc::Layout;
+
 
 static SYSCALL: Once<Box<dyn Syscall + Send + Sync>> = Once::new();
 static INT: Once<Box<dyn Interrupt + Send + Sync>> = Once::new();
@@ -42,12 +42,12 @@ pub fn sys_yield() {
 
 pub fn sys_create_thread(name: &str, func: extern fn()) -> Box<dyn Thread> {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
-    return scalls.sys_create_thread(name, func);
+    scalls.sys_create_thread(name, func)
 }
 
 pub fn sys_current_thread() -> Box<dyn Thread> {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
-    return scalls.sys_current_thread();
+    scalls.sys_current_thread()
 }
 
 pub fn sys_get_current_domain_id() -> u64 {
@@ -62,30 +62,30 @@ pub unsafe fn sys_update_current_domain_id(new_domain_id: u64) -> u64 {
 
 pub fn sys_alloc() -> *mut u8 {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
-    return scalls.sys_alloc();
+    scalls.sys_alloc()
 }
 
 pub fn sys_free(p: *mut u8) {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
-    return scalls.sys_free(p);
+    scalls.sys_free(p)
 }
 
 pub fn sys_alloc_huge(sz: u64) -> *mut u8 {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
-    return scalls.sys_alloc_huge(sz);
+    scalls.sys_alloc_huge(sz)
 }
 
 pub fn sys_free_huge(p: *mut u8) {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
-    return scalls.sys_free_huge(p);
+    scalls.sys_free_huge(p)
 }
 
 pub fn sys_backtrace() {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
-    return scalls.sys_backtrace();
+    scalls.sys_backtrace()
 }
 
 pub fn sys_dummy() {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
-    return scalls.sys_dummy();
+    scalls.sys_dummy()
 }

@@ -1,7 +1,7 @@
 use core::ptr;
 use ahci::{AhciBarRegion, AhciRegs, AhciArrayRegs, AhciPortRegs, AhciPortArrayRegs};
-use syscalls::PciBar;
-use alloc::boxed::Box;
+
+
 
 
 macro_rules! reg_ahci {
@@ -110,6 +110,7 @@ impl AhciBar {
     fn get_port_reg_offset(&self, port: u64, reg_enum: AhciPortRegs) -> u64 {
         assert!(port < 32);
 
+        // 0x80 = 128
         let port_offset = self.base + Self::PORTS + 128 * port;
 
         let reg_offset = match reg_enum {

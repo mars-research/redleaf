@@ -24,7 +24,7 @@ clean:
 
 .PHONY: $(bin)
 $(bin):
-	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes -C link-args=-T$(target_link)" cargo xbuild ${CARGO_FLAGS} --target $(target_spec) $(FEATURES)
+	@REDLEAF_ROOT=$(shell realpath $(root)) RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo ${CARGO_COMMAND} ${CARGO_FLAGS} --target $(target_spec) $(FEATURES)
 	mkdir -p build
 	cp $(rbin) $(bin)
 

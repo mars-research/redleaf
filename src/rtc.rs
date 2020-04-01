@@ -3,7 +3,7 @@
 use x86::io::{outb, inb};
 use core::fmt;
 
-pub const NMI_DISABLE:u8 = (1 << 7);
+pub const NMI_DISABLE:u8 = 1 << 7;
 pub const SECOND_REG: u8    = 0x0;
 pub const MINUTE_REG: u8    = 0x2;
 pub const HOUR_REG: u8      = 0x4;

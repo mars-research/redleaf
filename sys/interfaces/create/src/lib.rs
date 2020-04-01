@@ -22,7 +22,7 @@ pub trait CreateIxgbe {
 }
 
 pub trait CreateXv6FS {
-    fn create_domain_xv6fs(&self) ->(Box<dyn Domain>, Box<dyn VFS>);
+    fn create_domain_xv6fs(&self, bdev: Box<dyn BDev>) ->(Box<dyn Domain>, Box<dyn VFS>);
 }
 
 pub trait CreateXv6Usr {

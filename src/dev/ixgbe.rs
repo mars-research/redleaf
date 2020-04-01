@@ -1,7 +1,7 @@
 use core::ptr;
 use ixgbe::{IxgbeRegs, IxgbeArrayRegs, IxgbeBarRegion};
-use syscalls::PciBar;
-use alloc::boxed::Box;
+
+
 use crate::interrupt::{disable_irq, enable_irq};
 
 macro_rules! reg_ixgbe {

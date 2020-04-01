@@ -92,7 +92,7 @@ pub fn create_domain_xv6kernel(ints: Box<dyn syscalls::Interrupt>,
     build_domain_xv6kernel("xv6kernel", binary_range, ints, create_xv6fs, create_xv6usr)
 }
 
-pub fn create_domain_xv6fs() ->(Box<dyn syscalls::Domain>, Box<dyn VFS>) {
+pub fn create_domain_xv6fs(bdev: Box<dyn BDev>) ->(Box<dyn syscalls::Domain>, Box<dyn VFS>) {
 
     extern "C" {
         fn _binary_usr_xv6_kernel_fs_build_xv6fs_start();
@@ -104,7 +104,7 @@ pub fn create_domain_xv6fs() ->(Box<dyn syscalls::Domain>, Box<dyn VFS>) {
         _binary_usr_xv6_kernel_fs_build_xv6fs_end as *const u8
     );
 
-    build_domain_fs("xv6fs", binary_range)
+    build_domain_fs("xv6fs", binary_range, bdev)
 }
 
 // AB: We have to split ukern syscalls into some that are
@@ -291,10 +291,12 @@ pub fn create_domain_net(name: &str,
     (Box::new(PDomain::new(Arc::clone(&dom))), net)
 }
 
-pub fn build_domain_fs(name: &str, 
-                                 binary_range: (*const u8, *const u8)) -> (Box<dyn syscalls::Domain>, Box<dyn VFS>)
+pub fn build_domain_fs(
+    name: &str,
+    binary_range: (*const u8, *const u8),
+    bdev: Box<dyn BDev>) -> (Box<dyn syscalls::Domain>, Box<dyn VFS>)
 {
-    type UserInit = fn(Box<dyn Syscall>) -> Box<dyn VFS>;
+    type UserInit = fn(Box<dyn Syscall>, Box<dyn BDev>) -> Box<dyn VFS>;
     
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)
@@ -308,7 +310,7 @@ pub fn build_domain_fs(name: &str,
     
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
-    let vfs = user_ep(pdom);
+    let vfs = user_ep(pdom, bdev);
     disable_irq();
 
     println!("domain/{}: returned from entry point", name);

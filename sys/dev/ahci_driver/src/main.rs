@@ -27,7 +27,7 @@ use core::panic::PanicInfo;
 use core::cell::RefCell;
 use syscalls::{Syscall};
 use libsyscalls::errors::Result;
-use libsyscalls::syscalls::sys_backtrace;
+
 use console::println;
 use pci_driver::{BarRegions, PciClass};
 use alloc::boxed::Box;
@@ -73,7 +73,7 @@ impl pci_driver::PciDriver for Ahci {
 
         println!("Initializing with base = {:x}", bar.get_base());
 
-        let mut disks = self::ahcid::disks(bar);
+        let mut disks = self::ahcid::create_disks(bar);
         // Filter out all disk that already has an OS on it
         let have_magic_number: Vec<bool> = disks
                         .iter_mut()
@@ -84,7 +84,7 @@ impl pci_driver::PciDriver for Ahci {
                             LittleEndian::read_u16(&buf[510..]) == MBR_MAGIC
                         })
                         .collect();
-        let mut disks = disks
+        let disks = disks
                         .into_iter()
                         .zip(have_magic_number)
                         .filter_map(|(d, has_magic_num)| {
@@ -122,15 +122,16 @@ impl usr::bdev::BDev for Ahci {
         self.disks.borrow_mut()[0].read(block as u64, &mut **data);
     }
 
-//    fn read_contig(&self, block: u32, data: &mut [u8]) {
-//        self.disks.borrow_mut()[0].read(block as u64, data);
-//    }
+    fn read_contig(&self, block: u32, data: &mut RRef<[u8; 512]>) {
+        self.disks.borrow_mut()[0].read(block as u64, &mut **data);
+    }
 
     fn write(&self, block: u32, data: &[u8; 512]) {
         // println!("WARNING: BDEV.write is currently disabled");
         self.disks.borrow_mut()[0].write(block as u64, data);
     }
 
+// TODO: impl with RRefs
 //    fn submit(&self, block: u64, write: bool, buf: Box<[u8]>) -> Result<u32> {
 //        self.disks.borrow_mut()[0].submit(block, write, buf)
 //    }
@@ -152,19 +153,34 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
     }
 
     let ahci: Box<dyn usr::bdev::BDev> = Box::new(ahci);
+    
+    verify_write(&ahci);
 
-    // benchmark_ahci(&ahci, 256, 1);
-    // benchmark_ahci_async(&ahci, 256, 1);
+//    benchmark_ahci(&ahci, 1, 1);
+//    benchmark_ahci_async(&ahci, 256, 1);
     // benchmark_ahci(&ahci, 8192, 8192);
-    // benchmark_ahci_async(&ahci, 8192, 8192);
+//    benchmark_ahci_async(&ahci, 8192, 8192);
     // benchmark_ahci(&ahci, 8192 * 128, 8192);
-    // benchmark_ahci_async(&ahci, 8192 * 128, 8192);
+//    benchmark_ahci_async(&ahci, 8192 * 128, 8192);
     // benchmark_ahci(&ahci, 32768, 32768);
     // benchmark_ahci(&ahci, 0xFFFF * 128, 0xFFFF);
-    // benchmark_ahci_async(&ahci, 0xFFFF * 128, 0xFFFF);
+//    benchmark_ahci_async(&ahci, 0xFFFF * 128, 0xFFFF);
     ahci
 }
 
+fn verify_write(bdev: &Box<dyn usr::bdev::BDev>) {
+    let disk_offset = 10000;
+    let buff = [123u8; 512];
+    bdev.write(disk_offset, &buff);
+
+    let mut buff = RRef::new([222u8; 512]);
+    bdev.read(disk_offset, &mut buff);
+    for i in buff.iter() {
+        assert!(*i == 123u8);
+    }
+}
+
+// TODO: impl with RRefs
 //fn benchmark_ahci(bdev: &Box<dyn usr::bdev::BDev>, blocks_to_read: u32, blocks_per_patch: u32) {
 //    assert!(blocks_to_read % blocks_per_patch == 0);
 //    assert!(blocks_per_patch <= 0xFFFF);
@@ -177,7 +193,8 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
 //    let end = libtime::get_rdtsc();
 //    println!("AHCI benchmark: reading {} blocks, {} blocks at a time, takes {} cycles", blocks_to_read, blocks_per_patch, end - start);
 //}
-//
+
+// TODO: impl with RRefs
 //fn benchmark_ahci_async(bdev: &Box<dyn usr::bdev::BDev>, blocks_to_read: u32, blocks_per_patch: u32) {
 //    println!("starting bencharl async {}", blocks_to_read);
 //
@@ -199,9 +216,9 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
 //                .filter(|slot|  {
 //                    if let Some(buf) = bdev.poll(*slot).unwrap() {
 //                        buffers.push(buf);
-//                        return false;
+//                        false
 //                    } else {
-//                        return true;
+//                        true
 //                    }
 //                })
 //                .collect();
@@ -223,6 +240,6 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     println!("panicked: {:?}", info);
-    sys_backtrace();
+    // sys_backtrace();
     loop {}
 }

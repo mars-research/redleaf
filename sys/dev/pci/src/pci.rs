@@ -3,7 +3,7 @@ pub use crate::bus::{PciBus, PciBusIter};
 pub use crate::dev::{PciDev, PciDevIter};
 pub use crate::func::PciFunc;
 pub use crate::header::{PciHeader, PciHeaderError, PciHeaderType};
-use pci_driver::PciClass;
+
 use syscalls::PciResource;
 
 pub struct Pci<'a> {
@@ -38,7 +38,7 @@ pub struct PciIter<'pci> {
 impl<'pci> PciIter<'pci> {
     pub fn new(pci: &'pci Pci) -> Self {
         PciIter {
-            pci: pci,
+            pci,
             num: 0
         }
     }

@@ -312,7 +312,7 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
             if let Some(ref mut fmanager) = *BUDDY.lock() {
                 let f = fmanager.allocate(layout);
                 match f {
-                    Some(frame) => trace_alloc!("Alloc {:x?}", frame),
+                    Some(_frame) => trace_alloc!("Alloc {:x?}", frame),
                     _ => { },
                 };
                 ptr = f.map_or(core::ptr::null_mut(), |mut region| {
