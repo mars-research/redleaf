@@ -14,6 +14,7 @@ use core::{mem};
 use libtime::sys_ns_loopsleep;
 use alloc::format;
 use protocol::UdpPacket;
+use super::Packet;
 
 
 const ONE_MS_IN_NS: u64 = 100_0000;
