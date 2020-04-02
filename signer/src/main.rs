@@ -12,10 +12,17 @@ fn main() {
         println!("Signs a binary in place");
         println!("Usage: {} <keypair> <binary>", argv[0]);
     }
+    let filename = &argv[2];
+
     let keypair = fs::read(&argv[1]).expect("Could not open keyring");
     let keypair = Keypair::from_bytes(&keypair).expect("Invalid keyring file");
 
-    let binary = fs::read(&argv[2]).expect("Could not open binary");
+    let binary = fs::read(filename).expect("Could not open binary");
+
+    if &binary[binary.len() - MAGIC_NUMBER.len()..] == MAGIC_NUMBER.as_bytes() {
+        println!("{} is already signed", filename);
+        return;
+    }
 
     let signature = keypair.sign(&binary).to_bytes().to_vec();
 
