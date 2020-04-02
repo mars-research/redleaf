@@ -146,7 +146,10 @@ $(iso): $(bin) $(grub_cfg)
 	grub-mkrescue -o $(iso) build/isofiles #2> /dev/null
 	@rm -r build/isofiles
 
-$(bin): kernel $(rust_os) bootblock entryother entry $(linker_script) init
+$(bin): kernel $(rust_os) bootblock entryother entry $(linker_script) init signer
+	for elf in $(domain_list); do \
+	    signer/signer redleaf.key $$elf; \
+	done
 	ld -n --gc-sections -T $(linker_script) -o $(bin) build/entry.o build/boot.o build/multiboot_header.o $(rust_os) -b binary build/entryother.bin $(domain_list) 
 
 include $(root)/checkstack.mk
@@ -156,6 +159,10 @@ init:
 	make -C usr/proxy
 	make -C usr/xv6
 	make -C sys
+
+.PHONY: signer
+signer:
+	make -C signer
 
 .PHONY: kernel
 kernel:
