@@ -1,6 +1,8 @@
 use byteorder::{LittleEndian, ByteOrder};
 use pci_driver::PciClass;
 
+use console::println;
+
 use super::func::ConfigReader;
 use super::bar::PciBar;
 
@@ -95,11 +97,26 @@ impl PciHeader {
     pub fn from_reader<T: ConfigReader>(reader: T) -> Result<PciHeader, PciHeaderError> {
         if reader.read_u32(0) != 0xffff_ffff {
             // Read the initial 16 bytes and set variables used by all header types.
-            let bytes = reader.read_range(0, 16);
+            let mut bytes = reader.read_range(0, 16);
             let vendor_id = LittleEndian::read_u16(&bytes[0..2]);
             let device_id = LittleEndian::read_u16(&bytes[2..4]);
-            let command = LittleEndian::read_u16(&bytes[4..6]);
-            let status = LittleEndian::read_u16(&bytes[6..8]);
+            let mut command = LittleEndian::read_u16(&bytes[4..6]);
+            let mut status = LittleEndian::read_u16(&bytes[6..8]);
+
+            // TODO: Ideally this should go into a function which shall be exposed to the drivers.
+            // To enable bus mastering, the driver would ideally call this function. But let this
+            // stay here for now.
+            if vendor_id == 0x8086 && device_id == 0x10fb  {
+                // enable bus mastering for ixgbe
+                let new_command = command | (1 << 2);
+                let value = u32::from(new_command) | (u32::from(status) << 16);
+                reader.write_u32(4, value);
+                println!("write value {:08x} at offset 4", value);
+            }
+
+            bytes = reader.read_range(0, 16);
+            command = LittleEndian::read_u16(&bytes[4..6]);
+            status = LittleEndian::read_u16(&bytes[6..8]);
             let revision = bytes[8];
             let interface = bytes[9];
             let subclass = bytes[10];
@@ -200,6 +217,20 @@ impl PciHeader {
     pub fn device_id(&self) -> u16 {
         match self {
             &PciHeader::General { device_id, .. } | &PciHeader::PciToPci { device_id, .. } => device_id,
+        }
+    }
+
+    /// Return the Command field.
+    pub fn command(&self) -> u16 {
+        match self {
+            &PciHeader::General { command, .. } | &PciHeader::PciToPci { command, .. } => command,
+        }
+    }
+
+    /// Return the status field.
+    pub fn status(&self) -> u16 {
+        match self {
+            &PciHeader::General { status, .. } | &PciHeader::PciToPci { status, .. } => status,
         }
     }
 
