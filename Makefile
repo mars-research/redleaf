@@ -80,6 +80,14 @@ clean:
 	-make -C usr/mkfs clean
 	-make -C usr/proxy clean
 
+.PHONY: clean-keys
+clean-keys:
+ifeq ($(I_READ_THE_MAKEFILE), doit)
+	shred -u redleaf.key redleaf.pub
+else
+	$(error mixed implicit and static pattern rules)
+endif
+
 .PHONY: run
 run: qemu
 
@@ -150,9 +158,10 @@ init:
 
 .PHONY: kernel
 kernel:
-	cat src/buildinfo.template | BUILD_VERSION=$$(date) envsubst > src/buildinfo.rs
-	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo ${CARGO_COMMAND} ${CARGO_FLAGS} --target x86_64-redleaf.json $(FEATURES)
+	@BUILD_VERSION="$(shell date)" RUST_TARGET_PATH="$(shell pwd)" TRUSTED_SIGNING_KEY_HASH="$(shell sha512sum redleaf.key)" RUSTFLAGS="-Z emit-stack-sizes" cargo ${CARGO_COMMAND} ${CARGO_FLAGS} -Z features=host_dep --target x86_64-redleaf.json $(FEATURES)
 
+interface-fingerprint: $(shell find sys/interfaces -type f -name "*.rs")
+	$(shell sha512sum sys/interfaces/**.rs | cut -d' ' -f1 | sha512sum | cut -d ' ' -f1 > interface.fingerprint)
 
 # compile assembly files for the exception entry code
 .PHONY: entry

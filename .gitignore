@@ -5,10 +5,13 @@
 *.sw*
 Cargo.lock
 serial.log
-src/buildinfo.rs
 disk.img
 sata.img
 .gdb_history
+
+/interface.fingerprint
+/redleaf.key
+/redleaf.pub
 
 **/*.o
 **/*.pyc
