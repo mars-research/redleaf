@@ -18,6 +18,9 @@ FEATURES += --features "page_fault_on_ist"
 
 ifeq ($(LARGE_MEM),true)
 FEATURES += --features "large_mem"
+NASM_CFLAGS += -DHUGE_PT
+else
+NASM_CFLAGS += -UHUGE_PT
 endif
 
 ifeq ($(IXGBE),true)
@@ -47,6 +50,7 @@ qemu_common += -drive id=satadisk,file=$(xv6fs_img),if=none
 qemu_common += -device ahci,id=ahci
 qemu_common += -device ide-drive,drive=satadisk,bus=ahci.0
 qemu_common += -smp 4
+qemu_common += -monitor telnet:127.0.0.1:55555,server,nowait
 
 QEMU := qemu-system-x86_64
 QEMU_KVM := sudo qemu-system-x86_64
@@ -88,7 +92,7 @@ qemu: $(iso) $(xv6fs_img)
 
 .PHONY: qemu-kvm
 qemu-kvm: $(iso) $(xv6fs_img)
-	${QEMU_KVM} $(qemu_kvm_args) $(qemu_x)
+	${QEMU_KVM} $(qemu_kvm_args) $(qemu_nox)
 
 .PHONY: qemu-gdb
 qemu-gdb: $(iso) $(xv6fs_img)
@@ -96,7 +100,7 @@ qemu-gdb: $(iso) $(xv6fs_img)
 
 .PHONY: qemu-kvm-gdb
 qemu-kvm-gdb: $(iso) $(xv6fs_img)
-	${QEMU_KVM} $(qemu_kvm_args) $(qemu_x) -S
+	${QEMU_KVM} $(qemu_kvm_args) $(qemu_nox) -S
 
 
 .PHONY: qemu-gdb-nox
@@ -161,7 +165,7 @@ entry: src/arch/entry_64.S
 .PHONY: bootblock
 bootblock: src/boot.asm src/multiboot_header.asm
 	@mkdir -p build
-	nasm -felf64 src/boot.asm -o build/boot.o
+	nasm -felf64 $(NASM_CFLAGS) src/boot.asm -o build/boot.o
 	nasm -felf64 src/multiboot_header.asm -o build/multiboot_header.o
 
 # compile assembly files

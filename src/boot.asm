@@ -46,7 +46,9 @@ start64:
     mov fs, ax
     mov gs, ax
 
+%ifdef HUGE_PT
     call setup_huge_page_tables
+%endif
 
     ; rdmsr IA32_EFER
     mov ecx, 0xc0000080
@@ -54,9 +56,11 @@ start64:
     or eax, 1 << 8 ; enable LME bit
     wrmsr
 
+%ifdef HUGE_PT
     ; load P4 to cr3 register (cpu uses this to access the P4 table)
     mov rax, hp4_table
     mov cr3, rax
+%endif
 
     ; print `OKAY` to screen
     ; mov rax, 0x2f592f412f4b2f4f
