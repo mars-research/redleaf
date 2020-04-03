@@ -18,9 +18,6 @@ FEATURES += --features "page_fault_on_ist"
 
 ifeq ($(LARGE_MEM),true)
 FEATURES += --features "large_mem"
-NASM_CFLAGS += -DHUGE_PT
-else
-NASM_CFLAGS += -UHUGE_PT
 endif
 
 ifeq ($(IXGBE),true)
@@ -52,6 +49,7 @@ qemu_common += -device ide-drive,drive=satadisk,bus=ahci.0
 qemu_common += -cpu Haswell-IBRS
 qemu_common += -smp 4
 qemu_common += -monitor telnet:127.0.0.1:55555,server,nowait
+qemu_common += -cpu Icelake-Server-v2 -machine q35
 
 QEMU := qemu-system-x86_64
 QEMU_KVM := sudo qemu-system-x86_64
@@ -182,7 +180,7 @@ entry: src/arch/entry_64.S
 .PHONY: bootblock
 bootblock: src/boot.asm src/multiboot_header.asm
 	@mkdir -p build
-	nasm -felf64 $(NASM_CFLAGS) src/boot.asm -o build/boot.o
+	nasm -felf64 src/boot.asm -o build/boot.o
 	nasm -felf64 src/multiboot_header.asm -o build/multiboot_header.o
 
 # compile assembly files
