@@ -46,7 +46,10 @@ qemu_common += -no-reboot -no-shutdown -d int,cpu_reset
 qemu_common += -drive id=satadisk,file=$(xv6fs_img),if=none
 qemu_common += -device ahci,id=ahci
 qemu_common += -device ide-drive,drive=satadisk,bus=ahci.0
+qemu_common += -cpu Haswell-IBRS
 qemu_common += -smp 4
+qemu_common += -monitor telnet:127.0.0.1:55555,server,nowait
+qemu_common += -cpu Icelake-Server-v2 -machine q35
 
 QEMU := qemu-system-x86_64
 QEMU_KVM := sudo qemu-system-x86_64
@@ -76,6 +79,14 @@ clean:
 	-make -C usr/mkfs clean
 	-make -C usr/proxy clean
 
+.PHONY: clean-keys
+clean-keys:
+ifeq ($(I_READ_THE_MAKEFILE), doit)
+	shred -u redleaf.key redleaf.pub
+else
+	$(error mixed implicit and static pattern rules)
+endif
+
 .PHONY: run
 run: qemu
 
@@ -88,7 +99,7 @@ qemu: $(iso) $(xv6fs_img)
 
 .PHONY: qemu-kvm
 qemu-kvm: $(iso) $(xv6fs_img)
-	${QEMU_KVM} $(qemu_kvm_args) $(qemu_x)
+	${QEMU_KVM} $(qemu_kvm_args) $(qemu_nox)
 
 .PHONY: qemu-gdb
 qemu-gdb: $(iso) $(xv6fs_img)
@@ -96,7 +107,7 @@ qemu-gdb: $(iso) $(xv6fs_img)
 
 .PHONY: qemu-kvm-gdb
 qemu-kvm-gdb: $(iso) $(xv6fs_img)
-	${QEMU_KVM} $(qemu_kvm_args) $(qemu_x) -S
+	${QEMU_KVM} $(qemu_kvm_args) $(qemu_nox) -S
 
 
 .PHONY: qemu-gdb-nox
@@ -133,7 +144,10 @@ $(iso): $(bin) $(grub_cfg)
 	grub-mkrescue -o $(iso) build/isofiles #2> /dev/null
 	@rm -r build/isofiles
 
-$(bin): kernel $(rust_os) bootblock entryother entry $(linker_script) init
+$(bin): kernel $(rust_os) bootblock entryother entry $(linker_script) init signer
+	for elf in $(domain_list); do \
+	    signer/signer redleaf.key $$elf; \
+	done
 	ld -n --gc-sections -T $(linker_script) -o $(bin) build/entry.o build/boot.o build/multiboot_header.o $(rust_os) -b binary build/entryother.bin $(domain_list) 
 
 include $(root)/checkstack.mk
@@ -144,11 +158,16 @@ init:
 	make -C usr/xv6
 	make -C sys
 
+.PHONY: signer
+signer:
+	make -C signer
+
 .PHONY: kernel
 kernel:
-	cat src/buildinfo.template | BUILD_VERSION=$$(date) envsubst > src/buildinfo.rs
-	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo ${CARGO_COMMAND} ${CARGO_FLAGS} --target x86_64-redleaf.json $(FEATURES)
+	@BUILD_VERSION="$(shell date) ($(shell whoami)@$(shell hostname))" RUST_TARGET_PATH="$(shell pwd)" RUSTFLAGS="-Z emit-stack-sizes" cargo ${CARGO_COMMAND} ${CARGO_FLAGS} -Z features=host_dep --target x86_64-redleaf.json $(FEATURES)
 
+interface-fingerprint: $(shell find sys/interfaces -type f -name "*.rs")
+	$(shell sha512sum sys/interfaces/**.rs | cut -d' ' -f1 | sha512sum | cut -d ' ' -f1 > interface.fingerprint)
 
 # compile assembly files for the exception entry code
 .PHONY: entry

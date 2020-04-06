@@ -22,6 +22,7 @@ pub trait ConfigReader {
     }
 
     fn read_u32(&self, offset: u8) -> u32;
+    fn write_u32(&self, offset: u8, value: u32);
 }
 
 pub struct PciFunc<'pci> {
@@ -32,5 +33,9 @@ pub struct PciFunc<'pci> {
 impl<'pci> ConfigReader for PciFunc<'pci> {
     fn read_u32(&self, offset: u8) -> u32 {
         self.dev.read(self.num, offset)
+    }
+
+    fn write_u32(&self, offset: u8, value: u32) {
+        self.dev.write(self.num, offset, value)
     }
 }

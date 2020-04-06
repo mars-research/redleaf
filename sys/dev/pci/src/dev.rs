@@ -13,6 +13,10 @@ impl<'pci> PciDev<'pci> {
     pub fn read(&self, func: u8, offset: u8) -> u32 {
         self.bus.read(self.num, func, offset)
     }
+
+    pub fn write(&self, func: u8, offset: u8, value: u32) {
+        self.bus.write(self.num, func, offset, value)
+    }
 }
 
 pub struct PciDevIter<'pci> {

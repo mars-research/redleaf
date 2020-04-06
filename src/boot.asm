@@ -11,7 +11,7 @@ start:
     call check_cpuid
     call check_long_mode
 
-    call set_up_page_tables
+    call setup_huge_page_tables
     call enable_paging 
 
     ; load the 64-bit GDT
@@ -46,49 +46,12 @@ start64:
     mov fs, ax
     mov gs, ax
 
-    call setup_huge_page_tables
-
-    ; rdmsr IA32_EFER
-    mov ecx, 0xc0000080
-    rdmsr
-    or eax, 1 << 8 ; enable LME bit
-    wrmsr
-
-    ; load P4 to cr3 register (cpu uses this to access the P4 table)
-    mov rax, hp4_table
-    mov cr3, rax
-
     ; print `OKAY` to screen
     ; mov rax, 0x2f592f412f4b2f4f
     ; mov qword [0xb8000], rax
 
     call rust_main
     hlt
-
-setup_huge_page_tables:
-    ; map first P4 entry to P3 table
-    mov rax, hp3_table
-    or rax, 0b11 ; present + writable
-    mov [hp4_table], rax
-
-    ;map each P3 entry to a huge 1GiB page
-    mov ecx, 0         ; counter variable
-
-.map_hp3_table:
-    ; map ecx-th P3 entry to a huge page that starts at address 1GiB*ecx
-    mov rax, 1 << 30  ; 1GiB
-    mul ecx            ; start address of ecx-th page
-    shl rdx, 32
-    or rax, rdx
-    or rax, 0b10000011 ; present + writable + huge
-    mov [hp3_table + ecx * 8], rax ; map ecx-th entry
-
-    inc ecx            ; increase counter
-    cmp ecx, 0x20       ; if counter == 32, 32 entries in P3 table is mapped
-    jne .map_hp3_table  ; else map the next entry
-
-    ; Apic regions would belong in the first few gigabytes
-    ret
 
 bits 32
 check_multiboot:
@@ -153,60 +116,46 @@ check_long_mode:
     mov al, "2"
     jmp error
 
-set_up_page_tables:
+setup_huge_page_tables:
     ; map first P4 entry to P3 table
     mov eax, p3_table
     or eax, 0b11 ; present + writable
     mov [p4_table], eax
 
-    ; map first P3 entry to P2 table
-    mov eax, p2_table
-    or eax, 0b11 ; present + writable
-    mov [p3_table], eax
-
-    ; map each P2 entry to a huge 2MiB page
+    ;map each P3 entry to a huge 1GiB page
     mov ecx, 0         ; counter variable
 
-.map_p2_table:
-    ; map ecx-th P2 entry to a huge page that starts at address 2MiB*ecx
-    mov eax, 0x200000  ; 2MiB
+.map_hp3_table:
+    ; map ecx-th P3 entry to a huge page that starts at address 1GiB*ecx
+    mov eax, 1 << 30  ; 1GiB
     mul ecx            ; start address of ecx-th page
+
+    ; here edx contains the upper half
     or eax, 0b10000011 ; present + writable + huge
-    mov [p2_table + ecx * 8], eax ; map ecx-th entry
+
+    ; no 64-bit mode yet
+    mov [p3_table + ecx * 8], eax ; map ecx-th entry
+    mov [p3_table + ecx * 8 + 4], edx ; map ecx-th entry upper 32-bits
 
     inc ecx            ; increase counter
-    cmp ecx, 512       ; if counter == 512, the whole P2 table is mapped
-    jne .map_p2_table  ; else map the next entry
+    cmp ecx, 0x20       ; if counter == 32, 32 entries in P3 table is mapped
+    jne .map_hp3_table  ; else map the next entry
 
-    ; map apic_p2_table into p3_table
-    ; bin(0xfec00000) = 0b11 111110111 000000000 000000000000
-    ; bin(0xfee00000) = 0b11 111110111 000000000 000000000000
-    ; we use entry 0b11 or 3 
-    mov eax, apic_p2_table
-    or eax, 0b11 ; present + writable
-    mov [p3_table + 3*8 ], eax
-
-    ; map ioapic @ 0xfec00000 (which is entry b111110110 or 502 into apic_p2_table) 
-    mov eax, 0xfec00000 ; address
-    or eax, 0b10000011 ; present + writable + huge
-    mov [apic_p2_table + 502 * 8 ], eax ; map ecx-th entry
-
-    ; map lapic @ 0xfee00000 (which is entry b111110111 or 503 into apic_p2_table) 
-    mov eax, 0xfee00000 ; address
-    or eax, 0b10000011 ; present + writable + huge
-    mov [apic_p2_table + 503 * 8 ], eax ; map ecx-th entry
-
+    ; Apic regions would belong in the first few gigabytes
     ret
 
 enable_paging:
-    ; load P4 to cr3 register (cpu uses this to access the P4 table)
-    mov eax, p4_table
-    mov cr3, eax
+    ; Follow the order as specified in Intel SDM
+    ; 9.8.5 Initializing IA-32e Mode
 
     ; enable PAE-flag in cr4 (Physical Address Extension)
     mov eax, cr4
     or eax, 1 << 5
     mov cr4, eax
+
+    ; load P4 to cr3 register (cpu uses this to access the P4 table)
+    mov eax, p4_table
+    mov cr3, eax
 
     ; set the long mode bit in the EFER MSR (model specific register)
     mov ecx, 0xC0000080
@@ -242,18 +191,9 @@ gdt64:
 section .bss
 align 4096
 
-hp4_table:
-    resb 4096
-hp3_table:
-    resb 4096
-
 p4_table:
     resb 4096
 p3_table:
-    resb 4096
-p2_table:
-    resb 4096
-apic_p2_table:
     resb 4096
 
 stack_bottom:

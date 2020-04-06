@@ -35,6 +35,8 @@ fn print_header(bus_num: u8,
                              bus_num, dev_num, func_num, header.vendor_id(), header.device_id(), raw_class,
                              header.subclass(), header.interface(), header.revision(), header.class());
 
+    string.push_str(&format!(" Command {:08X} status {:08X}", header.command(), header.status()));
+
     let _pci_device = PciDevice { vendor_id: header.vendor_id(), device_id: header.device_id() };
 
     match header.class() {

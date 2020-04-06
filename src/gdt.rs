@@ -5,9 +5,9 @@
 use lazy_static::lazy_static;
 use x86_64::structures::gdt::{Descriptor, GlobalDescriptorTable, SegmentSelector};
 use x86_64::structures::tss::TaskStateSegment;
-use x86_64::VirtAddr;
 */
 
+use x86_64::VirtAddr;
 
 use core::mem;
 //use x86::current::segmentation::set_cs;
@@ -26,6 +26,9 @@ use x86_64::instructions::segmentation::load_ss;
 use x86_64::PrivilegeLevel::{Ring0};
 
 use x86::controlregs;
+
+//#[cfg(not(feature = "large_mem"))]
+//use x86::msr::{IA32_FS_BASE, wrmsr};
 
 //use crate::paging::PAGE_SIZE;
 pub const PAGE_SIZE: usize = 4096;
@@ -245,15 +248,19 @@ pub unsafe fn init_percpu_gdt(tcb_offset: u64) {
     x86::dtables::lgdt(&INIT_GDT_DESC);
 
     // Enable wrfsbase
-    let mut cr4 = controlregs::cr4();
-    cr4 = cr4 | controlregs::Cr4::CR4_ENABLE_FSGSBASE; 
-    controlregs::cr4_write(cr4);
+    //#[cfg(feature = "large_mem")]
+    {
+        let mut cr4 = controlregs::cr4();
+        cr4 = cr4 | controlregs::Cr4::CR4_ENABLE_FSGSBASE;
+        controlregs::cr4_write(cr4);
+    }
 
 
     // Load fs
-    //use x86::msr::{IA32_FS_BASE, wrmsr};
+   //#[cfg(not(feature = "large_mem"))]
     //wrmsr(IA32_FS_BASE, tcb_offset);
 
+    //#[cfg(feature = "large_mem")]
     writefs(tcb_offset); 
 
     // Now that we have access to thread locals, setup the AP's individual GDT
@@ -261,6 +268,7 @@ pub unsafe fn init_percpu_gdt(tcb_offset: u64) {
     GDT_DESC.base = GDT.as_ptr() as *const Descriptor;
 
     // Set the TLS segment to the offset of the Thread Control Block
+    //#[cfg(not(feature = "large_mem"))]
     //GDT[GDT_KERNEL_TLS].set_offset(tcb_offset as u32);
 
     // Set the User TLS segment to the offset of the user TCB
@@ -275,8 +283,12 @@ pub unsafe fn init_percpu_gdt(tcb_offset: u64) {
     // We can now access our TSS, which is a thread local
     GDT[GDT_TSS].set_offset(&TSS as *const _ as u32);
     GDT[GDT_TSS].set_limit(mem::size_of::<TaskStateSegment>() as u32);
-    GDT[GDT_TSS_HIGH].limitl = (((&TSS as *const _ as u64) >> 32) & 0xFFFF) as u16;
-    GDT[GDT_TSS_HIGH].offsetl = (((&TSS as *const _ as u64) >> 48) & 0xFFFF) as u16;
+
+    //#[cfg(feature = "large_mem")]
+    {
+        GDT[GDT_TSS_HIGH].limitl = (((&TSS as *const _ as u64) >> 32) & 0xFFFF) as u16;
+        GDT[GDT_TSS_HIGH].offsetl = (((&TSS as *const _ as u64) >> 48) & 0xFFFF) as u16;
+    }
 
     // Set the stack pointer when coming back from userspace
     // set_tss_stack(stack_offset);
@@ -288,17 +300,24 @@ pub unsafe fn init_percpu_gdt(tcb_offset: u64) {
     set_cs(SegmentSelector::new(GDT_KERNEL_CODE as u16, Ring0));
     segmentation::load_ds(SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring0));
     segmentation::load_es(SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring0));
-    //segmentation::load_fs(SegmentSelector::new(GDT_KERNEL_TLS as u16, Ring0));
     segmentation::load_gs(SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring0));
     segmentation::load_ss(SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring0));
 
+    //#[cfg(not(feature = "large_mem"))]
+    //segmentation::load_fs(SegmentSelector::new(GDT_KERNEL_TLS as u16, Ring0));
+
     // Enable wrfsbase
-    let mut cr4 = controlregs::cr4();
-    cr4 = cr4 | controlregs::Cr4::CR4_ENABLE_FSGSBASE; 
-    controlregs::cr4_write(cr4);
+    //#[cfg(feature = "large_mem")]
+    {
+        let mut cr4 = controlregs::cr4();
+        cr4 = cr4 | controlregs::Cr4::CR4_ENABLE_FSGSBASE;
+        controlregs::cr4_write(cr4);
 
-    writefs(tcb_offset); 
+        writefs(tcb_offset);
+    }
 
+
+    //#[cfg(not(feature = "large_mem"))]
     //wrmsr(IA32_FS_BASE, tcb_offset);
 
     // Load the task register

@@ -10,10 +10,11 @@ use alloc::sync::Arc;
 use alloc::boxed::Box;
 use proxy;
 use crate::heap::PHeap;
+use super::trusted_binary;
+use super::trusted_binary::SignatureCheckResult;
 //use syscalls::BootSyscall;
 //use crate::domain::domain::BOOTING_DOMAIN; 
 //use crate::syscalls::BOOT_SYSCALL; 
-
 
 pub fn create_domain_init() -> Box<dyn syscalls::Domain> {
     extern "C" {
@@ -416,8 +417,6 @@ pub fn build_domain_xv6usr(name: &str,
     Box::new(PDomain::new(Arc::clone(&dom)))
 }
 
-
-
 pub unsafe fn load_domain(name: &str, binary_range: (*const u8, *const u8)) -> (Arc<Mutex<Domain>>, *const()) {
     let (binary_start, binary_end) = binary_range;
 
@@ -427,9 +426,22 @@ pub unsafe fn load_domain(name: &str, binary_range: (*const u8, *const u8)) -> (
         name, binary_start as usize, binary_end as usize);
 
     // Create a new elf binary from the address range we just extracted
-    let domain_elf = ElfBinary::new(name, 
-                                core::slice::from_raw_parts(binary_start, num_bytes))
-                                .expect("Invalid ELF file");
+    let binary = core::slice::from_raw_parts(binary_start, num_bytes);
+    let domain_elf = ElfBinary::new(name, binary).expect("Invalid ELF file");
+
+    // Verify signature in binary
+    // FIXME: Actually enforce this
+    match trusted_binary::verify(binary) {
+        SignatureCheckResult::Unsigned => {
+            println!("domain/{}: Binary is unsigned", name);
+        },
+        SignatureCheckResult::GoodSignature => {
+            println!("domain/{}: Binary has good signature", name);
+        },
+        SignatureCheckResult::BadSignature => {
+            println!("domain/{}: Binary has BAD signature", name);
+        }
+    }
 
     // Create a domain for the to-be-loaded elf file
     let dom = Arc::new(Mutex::new(Domain::new(name)));
@@ -459,4 +471,3 @@ pub unsafe fn load_domain(name: &str, binary_range: (*const u8, *const u8)) -> (
 
     (dom, user_ep)
 }
-

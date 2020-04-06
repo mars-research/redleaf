@@ -58,10 +58,10 @@ pub const IXGBE_LINKS_SPEED_100_82599: u64      = 0x10000000;
 pub const IXGBE_LINKS_SPEED_1G_82599: u64       = 0x20000000;
 pub const IXGBE_LINKS_SPEED_10G_82599: u64      = 0x30000000;
 
-pub const IXGBE_RXD_STAT_DD: u64                = 0x01; /* Descriptor Done */
-pub const IXGBE_RXD_STAT_EOP: u64               = 0x02; /* End of Packet */
-pub const IXGBE_RXDADV_STAT_DD: u64             = IXGBE_RXD_STAT_DD; /* Done */
-pub const IXGBE_RXDADV_STAT_EOP: u64            = IXGBE_RXD_STAT_EOP; /* End of Packet */
+pub const IXGBE_RXD_STAT_DD: u32                = 0x01; /* Descriptor Done */
+pub const IXGBE_RXD_STAT_EOP: u32               = 0x02; /* End of Packet */
+pub const IXGBE_RXDADV_STAT_DD: u32             = IXGBE_RXD_STAT_DD; /* Done */
+pub const IXGBE_RXDADV_STAT_EOP: u32            = IXGBE_RXD_STAT_EOP; /* End of Packet */
 
 pub const IXGBE_ADVTXD_PAYLEN_SHIFT: u32        = 14; /* Adv desc PAYLEN shift */
 pub const IXGBE_TXD_CMD_EOP: u32                = 0x01000000; /* End of Packet */
