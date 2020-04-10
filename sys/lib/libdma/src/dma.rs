@@ -50,6 +50,12 @@ impl<T> Dma<T> {
         let tr: &T = &self.value;
         tr as *const _ as usize
     }
+
+    pub fn from_box(b: Box<T>) -> Dma<T> {
+        Dma {
+            value: b,
+        }
+    }
 }
 
 impl<T> Deref for Dma<T> {
