@@ -3,6 +3,8 @@
 
 extern crate alloc;
 use alloc::boxed::Box;
+use alloc::vec::Vec;
+use alloc::collections::VecDeque;
 
 use spin::{MutexGuard};
 use core::alloc::Layout;
@@ -55,8 +57,7 @@ pub trait PCI {
 
 /// RedLeaf network interface
 pub trait Net {
-    fn send(&self, buf: &[u8]) -> u32;
-    fn send_udp_from_ixgbe(&self, packet: &[u8]) -> u32;
+    fn submit_and_poll(&mut self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> usize;
 }
 
 /// RedLeaf Domain interface
