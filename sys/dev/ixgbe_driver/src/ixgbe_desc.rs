@@ -32,10 +32,6 @@ pub const IXGBE_RDRXCTL_CRCSTRIP: u64           = 0x00000002; /* CRC Strip */
 
 pub const IXGBE_FCTRL_BAM: u64                  = 0x00000400; /* Broadcast Accept Mode */
 
-pub const IXGBE_SRRCTL_DESCTYPE_MASK: u64       = 0x0E000000;
-pub const IXGBE_SRRCTL_DESCTYPE_ADV_ONEBUF: u64 = 0x02000000;
-pub const IXGBE_SRRCTL_DROP_EN: u64             = 0x10000000;
-
 pub const IXGBE_CTRL_EXT_NS_DIS: u64            = 0x00010000; /* No Snoop disable */
 
 pub const IXGBE_HLREG0_TXCRCEN: u64             = 0x00000001; /* bit  0 */
@@ -57,24 +53,6 @@ pub const IXGBE_LINKS_SPEED_82599: u64          = 0x30000000;
 pub const IXGBE_LINKS_SPEED_100_82599: u64      = 0x10000000;
 pub const IXGBE_LINKS_SPEED_1G_82599: u64       = 0x20000000;
 pub const IXGBE_LINKS_SPEED_10G_82599: u64      = 0x30000000;
-
-pub const IXGBE_RXD_STAT_DD: u32                = 0x01; /* Descriptor Done */
-pub const IXGBE_RXD_STAT_EOP: u32               = 0x02; /* End of Packet */
-pub const IXGBE_RXDADV_STAT_DD: u32             = IXGBE_RXD_STAT_DD; /* Done */
-pub const IXGBE_RXDADV_STAT_EOP: u32            = IXGBE_RXD_STAT_EOP; /* End of Packet */
-
-pub const IXGBE_ADVTXD_PAYLEN_SHIFT: u32        = 14; /* Adv desc PAYLEN shift */
-pub const IXGBE_TXD_CMD_EOP: u32                = 0x01000000; /* End of Packet */
-pub const IXGBE_ADVTXD_DCMD_EOP: u32            = IXGBE_TXD_CMD_EOP; /* End of Packet */
-pub const IXGBE_TXD_CMD_RS: u32                 = 0x08000000; /* Report Status */
-pub const IXGBE_ADVTXD_DCMD_RS: u32             = IXGBE_TXD_CMD_RS; /* Report Status */
-pub const IXGBE_TXD_CMD_IFCS: u32               = 0x02000000; /* Insert FCS (Ethernet CRC) */
-pub const IXGBE_ADVTXD_DCMD_IFCS: u32           = IXGBE_TXD_CMD_IFCS; /* Insert FCS */
-pub const IXGBE_TXD_CMD_DEXT: u32               = 0x20000000; /* Desc extension (0 = legacy) */
-pub const IXGBE_ADVTXD_DTYP_DATA: u32           = 0x00300000; /* Adv Data Descriptor */
-pub const IXGBE_ADVTXD_DCMD_DEXT: u32           = IXGBE_TXD_CMD_DEXT; /* Desc ext 1=Adv */
-pub const IXGBE_TXD_STAT_DD: u32                = 0x00000001; /* Descriptor Done */
-pub const IXGBE_ADVTXD_STAT_DD: u32             = IXGBE_TXD_STAT_DD; /* Descriptor Done */
 
 pub const IXGBE_IVAR_ALLOC_VAL: u32             = 0x80; /* Interrupt Allocation valid */
 pub const IXGBE_EICR_RTX_QUEUE: u64             = 0x0000FFFF; /* RTx Queue Interrupt */

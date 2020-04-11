@@ -11,6 +11,7 @@
     panic_info_message,
     maybe_uninit_extra
 )]
+#![forbid(unsafe_code)]
 
 mod device;
 mod ixgbe_desc;
@@ -26,37 +27,14 @@ use core::panic::PanicInfo;
 use syscalls::{Syscall,PCI};
 use console::{println, print};
 use pci_driver::BarRegions;
-use ixgbe::IxgbeBarRegion;
 use libsyscalls::syscalls::sys_backtrace;
-use libdma::Dma;
-use libdma::ixgbe::allocate_dma;
 
 pub use libsyscalls::errors::Result;
 use crate::device::Intel8259x;
 use core::cell::RefCell;
-use protocol::{UdpPacket};
+use protocol::UdpPacket;
 
 use libtime::get_rdtsc as rdtsc;
-
-struct Packet {
-    data: Dma<[u8; 2048]>,
-    len: u32,
-}
-
-impl Packet {
-    pub fn new() -> Packet {
-        Packet {
-            data: allocate_dma().unwrap(),
-            len: 2048,
-        }
-    }
-    pub fn from_buf(data: Dma<[u8; 2048]>, len: u32) -> Packet {
-        Packet {
-            data,
-            len,
-        }
-    }
-}
 
 struct Ixgbe {
     vendor_id: u16,
@@ -65,10 +43,6 @@ struct Ixgbe {
     device_initialized: bool,
     device: RefCell<Option<Intel8259x>>
 }
-
-/*struct IxgbeBar<'a> {
-    ixgbe_bar: &'a dyn IxgbeBarRegion,
-}*/
 
 impl Ixgbe {
     fn new() -> Ixgbe {
@@ -85,17 +59,6 @@ impl Ixgbe {
         self.device_initialized
     }
 }
-/*
-static mut ixgbe_bar: MaybeUninit<IxgbeBar> = MaybeUninit::uninit();
-
-impl<'a> IxgbeBar<'a> {
-    fn new(bar: &'a dyn IxgbeBarRegion) -> IxgbeBar<'a> {
-        IxgbeBar {
-            ixgbe_bar: bar
-        }
-    }
-}
-*/
 
 fn calc_ipv4_checksum(ipv4_header: &[u8]) -> u16 {
     assert!(ipv4_header.len() % 2 == 0);
@@ -270,8 +233,8 @@ impl pci_driver::PciDriver for Ixgbe {
 }
 
 fn run_tx_udp_test(dev: &Ixgbe, payload_sz: usize) {
-    let mut packets: VecDeque<Packet> = VecDeque::with_capacity(32);
-    let mut collect: VecDeque<Packet> = VecDeque::new();
+    let mut packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(32);
+    let mut collect: VecDeque<Vec<u8>> = VecDeque::new();
 
     let mac_data = alloc::vec![
         0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81, // Dst mac
@@ -316,16 +279,10 @@ fn run_tx_udp_test(dev: &Ixgbe, payload_sz: usize) {
     pkt.extend(udp_hdr.iter());
     pkt.extend(payload.iter());
 
-    println!("Packet let is {}", pkt.len());
+    println!("Packet len is {}", pkt.len());
+
     for i in 0..32 {
-        packets.push_front(Packet::new()); 
-        unsafe {
-            core::ptr::copy(
-                pkt.as_slice() as *const _ as *const u8,
-                packets[0].data.physical() as *mut [u8; 2048] as *mut u8,
-                pkt.len());
-        }
-        packets[0].len = pkt.len() as u32;
+        packets.push_front(pkt.clone());
     }
 
     let mut append_rdtsc: u64 = 0;
@@ -345,14 +302,7 @@ fn run_tx_udp_test(dev: &Ixgbe, payload_sz: usize) {
             if packets.len() == 0 {
                 alloc_count += 1;
                 for i in 0..32 {
-                    packets.push_front(Packet::new()); 
-                    unsafe {
-                        core::ptr::copy(
-                            pkt.as_slice() as *const _ as *const u8,
-                            packets[0].data.physical() as *mut [u8; 2048] as *mut u8,
-                            pkt.len());
-                    }
-                    packets[0].len = pkt.len() as u32;
+                    packets.push_front(pkt.clone());
                 }
             }
         }
@@ -425,89 +375,13 @@ fn run_rx_udptest_64(dev: &Ixgbe) {
 
 }*/
 
-fn initiate_rx(dev: &Ixgbe, pkt_size: u16) {
-    let mut packets: VecDeque<Packet> = VecDeque::with_capacity(32);
-    let mut collect: VecDeque<Packet> = VecDeque::new();
-
-    const PAYLOAD_SZ: usize = 64 - 42;
-    let mac_data = [
-        0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81, // Dst mac
-        0x90, 0xe2, 0xba, 0xb5, 0x14, 0xcd, // Src mac
-        0x08, 0x00,                         // Protocol
-    ];
-    let mut ip_data = [
-        0x45, 0x00,
-        0x00,
-        0x2e,
-        0x00, 0x0, 0x0, 0x00,
-        0x40, 0x11, 0x00, 0x00,
-        0x0a, 0x0a, 0x03, 0x01,
-        0x0a, 0x0a, 0x03, 0x02,
-    ];
-
-    let udp_hdr = [
-        0xb2, 0x6f, 0x14, 0x51,
-        0x00,
-        0x1a,
-        0x9c, 0xaf,
-    ];
-
-    let mut payload: [u8; PAYLOAD_SZ] = [0u8; PAYLOAD_SZ];
-    payload[0] = b'R';
-    payload[1] = b'e';
-    payload[2] = b'd';
-    payload[3] = b'l';
-    payload[4] = b'e';
-    payload[5] = b'a';
-    payload[6] = b'f';
-    let pkt_bytes = pkt_size.to_be_bytes();
-    payload[7] = pkt_bytes[0];
-    payload[8] = pkt_bytes[1];
-
-    let checksum = calc_ipv4_checksum(&ip_data);
-    // Calculated checksum is little-endian; checksum field is big-endian
-    ip_data[10] = (checksum >> 8) as u8;
-    ip_data[11] = (checksum & 0xff) as u8;
-
-    let eth_hdr = protocol::EthernetHeader(mac_data);
-    let ip_hdr = protocol::IpV4Header(ip_data);
-    let udp_hdr = protocol::UdpHeader(udp_hdr);
-    let payload = payload;
-    let pkt = UdpPacket::new(eth_hdr, ip_hdr, udp_hdr, payload);
-
-    //println!("copying packet! to {}", packets.front().unwrap().data.physical());
-    //let mut pvec: Vec<UdpPacket<[u8; PAYLOAD_SZ]>> = Vec::with_capacity(1);
-
-    for i in 0..32 {
-        packets.push_front(Packet::new()); 
-        unsafe {
-            core::ptr::copy(
-                pkt.as_slice() as *const _ as *const u8,
-                packets[0].data.physical() as *mut [u8; 2048] as *mut u8,
-                core::mem::size_of::<UdpPacket<[u8; PAYLOAD_SZ]>>());
-        }
-        packets[0].len = core::mem::size_of::<UdpPacket<[u8; PAYLOAD_SZ]>>() as u32;
-    }
-
-    println!("borrow mut!");
-    if let Some(device) = dev.device.borrow_mut().as_mut() {
-        let dev: &mut Intel8259x = device;
-        
-        println!("call tx_submit");
-        let ret = dev.device.submit_and_poll(&mut packets, &mut collect, true);
-        dev.dump_stats();
-    }
-}
-
 fn run_rx_udptest(dev: &Ixgbe, pkt_size: u16) {
-    let mut packets: VecDeque<Packet> = VecDeque::with_capacity(32);
-    let mut collect: VecDeque<Packet> = VecDeque::new();
+    let mut packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(32);
+    let mut collect: VecDeque<Vec<u8>> = VecDeque::new();
 
     for i in 0..32 {
-        packets.push_front(Packet::new());
+        packets.push_front(Vec::with_capacity(2048));
     }
-
-    //initiate_rx(dev, pkt_size);
 
     //println!("Sent a packet!");
     if let Some(device) = dev.device.borrow_mut().as_mut() {
@@ -524,7 +398,7 @@ fn run_rx_udptest(dev: &Ixgbe, pkt_size: u16) {
 
             if packets.len() == 0 {
                 for i in 0..32 {
-                    packets.push_front(Packet::new()); 
+                    packets.push_front(Vec::with_capacity(2048));
                 }
             }
         }
@@ -535,7 +409,6 @@ fn run_rx_udptest(dev: &Ixgbe, pkt_size: u16) {
         idev.dump_stats();
     }
 }
-
 
 const ONE_MS_IN_NS: u64 = 1_000_000 * 1;
 
