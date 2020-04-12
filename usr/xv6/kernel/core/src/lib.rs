@@ -15,9 +15,12 @@
 extern crate malloc;
 extern crate alloc;
 use alloc::boxed::Box;
+use alloc::sync::Arc;
 use core::panic::PanicInfo;
-use syscalls::{Syscall};
+use syscalls::{Syscall, Heap};
 use libsyscalls::syscalls::{sys_current_thread, sys_yield, sys_recv_int};
+use usr::bdev::BDev;
+use rref;
 
 use console::println;
 
@@ -95,14 +98,16 @@ fn test_sleeplock() {
 
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>,
+            heap: Box<dyn Heap + Send + Sync>,
             ints: Box<dyn syscalls::Interrupt + Send + Sync>,
-            create_xv6fs: Box<dyn create::CreateXv6FS>,
-            create_xv6usr: Box<dyn create::CreateXv6Usr>,
-            bdev: Box<dyn usr::bdev::BDev>)
+            create_xv6fs: &dyn create::CreateXv6FS,
+            create_xv6usr: &dyn create::CreateXv6Usr,
+            bdev: Box<dyn BDev + Send + Sync>)
 {
    
     libsyscalls::syscalls::init(s);
     libsyscalls::syscalls::init_interrupts(ints);
+    rref::init(heap);
 
     println!("init xv6/core");
 
@@ -116,8 +121,8 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
     test_sleeplock();
 
     let (_dom_xv6fs, _vfs)  = create_xv6fs.create_domain_xv6fs(bdev);
-    
-    let xv6 = Box::new(Xv6Syscalls::new()); 
+
+    let xv6 = Box::new(Xv6Syscalls::new());
 
     let _dom_shell  = create_xv6usr.create_domain_xv6usr("shell", xv6);
 

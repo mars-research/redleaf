@@ -31,8 +31,11 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use console::println;
 use core::panic::PanicInfo;
-use syscalls::Syscall;
+use syscalls::{Syscall, Heap};
 use libtime::get_rdtsc;
+use usr::bdev::BDev;
+use crate::bcache::{BCACHE, BufferCache};
+use rref;
 
 mod bcache;
 mod block;
@@ -56,15 +59,23 @@ impl usr::vfs::VFS for VFS {}
 
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>, bdev: usr::bdev::BDevPtr) -> Box<dyn usr::vfs::VFS> {
+pub fn init(s: Box<dyn Syscall + Send + Sync>,
+            heap: Box<dyn Heap + Send + Sync>,
+            bdev: Box<dyn BDev + Send + Sync>) -> Box<dyn usr::vfs::VFS> {
     libsyscalls::syscalls::init(s);
-    libusr::sysbdev::init(bdev);
+    rref::init(heap);
 
-    println!("init xv6 filesystem");
-    fs::fsinit(0);
-    println!("finish init xv6 filesystem");
-    ls("/").unwrap();
-    fs_benchmark(512, "/big_file");
+    BCACHE.call_once(|| BufferCache::new(bdev));
+//    println!("init xv6 filesystem");
+//    fs::fsinit(0);
+//    println!("finish init xv6 filesystem");
+
+//    println!("beginning rref benchmark");
+//    rref_benchmark(1_000_000);
+//    println!("finished rref benchmark");
+
+//    ls("/").unwrap();
+//    fs_benchmark(512, "/big_file");
     Box::new(VFS::new()) 
 }
 

@@ -32,7 +32,7 @@ rust_os := target/$(target)/$(TARGET_SUB_DIR)/libredleaf.a
 xv6fs_img = usr/mkfs/build/fs.img
 root := ./
 domain_list := sys/init/build/init \
-	usr/proxy/build/proxy \
+	usr/proxy/build/dom_proxy \
 	usr/xv6/kernel/core/build/xv6kernel \
 	usr/xv6/kernel/fs/build/xv6fs \
 	sys/dev/pci/build/pci \

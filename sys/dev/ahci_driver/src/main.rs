@@ -32,6 +32,8 @@ use console::println;
 use pci_driver::{BarRegions, PciClass};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
+use spin::Once;
+use rref::RRef;
 use byteorder::{LittleEndian, ByteOrder};
 
 use core::iter::Iterator;
@@ -116,31 +118,36 @@ impl pci_driver::PciDriver for Ahci {
 }
 
 impl usr::bdev::BDev for Ahci {
-    fn read(&self, block: u32, data: &mut [u8; 512]) {
-        self.disks.borrow_mut()[0].read(block as u64, data);
+    fn read(&self, block: u32, data: &mut RRef<[u8; 512]>) {
+        self.disks.borrow_mut()[0].read(block as u64, &mut **data);
     }
-    fn read_contig(&self, block: u32, data: &mut [u8]) {
-        self.disks.borrow_mut()[0].read(block as u64, data);
+
+    fn read_contig(&self, block: u32, data: &mut RRef<[u8; 512]>) {
+        self.disks.borrow_mut()[0].read(block as u64, &mut **data);
     }
+
     fn write(&self, block: u32, data: &[u8; 512]) {
         // println!("WARNING: BDEV.write is currently disabled");
         self.disks.borrow_mut()[0].write(block as u64, data);
     }
 
-    fn submit(&self, block: u64, write: bool, buf: Box<[u8]>) -> Result<u32> {
-        self.disks.borrow_mut()[0].submit(block, write, buf)
-    }
-
-    fn poll(&self, slot: u32) -> Result<Option<Box<[u8]>>> {
-        self.disks.borrow_mut()[0].poll(slot)
-    }
+// TODO: impl with RRefs
+//    fn submit(&self, block: u64, write: bool, buf: Box<[u8]>) -> Result<u32> {
+//        self.disks.borrow_mut()[0].submit(block, write, buf)
+//    }
+//
+//    fn poll(&self, slot: u32) -> Result<Option<Box<[u8]>>> {
+//        self.disks.borrow_mut()[0].poll(slot)
+//    }
 }
 
 
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>,
-                 pci: Box<dyn syscalls::PCI>) -> Box<dyn usr::bdev::BDev> {
+            heap: Box<dyn syscalls::Heap + Send + Sync>,
+            pci: Box<dyn syscalls::PCI>) -> Box<dyn usr::bdev::BDev> {
     libsyscalls::syscalls::init(s);
+    rref::init(heap);
 
     let mut ahci = Ahci::new();
     if let Err(_) = pci.pci_register_driver(&mut ahci, /*ABAR index*/5, Some((PciClass::Storage, /*SATA*/0x06))) {
@@ -151,15 +158,15 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
     
     verify_write(&ahci);
 
-    benchmark_ahci(&ahci, 1, 1);
-    benchmark_ahci_async(&ahci, 256, 1);
+//    benchmark_ahci(&ahci, 1, 1);
+//    benchmark_ahci_async(&ahci, 256, 1);
     // benchmark_ahci(&ahci, 8192, 8192);
-    benchmark_ahci_async(&ahci, 8192, 8192);
+//    benchmark_ahci_async(&ahci, 8192, 8192);
     // benchmark_ahci(&ahci, 8192 * 128, 8192);
-    benchmark_ahci_async(&ahci, 8192 * 128, 8192);
+//    benchmark_ahci_async(&ahci, 8192 * 128, 8192);
     // benchmark_ahci(&ahci, 32768, 32768);
     // benchmark_ahci(&ahci, 0xFFFF * 128, 0xFFFF);
-    benchmark_ahci_async(&ahci, 0xFFFF * 128, 0xFFFF);
+//    benchmark_ahci_async(&ahci, 0xFFFF * 128, 0xFFFF);
     ahci
 }
 
@@ -168,66 +175,68 @@ fn verify_write(bdev: &Box<dyn usr::bdev::BDev>) {
     let buff = [123u8; 512];
     bdev.write(disk_offset, &buff);
 
-    let mut buff = [222u8; 512];
+    let mut buff = RRef::new([222u8; 512]);
     bdev.read(disk_offset, &mut buff);
     for i in buff.iter() {
         assert!(*i == 123u8);
     }
 }
 
-fn benchmark_ahci(bdev: &Box<dyn usr::bdev::BDev>, blocks_to_read: u32, blocks_per_patch: u32) {
-    assert!(blocks_to_read % blocks_per_patch == 0);
-    assert!(blocks_per_patch <= 0xFFFF);
-    let mut buf = alloc::vec![0 as u8; 512 * blocks_per_patch as usize];
+// TODO: impl with RRefs
+//fn benchmark_ahci(bdev: &Box<dyn usr::bdev::BDev>, blocks_to_read: u32, blocks_per_patch: u32) {
+//    assert!(blocks_to_read % blocks_per_patch == 0);
+//    assert!(blocks_per_patch <= 0xFFFF);
+//    let mut buf = alloc::vec![0 as u8; 512 * blocks_per_patch as usize];
+//
+//    let start = libtime::get_rdtsc();
+//    for i in (0..blocks_to_read).step_by(blocks_per_patch as usize) {
+//        bdev.read_contig(i, &mut buf);
+//    }
+//    let end = libtime::get_rdtsc();
+//    println!("AHCI benchmark: reading {} blocks, {} blocks at a time, takes {} cycles", blocks_to_read, blocks_per_patch, end - start);
+//}
 
-    let start = libtime::get_rdtsc();
-    for i in (0..blocks_to_read).step_by(blocks_per_patch as usize) {
-        bdev.read_contig(i, &mut buf);
-    }
-    let end = libtime::get_rdtsc();
-    println!("AHCI benchmark: reading {} blocks, {} blocks at a time, takes {} cycles", blocks_to_read, blocks_per_patch, end - start);
-}
-
-fn benchmark_ahci_async(bdev: &Box<dyn usr::bdev::BDev>, blocks_to_read: u32, blocks_per_patch: u32) {
-    println!("starting bencharl async {}", blocks_to_read);
-
-    assert!(blocks_to_read % blocks_per_patch == 0);
-    assert!(blocks_per_patch <= 0xFFFF);
-    let mut buffers: Vec<Box<[u8]>> = Vec::new();
-    for _ in 0..32 {
-        let buf = alloc::vec![0 as u8; 512 * blocks_per_patch as usize];
-        buffers.push(buf.into_boxed_slice());
-    }
-    let mut pending = Vec::<u32>::new();
-
-    let start = libtime::get_rdtsc();
-    for i in (0..blocks_to_read).step_by(blocks_per_patch as usize) {
-        while buffers.is_empty() {
-            assert!(!pending.is_empty());
-            pending = pending
-                .into_iter()
-                .filter(|slot|  {
-                    if let Some(buf) = bdev.poll(*slot).unwrap() {
-                        buffers.push(buf);
-                        false
-                    } else {
-                        true
-                    }
-                })
-                .collect();
-        }
-
-        pending.push(bdev.submit(i as u64, false, buffers.pop().unwrap()).unwrap());
-    }
-
-    for p in pending {
-        while bdev.poll(p).unwrap().is_none() {
-            // spin
-        }
-    }
-    let end = libtime::get_rdtsc();
-    println!("AHCI async benchmark: reading {} blocks, {} blocks at a time, takes {} cycles", blocks_to_read, blocks_per_patch, end - start);
-}
+// TODO: impl with RRefs
+//fn benchmark_ahci_async(bdev: &Box<dyn usr::bdev::BDev>, blocks_to_read: u32, blocks_per_patch: u32) {
+//    println!("starting bencharl async {}", blocks_to_read);
+//
+//    assert!(blocks_to_read % blocks_per_patch == 0);
+//    assert!(blocks_per_patch <= 0xFFFF);
+//    let mut buffers: Vec<Box<[u8]>> = Vec::new();
+//    for _ in 0..32 {
+//        let buf = alloc::vec![0 as u8; 512 * blocks_per_patch as usize];
+//        buffers.push(buf.into_boxed_slice());
+//    }
+//    let mut pending = Vec::<u32>::new();
+//
+//    let start = libtime::get_rdtsc();
+//    for i in (0..blocks_to_read).step_by(blocks_per_patch as usize) {
+//        while buffers.is_empty() {
+//            assert!(!pending.is_empty());
+//            pending = pending
+//                .into_iter()
+//                .filter(|slot|  {
+//                    if let Some(buf) = bdev.poll(*slot).unwrap() {
+//                        buffers.push(buf);
+//                        false
+//                    } else {
+//                        true
+//                    }
+//                })
+//                .collect();
+//        }
+//
+//        pending.push(bdev.submit(i as u64, false, buffers.pop().unwrap()).unwrap());
+//    }
+//
+//    for p in pending {
+//        while bdev.poll(p).unwrap().is_none() {
+//            // spin
+//        }
+//    }
+//    let end = libtime::get_rdtsc();
+//    println!("AHCI async benchmark: reading {} blocks, {} blocks at a time, takes {} cycles", blocks_to_read, blocks_per_patch, end - start);
+//}
 
 // This function is called on panic.
 #[panic_handler]

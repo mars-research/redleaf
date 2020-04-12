@@ -1,15 +1,16 @@
 extern crate alloc;
 use spin::Once;
+use alloc::boxed::Box;
+use rref::RRef;
+use usr::bdev::BDev;
 
-use usr::bdev::BDevPtr;
+pub static BDEV: Once<Box<dyn BDev + Sync + Send>> = Once::new();
 
-pub static BDEV: Once<BDevPtr> = Once::new();
-
-pub fn init(bdev: BDevPtr) {
+pub fn init(bdev: Box<dyn BDev + Sync + Send>) {
     BDEV.call_once(|| bdev);
 }
 
-pub fn sys_read(block: u32, data: &mut [u8; 512]) {
+pub fn sys_read(block: u32, data: &mut RRef<[u8; 512]>) {
     let bdev = BDEV.r#try().expect("BDev interface is not initialized.");
     bdev.read(block, data)
 }

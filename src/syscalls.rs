@@ -8,10 +8,12 @@ use alloc::boxed::Box;
 use spin::Mutex;
 use alloc::sync::Arc; 
 use crate::domain::domain::{Domain}; 
-use syscalls::{Thread, PciResource, PciBar};
+use syscalls::{PciResource, PciBar};
 use crate::round_up;
-
-//use crate::domain::domain::BOOTING_DOMAIN; 
+use crate::thread;
+use usr;
+use proxy;
+//use crate::domain::domain::BOOTING_DOMAIN;
 
 extern crate syscalls; 
 
@@ -41,7 +43,7 @@ impl PDomain {
         }
     }
     
-    fn create_domain_thread(&self, name: &str, func: extern fn()) -> Box<dyn Thread>  {
+    fn create_domain_thread(&self, name: &str, func: extern fn()) -> Box<dyn syscalls::Thread>  {
 
         println!("sys_create_thread"); 
         let pt = create_thread(name, func);
@@ -49,14 +51,24 @@ impl PDomain {
         let t = pt.thread.clone(); 
     
         let mut d = self.domain.lock();
-        d.add_thread(t); 
+        d.add_thread(t);
+        pt.thread.lock().current_domain_id = d.id;
 
         println!("Created thread {} for domain {}", pt.thread.lock().name, d.name); 
         pt   
     }
 }
 
-impl syscalls::Domain for PDomain { }
+impl syscalls::Domain for PDomain {
+    fn get_domain_id(&self) -> u64 {
+        disable_irq();
+        let domain_id = {
+            self.domain.lock().id
+        };
+        enable_irq();
+        domain_id
+    }
+}
 
 impl syscalls::Syscall for PDomain {
 
@@ -122,18 +134,50 @@ impl syscalls::Syscall for PDomain {
     }
 
     // Create a new thread
-    fn sys_create_thread(&self, name: &str, func: extern fn()) -> Box<dyn Thread>  {
+    fn sys_create_thread(&self, name: &str, func: extern fn()) -> Box<dyn syscalls::Thread>  {
         disable_irq();
         let pt = self.create_domain_thread(name, func); 
         enable_irq();
         pt
     }
 
-    fn sys_current_thread(&self) -> Box<dyn Thread> {
+    fn sys_current_thread(&self) -> Box<dyn syscalls::Thread> {
         disable_irq();
         let current = crate::thread::get_current_pthread();
         enable_irq();
         current
+    }
+
+    fn sys_get_current_domain_id(&self) -> u64 {
+        disable_irq();
+        let domain_id = {
+            // get domain id without locking the current thread
+            let thread_option: &Option<Arc<Mutex<thread::Thread>>> = &thread::CURRENT.borrow();
+            let thread_arc: &Arc<Mutex<thread::Thread>> = thread_option.as_ref().unwrap();
+            let thread_mutex: &mut Mutex<thread::Thread> = unsafe {
+                &mut *((&**thread_arc) as *const Mutex<thread::Thread> as *mut Mutex<thread::Thread>)
+            };
+            thread_mutex.get_mut().current_domain_id
+        };
+        enable_irq();
+        domain_id
+    }
+
+    unsafe fn sys_update_current_domain_id(&self, new_domain_id: u64) -> u64 {
+//        disable_irq();
+        let mut old_domain_id = new_domain_id;
+        {
+            // swap domain id without locking the current thread
+            let thread_option: &Option<Arc<Mutex<thread::Thread>>> = &thread::CURRENT.borrow();
+            let thread_arc: &Arc<Mutex<thread::Thread>> = thread_option.as_ref().unwrap();
+            let thread_mutex: &mut Mutex<thread::Thread> = unsafe {
+                &mut *((&**thread_arc) as *const Mutex<thread::Thread> as *mut Mutex<thread::Thread>)
+            };
+            let mut thread = thread_mutex.get_mut();
+            core::mem::swap(&mut thread.current_domain_id, &mut old_domain_id);
+        }
+//        enable_irq();
+        old_domain_id
     }
 
     fn sys_backtrace(&self) {
@@ -177,7 +221,8 @@ impl create::CreatePCI for PDomain {
 }
 
 impl create::CreateAHCI for PDomain {
-    fn create_domain_ahci(&self, pci: Box<dyn syscalls::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev>) {
+    fn create_domain_ahci(&self,
+                          pci: Box<dyn syscalls::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev>) {
         disable_irq();
         let r = crate::domain::create_domain::create_domain_ahci(pci);
         enable_irq();
@@ -197,14 +242,12 @@ impl create::CreateIxgbe for PDomain {
 impl create::CreateXv6 for PDomain {
     fn create_domain_xv6kernel(&self,
                                 ints: Box<dyn syscalls::Interrupt>,
-                                create_xv6fs: Box<dyn create::CreateXv6FS>,
-                                create_xv6usr: Box<dyn create::CreateXv6Usr>,
-                                bdev: Box<dyn usr::bdev::BDev>) -> Box<dyn syscalls::Domain> {
+                                create_xv6fs: &dyn create::CreateXv6FS,
+                                create_xv6usr: &dyn create::CreateXv6Usr) -> Box<dyn syscalls::Domain> {
         disable_irq();
         let r = crate::domain::create_domain::create_domain_xv6kernel(ints, 
-                        create_xv6fs, 
-                        create_xv6usr, 
-                        bdev);
+                        create_xv6fs,
+                        create_xv6usr);
         enable_irq();
         r
     }
@@ -220,8 +263,7 @@ impl create::CreateXv6FS for PDomain {
 }   
 
 impl create::CreateXv6Usr for PDomain {
-    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>) -> Box<dyn syscalls::Domain>
-    {
+    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>) -> Box<dyn syscalls::Domain> {
         disable_irq();
         let r = crate::domain::create_domain::create_domain_xv6usr(name, xv6);
         enable_irq();
@@ -229,10 +271,23 @@ impl create::CreateXv6Usr for PDomain {
     }
 }
 
-impl create::CreateProxy for PDomain {
-    fn create_domain_proxy(&self, heap: Box<dyn syscalls::Heap>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::proxy::Proxy>) {
+impl proxy::CreateProxy for PDomain {
+    fn create_domain_proxy(
+        &self,
+        create_pci: Box<dyn create::CreatePCI>,
+        create_ahci: Box<dyn create::CreateAHCI>,
+        create_ixgbe: Box<dyn create::CreateIxgbe>,
+        create_xv6fs: Box<dyn create::CreateXv6FS>,
+        create_xv6usr: Box<dyn create::CreateXv6Usr>,
+        create_xv6: Box<dyn create::CreateXv6>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
         disable_irq();
-        let r = crate::domain::create_domain::create_domain_proxy(heap);
+        let r = crate::domain::create_domain::create_domain_proxy(
+            create_pci,
+            create_ahci,
+            create_ixgbe,
+            create_xv6fs,
+            create_xv6usr,
+            create_xv6);
         enable_irq();
         r
     }

@@ -1,61 +1,43 @@
 #![no_std]
+mod gen;
 
 extern crate malloc;
 extern crate alloc;
-use rref::RRef;
-
-
-use syscalls::Syscall;
+use libsyscalls;
+use syscalls;
+use create;
 use alloc::boxed::Box;
+use alloc::sync::Arc;
 use console::println;
 use core::alloc::Layout;
 use core::panic::PanicInfo;
 
-struct Proxy();
-
-impl Proxy {
-    fn new() -> Proxy {
-        Proxy {}
-    }
-}
-
-impl usr::proxy::Proxy for Proxy {
-    fn foo(&self) -> usize {
-        let ptr = libsyscalls::heap::sys_heap_alloc(10, Layout::new::<u64>());
-        unsafe { *(ptr as *mut u64) = 0xf00; } // 3840
-        ptr as usize
-    }
-    fn new_value(&self, value: usize) -> RRef<usize> {
-        // TODO: get domain id
-        RRef::new(0, value)
-    }
-}
-
-impl Proxy {
-    fn rref_example(&self, input: u64) -> RRef<u64> {
-        println!("input: {}", input);
-        RRef::new(0, input)
-    }
-}
-
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>,
-            heap: Box<dyn syscalls::Heap + Send + Sync>) -> Box<dyn usr::proxy::Proxy + Send + Sync> {
+pub fn init(
+    s: Box<dyn syscalls::Syscall + Send + Sync>,
+    create_pci: Box<dyn create::CreatePCI>,
+    create_ahci: Box<dyn create::CreateAHCI>,
+    create_ixgbe: Box<dyn create::CreateIxgbe>,
+    create_xv6fs: Box<dyn create::CreateXv6FS>,
+    create_xv6usr: Box<dyn create::CreateXv6Usr>,
+    create_xv6: Box<dyn create::CreateXv6>) -> Arc<dyn proxy::Proxy> {
+
     libsyscalls::syscalls::init(s);
-    libsyscalls::heap::init(heap);
 
-    println!("entered proxy!");
-
-    let rref = RRef::<u64>::new(0, 10);
-    println!("RRef's value: {}", *rref);
-    drop(rref);
-    println!("Dropped RRef");
-
-    Box::new(Proxy::new())
+    Arc::new(gen::Proxy::new(
+        create_pci,
+        create_ahci,
+        create_ixgbe,
+        create_xv6fs,
+        create_xv6usr,
+        create_xv6
+    ))
 }
 
 // This function is called on panic.
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo) -> ! {
+    println!("proxy panic: {:?}", info);
+    libsyscalls::syscalls::sys_backtrace();
     loop {}
 }

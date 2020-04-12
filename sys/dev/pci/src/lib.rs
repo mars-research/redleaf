@@ -32,11 +32,12 @@ use crate::parser::{PCI_DEVICES};
 use crate::header::PciHeader;
 
 use core::panic::PanicInfo;
-use syscalls::{Syscall, PciResource, PciBar};
+use syscalls::{Syscall, Heap, PciResource, PciBar};
 use libsyscalls::syscalls::{sys_println, sys_backtrace};
 use alloc::boxed::Box;
 use console::println;
 use spin::Once;
+use rref;
 use pci_driver::{PciDriver, PciClass};
 
 #[derive(Clone)]
@@ -106,10 +107,12 @@ impl syscalls::PCI for PCI {
 
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>,
-                pci_resource: Box<dyn PciResource>,
-                pci_bar: Box<dyn PciBar + Send + Sync>) -> Box<dyn syscalls::PCI> {
+            heap: Box<dyn Heap + Send + Sync>,
+            pci_resource: Box<dyn PciResource>,
+            pci_bar: Box<dyn PciBar + Send + Sync>) -> Box<dyn syscalls::PCI> {
 
     libsyscalls::syscalls::init(s);
+    rref::init(heap);
 
     sys_println("init: starting PCI domain");
 

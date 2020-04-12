@@ -22,4 +22,4 @@ log = "0.4"
 [target.'cfg(unix)'.dev-dependencies]
 rand = "0.7"
 env_logger = "0.7"
-spin = "0.5.2"
+spin = { path = "../../../lib/spin-rs" }

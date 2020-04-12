@@ -2,7 +2,6 @@ use byteorder::{ByteOrder, LittleEndian};
 
 use spin::Once;
 
-
 use crate::params;
 use crate::log::{Log, LOG};
 
@@ -64,9 +63,9 @@ impl SuperBlock {
 
 // TODO: load super block from disk
 fn read_superblock(dev: u32) -> SuperBlock {
-    let mut buffer = BCACHE.read(dev, 1);
+    let mut buffer = BCACHE.force_get().read(dev, 1);
     let superblock = SuperBlock::from_bytes(&buffer.lock().data);
-    BCACHE.release(&mut buffer);
+    BCACHE.force_get().release(&mut buffer);
     console::println!("Superblock read from disk: {:?}", superblock);
     superblock
 }

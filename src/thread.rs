@@ -34,7 +34,7 @@ static SCHED: RefCell<Scheduler> = RefCell::new(Scheduler::new());
 
 /// Per-CPU current thread
 #[thread_local]
-static CURRENT: RefCell<Option<Arc<Mutex<Thread>>>> = RefCell::new(None); 
+pub static CURRENT: RefCell<Option<Arc<Mutex<Thread>>>> = RefCell::new(None);
 
 //#[thread_local]
 //static IDLE: RefCell<Option<Arc<Mutex<Thread>>>> = RefCell::new(None); 
@@ -204,7 +204,8 @@ pub struct Context {
 }
 
 pub struct Thread {
-    pub id: u64, 
+    pub id: u64,
+    pub current_domain_id: u64,
     pub name: String,
     pub state: ThreadState, 
     priority: Priority,
@@ -305,6 +306,7 @@ impl  Thread {
     pub fn new(name: &str, func: extern fn()) -> Thread  {
         let mut t = Thread {
             id: THREAD_ID.fetch_add(1, Ordering::SeqCst),
+            current_domain_id: 0,
             name: name.to_string(),
             state: ThreadState::Runnable, 
             priority: 0,
@@ -614,7 +616,7 @@ pub fn get_current_ref() -> Arc<Mutex<Thread>> {
 }
 
 /// Return domain of the current thread
-fn get_domain_of_current() -> Arc<Mutex<Domain>> {
+pub fn get_domain_of_current() -> Arc<Mutex<Domain>> {
 
     let rc_t = CURRENT.borrow().as_ref().unwrap().clone(); 
     let arc_d = rc_t.lock().domain.as_ref().unwrap().clone();

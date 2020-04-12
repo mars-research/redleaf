@@ -5,14 +5,18 @@
 use crate::params::{NBUF, BSIZE};
 
 use alloc::sync::Arc;
+use alloc::boxed::Box;
 use console::println;
 use core::ops::Deref;
-use libusr::sysbdev;
-use spin::{Mutex};
+use spin::{Mutex, Once};
 use utils::list2;
+use rref::RRef;
+use usr::bdev::BDev;
 
 const B_DIRTY: u32 = 1 << 0;
 const B_VALID: u32 = 1 << 1;
+
+pub static BCACHE: Once<BufferCache> = Once::new();
 
 pub type BufferBlock = [u8; BSIZE];
 
@@ -97,16 +101,18 @@ impl Buffer {
 
 pub struct BufferCache {
     list: Mutex<list2::List<Buffer>>,
+    bdev: Box<dyn BDev + Send + Sync>,
 }
 
 impl BufferCache {
-    pub fn new() -> Self {
+    pub fn new(bdev: Box<dyn BDev + Send + Sync>) -> Self {
         let mut list = list2::List::<Buffer>::new();
         for _ in 0..NBUF {
             list.push_back(Buffer::new());
         }
         Self {
             list: Mutex::new(list),
+            bdev,
         }
     }
 
@@ -165,8 +171,10 @@ impl BufferCache {
             let mut guard = buffer.lock();
             if (guard.flags & B_VALID) == 0 {
                 // iderw will set the buffer to valid
-                // Note that this is different from xv6-risvc 
-                sysbdev::sys_read(buffer.block_number(), &mut guard.data);
+                // Note that this is different from xv6-risvc
+                let mut buf = RRef::<[u8; BSIZE]>::new(guard.data);
+                self.bdev.read(buffer.block_number(), &mut buf);
+                (*guard).data = *buf;
             }
             // println!("bread block#{}: {:X?}", block_number, &guard.data[..]);
         }
@@ -179,7 +187,7 @@ impl BufferCache {
     // doesn't match with the `buffer_data`.
     // TODO: address the issue above by refactoring the `BufferGuard`
     pub fn write(&self, block_number: u32, buffer_data: &mut BufferData) {
-        sysbdev::sys_write(block_number, &buffer_data.data);
+        self.bdev.write(block_number, &buffer_data.data);
     }
 
     // This is confusing since it doesn't match xv6's brelse exactly so there could be a bug.
@@ -193,8 +201,4 @@ impl BufferCache {
         list.move_front(node);
     }
 
-}
-
-lazy_static! {
-    pub static ref BCACHE: BufferCache = BufferCache::new();
 }

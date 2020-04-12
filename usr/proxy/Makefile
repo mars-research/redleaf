@@ -1,7 +1,7 @@
 root := ../../
 include $(root)/common_flags.mk
 
-bin_name := proxy
+bin_name := dom_proxy
 arch ?= x86_64
 bin := build/$(bin_name)
 
