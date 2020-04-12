@@ -47,7 +47,7 @@ pub fn create_domain_pci(pci_resource: Box<dyn PciResource>,
     create_domain_pci_bus("pci", binary_range, pci_resource, pci_bar)
 }
 
-pub fn create_domain_ahci(pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn BDev>) {
+pub fn create_domain_ahci(heap: Box<dyn Heap>, pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn BDev>) {
 
     extern "C" {
         fn _binary_sys_dev_ahci_driver_build_ahci_driver_start();
@@ -59,7 +59,7 @@ pub fn create_domain_ahci(pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box<
         _binary_sys_dev_ahci_driver_build_ahci_driver_end as *const u8
     );
 
-    create_domain_bdev("ahci", binary_range, pci)
+    create_domain_bdev("ahci", binary_range, heap, pci)
 }
 
 pub fn create_domain_ixgbe(pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn Net>) {
@@ -245,9 +245,10 @@ pub fn create_domain_pci_bus(name: &str,
 
 
 pub fn create_domain_bdev(name: &str, 
-                                 binary_range: (*const u8, *const u8), 
+                                 binary_range: (*const u8, *const u8),
+                                 heap: Box<dyn Heap>,
                                  pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn BDev>) {
-    type UserInit = fn(Box<dyn Syscall>, Box<dyn PCI>) -> Box<dyn BDev>;
+    type UserInit = fn(Box<dyn Syscall>, Box<dyn Heap>, Box<dyn PCI>) -> Box<dyn BDev>;
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)
@@ -261,7 +262,7 @@ pub fn create_domain_bdev(name: &str,
     
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
-    let bdev = user_ep(pdom, pci);
+    let bdev = user_ep(pdom, heap, pci);
     disable_irq(); 
 
     println!("domain/{}: returned from entry point", name);

@@ -187,7 +187,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
 
     let pci2 = pci.pci_clone();
 
-    let (dom_ahci, bdev) = proxy.as_create_ahci().create_domain_ahci(pci);
+    let (dom_ahci, bdev) = proxy.as_create_ahci().create_domain_ahci(heap, pci);
 
     let (dom_ixgbe, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci2);
 

@@ -144,8 +144,10 @@ impl usr::bdev::BDev for Ahci {
 
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>,
-                 pci: Box<dyn syscalls::PCI>) -> Box<dyn usr::bdev::BDev> {
+            heap: Box<dyn syscalls::Heap + Send + Sync>,
+            pci: Box<dyn syscalls::PCI>) -> Box<dyn usr::bdev::BDev> {
     libsyscalls::syscalls::init(s);
+    rref::init(heap);
 
     let mut ahci = Ahci::new();
     if let Err(_) = pci.pci_register_driver(&mut ahci, /*ABAR index*/5, Some((PciClass::Storage, /*SATA*/0x06))) {

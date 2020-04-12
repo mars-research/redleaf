@@ -222,9 +222,10 @@ impl create::CreatePCI for PDomain {
 
 impl create::CreateAHCI for PDomain {
     fn create_domain_ahci(&self,
+                          heap: Box<dyn syscalls::Heap>,
                           pci: Box<dyn syscalls::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev>) {
         disable_irq();
-        let r = crate::domain::create_domain::create_domain_ahci(pci);
+        let r = crate::domain::create_domain::create_domain_ahci(heap, pci);
         enable_irq();
         r
     }
