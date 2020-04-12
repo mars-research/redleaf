@@ -17,9 +17,10 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::panic::PanicInfo;
-use syscalls::{Syscall};
+use syscalls::{Syscall, Heap};
 use libsyscalls::syscalls::{sys_current_thread, sys_yield, sys_recv_int};
 use usr::bdev::BDev;
+use rref;
 
 use console::println;
 
@@ -97,6 +98,7 @@ fn test_sleeplock() {
 
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>,
+            heap: Box<dyn Heap + Send + Sync>,
             ints: Box<dyn syscalls::Interrupt + Send + Sync>,
             create_xv6fs: &dyn create::CreateXv6FS,
             create_xv6usr: &dyn create::CreateXv6Usr,
@@ -105,6 +107,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
    
     libsyscalls::syscalls::init(s);
     libsyscalls::syscalls::init_interrupts(ints);
+    rref::init(heap);
 
     println!("init xv6/core");
 

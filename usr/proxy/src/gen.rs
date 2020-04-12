@@ -81,8 +81,8 @@ impl create::CreatePCI for Proxy {
 }
 
 impl create::CreateAHCI for Proxy {
-    fn create_domain_ahci(&self, heap: Box<dyn Heap>, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn BDev>) {
-        let (domain, ahci) = self.create_ahci.create_domain_ahci(heap, pci);
+    fn create_domain_ahci(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn BDev>) {
+        let (domain, ahci) = self.create_ahci.create_domain_ahci(pci);
         let domain_id = domain.get_domain_id();
         return (domain, Box::new(BDevProxy::new(domain_id, ahci)));
     }

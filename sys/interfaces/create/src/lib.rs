@@ -14,7 +14,7 @@ pub trait CreatePCI {
 }
 
 pub trait CreateAHCI {
-    fn create_domain_ahci(&self, heap: Box<dyn Heap>, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn BDev>);
+    fn create_domain_ahci(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn BDev>);
 }
 
 pub trait CreateIxgbe {

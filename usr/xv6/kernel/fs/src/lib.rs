@@ -31,10 +31,11 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use console::println;
 use core::panic::PanicInfo;
-use syscalls::Syscall;
+use syscalls::{Syscall, Heap};
 use libtime::get_rdtsc;
 use usr::bdev::BDev;
 use crate::bcache::{BCACHE, BufferCache};
+use rref;
 
 mod bcache;
 mod block;
@@ -59,8 +60,10 @@ impl usr::vfs::VFS for VFS {}
 
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>,
+            heap: Box<dyn Heap + Send + Sync>,
             bdev: Box<dyn BDev + Send + Sync>) -> Box<dyn usr::vfs::VFS> {
     libsyscalls::syscalls::init(s);
+    rref::init(heap);
 
     BCACHE.call_once(|| BufferCache::new(bdev));
 //    println!("init xv6 filesystem");
