@@ -65,16 +65,21 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
     libsyscalls::syscalls::init(s);
     rref::init(heap);
 
-    BCACHE.call_once(|| BufferCache::new(bdev));
-//    println!("init xv6 filesystem");
-//    fs::fsinit(0);
-//    println!("finish init xv6 filesystem");
+    // let mut buffer = [0u8; params::BSIZE];
+    let mut buffer = rref::RRef::new([0u8; params::BSIZE]);
+    bdev.read(1, &mut buffer);
+    let sb = fs::SuperBlock::from_bytes(&*buffer);
+    println!("sb {:?}", sb);
+    println!("init xv6 filesystem");
+    fs::fsinit(0, bdev);
+    println!("finish init xv6 filesystem");
+
 
 //    println!("beginning rref benchmark");
 //    rref_benchmark(1_000_000);
 //    println!("finished rref benchmark");
 
-//    ls("/").unwrap();
+   ls("/").unwrap();
 //    fs_benchmark(512, "/big_file");
     Box::new(VFS::new()) 
 }

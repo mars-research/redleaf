@@ -1,11 +1,12 @@
+use alloc::boxed::Box;
 use byteorder::{ByteOrder, LittleEndian};
-
 use spin::Once;
+
+use usr::bdev::BDev;
 
 use crate::params;
 use crate::log::{Log, LOG};
-
-use crate::bcache::{BCACHE};
+use crate::bcache::{BCACHE, BufferCache};
 
 pub static SUPER_BLOCK: Once<SuperBlock> = Once::new();
 
@@ -40,26 +41,6 @@ impl SuperBlock {
     }
 }
 
-// pub struct FileSystem {
-//     pub superblock: SuperBlock,
-//     pub bcache: BufferCache,
-//     pub log: Log,
-//     pub icache: ICache,
-// }
-
-// impl FileSystem {
-//     // We only support a single device for now
-//     pub fn new(dev: BDevPtr) -> Self {
-//         let superblock = read_superblock(dev);
-//         let log = Log::new(1234, &superblock);
-//         Self {
-//             superblock,
-//             bcache: BufferCache::new(),
-//             log,
-//             icache: ICache::new(),
-//         }
-//     }
-// }
 
 // TODO: load super block from disk
 fn read_superblock(dev: u32) -> SuperBlock {
@@ -75,9 +56,10 @@ pub fn block_num_for_node(inum: u16, super_block: &SuperBlock) -> u32 {
     inum as u32 / params::IPB as u32 + super_block.inodestart
 }
 
-pub fn fsinit(dev: u32) {	
-    SUPER_BLOCK.call_once(|| read_superblock(dev));	
+pub fn fsinit(dev_no: u32, dev: Box<dyn BDev + Send + Sync>) {
+    BCACHE.call_once(|| BufferCache::new(dev));
+    SUPER_BLOCK.call_once(|| read_superblock(dev_no));	
     LOG.call_once(|| {	
-        Log::new(dev, SUPER_BLOCK.r#try().unwrap())	
+        Log::new(dev_no, SUPER_BLOCK.r#try().unwrap())	
     });	
 } 
