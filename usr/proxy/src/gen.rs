@@ -81,7 +81,7 @@ impl create::CreatePCI for Proxy {
 }
 
 impl create::CreateAHCI for Proxy {
-    fn create_domain_ahci(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn BDev>) {
+    fn create_domain_ahci(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>) {
         let (domain, ahci) = self.create_ahci.create_domain_ahci(pci);
         let domain_id = domain.get_domain_id();
         return (domain, Box::new(BDevProxy::new(domain_id, ahci)));
@@ -113,9 +113,10 @@ impl create::CreateXv6 for Proxy {
     fn create_domain_xv6kernel(&self,
                                ints: Box<dyn Interrupt>,
                                create_xv6fs: &dyn create::CreateXv6FS,
-                               create_xv6usr: &dyn create::CreateXv6Usr) -> Box<dyn Domain> {
+                               create_xv6usr: &dyn create::CreateXv6Usr,
+                               bdev: Box<dyn BDev + Send + Sync>) -> Box<dyn Domain> {
         // TODO: write Xv6KernelProxy
-        self.create_xv6.create_domain_xv6kernel(ints, create_xv6fs, create_xv6usr)
+        self.create_xv6.create_domain_xv6kernel(ints, create_xv6fs, create_xv6usr, bdev)
     }
 }
 

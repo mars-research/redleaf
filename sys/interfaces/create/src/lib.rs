@@ -14,7 +14,7 @@ pub trait CreatePCI {
 }
 
 pub trait CreateAHCI {
-    fn create_domain_ahci(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn BDev>);
+    fn create_domain_ahci(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>);
 }
 
 pub trait CreateIxgbe {
@@ -33,5 +33,6 @@ pub trait CreateXv6 {
     fn create_domain_xv6kernel(&self,
                                ints: Box<dyn Interrupt>,
                                create_xv6fs: &dyn CreateXv6FS,
-                               create_xv6usr: &dyn CreateXv6Usr) -> Box<dyn Domain>;
+                               create_xv6usr: &dyn CreateXv6Usr,
+                               bdev: Box<dyn BDev + Send + Sync>) -> Box<dyn Domain>;
 }

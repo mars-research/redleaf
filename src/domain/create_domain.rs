@@ -47,7 +47,7 @@ pub fn create_domain_pci(pci_resource: Box<dyn PciResource>,
     create_domain_pci_bus("pci", binary_range, pci_resource, pci_bar)
 }
 
-pub fn create_domain_ahci(pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn BDev>) {
+pub fn create_domain_ahci(pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn BDev + Send + Sync>) {
 
     extern "C" {
         fn _binary_sys_dev_ahci_driver_build_ahci_driver_start();
@@ -79,7 +79,8 @@ pub fn create_domain_ixgbe(pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box
 
 pub fn create_domain_xv6kernel(ints: Box<dyn syscalls::Interrupt>,
                                create_xv6fs: &dyn create::CreateXv6FS,
-                               create_xv6usr: &dyn create::CreateXv6Usr) -> Box<dyn syscalls::Domain> {
+                               create_xv6usr: &dyn create::CreateXv6Usr,
+                               bdev: Box<dyn BDev + Send + Sync>) -> Box<dyn syscalls::Domain> {
     extern "C" {
         fn _binary_usr_xv6_kernel_core_build_xv6kernel_start();
         fn _binary_usr_xv6_kernel_core_build_xv6kernel_end();
@@ -90,7 +91,7 @@ pub fn create_domain_xv6kernel(ints: Box<dyn syscalls::Interrupt>,
         _binary_usr_xv6_kernel_core_build_xv6kernel_end as *const u8
     );
 
-    build_domain_xv6kernel("xv6kernel", binary_range, ints, create_xv6fs, create_xv6usr)
+    build_domain_xv6kernel("xv6kernel", binary_range, ints, create_xv6fs, create_xv6usr, bdev)
 }
 
 pub fn create_domain_xv6fs(bdev: Box<dyn BDev>) ->(Box<dyn syscalls::Domain>, Box<dyn VFS>) {
@@ -246,8 +247,8 @@ pub fn create_domain_pci_bus(name: &str,
 
 pub fn create_domain_bdev(name: &str, 
                                  binary_range: (*const u8, *const u8),
-                                 pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn BDev>) {
-    type UserInit = fn(Box<dyn Syscall>, Box<dyn Heap>, Box<dyn PCI>) -> Box<dyn BDev>;
+                                 pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn BDev + Send + Sync>) {
+    type UserInit = fn(Box<dyn Syscall>, Box<dyn Heap>, Box<dyn PCI>) -> Box<dyn BDev + Send + Sync>;
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)
@@ -369,13 +370,15 @@ pub fn build_domain_xv6kernel(name: &str,
                                  binary_range: (*const u8, *const u8),
                                  ints: Box<dyn syscalls::Interrupt>,
                                  create_xv6fs: &dyn create::CreateXv6FS,
-                                 create_xv6usr: &dyn create::CreateXv6Usr) -> Box<dyn syscalls::Domain>
+                                 create_xv6usr: &dyn create::CreateXv6Usr,
+                                 bdev: Box<dyn BDev + Send + Sync>) -> Box<dyn syscalls::Domain>
 {
     type UserInit = fn(Box<dyn Syscall>,
                        Box<dyn Heap>,
                        Box<dyn syscalls::Interrupt>,
                        &dyn create::CreateXv6FS,
-                       &dyn create::CreateXv6Usr);
+                       &dyn create::CreateXv6Usr,
+                       Box<dyn BDev + Send + Sync>);
     
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)
@@ -390,7 +393,7 @@ pub fn build_domain_xv6kernel(name: &str,
 
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
-    user_ep(pdom, pheap, ints, create_xv6fs, create_xv6usr);
+    user_ep(pdom, pheap, ints, create_xv6fs, create_xv6usr, bdev);
     disable_irq(); 
 
     println!("domain/{}: returned from entry point", name);
