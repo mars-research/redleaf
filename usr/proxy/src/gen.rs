@@ -179,16 +179,4 @@ impl usr::bdev::BDev for BDevProxy {
 
         r
     }
-
-    fn yeet(&self) {
-        // move thread to next domain
-        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
-
-        let r = self.domain.yeet();
-
-        // move thread back
-        unsafe { sys_update_current_domain_id(caller_domain) };
-
-        r
-    }
 }
