@@ -142,9 +142,9 @@ impl usr::bdev::BDev for BDevProxy {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
-        data.move_to(self.domain_id);
+        // data.move_to(self.domain_id);
         let r = self.domain.read(block, data);
-        data.move_to(caller_domain);
+        // data.move_to(caller_domain);
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };
@@ -173,6 +173,18 @@ impl usr::bdev::BDev for BDevProxy {
         data.move_to(self.domain_id);
         let r = self.domain.read(block, data);
         data.move_to(caller_domain);
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
+    }
+
+    fn yeet(&self) {
+        // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        let r = self.domain.yeet();
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };
