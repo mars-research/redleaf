@@ -14,12 +14,12 @@ pub fn init(heap: Box<dyn syscalls::Heap + Send + Sync>) {
 }
 
 // Shared heap allocated value, something like Box<SharedHeapObject<T>>
-struct SharedHeapObject<T> where T: 'static + Send {
+struct SharedHeapObject<T> where T: 'static {
     domain_id: u64,
     value: T,
 }
 
-impl<T> Drop for SharedHeapObject<T> where T: Send {
+impl<T> Drop for SharedHeapObject<T> {
     fn drop(&mut self) {
         panic!("SharedHeapObject::drop should never be called.");
     }
@@ -30,15 +30,14 @@ impl<T> Drop for SharedHeapObject<T> where T: Send {
 // A global table retains all memory allocated on the shared heap. When a domain dies, all of
 //   its shared heap objects are dropped, which gives us the guarantee that RRef's
 //   owned reference will be safe to dereference as long as its domain is alive.
-pub struct RRef<T> where T: 'static + Send {
+pub struct RRef<T> where T: 'static {
     pointer: *mut SharedHeapObject<T>
 }
 
 unsafe impl<T> Send for RRef<T> where T: Send {}
-unsafe impl<T> Sync for RRef<T> where T: Send {}
+unsafe impl<T> Sync for RRef<T> where T: Sync {}
 
-impl<T> RRef<T> where T: Send {
-    // TODO: we move the value into this. any better way of doing it?
+impl<T> RRef<T> {
     pub fn new(value: T) -> RRef<T> {
         // We allocate the shared heap memory by hand. It will be deallocated in one of two cases:
         //   1. RRef<T> gets dropped, and so the memory under it should be freed.
@@ -76,7 +75,7 @@ impl<T> RRef<T> where T: Send {
     }
 }
 
-impl<T> Drop for RRef<T> where T: Send {
+impl<T> Drop for RRef<T> {
     fn drop(&mut self) {
         unsafe {
             // TODO: is this drop correct? dropping T should only be necessary for cleanup code,
@@ -88,7 +87,7 @@ impl<T> Drop for RRef<T> where T: Send {
     }
 }
 
-impl<T> Deref for RRef<T> where T: Send {
+impl<T> Deref for RRef<T> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -96,7 +95,7 @@ impl<T> Deref for RRef<T> where T: Send {
     }
 }
 
-impl<T> DerefMut for RRef<T> where T: Send {
+impl<T> DerefMut for RRef<T> {
     fn deref_mut(&mut self) -> &mut T {
         unsafe { &mut (*self.pointer).value }
     }
