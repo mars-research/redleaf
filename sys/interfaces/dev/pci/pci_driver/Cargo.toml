@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 ixgbe = { path = "../../ixgbe", version = "0.1.0" }
 ahci = { path = "../../ahci", version = "0.1.0" }
+platform = { path = "../../../platform", version = "0.1.0" }
