@@ -41,13 +41,17 @@ impl<T, const N: usize> RRefDeque<T, N> {
         }
     }
 
-    pub fn push_back(&mut self, value: T) {
+    pub fn push_back(&mut self, value: T) -> Option<T> {
+        if self.arr[self.head].is_some() {
+            return Some(value);
+        }
         if self.head == self.tail && self.arr[self.head].is_some() {
             // if overwriting tail, push tail back
             self.tail = (self.tail + 1) % N;
         }
         self.arr[self.head] = Some(value);
         self.head = (self.head + 1) % N;
+        return None;
     }
 
     pub fn pop_front(&mut self) -> Option<T> {
@@ -140,14 +144,14 @@ mod tests {
         init_heap();
         init_syscall();
         let mut deque = RRefDeque::<usize, 3>::new(Default::default());
-        deque.push_back(1);
-        deque.push_back(2);
-        deque.push_back(3);
-        deque.push_back(4);
+        assert_eq!(deque.push_back(1), None);
+        assert_eq!(deque.push_back(2), None);
+        assert_eq!(deque.push_back(3), None);
+        assert_eq!(deque.push_back(4), Some(4));
+        assert_eq!(deque.pop_front(), Some(1));
+        assert_eq!(deque.push_back(5), None);
         assert_eq!(deque.pop_front(), Some(2));
-        deque.push_back(5);
         assert_eq!(deque.pop_front(), Some(3));
-        assert_eq!(deque.pop_front(), Some(4));
         assert_eq!(deque.pop_front(), Some(5));
         assert_eq!(deque.pop_front(), None);
     }
