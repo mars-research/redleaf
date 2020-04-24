@@ -1,14 +1,24 @@
 extern crate alloc;
 use spin::Once;
 use alloc::boxed::Box;
-use syscalls::{Syscall, Thread, Interrupt};
-
+use syscalls::{Syscall, Thread, Interrupt, Mmap};
+use platform::PciBarAddr;
 
 static SYSCALL: Once<Box<dyn Syscall + Send + Sync>> = Once::new();
 static INT: Once<Box<dyn Interrupt + Send + Sync>> = Once::new();
+static MMAP: Once<Box<dyn Mmap + Send + Sync>> = Once::new();
 
 pub fn init_interrupts(int: Box<dyn Interrupt + Send + Sync>) {
     INT.call_once(|| int);
+}
+
+pub fn init_mmap(mmap: Box<dyn Mmap + Send + Sync>) {
+    MMAP.call_once(|| mmap);
+}
+
+pub fn sys_mmap(bar_addr: &PciBarAddr) {
+    let mmap = MMAP.r#try().expect("Mmap system call interface is not initialized.");
+    mmap.sys_mmap(bar_addr);
 }
 
 pub fn sys_recv_int(int: u8) {

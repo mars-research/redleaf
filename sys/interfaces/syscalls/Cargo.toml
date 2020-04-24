@@ -9,3 +9,4 @@ edition = "2018"
 spin = { path = "../../../lib/spin-rs" }
 pci_driver = { path = "../dev/pci/pci_driver/", version = "0.1.0" }
 protocol = { path = "../protocol/", version = "0.1.0" }
+platform = { path = "../platform/", version = "0.1.0" }
