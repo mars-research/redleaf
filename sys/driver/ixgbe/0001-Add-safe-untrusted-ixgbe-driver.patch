@@ -1,0 +1,1208 @@
+From 9fe2deaabab41b4168c00453aca557cbda0984cd Mon Sep 17 00:00:00 2001
+From: Vikram Narayanan <vikram186@gmail.com>
+Date: Fri, 24 Apr 2020 22:43:58 -0600
+Subject: [PATCH] Add safe untrusted ixgbe driver
+
+---
+ sys/driver/ixgbe/Cargo.toml               |  38 ++
+ sys/driver/ixgbe/Makefile                 |  32 ++
+ sys/driver/ixgbe/linker.ld                |  93 +++++
+ sys/driver/ixgbe/src/device.rs            | 467 ++++++++++++++++++++++
+ sys/driver/ixgbe/src/ixgbe_desc.rs        | 171 ++++++++
+ sys/driver/ixgbe/src/lib.rs               | 323 +++++++++++++++
+ sys/driver/ixgbe/x86_64-ixgbe_driver.json |  17 +
+ 7 files changed, 1141 insertions(+)
+ create mode 100644 sys/driver/ixgbe/Cargo.toml
+ create mode 100644 sys/driver/ixgbe/Makefile
+ create mode 100644 sys/driver/ixgbe/linker.ld
+ create mode 100644 sys/driver/ixgbe/src/device.rs
+ create mode 100644 sys/driver/ixgbe/src/ixgbe_desc.rs
+ create mode 100644 sys/driver/ixgbe/src/lib.rs
+ create mode 100644 sys/driver/ixgbe/x86_64-ixgbe_driver.json
+
+diff --git a/sys/driver/ixgbe/Cargo.toml b/sys/driver/ixgbe/Cargo.toml
+new file mode 100644
+index 0000000..5e9a722
+--- /dev/null
++++ b/sys/driver/ixgbe/Cargo.toml
+@@ -0,0 +1,38 @@
++[package]
++name = "ixgbe_driver"
++version = "0.1.0"
++authors = ["RedLeaf Team"]
++edition = "2018"
++
++[lib]
++crate-type = ["staticlib"]
++test = false
++bench = false
++
++[profile.dev]
++panic = "abort"
++
++[profile.release]
++panic = "abort"
++
++[dependencies]
++syscalls = { path = "../../../sys/interfaces/syscalls", version = "0.1.0" }
++libsyscalls = { path = "../../../sys/lib/libsyscalls", version = "0.1.0" }
++libtime = { path = "../../../sys/lib/libtime", version = "0.1.0" }
++console = { path = "../../../sys/lib/console", version = "0.1.0" }
++malloc = { path = "../../../sys/lib/malloc", version = "0.1.0" }
++spin = { path = "../../../lib/spin-rs" }
++bitflags = "1.0.4"
++ixgbe = { path = "../../../sys/interfaces/dev/ixgbe", version = "0.1.0" }
++ixgbe_device = { path = "../../../sys/interfaces/device/ixgbe", version = "0.1.0" }
++pci_driver = { path = "../../../sys/interfaces/dev/pci/pci_driver", version = "0.1.0" }
++protocol = { path = "../../../sys/interfaces/protocol", version = "0.1.0" }
++platform = { path = "../../../sys/interfaces/platform", version = "0.1.0" }
++
++[dependencies.lazy_static]
++version = "1.3.0"
++features = ["spin_no_std"]
++
++[dependencies.num-traits]
++version = "0.2.8"
++default-features = false
+diff --git a/sys/driver/ixgbe/Makefile b/sys/driver/ixgbe/Makefile
+new file mode 100644
+index 0000000..c71c3a6
+--- /dev/null
++++ b/sys/driver/ixgbe/Makefile
+@@ -0,0 +1,32 @@
++root := ../../../
++include $(root)/common_flags.mk
++
++bin_name := ixgbe_driver
++arch ?= x86_64
++bin := build/$(bin_name)
++
++linker_script := linker.ld
++
++target ?= $(arch)-$(bin_name)
++lib := target/$(target)/$(TARGET_SUB_DIR)/lib$(bin_name).a
++
++.PHONY: all
++all: $(bin) checkstack
++
++.PHONY: release
++release: $(releaseinit)
++
++.PHONY: clean
++clean:
++	rm -rf build
++	cargo clean
++
++$(bin): lib $(linker_script)
++	mkdir -p build
++	ld -n -pie --no-dynamic-linker --gc-sections -T $(linker_script) -o $(bin) $(lib)
++
++.PHONY: lib
++lib:
++	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo ${CARGO_COMMAND} ${CARGO_FLAGS} --target x86_64-${bin_name}.json
++
++include $(root)/checkstack.mk
+diff --git a/sys/driver/ixgbe/linker.ld b/sys/driver/ixgbe/linker.ld
+new file mode 100644
+index 0000000..f684a6d
+--- /dev/null
++++ b/sys/driver/ixgbe/linker.ld
+@@ -0,0 +1,93 @@
++OUTPUT_FORMAT("elf64-x86-64")
++OUTPUT_ARCH(i386:x86-64)
++ENTRY(start)
++
++SECTIONS {
++  . = 0x0; /* Link at 0x0 */
++
++  /* . = 0x227000;  */
++
++  ENTRY(ixgbe_init)
++
++  .rodata :
++  {
++    *(.rodata .rodata.*)
++    . = ALIGN(4K);
++  }
++
++  .text :
++  {
++    __text_start = .;
++    *(.text .text.*)
++    . = ALIGN(4K);
++    __text_end = .;
++  }
++
++  .rodata :
++  {
++     __rodata_start = .;
++     *(.rodata*)
++     . = ALIGN(4096);
++     __rodata_end = .;
++  }
++
++  .data :
++  {
++    __data_start = .;
++    *(.data .data.*)
++    . = ALIGN(4K);
++    __data_end = .;
++  }
++
++  .bss :
++  {
++    __bss_start = .;
++    *(.bss .bss.*)
++    . = ALIGN(4K);
++    __bss_end = .;
++  }
++
++  .tdata :
++  {
++        __tdata_start = .;
++        *(.tdata*)
++        . = ALIGN(4096);
++        __tdata_end = .;
++        __tbss_start = .;
++        *(.tbss*)
++        . += 8;
++        . = ALIGN(4096);
++        __tbss_end = .;
++  }
++
++  .got :
++  {
++    *(.got)
++    . = ALIGN(4K);
++  }
++
++  .got.plt :
++  {
++    *(.got.plt)
++    . = ALIGN(4K);
++  }
++
++  .data.rel.ro : ALIGN(4K) {
++    *(.data.rel.ro.local*) *(.data.rel.ro .data.rel.ro.*)
++    . = ALIGN(4K);
++  }
++
++  .gcc_except_table : ALIGN(4K) {
++    *(.gcc_except_table)
++    . = ALIGN(4K);
++  }
++
++  /* `INFO` makes the section not allocatable so it won't be loaded into memory */
++  .stack_sizes (INFO) :
++  {
++    KEEP(*(.stack_sizes));
++  }
++
++  __end = .;
++
++}
+diff --git a/sys/driver/ixgbe/src/device.rs b/sys/driver/ixgbe/src/device.rs
+new file mode 100644
+index 0000000..616b461
+--- /dev/null
++++ b/sys/driver/ixgbe/src/device.rs
+@@ -0,0 +1,467 @@
++#![no_std]
++
++use alloc::collections::VecDeque;
++use alloc::boxed::Box;
++use alloc::vec::Vec;
++use crate::ixgbe_desc::*;
++use crate::Result;
++use ixgbe_device::{IxgbeRegs, IxgbeNoDmaArrayRegs};
++use ixgbe_device::IxgbeDevice;
++use console::{println, print};
++use core::{mem};
++use libtime::sys_ns_loopsleep;
++use alloc::format;
++use protocol::UdpPacket;
++use crate::PciBarAddr;
++
++const ONE_MS_IN_NS: u64 = 1_000_000 * 1;
++const PACKET_SIZE: usize = 60;
++
++pub struct Intel8259x {
++    pub device: IxgbeDevice,
++}
++
++impl Intel8259x {
++    /// Returns an initialized `Intel8259x` on success.
++    pub fn new(bar: PciBarAddr) -> Result<Self> {
++        #[rustfmt::skip]
++        let mut module = Intel8259x {
++            device: IxgbeDevice::new(bar),
++        };
++
++        println!("Calling module.init for ixgbe");
++        module.init();
++        //module.enable_loopback();
++
++        println!("Module initialized");
++        Ok(module)
++    }
++
++    fn read_reg(&self, register: IxgbeRegs) -> u64 {
++        self.device.read_reg(register)
++    }
++
++    fn read_reg_idx(&self, register: IxgbeNonDmaRegs, idx: u64) -> u64 {
++        self.device.nd_regs.read_reg_idx(register, idx)
++    }
++
++    fn write_reg(&self, register: IxgbeRegs, value: u64) {
++        self.device.write_reg(register, value);
++    }
++
++    fn write_reg_idx(&self, register: IxgbeNonDmaRegs, idx: u64, value: u64) {
++        self.device.nd_regs.write_reg_idx(register, idx, value);
++    }
++
++    fn wait_clear_reg(&self, register: IxgbeRegs, value: u64) {
++        loop {
++            let current = self.read_reg(register);
++            if (current & value) == 0 {
++                break;
++            }
++            sys_ns_loopsleep(ONE_MS_IN_NS * 100);
++        }
++    }
++
++    fn wait_write_reg(&self, register: IxgbeRegs, value: u64) {
++        loop {
++            let current = self.read_reg(register);
++            if (current & value) == value {
++                break;
++            }
++            sys_ns_loopsleep(ONE_MS_IN_NS * 100);
++        }
++    }
++
++    fn write_flag(&self, register: IxgbeRegs, flags: u64) {
++        self.write_reg(register, self.read_reg(register) | flags);
++    }
++
++    fn clear_flag(&self, register: IxgbeRegs, flags: u64) {
++        self.write_reg(register, self.read_reg(register) & !flags);
++    }
++
++    fn clear_flag_idx(&self, register: IxgbeNonDmaRegs, idx: u64, flags: u64) {
++        self.write_reg_idx(register, idx, self.read_reg_idx(register, idx) & !flags);
++    }
++
++    /// Clear all interrupt masks for all queues.
++    fn clear_interrupts(&self) {
++        // Clear interrupt mask
++        self.write_reg(IxgbeRegs::Eimc, IXGBE_IRQ_CLEAR_MASK);
++        self.read_reg(IxgbeRegs::Eicr);
++    }
++
++    /// Disable all interrupts for all queues.
++    fn disable_interrupts(&self) {
++        // Clear interrupt mask to stop from interrupts being generated
++        self.write_reg(IxgbeRegs::Eims, 0x0000_0000);
++        self.clear_interrupts();
++    }
++
++    /// Resets and initializes an ixgbe device.
++    fn init(&mut self) {
++        println!("Disable irqs");
++        self.disable_interrupts();
++
++        println!("Writing regs");
++        self.write_reg(IxgbeRegs::Ctrl, IXGBE_CTRL_PCIE_MASTER_DISABLE);
++
++        self.wait_clear_reg(IxgbeRegs::Status, IXGBE_STATUS_PCIE_MASTER_STATUS);
++
++        // section 4.6.3.2
++        self.write_reg(IxgbeRegs::Ctrl, IXGBE_CTRL_RST_MASK);
++
++        self.wait_clear_reg(IxgbeRegs::Ctrl, IXGBE_CTRL_RST_MASK);
++        println!("Sleep");
++        sys_ns_loopsleep(ONE_MS_IN_NS * 100);
++
++        println!("resume after Sleep");
++        // section 4.6.3.1 - disable interrupts again after reset
++        self.disable_interrupts();
++
++
++        println!("No snoop disable bit");
++        // check for no snoop disable bit
++        let ctrl_ext = self.read_reg(IxgbeRegs::Ctrlext);
++        if (ctrl_ext & IXGBE_CTRL_EXT_NS_DIS) == 0 {
++            self.write_reg(IxgbeRegs::Ctrlext, ctrl_ext | IXGBE_CTRL_EXT_NS_DIS);
++        }
++        self.write_reg(IxgbeRegs::Ctrlext, IXGBE_CTRL_EXT_DRV_LOAD);
++
++        self.write_reg(IxgbeRegs::Ctrlext, IXGBE_CTRL_EXT_DRV_LOAD);
++
++        let mac = self.get_mac_addr();
++
++        println!("initializing device");
++        println!(
++            "   - MAC: {:>02X}:{:>02X}:{:>02X}:{:>02X}:{:>02X}:{:>02X}",
++            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]
++        );
++
++        /*
++        let _ = setcfg(
++            "mac",
++            &format!(
++                "{:>02X}-{:>02X}-{:>02X}-{:>02X}-{:>02X}-{:>02X}\n",
++                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]
++            ),
++        );*/
++
++        // section 4.6.3 - wait for EEPROM auto read completion
++        self.wait_write_reg(IxgbeRegs::Eec, IXGBE_EEC_ARD);
++
++        // section 4.6.3 - wait for dma initialization done
++        self.wait_write_reg(IxgbeRegs::Rdrxctl, IXGBE_RDRXCTL_DMAIDONE);
++
++        // section 4.6.4 - initialize link (auto negotiation)
++        self.init_link();
++
++        // section 4.6.5 - statistical counters
++        // reset-on-read registers, just read them once
++        self.reset_stats();
++
++        // section 4.6.7 - init rx
++        self.init_rx();
++
++        // section 4.6.8 - init tx
++        self.init_tx();
++
++        // start a single receive queue/ring
++        self.start_rx_queue(0);
++
++        // start a single transmit queue/ring
++        self.start_tx_queue(0);
++
++        // section 4.6.3.9 - enable interrupts
++        //self.enable_msix_interrupt(0);
++
++        // enable promisc mode by default to make testing easier
++        self.set_promisc(true);
++
++        // wait some time for the link to come up
++        self.wait_for_link();
++
++        self.dump_all_regs();
++
++        // sleep for 10 seconds. Just stabilize the hardware
++        // Well. this ugliness costed us two days of debugging.
++        println!("Sleep for 15 seconds");
++        sys_ns_loopsleep(ONE_MS_IN_NS * 1000 * 3);
++        println!("Resuming sleep");
++    }
++
++    /// Returns the mac address of this device.
++    pub fn get_mac_addr(&self) -> [u8; 6] {
++        let low = self.read_reg_idx(IxgbeNoDmaArrayRegs::Ral, 0);
++        let high = self.read_reg_idx(IxgbeNoDmaArrayRegs::Rah, 0);
++
++        [
++            (low & 0xff) as u8,
++            (low >> 8 & 0xff) as u8,
++            (low >> 16 & 0xff) as u8,
++            (low >> 24) as u8,
++            (high & 0xff) as u8,
++            (high >> 8 & 0xff) as u8,
++        ]
++    }
++
++    /// Sets the mac address of this device.
++    #[allow(dead_code)]
++    pub fn set_mac_addr(&self, mac: [u8; 6]) {
++        let low: u32 = u32::from(mac[0])
++            + (u32::from(mac[1]) << 8)
++            + (u32::from(mac[2]) << 16)
++            + (u32::from(mac[3]) << 24);
++        let high: u32 = u32::from(mac[4]) + (u32::from(mac[5]) << 8);
++
++
++        self.write_reg_idx(IxgbeNoDmaArrayRegs::Ral, 0, low as u64);
++        self.write_reg_idx(IxgbeNoDmaArrayRegs::Rah, 0, high as u64);
++    }
++
++    // see section 4.6.4
++    /// Initializes the link of this device.
++    fn init_link(&self) {
++        // link auto-configuration register should already be set correctly, we're resetting it anyway
++        self.write_reg(
++            IxgbeRegs::Autoc,
++            (self.read_reg(IxgbeRegs::Autoc) & !IXGBE_AUTOC_LMS_MASK) | IXGBE_AUTOC_LMS_10G_SERIAL,
++        );
++        self.write_reg(
++            IxgbeRegs::Autoc,
++            (self.read_reg(IxgbeRegs::Autoc) & !IXGBE_AUTOC_10G_PMA_PMD_MASK) | IXGBE_AUTOC_10G_XAUI,
++        );
++        // negotiate link
++        self.write_flag(IxgbeRegs::Autoc, IXGBE_AUTOC_AN_RESTART);
++        // datasheet wants us to wait for the link here, but we can continue and wait afterwards
++    }
++
++    /// Resets the stats of this device.
++    fn reset_stats(&self) {
++        self.read_reg(IxgbeRegs::Gprc);
++        self.read_reg(IxgbeRegs::Gptc);
++        self.read_reg(IxgbeRegs::Gorcl);
++        self.read_reg(IxgbeRegs::Gorch);
++        self.read_reg(IxgbeRegs::Gotcl);
++        self.read_reg(IxgbeRegs::Gotch);
++    }
++
++    // sections 4.6.7
++    /// Initializes the rx queues of this device.
++    fn init_rx(&mut self) {
++        // disable rx while re-configuring it
++        self.clear_flag(IxgbeRegs::Rxctrl, IXGBE_RXCTRL_RXEN);
++
++        // enable CRC offloading
++        self.write_flag(IxgbeRegs::Hlreg0, IXGBE_HLREG0_RXCRCSTRP);
++        self.write_flag(IxgbeRegs::Rdrxctl, IXGBE_RDRXCTL_CRCSTRIP);
++
++        // accept broadcast packets
++        self.write_flag(IxgbeRegs::Fctrl, IXGBE_FCTRL_BAM);
++
++        // configure a single receive queue/ring
++        let i: u64 = 0;
++
++        // TODO: Manipulation of rx queue. Move this to trusted part
++        self.device.init_rx();
++
++        // last sentence of section 4.6.7 - set some magic bits
++        self.write_flag(IxgbeRegs::Ctrlext, IXGBE_CTRL_EXT_NS_DIS);
++
++        // probably a broken feature, this flag is initialized with 1 but has to be set to 0
++        self.clear_flag_idx(IxgbeArrayRegs::DcaRxctrl, i, 1 << 12);
++
++        // start rx
++        self.write_flag(IxgbeRegs::Rxctrl, IXGBE_RXCTRL_RXEN);
++    }
++
++    fn enable_loopback(&self) {
++        self.write_flag(IxgbeRegs::Hlreg0, IXGBE_HLREG0_LPBK);
++    }
++
++    // section 4.6.8
++    /// Initializes the tx queues of this device.
++    fn init_tx(&mut self) {
++        // crc offload and small packet padding
++        self.write_flag(IxgbeRegs::Hlreg0, IXGBE_HLREG0_TXCRCEN | IXGBE_HLREG0_TXPADEN);
++
++        // required when not using DCB/VTd
++        self.write_reg(IxgbeRegs::Dtxmxszrq, 0xffff);
++        self.clear_flag(IxgbeRegs::Rttdcs, IXGBE_RTTDCS_ARBDIS);
++
++        // configure a single transmit queue/ring
++        let i: u64 = 0;
++
++        // section 7.1.9 - setup descriptor ring
++
++        self.device.init_tx();
++
++        // final step: enable DMA
++        self.write_reg(IxgbeRegs::Dmatxctl, IXGBE_DMATXCTL_TE);
++    }
++
++    /// Returns the link speed of this device.
++    fn get_link_speed(&self) -> u16 {
++        let speed = self.read_reg(IxgbeRegs::Links);
++        if (speed & IXGBE_LINKS_UP) == 0 {
++            return 0;
++        }
++        match speed & IXGBE_LINKS_SPEED_82599 {
++            IXGBE_LINKS_SPEED_100_82599 => 100,
++            IXGBE_LINKS_SPEED_1G_82599 => 1000,
++            IXGBE_LINKS_SPEED_10G_82599 => 10000,
++            _ => 0,
++        }
++    }
++
++    /// Sets the rx queues` descriptors and enables the queues.
++    ///
++    /// # Panics
++    /// Panics if length of `self.receive_ring` is not a power of 2.
++    fn start_rx_queue(&mut self, queue_id: u16) {
++        self.device.start_rx_queue(queue_id);
++    }
++
++    /// Enables the tx queues.
++    ///
++    /// # Panics
++    /// Panics if length of `self.transmit_ring` is not a power of 2.
++    fn start_tx_queue(&mut self, queue_id: u16) {
++        self.device.start_tx_queue(queue_id);
++    }
++
++    /// Enables or disables promisc mode of this device.
++    fn set_promisc(&self, enabled: bool) {
++        if enabled {
++            self.write_flag(IxgbeRegs::Fctrl, IXGBE_FCTRL_MPE | IXGBE_FCTRL_UPE);
++        } else {
++            self.clear_flag(IxgbeRegs::Fctrl, IXGBE_FCTRL_MPE | IXGBE_FCTRL_UPE);
++        }
++    }
++
++    /// Waits for the link to come up.
++    fn wait_for_link(&self) {
++        println!("   - waiting for link");
++        let mut speed = self.get_link_speed();
++        let mut count = 0;
++        while speed == 0 && count < 100 {
++            count += 1;
++            sys_ns_loopsleep(ONE_MS_IN_NS * 100);
++            speed = self.get_link_speed();
++        }
++        println!("   - link speed is {} Mbit/s", self.get_link_speed());
++    }
++
++    pub fn dump_stats(&self) {
++        println!("Ixgbe statistics:");
++        let mut string = format!("Stats regs:\n\tGPRC {:08X} GPTC {:08X}\n \
++                                 \tGORCL {:08X} GORCH {:08X}\n \
++                                 \tGOTCL {:08X} GOTCH {:08X}\n \
++                                 \tTXDGPC {:08X} TXDGBCH {:08X} TXDGBCL {:08X} QPTC(0) {:08X}\n \
++                                 \t MPTC {:08X} BPTC {:08X}\n",
++                                self.read_reg(IxgbeRegs::Gprc) as u32,
++                                self.read_reg(IxgbeRegs::Gptc) as u32,
++                                self.read_reg(IxgbeRegs::Gorcl) as u32,
++                                self.read_reg(IxgbeRegs::Gorch) as u32,
++                                self.read_reg(IxgbeRegs::Gotcl) as u32,
++                                self.read_reg(IxgbeRegs::Gotch) as u32,
++                                self.read_reg(IxgbeRegs::Txdgpc) as u32,
++                                self.read_reg(IxgbeRegs::Txdgbch) as u32,
++                                self.read_reg(IxgbeRegs::Txdgbcl) as u32,
++                                self.read_reg_idx(IxgbeArrayRegs::Qptc, 0) as u32,
++                                self.read_reg(IxgbeRegs::Mptc) as u32,
++                                self.read_reg(IxgbeRegs::Bptc) as u32,
++                                );
++
++        string.push_str(&format!("CRCERRS {:08X} ILLERRC {:08X} ERRBC {:08X}\n \
++                                    \tMLFC {:08X} MRFC {:08X} RXMPC[0] {:08X}\n \
++                                    \tRLEC {:08X} LXONRXCNT {:08X} LXONRXCNT {:08X}\n \
++                                    \tRXDGPC {:08X} RXDGBCL {:08X} RXDGBCH {:08X}\n \
++                                    \tRUC {:08X} RFC {:08X} ROC {:08X}\n \
++                                    \tRJC {:08X} BPRC {:08X} MPRC {:08X}\n",
++                                 self.read_reg(IxgbeRegs::Crcerrs) as u32,
++                                 self.read_reg(IxgbeRegs::Illerrc) as u32,
++                                 self.read_reg(IxgbeRegs::Errbc) as u32,
++                                 self.read_reg(IxgbeRegs::Mlfc) as u32,
++                                 self.read_reg(IxgbeRegs::Mrfc) as u32,
++                                 self.read_reg_idx(IxgbeArrayRegs::Rxmpc, 0) as u32,
++                                 self.read_reg(IxgbeRegs::Rlec) as u32,
++                                 self.read_reg(IxgbeRegs::Lxonrxcnt) as u32,
++                                 self.read_reg(IxgbeRegs::Lxoffrxcnt) as u32,
++                                 self.read_reg(IxgbeRegs::Rxdgpc) as u32,
++                                 self.read_reg(IxgbeRegs::Rxdgbch) as u32,
++                                 self.read_reg(IxgbeRegs::Rxdgbcl) as u32,
++                                 self.read_reg(IxgbeRegs::Ruc) as u32,
++                                 self.read_reg(IxgbeRegs::Rfc) as u32,
++                                 self.read_reg(IxgbeRegs::Roc) as u32,
++                                 self.read_reg(IxgbeRegs::Rjc) as u32,
++                                 self.read_reg(IxgbeRegs::Bprc) as u32,
++                                 self.read_reg(IxgbeRegs::Mprc) as u32,
++                                 ));
++        print!("{}", string);
++    }
++
++    pub fn dump_all_regs(&self) {
++        let mut string = format!("Interrupt regs:\n\tEICR: {:08X} EIMS: {:08X} EIMC: {:08X}\n\tEITR {:08X} GPIE {:08X}\n\tIVAR(0) {:08X}\n",
++                    self.read_reg(IxgbeRegs::Eicr) as u32,
++                    self.read_reg(IxgbeRegs::Eims) as u32,
++                    self.read_reg(IxgbeRegs::Eimc) as u32,
++                    self.read_reg_idx(IxgbeArrayRegs::Eitr, 0) as u32,
++                    self.read_reg(IxgbeRegs::Gpie) as u32,
++                    self.read_reg_idx(IxgbeArrayRegs::Ivar, 0) as u32,
++                    );
++
++        string.push_str(&format!("Control regs:\n\tCTRL {:08X} CTRL_EXT {:08X}\n",
++                                 self.read_reg(IxgbeRegs::Ctrl) as u32,
++                                 self.read_reg(IxgbeRegs::Ctrlext) as u32,
++                                 ));
++
++        string.push_str(&format!("EEPROM regs:\n\tEEC_ARD {:08X}\n",
++                                 self.read_reg(IxgbeRegs::Eec) as u32));
++
++        string.push_str(&format!("AUTOC {:08X}\n",
++                                 self.read_reg(IxgbeRegs::Autoc) as u32));
++
++        string.push_str(&format!("Receive regs:\n\tRDRXCTRL {:08X} RXCTRL {:08X} RXPBSIZE(0): {:08X}\n\tHLREG0 {:08X} FCTRL {:08X}\n\tSRRCTL(0) {:08X} RDBAL(0) {:08X} RDBAH(0) {:08X} RDLEN(0) {:08X}\nRDH(0) {:08X} RDT(0) {:08X}\n",
++                                 self.read_reg(IxgbeRegs::Rdrxctl) as u32,
++                                 self.read_reg(IxgbeRegs::Rxctrl) as u32,
++                                 self.read_reg_idx(IxgbeArrayRegs::Rxpbsize, 0) as u32,
++                                 self.read_reg(IxgbeRegs::Hlreg0) as u32,
++                                 self.read_reg(IxgbeRegs::Fctrl) as u32,
++                                 self.read_reg_idx(IxgbeArrayRegs::Srrctl, 0) as u32,
++                                 self.read_reg_idx(IxgbeArrayRegs::Rdbal, 0) as u32,
++                                 self.read_reg_idx(IxgbeArrayRegs::Rdbah, 0) as u32,
++                                 self.read_reg_idx(IxgbeArrayRegs::Rdlen, 0) as u32,
++                                 self.read_reg_idx(IxgbeArrayRegs::Rdh, 0) as u32,
++                                 self.read_reg_idx(IxgbeArrayRegs::Rdt, 0) as u32,
++                                 ));
++
++        string.push_str(&format!("Transmit regs:\n\tTXDCTL(0) {:08X} TXPBSIZE(0): {:08X}\n\tDTXMSSZRQ {:08X} RTTDCS {:08X}\n\tDMATXCTL: {:08X} TDBAL(0) {:08X} TDBAH(0) {:08X} TDLEN(0) {:08X}\n\tTDH(0) {:08X} TDT(0) {:08X}\n",
++                                 self.read_reg_idx(IxgbeArrayRegs::Txdctl, 0) as u32,
++                                 self.read_reg_idx(IxgbeArrayRegs::Txpbsize, 0) as u32,
++                                 self.read_reg(IxgbeRegs::Dtxmxszrq) as u32,
++                                 self.read_reg(IxgbeRegs::Rttdcs) as u32,
++                                 self.read_reg(IxgbeRegs::Dmatxctl) as u32,
++                                 self.read_reg_idx(IxgbeArrayRegs::Tdbal, 0) as u32,
++                                 self.read_reg_idx(IxgbeArrayRegs::Tdbah, 0) as u32,
++                                 self.read_reg_idx(IxgbeArrayRegs::Tdlen, 0) as u32,
++                                 self.read_reg_idx(IxgbeArrayRegs::Tdh, 0) as u32,
++                                 self.read_reg_idx(IxgbeArrayRegs::Tdt, 0) as u32,
++                                 ));
++        string.push_str(&format!("Stats regs:\n\tGPRC {:08X} GPTC {:08X}\n\tGORCL {:08X} GORCH {:08X}\n\tGOTCL {:08X} GOTCH {:08X}\n\tTXDGPC {:08X} TXDGBCH {:08X} TXDGBCL {:08X} QPTC(0) {:08X}\n",
++                                self.read_reg(IxgbeRegs::Gprc) as u32,
++                                self.read_reg(IxgbeRegs::Gptc) as u32,
++                                self.read_reg(IxgbeRegs::Gorcl) as u32,
++                                self.read_reg(IxgbeRegs::Gorch) as u32,
++                                self.read_reg(IxgbeRegs::Gotcl) as u32,
++                                self.read_reg(IxgbeRegs::Gotch) as u32,
++                                self.read_reg(IxgbeRegs::Txdgpc) as u32,
++                                self.read_reg(IxgbeRegs::Txdgbch) as u32,
++                                self.read_reg(IxgbeRegs::Txdgbcl) as u32,
++                                self.read_reg_idx(IxgbeArrayRegs::Qptc, 0) as u32,
++                                ));
++        print!("{}", string);
++        self.dump_stats();
++    }
++}
+diff --git a/sys/driver/ixgbe/src/ixgbe_desc.rs b/sys/driver/ixgbe/src/ixgbe_desc.rs
+new file mode 100644
+index 0000000..7fddaca
+--- /dev/null
++++ b/sys/driver/ixgbe/src/ixgbe_desc.rs
+@@ -0,0 +1,171 @@
++#![allow(non_snake_case)]
++#![allow(non_camel_case_types)]
++#![allow(non_upper_case_globals)]
++#![allow(clippy::unreadable_literal)]
++
++pub const IXGBE_CTRL_LNK_RST: u64               = 0x00000008; /* Link Reset. Resets everything. */
++pub const IXGBE_CTRL_RST: u64                   = 0x04000000; /* Reset (SW) */
++pub const IXGBE_CTRL_RST_MASK: u64              = IXGBE_CTRL_LNK_RST | IXGBE_CTRL_RST;
++pub const IXGBE_CTRL_PCIE_MASTER_DISABLE: u64              = 1 << 2;
++
++pub const IXGBE_STATUS_PCIE_MASTER_STATUS: u64  = 1 << 19;
++pub const IXGBE_CTRL_EXT_DRV_LOAD: u64          = 1 << 28;
++
++pub const IXGBE_EEC_ARD: u64                    = 0x00000200; /* EEPROM Auto Read Done */
++pub const IXGBE_RDRXCTL_DMAIDONE: u64           = 0x00000008; /* DMA init cycle done */
++
++pub const IXGBE_AUTOC_LMS_SHIFT: u64            = 13;
++pub const IXGBE_AUTOC_LMS_MASK: u64             = 0x7 << IXGBE_AUTOC_LMS_SHIFT;
++pub const IXGBE_AUTOC_LMS_10G_SERIAL: u64       = 0x3 << IXGBE_AUTOC_LMS_SHIFT;
++pub const IXGBE_AUTOC_10G_PMA_PMD_MASK: u64     = 0x00000180;
++pub const IXGBE_AUTOC_10G_PMA_PMD_SHIFT: u64    = 7;
++pub const IXGBE_AUTOC_10G_XAUI: u64             = 0x0 << IXGBE_AUTOC_10G_PMA_PMD_SHIFT;
++pub const IXGBE_AUTOC_AN_RESTART: u64           = 0x00001000;
++
++pub const IXGBE_RXCTRL_RXEN: u64                = 0x00000001; /* Enable Receiver */
++
++pub const IXGBE_RXPBSIZE_128KB: u64             = 0x00020000; /* 128KB Packet Buffer */
++
++pub const IXGBE_HLREG0_RXCRCSTRP: u64           = 0x00000002; /* bit  1 */
++pub const IXGBE_HLREG0_LPBK: u64           = 1 << 15;
++pub const IXGBE_RDRXCTL_CRCSTRIP: u64           = 0x00000002; /* CRC Strip */
++
++pub const IXGBE_FCTRL_BAM: u64                  = 0x00000400; /* Broadcast Accept Mode */
++
++pub const IXGBE_CTRL_EXT_NS_DIS: u64            = 0x00010000; /* No Snoop disable */
++
++pub const IXGBE_HLREG0_TXCRCEN: u64             = 0x00000001; /* bit  0 */
++pub const IXGBE_HLREG0_TXPADEN: u64             = 0x00000400; /* bit 10 */
++
++pub const IXGBE_TXPBSIZE_40KB: u64              = 0x0000A000; /* 40KB Packet Buffer */
++pub const IXGBE_RTTDCS_ARBDIS: u64              = 0x00000040; /* DCB arbiter disable */
++
++pub const IXGBE_DMATXCTL_TE: u64                = 0x1; /* Transmit Enable */
++
++pub const IXGBE_RXDCTL_ENABLE: u64              = 0x02000000; /* Ena specific Rx Queue */
++pub const IXGBE_TXDCTL_ENABLE: u64              = 0x02000000; /* Ena specific Tx Queue */
++
++pub const IXGBE_FCTRL_MPE: u64                  = 0x00000100; /* Multicast Promiscuous Ena*/
++pub const IXGBE_FCTRL_UPE: u64                  = 0x00000200; /* Unicast Promiscuous Ena */
++
++pub const IXGBE_LINKS_UP: u64                   = 0x40000000;
++pub const IXGBE_LINKS_SPEED_82599: u64          = 0x30000000;
++pub const IXGBE_LINKS_SPEED_100_82599: u64      = 0x10000000;
++pub const IXGBE_LINKS_SPEED_1G_82599: u64       = 0x20000000;
++pub const IXGBE_LINKS_SPEED_10G_82599: u64      = 0x30000000;
++
++pub const IXGBE_IVAR_ALLOC_VAL: u32             = 0x80; /* Interrupt Allocation valid */
++pub const IXGBE_EICR_RTX_QUEUE: u64             = 0x0000FFFF; /* RTx Queue Interrupt */
++
++/* Interrupt clear mask */
++pub const IXGBE_IRQ_CLEAR_MASK: u64                                    = 0xFFFFFFFF;
++
++pub const IXGBE_GPIE_MSIX_MODE: u64                                    = 0x00000010; /* MSI-X mode */
++pub const IXGBE_GPIE_OCD: u64                                          = 0x00000020; /* Other Clear Disable */
++pub const IXGBE_GPIE_EIMEN: u64                                        = 0x00000040; /* Immediate Interrupt Enable */
++pub const IXGBE_GPIE_EIAME: u64                                        = 0x40000000;
++pub const IXGBE_GPIE_PBA_SUPPORT: u64                                  = 0x80000000;
++
++/*
++#[derive(Debug, Copy, Clone)]
++#[repr(packed)]
++pub struct ixgbe_adv_rx_desc_read {
++    pub pkt_addr: u64,
++    /* Packet buffer address */
++    pub hdr_addr: u64,
++    /* Header buffer address */
++}
++
++/* Receive Descriptor - Advanced */
++#[derive(Debug, Copy, Clone)]
++#[repr(packed)]
++pub struct ixgbe_adv_rx_desc_wb_lower_lo_dword_hs_rss {
++    pub pkt_info: u16,
++    /* RSS, Pkt type */
++    pub hdr_info: u16,
++    /* Splithdr, hdrlen */
++}
++
++#[derive(Copy, Clone)]
++#[repr(packed)]
++pub union ixgbe_adv_rx_desc_wb_lower_lo_dword {
++    pub data: u32,
++    pub hs_rss: ixgbe_adv_rx_desc_wb_lower_lo_dword_hs_rss,
++}
++
++#[derive(Debug, Copy, Clone)]
++#[repr(packed)]
++pub struct ixgbe_adv_rx_desc_wb_lower_hi_dword_csum_ip {
++    pub ip_id: u16,
++    /* IP id */
++    pub csum: u16,
++    /* Packet Checksum */
++}
++
++#[derive(Copy, Clone)]
++#[repr(packed)]
++pub union ixgbe_adv_rx_desc_wb_lower_hi_dword {
++    pub rss: u32,
++    /* RSS Hash */
++    pub csum_ip: ixgbe_adv_rx_desc_wb_lower_hi_dword_csum_ip,
++}
++
++#[derive(Copy, Clone)]
++#[repr(packed)]
++pub struct ixgbe_adv_rx_desc_wb_lower {
++    pub lo_dword: ixgbe_adv_rx_desc_wb_lower_lo_dword,
++    pub hi_dword: ixgbe_adv_rx_desc_wb_lower_hi_dword,
++}
++
++#[derive(Debug, Copy, Clone)]
++#[repr(packed)]
++pub struct ixgbe_adv_rx_desc_wb_upper {
++    pub status_error: u32,
++    /* ext status/error */
++    pub length: u16,
++    /* Packet length */
++    pub vlan: u16,
++    /* VLAN tag */
++}
++
++#[derive(Copy, Clone)]
++#[repr(packed)]
++pub struct ixgbe_adv_rx_desc_wb {
++    pub lower: ixgbe_adv_rx_desc_wb_lower,
++    pub upper: ixgbe_adv_rx_desc_wb_upper,
++}
++
++#[derive(Copy, Clone)]
++#[repr(packed)]
++pub union ixgbe_adv_rx_desc {
++    pub read: ixgbe_adv_rx_desc_read,
++    pub wb: ixgbe_adv_rx_desc_wb, /* writeback */
++    _union_align: [u64; 2],
++}
++
++/* Transmit Descriptor - Advanced */
++#[derive(Debug, Copy, Clone)]
++#[repr(packed)]
++pub struct ixgbe_adv_tx_desc_read {
++    pub buffer_addr: u64,
++    /* Address of descriptor's data buf */
++    pub cmd_type_len: u32,
++    pub olinfo_status: u32,
++}
++
++#[derive(Debug, Copy, Clone)]
++#[repr(packed)]
++pub struct ixgbe_adv_tx_desc_wb {
++    pub rsvd: u64,
++    /* Reserved */
++    pub nxtseq_seed: u32,
++    pub status: u32,
++}
++
++#[derive(Copy, Clone)]
++#[repr(packed)]
++pub union ixgbe_adv_tx_desc {
++    pub read: ixgbe_adv_tx_desc_read,
++    pub wb: ixgbe_adv_tx_desc_wb,
++    _union_align: [u64; 2],
++}*/
+diff --git a/sys/driver/ixgbe/src/lib.rs b/sys/driver/ixgbe/src/lib.rs
+new file mode 100644
+index 0000000..bc8d953
+--- /dev/null
++++ b/sys/driver/ixgbe/src/lib.rs
+@@ -0,0 +1,323 @@
++#![no_std]
++#![feature(abi_x86_interrupt)]
++#![feature(
++    asm,
++    allocator_api,
++    alloc_layout_extra,
++    alloc_error_handler,
++    const_fn,
++    const_raw_ptr_to_usize_cast,
++    untagged_unions,
++    panic_info_message,
++    maybe_uninit_extra
++)]
++#![forbid(unsafe_code)]
++
++mod device;
++mod ixgbe_desc;
++
++extern crate malloc;
++extern crate alloc;
++
++use alloc::boxed::Box;
++use alloc::collections::VecDeque;
++#[macro_use]
++use alloc::vec::Vec;
++use core::panic::PanicInfo;
++use syscalls::{Syscall,PCI};
++use console::{println, print};
++use pci_driver::DeviceBarRegions;
++use libsyscalls::syscalls::sys_backtrace;
++pub use platform::PciBarAddr;
++
++pub use libsyscalls::errors::Result;
++use crate::device::Intel8259x;
++use core::cell::RefCell;
++use protocol::UdpPacket;
++
++use libtime::get_rdtsc as rdtsc;
++
++struct Ixgbe {
++    vendor_id: u16,
++    device_id: u16,
++    driver: pci_driver::PciDrivers,
++    device_initialized: bool,
++    device: RefCell<Option<Intel8259x>>
++}
++
++impl Ixgbe {
++    fn new() -> Ixgbe {
++        Ixgbe {
++            vendor_id: 0x8086,
++            device_id: 0x10fb,
++            driver: pci_driver::PciDrivers::IxgbeDriver,
++            device_initialized: false,
++            device: RefCell::new(None)
++        }
++    }
++
++    fn active(&self) -> bool {
++        self.device_initialized
++    }
++}
++
++fn calc_ipv4_checksum(ipv4_header: &[u8]) -> u16 {
++    assert!(ipv4_header.len() % 2 == 0);
++    let mut checksum = 0;
++    for i in 0..ipv4_header.len() / 2 {
++        if i == 5 {
++            // Assume checksum field is set to 0
++            continue;
++        }
++        checksum += (u32::from(ipv4_header[i * 2]) << 8) + u32::from(ipv4_header[i * 2 + 1]);
++        if checksum > 0xffff {
++            checksum = (checksum & 0xffff) + 1;
++        }
++    }
++    !(checksum as u16)
++}
++
++impl syscalls::Net for Ixgbe {
++    fn submit_and_poll(&mut self, mut packets: &mut VecDeque<Vec<u8>>, mut collect: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
++        let mut ret: usize = 0;
++        if !self.device_initialized {
++            return ret;
++        }
++
++        if let Some(device) = self.device.borrow_mut().as_mut() {
++            let dev: &mut Intel8259x = device;
++            ret = dev.device.submit_and_poll(&mut packets, &mut collect, tx);
++            packets.append(&mut collect);
++        }
++        ret
++    }
++}
++
++impl pci_driver::PciDriver for Ixgbe {
++    fn probe(&mut self, bar_region: DeviceBarRegions) {
++        match bar_region {
++            DeviceBarRegions::Ixgbe(bar) => {
++                println!("got ixgbe bar region");
++                if let Ok(ixgbe_dev) = Intel8259x::new(bar) {
++                    self.device_initialized = true;
++                    self.device.replace(Some(ixgbe_dev));
++                }
++            }
++            _ => { println!("Got unknown bar region") }
++        }
++    }
++
++    fn get_vid(&self) -> u16 {
++        self.vendor_id
++    }
++
++    fn get_did(&self) -> u16 {
++        self.device_id
++    }
++
++    fn get_driver_type(&self) -> pci_driver::PciDrivers {
++        self.driver
++    }
++}
++
++fn run_tx_udp_test(dev: &Ixgbe, payload_sz: usize) {
++    let mut packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(32);
++    let mut collect: VecDeque<Vec<u8>> = VecDeque::new();
++
++    let mac_data = alloc::vec![
++        0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81, // Dst mac
++        0x90, 0xe2, 0xba, 0xb5, 0x14, 0xcd, // Src mac
++        0x08, 0x00,                         // Protocol
++    ];
++    let mut ip_data = alloc::vec![
++        0x45, 0x00,
++        0x00,
++        0x2e,
++        0x00, 0x0, 0x0, 0x00,
++        0x40, 0x11, 0x00, 0x00,
++        0x0a, 0x0a, 0x03, 0x01,
++        0x0a, 0x0a, 0x03, 0x02,
++    ];
++
++    let udp_hdr = alloc::vec![
++        0xb2, 0x6f, 0x14, 0x51,
++        0x00,
++        0x1a,
++        0x9c, 0xaf,
++    ];
++
++    let mut payload = alloc::vec![0u8; payload_sz];
++
++    payload[0] = b'R';
++    payload[1] = b'e';
++    payload[2] = b'd';
++    payload[3] = b'l';
++    payload[4] = b'e';
++    payload[5] = b'a';
++    payload[6] = b'f';
++
++    let checksum = calc_ipv4_checksum(&ip_data);
++    // Calculated checksum is little-endian; checksum field is big-endian
++    ip_data[10] = (checksum >> 8) as u8;
++    ip_data[11] = (checksum & 0xff) as u8;
++
++    let mut pkt:Vec<u8> = Vec::new();
++    pkt.extend(mac_data.iter());
++    pkt.extend(ip_data.iter());
++    pkt.extend(udp_hdr.iter());
++    pkt.extend(payload.iter());
++
++    println!("Packet len is {}", pkt.len());
++
++    for i in 0..32 {
++        packets.push_front(pkt.clone());
++    }
++
++    let mut append_rdtsc: u64 = 0;
++    let mut count: u64 = 0;
++    let mut alloc_count = 0;
++    if let Some(device) = dev.device.borrow_mut().as_mut() {
++        let dev: &mut Intel8259x = device;
++        let mut sum: usize = 0;
++        let start = rdtsc();
++        while sum <= 20_000_000 {
++            let ret = dev.device.submit_and_poll(&mut packets, &mut collect, true);
++            sum += ret;
++
++            packets.append(&mut collect);
++
++
++            if packets.len() == 0 {
++                alloc_count += 1;
++                for i in 0..32 {
++                    packets.push_front(pkt.clone());
++                }
++            }
++        }
++
++        let elapsed = rdtsc() - start;
++        println!("==> tx batch {} : {} iterations took {} cycles (avg = {})", payload_sz, sum, elapsed, elapsed / sum as u64);
++        dev.dump_stats();
++        println!("Reaped {} packets", dev.device.poll(&mut collect));
++    }
++}
++
++/*
++use ixgbe::{IxgbeRegs};
++
++fn run_read_reg_test(dev: &Ixgbe) {
++
++    if let Some(device) = dev.device.borrow_mut().as_mut() {
++        let dev: &mut Intel8259x = device;
++        let mut sum: usize = 0;
++        let start = rdtsc();
++        while sum <= 20_000_000 {
++            dev.bar.read_reg(IxgbeRegs::Gptc);
++            sum += 1;
++        }
++        let elapsed = rdtsc() - start;
++        println!("==> read_reg test: {} iterations took {} cycles (avg = {})", sum, elapsed, elapsed / sum as u64);
++    }
++}
++
++fn run_write_reg_test(dev: &Ixgbe) {
++
++    if let Some(device) = dev.device.borrow_mut().as_mut() {
++        let dev: &mut Intel8259x = device;
++        let mut sum: usize = 0;
++        let start = rdtsc();
++        while sum <= 20_000_000 {
++            dev.bar.write_reg_tdt(0, 0);
++            sum += 1;
++        }
++        let elapsed = rdtsc() - start;
++        println!("==> write_reg test: {} iterations took {} cycles (avg = {})", sum, elapsed, elapsed / sum as u64);
++    }
++}
++*/
++
++fn run_rx_udptest(dev: &Ixgbe, pkt_size: u16) {
++    let mut packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(32);
++    let mut collect: VecDeque<Vec<u8>> = VecDeque::new();
++
++    for i in 0..32 {
++        packets.push_front(Vec::with_capacity(2048));
++    }
++
++    //println!("Sent a packet!");
++    if let Some(device) = dev.device.borrow_mut().as_mut() {
++        let idev: &mut Intel8259x = device;
++        let mut sum: usize = 0;
++
++        let start = rdtsc();
++
++        while sum <= 20_000_000 {
++            let ret = idev.device.submit_and_poll(&mut packets, &mut collect, false);
++            sum += ret;
++
++            packets.append(&mut collect);
++
++            if packets.len() == 0 {
++                for i in 0..32 {
++                    packets.push_front(Vec::with_capacity(2048));
++                }
++            }
++        }
++
++        let elapsed = rdtsc() - start;
++        println!("sum {}", sum);
++        println!("==> rx batch {}B: {} iterations took {} cycles (avg = {})", pkt_size, sum, elapsed, elapsed / sum as u64);
++        idev.dump_stats();
++    }
++}
++
++const ONE_MS_IN_NS: u64 = 1_000_000 * 1;
++
++#[no_mangle]
++pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
++                 pci: Box<dyn syscalls::PCI>) -> Box<dyn syscalls::Net> {
++    libsyscalls::syscalls::init(s);
++
++    println!("ixgbe_init: starting ixgbe driver domain");
++    let mut ixgbe = Ixgbe::new();
++    if let Err(_) = pci.pci_register_driver(&mut ixgbe, 0, None) {
++        println!("WARNING: failed to register IXGBE driver");
++    }
++
++    println!("Starting tests");
++
++    let payload_sz = alloc::vec![64 - 42, 64, 128, 256, 512, 1470];
++
++    for p in payload_sz.iter() {
++        println!("running {}B payload test", p);
++        run_tx_udp_test(&ixgbe, *p);
++    }
++
++    //println!("running Rx test");
++
++    //println!("running 64B rx test");
++    //run_rx_udptest(&ixgbe, 64 - 42);
++
++    println!("running 128B rx test");
++    run_rx_udptest(&ixgbe, 128);
++/*
++    println!("running 256B rx test");
++    run_rx_udptest(&ixgbe, 256);
++
++    println!("running 512B rx test");
++    run_rx_udptest(&ixgbe, 512);
++
++    println!("running 1512B rx test");
++    run_rx_udptest(&ixgbe, 1512);
++
++    */
++
++    Box::new(ixgbe)
++}
++
++// This function is called on panic.
++#[panic_handler]
++fn panic(_info: &PanicInfo) -> ! {
++    sys_backtrace();
++    loop {}
++}
+diff --git a/sys/driver/ixgbe/x86_64-ixgbe_driver.json b/sys/driver/ixgbe/x86_64-ixgbe_driver.json
+new file mode 100644
+index 0000000..2b2d5d4
+--- /dev/null
++++ b/sys/driver/ixgbe/x86_64-ixgbe_driver.json
+@@ -0,0 +1,17 @@
++{
++  "llvm-target": "x86_64-unknown-none",
++  "data-layout": "e-m:e-i64:64-f80:128-n8:16:32:64-S128",
++  "arch": "x86_64",
++  "target-endian": "little",
++  "target-pointer-width": "64",
++  "target-c-int-width": "32",
++  "os": "none",
++  "executables": true,
++  "linker-flavor": "ld.lld",
++  "linker": "rust-lld",
++  "panic-strategy": "abort",
++  "disable-redzone": true,
++  "eliminate-frame-pointer": false,
++  "features": "-mmx,-sse,+soft-float",
++  "stack-probes": true
++}
+-- 
+2.17.1
+

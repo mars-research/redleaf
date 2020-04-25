@@ -1,0 +1,25 @@
+From c072c524fc67b669695dd9b784fa7ae9474a3872 Mon Sep 17 00:00:00 2001
+From: Vikram Narayanan <vikram186@gmail.com>
+Date: Fri, 24 Apr 2020 22:43:25 -0600
+Subject: [PATCH] Add getter for base address
+
+---
+ sys/interfaces/platform/src/bar_addr.rs | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/sys/interfaces/platform/src/bar_addr.rs b/sys/interfaces/platform/src/bar_addr.rs
+index bcc2921..d724e82 100644
+--- a/sys/interfaces/platform/src/bar_addr.rs
++++ b/sys/interfaces/platform/src/bar_addr.rs
+@@ -17,4 +17,8 @@ impl PciBarAddr {
+             size,
+         }
+     }
++
++    pub unsafe fn get_base(&self) -> u32 {
++        self.base
++    }
+ }
+-- 
+2.17.1
+
