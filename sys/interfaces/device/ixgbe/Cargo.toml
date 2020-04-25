@@ -1,0 +1,17 @@
+[package]
+name = "ixgbe_device"
+version = "0.1.0"
+authors = ["Vikram Narayanan <vikram186@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+libsyscalls = { path = "../../../lib/libsyscalls", version = "0.1.0" }
+libtime = { path = "../../../lib/libtime", version = "0.1.0" }
+console = { path = "../../../lib/console", version = "0.1.0" }
+libdma = { path = "../../../lib/libdma", version = "0.1.0" }
+ixgbe = { path = "../../../interfaces/dev/ixgbe", version = "0.1.0" }
+platform = { path = "../../../interfaces/platform", version = "0.1.0" }
+malloc = { path = "../../../lib/malloc", version = "0.1.0" }
+array-init = "0.1.1"
