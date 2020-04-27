@@ -1,7 +1,7 @@
 use elfloader::ElfBinary;
 use super::Domain;
 use syscalls::{Syscall, Heap, PCI, PciResource, Net, PciBar};
-use usr::{bdev::BDev, vfs::VFS};
+use usr::{bdev::BDev, vfs::VFS, dom_a::DomA};
 use crate::syscalls::{PDomain, Interrupt};
 use core::mem::transmute;
 use crate::interrupt::{disable_irq, enable_irq};
@@ -133,6 +133,34 @@ pub fn create_domain_xv6usr(name: &str, xv6: Box<dyn usr::xv6::Xv6>) -> Box<dyn 
     };
 
     build_domain_xv6usr(name, binary_range, xv6)
+}
+
+pub fn create_domain_dom_a() -> (Box<dyn syscalls::Domain>, Box<dyn DomA>) {
+    extern "C" {
+        fn _binary_usr_test_dom_a_build_dom_a_start();
+        fn _binary_usr_test_dom_a_build_dom_a_end();
+    }
+
+    let binary_range = (
+        _binary_usr_test_dom_a_build_dom_a_start as *const u8,
+        _binary_usr_test_dom_a_build_dom_a_end as *const u8
+    );
+
+    build_domain_dom_a("dom_a", binary_range)
+}
+
+pub fn create_domain_dom_b(dom_a: Box<dyn DomA>) -> Box<dyn syscalls::Domain> {
+    extern "C" {
+        fn _binary_usr_test_dom_b_build_dom_b_start();
+        fn _binary_usr_test_dom_b_build_dom_b_end();
+    }
+
+    let binary_range = (
+        _binary_usr_test_dom_b_build_dom_b_start as *const u8,
+        _binary_usr_test_dom_b_build_dom_b_end as *const u8
+    );
+
+    build_domain_dom_b("dom_b", binary_range, dom_a)
 }
 
 pub fn create_domain_proxy(
@@ -421,6 +449,56 @@ pub fn build_domain_xv6usr(name: &str,
     enable_irq();
     user_ep(pdom, pheap, xv6);
     disable_irq(); 
+
+    println!("domain/{}: returned from entry point", name);
+    Box::new(PDomain::new(Arc::clone(&dom)))
+}
+
+pub fn build_domain_dom_a(name: &str,
+                           binary_range: (*const u8, *const u8)) -> (Box<dyn syscalls::Domain>, Box<dyn DomA>)
+{
+    type UserInit = fn(Box<dyn Syscall>, Box<dyn Heap>) -> Box<dyn DomA>;
+
+    let (dom, entry) = unsafe {
+        load_domain(name, binary_range)
+    };
+
+    let user_ep: UserInit = unsafe {
+        transmute::<*const(), UserInit>(entry)
+    };
+
+    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pheap = Box::new(PHeap::new());
+
+    // Enable interrupts on exit to user so it can be preempted
+    enable_irq();
+    let dom_a = user_ep(pdom, pheap);
+    disable_irq();
+
+    println!("domain/{}: returned from entry point", name);
+    (Box::new(PDomain::new(Arc::clone(&dom))), dom_a)
+}
+
+pub fn build_domain_dom_b(name: &str,
+                          binary_range: (*const u8, *const u8),
+                          dom_a: Box<dyn DomA>) -> Box<dyn syscalls::Domain> {
+    type UserInit = fn(Box<dyn Syscall>, Box<dyn Heap>, Box<dyn DomA>);
+
+    let (dom, entry) = unsafe {
+        load_domain(name, binary_range)
+    };
+
+    let user_ep: UserInit = unsafe {
+        transmute::<*const(), UserInit>(entry)
+    };
+
+    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pheap = Box::new(PHeap::new());
+
+    // Enable interrupts on exit to user so it can be preempted
+    enable_irq();
+    user_ep(pdom, pheap, dom_a);
+    disable_irq();
 
     println!("domain/{}: returned from entry point", name);
     Box::new(PDomain::new(Arc::clone(&dom)))

@@ -33,6 +33,8 @@ xv6fs_img = usr/mkfs/build/fs.img
 root := ./
 domain_list := sys/init/build/init \
 	usr/proxy/build/dom_proxy \
+	usr/test/dom_a/build/dom_a \
+	usr/test/dom_b/build/dom_b \
 	usr/xv6/kernel/core/build/xv6kernel \
 	usr/xv6/kernel/fs/build/xv6fs \
 	sys/dev/pci/build/pci \
@@ -78,6 +80,7 @@ clean:
 	-cargo clean
 	-make -C usr/mkfs clean
 	-make -C usr/proxy clean
+	-make -C usr/test clean
 
 .PHONY: clean-keys
 clean-keys:
@@ -155,6 +158,7 @@ include $(root)/checkstack.mk
 .PHONY: init
 init:
 	make -C usr/proxy
+	make -C usr/test
 	make -C usr/xv6
 	make -C sys
 

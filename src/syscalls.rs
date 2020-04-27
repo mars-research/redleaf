@@ -262,12 +262,30 @@ impl create::CreateXv6FS for PDomain {
         enable_irq();
         r
     }
-}   
+}
 
 impl create::CreateXv6Usr for PDomain {
     fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>) -> Box<dyn syscalls::Domain> {
         disable_irq();
         let r = crate::domain::create_domain::create_domain_xv6usr(name, xv6);
+        enable_irq();
+        r
+    }
+}
+
+impl create::CreateDomA for PDomain {
+    fn create_domain_dom_a(&self) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_a::DomA>) {
+        disable_irq();
+        let r = crate::domain::create_domain::create_domain_dom_a();
+        enable_irq();
+        r
+    }
+}
+
+impl create::CreateDomB for PDomain {
+    fn create_domain_dom_b(&self, dom_a: Box<dyn usr::dom_a::DomA>) -> Box<dyn syscalls::Domain> {
+        disable_irq();
+        let r = crate::domain::create_domain::create_domain_dom_b(dom_a);
         enable_irq();
         r
     }
