@@ -242,8 +242,8 @@ impl create::CreateIxgbe for PDomain {
 impl create::CreateXv6 for PDomain {
     fn create_domain_xv6kernel(&self,
                                 ints: Box<dyn syscalls::Interrupt>,
-                                create_xv6fs: &dyn create::CreateXv6FS,
-                                create_xv6usr: &dyn create::CreateXv6Usr,
+                                create_xv6fs: Arc<dyn create::CreateXv6FS>,
+                                create_xv6usr: Arc<dyn create::CreateXv6Usr>,
                                 bdev: Box<dyn usr::bdev::BDev + Send + Sync>) -> Box<dyn syscalls::Domain> {
         disable_irq();
         let r = crate::domain::create_domain::create_domain_xv6kernel(ints, 
@@ -276,12 +276,12 @@ impl create::CreateXv6Usr for PDomain {
 impl proxy::CreateProxy for PDomain {
     fn create_domain_proxy(
         &self,
-        create_pci: Box<dyn create::CreatePCI>,
-        create_ahci: Box<dyn create::CreateAHCI>,
-        create_ixgbe: Box<dyn create::CreateIxgbe>,
-        create_xv6fs: Box<dyn create::CreateXv6FS>,
-        create_xv6usr: Box<dyn create::CreateXv6Usr>,
-        create_xv6: Box<dyn create::CreateXv6>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
+        create_pci: Arc<dyn create::CreatePCI>,
+        create_ahci: Arc<dyn create::CreateAHCI>,
+        create_ixgbe: Arc<dyn create::CreateIxgbe>,
+        create_xv6fs: Arc<dyn create::CreateXv6FS>,
+        create_xv6usr: Arc<dyn create::CreateXv6Usr>,
+        create_xv6: Arc<dyn create::CreateXv6>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
         disable_irq();
         let r = crate::domain::create_domain::create_domain_proxy(
             create_pci,

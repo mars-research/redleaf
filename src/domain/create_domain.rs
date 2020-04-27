@@ -78,8 +78,8 @@ pub fn create_domain_ixgbe(pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box
 }
 
 pub fn create_domain_xv6kernel(ints: Box<dyn syscalls::Interrupt>,
-                               create_xv6fs: &dyn create::CreateXv6FS,
-                               create_xv6usr: &dyn create::CreateXv6Usr,
+                               create_xv6fs: Arc<dyn create::CreateXv6FS>,
+                               create_xv6usr: Arc<dyn create::CreateXv6Usr>,
                                bdev: Box<dyn BDev + Send + Sync>) -> Box<dyn syscalls::Domain> {
     extern "C" {
         fn _binary_usr_xv6_kernel_core_build_xv6kernel_start();
@@ -136,12 +136,12 @@ pub fn create_domain_xv6usr(name: &str, xv6: Box<dyn usr::xv6::Xv6>) -> Box<dyn 
 }
 
 pub fn create_domain_proxy(
-    create_pci: Box<dyn create::CreatePCI>,
-    create_ahci: Box<dyn create::CreateAHCI>,
-    create_ixgbe: Box<dyn create::CreateIxgbe>,
-    create_xv6fs: Box<dyn create::CreateXv6FS>,
-    create_xv6usr: Box<dyn create::CreateXv6Usr>,
-    create_xv6: Box<dyn create::CreateXv6>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
+    create_pci: Arc<dyn create::CreatePCI>,
+    create_ahci: Arc<dyn create::CreateAHCI>,
+    create_ixgbe: Arc<dyn create::CreateIxgbe>,
+    create_xv6fs: Arc<dyn create::CreateXv6FS>,
+    create_xv6usr: Arc<dyn create::CreateXv6Usr>,
+    create_xv6: Arc<dyn create::CreateXv6>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
     extern "C" {
         fn _binary_usr_proxy_build_dom_proxy_start();
         fn _binary_usr_proxy_build_dom_proxy_end();
@@ -180,12 +180,12 @@ pub fn build_domain_init(name: &str,
     type UserInit = fn(Box<dyn syscalls::Syscall>, 
                          Box<dyn syscalls::Interrupt>,
                          Box<dyn proxy::CreateProxy>,
-                         Box<dyn create::CreateXv6>,
-                         Box<dyn create::CreateXv6FS>,
-                         Box<dyn create::CreateXv6Usr>,
-                         Box<dyn create::CreatePCI>,
-                         Box<dyn create::CreateIxgbe>,
-                         Box<dyn create::CreateAHCI>);
+                         Arc<dyn create::CreateXv6>,
+                         Arc<dyn create::CreateXv6FS>,
+                         Arc<dyn create::CreateXv6Usr>,
+                         Arc<dyn create::CreatePCI>,
+                         Arc<dyn create::CreateIxgbe>,
+                         Arc<dyn create::CreateAHCI>);
 
     let (dom, entry) = unsafe { 
         load_domain(name, binary_range)
@@ -200,12 +200,12 @@ pub fn build_domain_init(name: &str,
     user_ep(Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(Interrupt::new()),
             Box::new(PDomain::new(Arc::clone(&dom))),
-            Box::new(PDomain::new(Arc::clone(&dom))),
-            Box::new(PDomain::new(Arc::clone(&dom))),
-            Box::new(PDomain::new(Arc::clone(&dom))),
-            Box::new(PDomain::new(Arc::clone(&dom))),
-            Box::new(PDomain::new(Arc::clone(&dom))),
-            Box::new(PDomain::new(Arc::clone(&dom)))); 
+            Arc::new(PDomain::new(Arc::clone(&dom))),
+            Arc::new(PDomain::new(Arc::clone(&dom))),
+            Arc::new(PDomain::new(Arc::clone(&dom))),
+            Arc::new(PDomain::new(Arc::clone(&dom))),
+            Arc::new(PDomain::new(Arc::clone(&dom))),
+            Arc::new(PDomain::new(Arc::clone(&dom))));
     disable_irq(); 
 
     println!("domain/{}: returned from entry point", name);
@@ -325,20 +325,20 @@ pub fn build_domain_fs(
 pub fn build_domain_proxy(
     name: &str,
     binary_range: (*const u8, *const u8),
-    create_pci: Box<dyn create::CreatePCI>,
-    create_ahci: Box<dyn create::CreateAHCI>,
-    create_ixgbe: Box<dyn create::CreateIxgbe>,
-    create_xv6fs: Box<dyn create::CreateXv6FS>,
-    create_xv6usr: Box<dyn create::CreateXv6Usr>,
-    create_xv6: Box<dyn create::CreateXv6>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
+    create_pci: Arc<dyn create::CreatePCI>,
+    create_ahci: Arc<dyn create::CreateAHCI>,
+    create_ixgbe: Arc<dyn create::CreateIxgbe>,
+    create_xv6fs: Arc<dyn create::CreateXv6FS>,
+    create_xv6usr: Arc<dyn create::CreateXv6Usr>,
+    create_xv6: Arc<dyn create::CreateXv6>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
     type UserInit = fn(
         Box<dyn Syscall>,
-        create_pci: Box<dyn create::CreatePCI>,
-        create_ahci: Box<dyn create::CreateAHCI>,
-        create_ixgbe: Box<dyn create::CreateIxgbe>,
-        create_xv6fs: Box<dyn create::CreateXv6FS>,
-        create_xv6usr: Box<dyn create::CreateXv6Usr>,
-        create_xv6: Box<dyn create::CreateXv6>) -> Arc<dyn proxy::Proxy>;
+        create_pci: Arc<dyn create::CreatePCI>,
+        create_ahci: Arc<dyn create::CreateAHCI>,
+        create_ixgbe: Arc<dyn create::CreateIxgbe>,
+        create_xv6fs: Arc<dyn create::CreateXv6FS>,
+        create_xv6usr: Arc<dyn create::CreateXv6Usr>,
+        create_xv6: Arc<dyn create::CreateXv6>) -> Arc<dyn proxy::Proxy>;
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)
@@ -369,15 +369,15 @@ pub fn build_domain_proxy(
 pub fn build_domain_xv6kernel(name: &str, 
                                  binary_range: (*const u8, *const u8),
                                  ints: Box<dyn syscalls::Interrupt>,
-                                 create_xv6fs: &dyn create::CreateXv6FS,
-                                 create_xv6usr: &dyn create::CreateXv6Usr,
+                                 create_xv6fs: Arc<dyn create::CreateXv6FS>,
+                                 create_xv6usr: Arc<dyn create::CreateXv6Usr>,
                                  bdev: Box<dyn BDev + Send + Sync>) -> Box<dyn syscalls::Domain>
 {
     type UserInit = fn(Box<dyn Syscall>,
                        Box<dyn Heap>,
                        Box<dyn syscalls::Interrupt>,
-                       &dyn create::CreateXv6FS,
-                       &dyn create::CreateXv6Usr,
+                       Arc<dyn create::CreateXv6FS>,
+                       Arc<dyn create::CreateXv6Usr>,
                        Box<dyn BDev + Send + Sync>);
     
     let (dom, entry) = unsafe {

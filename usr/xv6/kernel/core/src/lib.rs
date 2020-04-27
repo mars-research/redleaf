@@ -100,8 +100,8 @@ fn test_sleeplock() {
 pub fn init(s: Box<dyn Syscall + Send + Sync>,
             heap: Box<dyn Heap + Send + Sync>,
             ints: Box<dyn syscalls::Interrupt + Send + Sync>,
-            create_xv6fs: &dyn create::CreateXv6FS,
-            create_xv6usr: &dyn create::CreateXv6Usr,
+            create_xv6fs: Arc<dyn create::CreateXv6FS>,
+            create_xv6usr: Arc<dyn create::CreateXv6Usr>,
             bdev: Box<dyn BDev + Send + Sync>)
 {
    
