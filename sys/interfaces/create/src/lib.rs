@@ -32,7 +32,7 @@ pub trait CreateXv6Usr {
 pub trait CreateXv6 {
     fn create_domain_xv6kernel(&self,
                                ints: Box<dyn Interrupt>,
-                               create_xv6fs: &dyn CreateXv6FS,
-                               create_xv6usr: &dyn CreateXv6Usr,
+                               create_xv6fs: Arc<dyn CreateXv6FS>,
+                               create_xv6usr: Arc<dyn CreateXv6Usr>,
                                bdev: Box<dyn BDev + Send + Sync>) -> Box<dyn Domain>;
 }

@@ -8,14 +8,14 @@ use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain
 use syscalls::{Heap, Domain, PCI, PciBar, PciResource, Net, Interrupt};
 use usr::{bdev::BDev, vfs::VFS, xv6::Xv6};
 
-
+#[derive(Clone)]
 pub struct Proxy {
-    create_pci: Box<dyn create::CreatePCI>,
-    create_ahci: Box<dyn create::CreateAHCI>,
-    create_ixgbe: Box<dyn create::CreateIxgbe>,
-    create_xv6fs: Box<dyn create::CreateXv6FS>,
-    create_xv6usr: Box<dyn create::CreateXv6Usr>,
-    create_xv6: Box<dyn create::CreateXv6>,
+    create_pci: Arc<dyn create::CreatePCI>,
+    create_ahci: Arc<dyn create::CreateAHCI>,
+    create_ixgbe: Arc<dyn create::CreateIxgbe>,
+    create_xv6fs: Arc<dyn create::CreateXv6FS>,
+    create_xv6usr: Arc<dyn create::CreateXv6Usr>,
+    create_xv6: Arc<dyn create::CreateXv6>,
 }
 
 unsafe impl Send for Proxy {}
@@ -23,12 +23,12 @@ unsafe impl Sync for Proxy {}
 
 impl Proxy {
     pub fn new(
-        create_pci: Box<dyn create::CreatePCI>,
-        create_ahci: Box<dyn create::CreateAHCI>,
-        create_ixgbe: Box<dyn create::CreateIxgbe>,
-        create_xv6fs: Box<dyn create::CreateXv6FS>,
-        create_xv6usr: Box<dyn create::CreateXv6Usr>,
-        create_xv6: Box<dyn create::CreateXv6>
+        create_pci: Arc<dyn create::CreatePCI>,
+        create_ahci: Arc<dyn create::CreateAHCI>,
+        create_ixgbe: Arc<dyn create::CreateIxgbe>,
+        create_xv6fs: Arc<dyn create::CreateXv6FS>,
+        create_xv6usr: Arc<dyn create::CreateXv6Usr>,
+        create_xv6: Arc<dyn create::CreateXv6>
     ) -> Proxy {
         Proxy {
             create_pci,
@@ -42,27 +42,24 @@ impl Proxy {
 }
 
 impl proxy::Proxy for Proxy {
-    fn proxy_bdev(&self, bdev: Box<dyn usr::bdev::BDev + Send + Sync>) -> Box<dyn usr::bdev::BDev + Send + Sync> {
-        Box::new(BDevProxy::new(sys_get_current_domain_id(), bdev))
+    // TODO: figure out how to do this without Arc::new every time
+    fn as_create_pci(&self) -> Arc<dyn create::CreatePCI> {
+        Arc::new(self.clone())
     }
-
-    fn as_create_pci(&self) -> &dyn create::CreatePCI {
-        self as &dyn create::CreatePCI
+    fn as_create_ahci(&self) -> Arc<dyn create::CreateAHCI> {
+        Arc::new(self.clone())
     }
-    fn as_create_ahci(&self) -> &dyn create::CreateAHCI {
-        self as &dyn create::CreateAHCI
+    fn as_create_ixgbe(&self) -> Arc<dyn create::CreateIxgbe> {
+        Arc::new(self.clone())
     }
-    fn as_create_ixgbe(&self) -> &dyn create::CreateIxgbe {
-        self as &dyn create::CreateIxgbe
+    fn as_create_xv6fs(&self) -> Arc<dyn create::CreateXv6FS> {
+        Arc::new(self.clone())
     }
-    fn as_create_xv6fs(&self) -> &dyn create::CreateXv6FS {
-        self as &dyn create::CreateXv6FS
+    fn as_create_xv6usr(&self) -> Arc<dyn create::CreateXv6Usr> {
+        Arc::new(self.clone())
     }
-    fn as_create_xv6usr(&self) -> &dyn create::CreateXv6Usr {
-        self as &dyn create::CreateXv6Usr
-    }
-    fn as_create_xv6(&self) -> &dyn create::CreateXv6 {
-        self as &dyn create::CreateXv6
+    fn as_create_xv6(&self) -> Arc<dyn create::CreateXv6> {
+        Arc::new(self.clone())
     }
 }
 
@@ -112,8 +109,8 @@ impl create::CreateXv6Usr for Proxy {
 impl create::CreateXv6 for Proxy {
     fn create_domain_xv6kernel(&self,
                                ints: Box<dyn Interrupt>,
-                               create_xv6fs: &dyn create::CreateXv6FS,
-                               create_xv6usr: &dyn create::CreateXv6Usr,
+                               create_xv6fs: Arc<dyn create::CreateXv6FS>,
+                               create_xv6usr: Arc<dyn create::CreateXv6Usr>,
                                bdev: Box<dyn BDev + Send + Sync>) -> Box<dyn Domain> {
         // TODO: write Xv6KernelProxy
         self.create_xv6.create_domain_xv6kernel(ints, create_xv6fs, create_xv6usr, bdev)
