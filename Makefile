@@ -11,13 +11,16 @@ grub_cfg := boot/grub.cfg
 
 FEATURES =
 #FEATURES += --features "trace_alloc"
-FEATURES += --features "smp"
+#FEATURES += --features "smp"
 FEATURES += --features "trace_vspace"
 FEATURES += --features "page_fault_on_ist"
 #FEATURES += --features "trace_sched"
 
 ifeq ($(LARGE_MEM),true)
 FEATURES += --features "large_mem"
+MEM = -m 10240M
+else
+MEM = -m 2048M
 endif
 
 ifeq ($(IXGBE),true)
@@ -40,14 +43,14 @@ domain_list := sys/init/build/init \
 	sys/driver/ixgbe/build/ixgbe \
 	usr/xv6/usr/shell/build/shell
 
-qemu_common := -m 2048M -vga std -s
+qemu_common := ${MEM} -vga std -s
 qemu_common += -cdrom $(iso)
 qemu_common += -no-reboot -no-shutdown -d int,cpu_reset
 qemu_common += -drive id=satadisk,file=$(xv6fs_img),if=none
 qemu_common += -device ahci,id=ahci
 qemu_common += -device ide-drive,drive=satadisk,bus=ahci.0
 qemu_common += -cpu Haswell-IBRS
-qemu_common += -smp 4
+#qemu_common += -smp 4
 qemu_common += -monitor telnet:127.0.0.1:55555,server,nowait
 qemu_common += -cpu Icelake-Server-v2 -machine q35
 #qemu_common += -device vfio-pci,romfile=,host=06:00.1
