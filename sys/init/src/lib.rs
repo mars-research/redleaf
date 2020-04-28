@@ -190,6 +190,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
     println!("Creating ixgbe");
     let (dom_ixgbe, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci2);
 
+    #[cfg(feature =  "ahci")]
     let dom_xv6 = proxy.as_create_xv6().create_domain_xv6kernel(ints_clone, proxy.as_create_xv6fs(), proxy.as_create_xv6usr(), bdev);
 }
 
