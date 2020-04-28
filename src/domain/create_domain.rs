@@ -64,13 +64,13 @@ pub fn create_domain_ahci(pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box<
 pub fn create_domain_ixgbe(pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn Net>) {
 
     extern "C" {
-        fn _binary_sys_dev_ixgbe_driver_build_ixgbe_driver_start();
-        fn _binary_sys_dev_ixgbe_driver_build_ixgbe_driver_end();
+        fn _binary_sys_driver_ixgbe_build_ixgbe_start();
+        fn _binary_sys_driver_ixgbe_build_ixgbe_end();
     }
 
     let binary_range = (
-        _binary_sys_dev_ixgbe_driver_build_ixgbe_driver_start as *const u8,
-        _binary_sys_dev_ixgbe_driver_build_ixgbe_driver_end as *const u8
+        _binary_sys_driver_ixgbe_build_ixgbe_start as *const u8,
+        _binary_sys_driver_ixgbe_build_ixgbe_end as *const u8
     );
 
     create_domain_net("ixgbe_driver", binary_range, pci)

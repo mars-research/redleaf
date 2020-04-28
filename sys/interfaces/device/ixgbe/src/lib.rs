@@ -96,6 +96,7 @@ impl IxgbeDevice {
 
     pub fn write_reg(&self, reg: IxgbeRegs, val: u64) {
         unsafe {
+            println!("writing to {:x}", self.bar.get_base() as u64 + reg as u64);
             ptr::write_volatile((self.bar.get_base() as u64 + reg as u64) as *mut u32, val as u32);
         }
     }

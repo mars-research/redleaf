@@ -2,7 +2,8 @@ use crate::interrupt::{disable_irq, enable_irq};
 use crate::thread::{do_yield, create_thread};
 use x86::bits64::paging::{PAddr, VAddr};
 use crate::arch::vspace::{VSpace, ResourceType};
-use crate::memory::{paddr_to_kernel_vaddr};
+use crate::arch::vspace::MapAction;
+use crate::memory::{paddr_to_kernel_vaddr, VSPACE};
 use x86::bits64::paging::BASE_PAGE_SIZE;
 use alloc::boxed::Box; 
 use spin::Mutex;
@@ -11,6 +12,7 @@ use crate::domain::domain::{Domain};
 use syscalls::{PciResource, PciBar};
 use crate::round_up;
 use crate::thread;
+use platform::PciBarAddr;
 use usr;
 use proxy;
 //use crate::domain::domain::BOOTING_DOMAIN;
@@ -320,3 +322,35 @@ impl syscalls::Interrupt for Interrupt {
 
 }
 
+#[derive(Clone)]
+pub struct Mmap {
+}
+
+impl Mmap {
+    pub const fn new() -> Mmap {
+        Mmap {
+        }
+    }
+}
+ 
+impl syscalls::Mmap for Mmap {
+
+    // Recieve an interrupt
+    fn sys_mmap(&self, bar_addr: &PciBarAddr) {
+        disable_irq();
+
+        let ref mut vspace = *VSPACE.lock();
+
+        let base = unsafe { bar_addr.get_base() as u64 };
+        let size = unsafe { bar_addr.get_size() };
+        // identity map the bar region
+        vspace.map_identity(PAddr::from(base), PAddr::from(base + size as u64),
+                                        MapAction::ReadWriteKernelNoCache);
+        println!("Mapping base {:x} size {:x}", base, size);
+        enable_irq();
+    }
+
+/*    fn int_clone(&self) -> Box<dyn syscalls::Mmap> {
+        Box::new((*self).clone())
+    }*/
+}

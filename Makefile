@@ -35,9 +35,9 @@ domain_list := sys/init/build/init \
 	usr/proxy/build/dom_proxy \
 	usr/xv6/kernel/core/build/xv6kernel \
 	usr/xv6/kernel/fs/build/xv6fs \
-	sys/dev/pci/build/pci \
+	sys/driver/pci/build/pci \
 	sys/dev/ahci_driver/build/ahci_driver \
-	sys/dev/ixgbe_driver/build/ixgbe_driver \
+	sys/driver/ixgbe/build/ixgbe \
 	usr/xv6/usr/shell/build/shell
 
 qemu_common := -m 2048M -vga std -s
@@ -50,9 +50,11 @@ qemu_common += -cpu Haswell-IBRS
 qemu_common += -smp 4
 qemu_common += -monitor telnet:127.0.0.1:55555,server,nowait
 qemu_common += -cpu Icelake-Server-v2 -machine q35
+#qemu_common += -device vfio-pci,romfile=,host=06:00.1
+
 
 QEMU := qemu-system-x86_64
-QEMU_KVM := sudo qemu-system-x86_64
+QEMU_KVM := sudo ${QEMU}
 qemu_kvm_args := $(qemu_common) --enable-kvm
 
 # https://superuser.com/a/1412150

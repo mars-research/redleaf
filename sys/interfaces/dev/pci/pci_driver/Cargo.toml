@@ -7,6 +7,5 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ixgbe = { path = "../../ixgbe", version = "0.1.0" }
 ahci = { path = "../../ahci", version = "0.1.0" }
 platform = { path = "../../../platform", version = "0.1.0" }

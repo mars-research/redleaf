@@ -21,4 +21,8 @@ impl PciBarAddr {
     pub unsafe fn get_base(&self) -> u32 {
         self.base
     }
+
+    pub unsafe fn get_size(&self) -> usize {
+        self.size
+    }
 }
