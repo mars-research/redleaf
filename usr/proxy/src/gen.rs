@@ -65,15 +65,8 @@ impl proxy::Proxy for Proxy {
 
 impl create::CreatePCI for Proxy {
     fn create_domain_pci(&self,
-                         pci_resource: Box<dyn PciResource>,
-                         pci_bar: Box<dyn PciBar>) -> (Box<dyn Domain>, Box<dyn PCI>) {
-        self.create_pci.create_domain_pci(pci_resource, pci_bar)
-    }
-    fn get_pci_resource(&self) -> Box<dyn PciResource> {
-        self.create_pci.get_pci_resource()
-    }
-    fn get_pci_bar(&self) -> Box<dyn PciBar> {
-        self.create_pci.get_pci_bar()
+                         ) -> (Box<dyn Domain>, Box<dyn PCI>) {
+        self.create_pci.create_domain_pci()
     }
 }
 

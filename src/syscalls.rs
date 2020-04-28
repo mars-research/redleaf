@@ -194,29 +194,12 @@ impl syscalls::Syscall for PDomain {
 }
 
 impl create::CreatePCI for PDomain {
-    fn create_domain_pci(&self, pci_resource: Box<dyn syscalls::PciResource>,
-                         pci_bar: Box<dyn syscalls::PciBar>)
+    fn create_domain_pci(&self)
                     -> (Box<dyn syscalls::Domain>, Box<dyn syscalls::PCI>) {
         disable_irq();
-        let r = crate::domain::create_domain::create_domain_pci(pci_resource, pci_bar);
+        let r = crate::domain::create_domain::create_domain_pci();
         enable_irq();
         r
-    }
-
-    fn get_pci_resource(&self) -> Box<dyn PciResource> {
-        use crate::dev::pci_resource::PCI_RESOURCE;
-        disable_irq();
-        let pci_r = Box::new(PCI_RESOURCE);
-        enable_irq();
-        pci_r
-    }
-
-    fn get_pci_bar(&self) -> Box<dyn PciBar> {
-        use crate::dev::pci_resource::PciDevice;
-        disable_irq();
-        let pci_dev = Box::new(PciDevice::new());
-        enable_irq();
-        pci_dev
     }
 }
 

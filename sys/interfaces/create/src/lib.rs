@@ -7,10 +7,7 @@ use syscalls::{Heap, Domain, PCI, PciBar, PciResource, Net, Interrupt};
 use usr::{bdev::BDev, vfs::VFS, xv6::Xv6};
 
 pub trait CreatePCI {
-    fn create_domain_pci(&self, pci_resource: Box<dyn PciResource>,
-                         pci_bar: Box<dyn PciBar>) -> (Box<dyn Domain>, Box<dyn PCI>);
-    fn get_pci_resource(&self) -> Box<dyn PciResource>;
-    fn get_pci_bar(&self) -> Box<dyn PciBar>;
+    fn create_domain_pci(&self) -> (Box<dyn Domain>, Box<dyn PCI>);
 }
 
 pub trait CreateAHCI {
