@@ -22,8 +22,11 @@ impl DomA {
 }
 
 impl usr::dom_a::DomA for DomA {
-    fn ping_pong(&self, buffer: RRef<[u8; 1024]>) -> RRef<[u8; 1024]> {
+    fn ping_pong(&self, mut buffer: RRef<[u8; 1024]>) -> RRef<[u8; 1024]> {
         println!("[dom_a]: ping pong");
+        for i in 0..buffer.len() {
+            buffer[i] *= 2 as u8;
+        }
         buffer
     }
 }
