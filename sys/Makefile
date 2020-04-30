@@ -1,9 +1,9 @@
 .PHONY: all
 all:
 	make -C init
-	make -C dev
+	make -C driver
 
 .PHONY: clean
 clean:
 	make -C init clean
-	make -C dev clean
+	make -C driver clean

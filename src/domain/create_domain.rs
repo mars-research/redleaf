@@ -2,7 +2,7 @@ use elfloader::ElfBinary;
 use super::Domain;
 use syscalls::{Syscall, Heap, PCI, PciResource, Net, PciBar};
 use usr::{bdev::BDev, vfs::VFS};
-use crate::syscalls::{PDomain, Interrupt};
+use crate::syscalls::{PDomain, Interrupt, Mmap};
 use core::mem::transmute;
 use crate::interrupt::{disable_irq, enable_irq};
 use spin::Mutex;
@@ -30,21 +30,20 @@ pub fn create_domain_init() -> Box<dyn syscalls::Domain> {
     return build_domain_init("sys_init", binary_range);
 }
 
-pub fn create_domain_pci(pci_resource: Box<dyn PciResource>,
-                         pci_bar: Box<dyn PciBar>) -> (Box<dyn syscalls::Domain>,
+pub fn create_domain_pci() -> (Box<dyn syscalls::Domain>,
                                                        Box<dyn PCI>) {
 
     extern "C" {
-        fn _binary_sys_dev_pci_build_pci_start();
-        fn _binary_sys_dev_pci_build_pci_end();
+        fn _binary_sys_driver_pci_build_pci_start();
+        fn _binary_sys_driver_pci_build_pci_end();
     }
 
     let binary_range = (
-        _binary_sys_dev_pci_build_pci_start as *const u8,
-        _binary_sys_dev_pci_build_pci_end as *const u8
+        _binary_sys_driver_pci_build_pci_start as *const u8,
+        _binary_sys_driver_pci_build_pci_end as *const u8
     );
 
-    create_domain_pci_bus("pci", binary_range, pci_resource, pci_bar)
+    create_domain_pci_bus("pci", binary_range)
 }
 
 pub fn create_domain_ahci(pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn BDev + Send + Sync>) {
@@ -65,13 +64,13 @@ pub fn create_domain_ahci(pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box<
 pub fn create_domain_ixgbe(pci: Box<dyn PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn Net>) {
 
     extern "C" {
-        fn _binary_sys_dev_ixgbe_driver_build_ixgbe_driver_start();
-        fn _binary_sys_dev_ixgbe_driver_build_ixgbe_driver_end();
+        fn _binary_sys_driver_ixgbe_build_ixgbe_start();
+        fn _binary_sys_driver_ixgbe_build_ixgbe_end();
     }
 
     let binary_range = (
-        _binary_sys_dev_ixgbe_driver_build_ixgbe_driver_start as *const u8,
-        _binary_sys_dev_ixgbe_driver_build_ixgbe_driver_end as *const u8
+        _binary_sys_driver_ixgbe_build_ixgbe_start as *const u8,
+        _binary_sys_driver_ixgbe_build_ixgbe_end as *const u8
     );
 
     create_domain_net("ixgbe_driver", binary_range, pci)
@@ -214,15 +213,13 @@ pub fn build_domain_init(name: &str,
 
 
 pub fn create_domain_pci_bus(name: &str, 
-                                binary_range: (*const u8, *const u8),
-                                pci_resource: Box<dyn PciResource>,
-                                pci_bar: Box<dyn PciBar>)
+                                binary_range: (*const u8, *const u8))
                             -> (Box<dyn syscalls::Domain>, Box<dyn PCI>) 
 {
     type UserInit = fn(Box<dyn Syscall>,
+                        Box<dyn syscalls::Mmap>,
                         Box<dyn Heap>,
-                        Box<dyn PciResource>,
-                        Box<dyn PciBar>) -> Box<dyn PCI>;
+                        ) -> Box<dyn PCI>;
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)
@@ -233,11 +230,12 @@ pub fn create_domain_pci_bus(name: &str,
     };
 
     let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let mmap = Box::new(Mmap::new());
     let pheap = Box::new(PHeap::new());
 
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
-    let pci = user_ep(pdom, pheap, pci_resource, pci_bar);
+    let pci = user_ep(pdom, mmap, pheap);
     disable_irq(); 
 
     println!("domain/{}: returned from entry point", name);

@@ -1,5 +1,5 @@
 [package]
-name = "ixgbe_device"
+name = "pcidevice"
 version = "0.1.0"
 authors = ["Vikram Narayanan <vikram186@gmail.com>"]
 edition = "2018"
@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 libsyscalls = { path = "../../../lib/libsyscalls", version = "0.1.0" }
 console = { path = "../../../lib/console", version = "0.1.0" }
-libdma = { path = "../../../lib/libdma", version = "0.1.0" }
-ixgbe = { path = "../../../interfaces/dev/ixgbe", version = "0.1.0" }
-malloc = { path = "../../../lib/malloc", version = "0.1.0" }
-array-init = "0.1.1"
+platform = { path = "../../platform", version = "0.1.0" }
+pci_driver = { path = "../../../interfaces/dev/pci/pci_driver", version = "0.1.0" }
+bitflags = "1.0.4"
+byteorder = { version = "1.2", default-features = false }

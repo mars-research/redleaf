@@ -2,7 +2,8 @@ use crate::interrupt::{disable_irq, enable_irq};
 use crate::thread::{do_yield, create_thread};
 use x86::bits64::paging::{PAddr, VAddr};
 use crate::arch::vspace::{VSpace, ResourceType};
-use crate::memory::{paddr_to_kernel_vaddr};
+use crate::arch::vspace::MapAction;
+use crate::memory::{paddr_to_kernel_vaddr, VSPACE};
 use x86::bits64::paging::BASE_PAGE_SIZE;
 use alloc::boxed::Box; 
 use spin::Mutex;
@@ -11,6 +12,7 @@ use crate::domain::domain::{Domain};
 use syscalls::{PciResource, PciBar};
 use crate::round_up;
 use crate::thread;
+use platform::PciBarAddr;
 use usr;
 use proxy;
 //use crate::domain::domain::BOOTING_DOMAIN;
@@ -194,29 +196,12 @@ impl syscalls::Syscall for PDomain {
 }
 
 impl create::CreatePCI for PDomain {
-    fn create_domain_pci(&self, pci_resource: Box<dyn syscalls::PciResource>,
-                         pci_bar: Box<dyn syscalls::PciBar>)
+    fn create_domain_pci(&self)
                     -> (Box<dyn syscalls::Domain>, Box<dyn syscalls::PCI>) {
         disable_irq();
-        let r = crate::domain::create_domain::create_domain_pci(pci_resource, pci_bar);
+        let r = crate::domain::create_domain::create_domain_pci();
         enable_irq();
         r
-    }
-
-    fn get_pci_resource(&self) -> Box<dyn PciResource> {
-        use crate::dev::pci_resource::PCI_RESOURCE;
-        disable_irq();
-        let pci_r = Box::new(PCI_RESOURCE);
-        enable_irq();
-        pci_r
-    }
-
-    fn get_pci_bar(&self) -> Box<dyn PciBar> {
-        use crate::dev::pci_resource::PciDevice;
-        disable_irq();
-        let pci_dev = Box::new(PciDevice::new());
-        enable_irq();
-        pci_dev
     }
 }
 
@@ -337,3 +322,35 @@ impl syscalls::Interrupt for Interrupt {
 
 }
 
+#[derive(Clone)]
+pub struct Mmap {
+}
+
+impl Mmap {
+    pub const fn new() -> Mmap {
+        Mmap {
+        }
+    }
+}
+ 
+impl syscalls::Mmap for Mmap {
+
+    // Recieve an interrupt
+    fn sys_mmap(&self, bar_addr: &PciBarAddr) {
+        disable_irq();
+
+        let ref mut vspace = *VSPACE.lock();
+
+        let base = unsafe { bar_addr.get_base() as u64 };
+        let size = unsafe { bar_addr.get_size() };
+        // identity map the bar region
+        vspace.map_identity(PAddr::from(base), PAddr::from(base + size as u64),
+                                        MapAction::ReadWriteKernelNoCache);
+        println!("Mapping base {:x} size {:x}", base, size);
+        enable_irq();
+    }
+
+/*    fn int_clone(&self) -> Box<dyn syscalls::Mmap> {
+        Box::new((*self).clone())
+    }*/
+}

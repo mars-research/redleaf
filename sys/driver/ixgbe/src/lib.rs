@@ -24,10 +24,11 @@ use alloc::collections::VecDeque;
 #[macro_use]
 use alloc::vec::Vec;
 use core::panic::PanicInfo;
-use syscalls::{Syscall,PCI};
+use syscalls::{Syscall, PCI, Heap};
 use console::{println, print};
-use pci_driver::BarRegions;
+use pci_driver::DeviceBarRegions;
 use libsyscalls::syscalls::sys_backtrace;
+pub use platform::PciBarAddr;
 
 pub use libsyscalls::errors::Result;
 use crate::device::Intel8259x;
@@ -93,9 +94,10 @@ impl syscalls::Net for Ixgbe {
 }
 
 impl pci_driver::PciDriver for Ixgbe {
-    fn probe(&mut self, bar_region: BarRegions) {
+    fn probe(&mut self, bar_region: DeviceBarRegions) {
+        println!("ixgbe probe called");
         match bar_region {
-            BarRegions::Ixgbe(bar) => {
+            DeviceBarRegions::Ixgbe(bar) => {
                 println!("got ixgbe bar region");
                 if let Ok(ixgbe_dev) = Intel8259x::new(bar) {
                     self.device_initialized = true;
@@ -274,10 +276,11 @@ const ONE_MS_IN_NS: u64 = 1_000_000 * 1;
 
 #[no_mangle]
 pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
+                 heap: Box<dyn Heap + Send + Sync>,
                  pci: Box<dyn syscalls::PCI>) -> Box<dyn syscalls::Net> {
     libsyscalls::syscalls::init(s);
 
-    println!("ixgbe_init: starting ixgbe driver domain");
+    println!("ixgbe_init: =>  starting ixgbe driver domain");
     let mut ixgbe = Ixgbe::new();
     if let Err(_) = pci.pci_register_driver(&mut ixgbe, 0, None) {
         println!("WARNING: failed to register IXGBE driver");

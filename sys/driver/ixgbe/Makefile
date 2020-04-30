@@ -1,7 +1,7 @@
 root := ../../../
 include $(root)/common_flags.mk
 
-bin_name := ixgbe_driver
+bin_name := ixgbe
 arch ?= x86_64
 bin := build/$(bin_name)
 

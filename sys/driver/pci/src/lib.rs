@@ -10,40 +10,28 @@
     untagged_unions,
     panic_info_message
 )]
-
-#[macro_use]
-extern crate bitflags;
-extern crate byteorder;
-#[macro_use]
-extern crate serde_derive;
+#![forbid(unsafe_code)]
 
 extern crate malloc;
 extern crate alloc;
 
-mod bar;
-mod bus;
-mod dev;
-mod func;
-mod header;
-mod pci;
 mod parser;
 
 use crate::parser::{PCI_DEVICES};
-use crate::header::PciHeader;
 
 use core::panic::PanicInfo;
 use syscalls::{Syscall, Heap, PciResource, PciBar};
-use libsyscalls::syscalls::{sys_println, sys_backtrace};
+use libsyscalls::syscalls::{sys_println, sys_backtrace, init_mmap};
 use alloc::boxed::Box;
 use console::println;
 use spin::Once;
 use rref;
 use pci_driver::{PciDriver, PciClass};
+use pcidevice::get_config;
+use pcidevice::{PciDevice};
 
 #[derive(Clone)]
 struct PCI {}
-
-static PCI_BAR: Once<Box<dyn PciBar + Send + Sync>> = Once::new();
 
 impl PCI {
     fn new() -> PCI {
@@ -52,15 +40,14 @@ impl PCI {
 }
 
 impl syscalls::PCI for PCI {
-
-    //-> bar_regions::BarRegions
     fn pci_register_driver(&self, pci_driver: &mut dyn PciDriver, bar_index: usize, class: Option<(PciClass, u8)>) -> Result<(), ()> {
+        println!("Register driver called");
         let vendor_id = pci_driver.get_vid();
         let device_id = pci_driver.get_did();
         // match vid, dev_id with the registered pci devices we have and
         // typecast the barregion to the appropriate one for this device
         let pci_devs = &*PCI_DEVICES.lock();
-        let pci_dev: &PciHeader = match class {
+        let pci_dev: &PciDevice = match class {
             Some((class, subclass)) => {
                 pci_devs
                 .iter()
@@ -80,22 +67,9 @@ impl syscalls::PCI for PCI {
         }?;
         
         // TODO: dont panic here
-        let bar = pci_dev.get_bar(bar_index);
+        let bar = pci_dev.get_bar(bar_index, pci_driver.get_driver_type());
 
-        let bar = match bar {
-            bar::PciBar::Memory(addr) => addr,
-            bar::PciBar::Port(port) => port as u32,
-            _ => 0 as u32,
-        };
-        let pci_bar = PCI_BAR.r#try().expect("System call interface is not initialized.");
-
-        println!("Getting bar region {:x}", bar);
-
-        let bar_region = pci_bar.get_bar_region(bar as u64, 1024 * 1024 as usize, pci_driver.get_driver_type());
-
-        println!("Probing device...");
-
-        pci_driver.probe(bar_region);
+        pci_driver.probe(bar);
 
         Ok(())
     }
@@ -107,18 +81,19 @@ impl syscalls::PCI for PCI {
 
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>,
-            heap: Box<dyn Heap + Send + Sync>,
-            pci_resource: Box<dyn PciResource>,
-            pci_bar: Box<dyn PciBar + Send + Sync>) -> Box<dyn syscalls::PCI> {
+            m: Box<dyn syscalls::Mmap + Send + Sync>,
+            heap: Box<dyn Heap + Send + Sync>) -> Box<dyn syscalls::PCI> {
 
     libsyscalls::syscalls::init(s);
+
+    libsyscalls::syscalls::init_mmap(m);
+
     rref::init(heap);
 
     sys_println("init: starting PCI domain");
 
-    parser::scan_pci_devs(pci_resource.as_ref());
+    parser::scan_pci_devs();
 
-    PCI_BAR.call_once(|| pci_bar);
     Box::new(PCI::new()) 
 }
 

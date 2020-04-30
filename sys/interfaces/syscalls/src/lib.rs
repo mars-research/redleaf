@@ -8,8 +8,8 @@ use alloc::collections::VecDeque;
 
 use spin::{MutexGuard};
 use core::alloc::Layout;
-
-
+extern crate platform;
+use platform::PciBarAddr;
 use pci_driver::PciClass;
 
 pub mod errors;
@@ -78,6 +78,11 @@ pub trait Interrupt {
     // Recieve an interrupt
     fn sys_recv_int(&self, int: u8);
     fn int_clone(&self) -> Box<dyn Interrupt>;
+}
+
+pub trait Mmap {
+    // Map bar region
+    fn sys_mmap(&self, bar_addr: &PciBarAddr);
 }
 
 pub trait PciResource {

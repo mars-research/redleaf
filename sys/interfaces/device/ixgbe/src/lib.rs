@@ -1,5 +1,6 @@
 #![no_std]
 
+mod ixgbe_regs;
 extern crate alloc;
 
 use alloc::collections::VecDeque;
@@ -7,10 +8,15 @@ use alloc::vec::Vec;
 use alloc::boxed::Box;
 use array_init::array_init;
 use console::{println, print};
-use core::mem;
-use ixgbe::{IxgbeBarRegion, IxgbeRegs, IxgbeArrayRegs};
+use core::{mem, ptr};
+use ixgbe_regs::IxgbeDmaArrayRegs;
 use libdma::Dma;
 use libdma::ixgbe::{allocate_dma, ixgbe_adv_rx_desc, ixgbe_adv_tx_desc};
+use platform::PciBarAddr;
+use ixgbe_regs::{IxgbeDmaRegs, IxgbeNonDmaRegs};
+use libtime::sys_ns_loopsleep;
+use alloc::format;
+pub use ixgbe_regs::{IxgbeRegs, IxgbeNoDmaArrayRegs};
 
 const TX_CLEAN_BATCH: usize = 32;
 
@@ -36,8 +42,16 @@ const IXGBE_ADVTXD_DCMD_DEXT: u32           = IXGBE_TXD_CMD_DEXT; /* Desc ext 1=
 const IXGBE_TXD_STAT_DD: u32                = 0x00000001; /* Descriptor Done */
 const IXGBE_ADVTXD_STAT_DD: u32             = IXGBE_TXD_STAT_DD; /* Descriptor Done */
 
+const IXGBE_TXPBSIZE_40KB: u64              = 0x0000A000; /* 40KB Packet Buffer */
+const IXGBE_RXPBSIZE_128KB: u64             = 0x00020000; /* 128KB Packet Buffer */
+const IXGBE_RXDCTL_ENABLE: u64              = 0x02000000; /* Ena specific Rx Queue */
+const IXGBE_TXDCTL_ENABLE: u64              = 0x02000000; /* Ena specific Tx Queue */
+
+const ONE_MS_IN_NS: u64 = 1_000_000 * 1;
+
 pub struct IxgbeDevice {
-    pub bar: Box<dyn IxgbeBarRegion>,
+    //pub bar: Box<dyn IxgbeBarRegion>,
+    bar: PciBarAddr,
     transmit_buffers: [Option<Vec<u8>>; 512],
     transmit_ring: Dma<[ixgbe_adv_tx_desc; 512]>,
     receive_buffers: [Option<Vec<u8>>; 512],
@@ -47,6 +61,8 @@ pub struct IxgbeDevice {
     transmit_index: usize,
     transmit_clean_index: usize,
     receive_index: usize,
+    regs: IxgbeDmaRegs,
+    pub nd_regs: IxgbeNonDmaRegs,
 }
 
 fn wrap_ring(index: usize, ring_size: usize) -> usize {
@@ -55,7 +71,7 @@ fn wrap_ring(index: usize, ring_size: usize) -> usize {
 
 impl IxgbeDevice {
 
-    pub fn new(bar: Box<dyn IxgbeBarRegion>) -> IxgbeDevice {
+    pub fn new(bar: PciBarAddr) -> IxgbeDevice {
         IxgbeDevice {
             bar,
             transmit_buffers: array_init::array_init(|_| None),
@@ -67,57 +83,154 @@ impl IxgbeDevice {
             rx_slot: [false; 512],
             receive_ring: allocate_dma().unwrap(),
             transmit_ring: allocate_dma().unwrap(),
-
+            regs: unsafe { IxgbeDmaRegs::new(bar) },
+            nd_regs: unsafe { IxgbeNonDmaRegs::new(bar) },
         }
     }
 
+    pub fn read_reg(&self, reg: IxgbeRegs) -> u64 {
+        unsafe {
+            ptr::read_volatile((self.bar.get_base() as u64 + reg as u64) as *const u64) & 0xFFFF_FFFF as u64
+        }
+    }
+
+    pub fn write_reg(&self, reg: IxgbeRegs, val: u64) {
+        unsafe {
+            println!("writing to {:x}", self.bar.get_base() as u64 + reg as u64);
+            ptr::write_volatile((self.bar.get_base() as u64 + reg as u64) as *mut u32, val as u32);
+        }
+    }
+
+    fn read_qreg_idx(&self, reg: IxgbeDmaArrayRegs, idx: u64) -> u64 {
+        self.regs.read_reg_idx(reg, idx)
+    }
+
+    fn write_qreg_idx(&self, reg: IxgbeDmaArrayRegs, idx: u64, val: u64) {
+        self.regs.write_reg_idx(reg, idx, val);
+    }
+
+    fn write_qflag_idx(&self, register: IxgbeDmaArrayRegs, idx: u64, flags: u64) {
+        self.write_qreg_idx(register, idx, self.read_qreg_idx(register, idx) | flags);
+    }
+
+    fn wait_write_qreg_idx(&self, register: IxgbeDmaArrayRegs, idx: u64, value: u64) {
+        loop {
+            let current = self.read_qreg_idx(register, idx);
+            if (current & value) == value {
+                break;
+            }
+            sys_ns_loopsleep(ONE_MS_IN_NS * 100);
+        }
+    }
+
+    fn clear_qflag_idx(&self, register: IxgbeDmaArrayRegs, idx: u64, flags: u64) {
+        self.write_qreg_idx(register, idx, self.read_qreg_idx(register, idx) & !flags);
+    }
+
+
     pub fn start_rx_queue(&self, queue_id: u16) {
-        self.bar.write_reg_idx(IxgbeArrayRegs::Rdh, u64::from(queue_id), 0);
-        self.bar.write_reg_idx(IxgbeArrayRegs::Rdt, u64::from(queue_id), 0);
+        // enable queue and wait if necessary
+        self.write_qflag_idx(IxgbeDmaArrayRegs::Rxdctl, u64::from(queue_id),
+                                        IXGBE_RXDCTL_ENABLE);
+        self.wait_write_qreg_idx(IxgbeDmaArrayRegs::Rxdctl, u64::from(queue_id),
+                                        IXGBE_RXDCTL_ENABLE);
+
+
+        // rx queue starts out full
+        self.write_qreg_idx(IxgbeDmaArrayRegs::Rdh, u64::from(queue_id), 0);
+        self.write_qreg_idx(IxgbeDmaArrayRegs::Rdt, u64::from(queue_id), 0);
     }
 
     pub fn start_tx_queue(&self, queue_id: u16) {
-        self.bar.write_reg_idx(IxgbeArrayRegs::Tdh, u64::from(queue_id), 0);
-        self.bar.write_reg_idx(IxgbeArrayRegs::Tdt, u64::from(queue_id), 0);
+        self.write_qreg_idx(IxgbeDmaArrayRegs::Tdh, u64::from(queue_id), 0);
+        self.write_qreg_idx(IxgbeDmaArrayRegs::Tdt, u64::from(queue_id), 0);
+
+        // enable queue and wait if necessary
+        self.write_qflag_idx(IxgbeDmaArrayRegs::Txdctl, u64::from(queue_id),
+                                            IXGBE_TXDCTL_ENABLE);
+        self.wait_write_qreg_idx(IxgbeDmaArrayRegs::Txdctl, u64::from(queue_id),
+                                            IXGBE_TXDCTL_ENABLE);
     }
 
     pub fn init_rx(&self) {
         let i: u64 = 0;
-        self.bar.write_reg_idx(
-            IxgbeArrayRegs::Srrctl, i,
-            (self.bar.read_reg_idx(IxgbeArrayRegs::Srrctl, i) & !IXGBE_SRRCTL_DESCTYPE_MASK)
+
+        // probably a broken feature, this flag is initialized with 1 but has to be set to 0
+        self.clear_qflag_idx(IxgbeDmaArrayRegs::DcaRxctrl, i, 1 << 12);
+
+
+        // section 4.6.11.3.4 - allocate all queues and traffic to PB0
+        self.write_qreg_idx(IxgbeDmaArrayRegs::Rxpbsize, 0, IXGBE_RXPBSIZE_128KB);
+
+        for i in 1..8 {
+            self.write_qreg_idx(IxgbeDmaArrayRegs::Rxpbsize, i, 0);
+        }
+
+
+        self.write_qreg_idx(
+            IxgbeDmaArrayRegs::Srrctl, i,
+            (self.read_qreg_idx(IxgbeDmaArrayRegs::Srrctl, i) & !IXGBE_SRRCTL_DESCTYPE_MASK)
                 | IXGBE_SRRCTL_DESCTYPE_ADV_ONEBUF,
         );
 
         // let nic drop packets if no rx descriptor is available instead of buffering them
-        self.bar.write_reg_idx(
-            IxgbeArrayRegs::Srrctl, i,
-            self.bar.read_reg_idx(IxgbeArrayRegs::Srrctl, i) | IXGBE_SRRCTL_DROP_EN,
+        self.write_qreg_idx(
+            IxgbeDmaArrayRegs::Srrctl, i,
+            self.read_qreg_idx(IxgbeDmaArrayRegs::Srrctl, i) | IXGBE_SRRCTL_DROP_EN,
         );
 
-        self.bar.write_reg_idx(IxgbeArrayRegs::Rdbal, i, (self.receive_ring.physical() & 0xffff_ffff) as u64);
+        self.write_qreg_idx(IxgbeDmaArrayRegs::Rdbal, i, (self.receive_ring.physical() & 0xffff_ffff) as u64);
 
-        self.bar.write_reg_idx(IxgbeArrayRegs::Rdbah, i, (self.receive_ring.physical() >> 32) as u64);
+        self.write_qreg_idx(IxgbeDmaArrayRegs::Rdbah, i, (self.receive_ring.physical() >> 32) as u64);
 
         println!("rx ring {} phys addr: {:#x}", i, self.receive_ring.physical());
 
-        self.bar.write_reg_idx(
-            IxgbeArrayRegs::Rdlen, i,
+        self.write_qreg_idx(
+            IxgbeDmaArrayRegs::Rdlen, i,
             (self.receive_ring.len() * mem::size_of::<ixgbe_adv_rx_desc>()) as u64,
         );
     }
 
     pub fn init_tx(&self) {
         let i: u64 = 0;
-        self.bar.write_reg_idx(IxgbeArrayRegs::Tdbal, i,
+
+        // section 4.6.11.3.4 - set default buffer size allocations
+        self.write_qreg_idx(IxgbeDmaArrayRegs::Txpbsize, 0, IXGBE_TXPBSIZE_40KB);
+        for i in 1..8 {
+            self.write_qreg_idx(IxgbeDmaArrayRegs::Txpbsize, i, 0);
+        }
+
+        self.write_qreg_idx(IxgbeDmaArrayRegs::TxpbThresh, 0, 0xA0);
+
+        for i in 1..8 {
+            self.write_qreg_idx(IxgbeDmaArrayRegs::TxpbThresh, i, 0);
+        }
+
+        self.write_qreg_idx(IxgbeDmaArrayRegs::Tdbal, i,
                                 self.transmit_ring.physical() as u64);
-        self.bar.write_reg_idx(IxgbeArrayRegs::Tdbah, i,
+        self.write_qreg_idx(IxgbeDmaArrayRegs::Tdbah, i,
                                (self.transmit_ring.physical() >> 32) as u64);
 
         println!("tx ring {} phys addr: {:#x}", i, self.transmit_ring.physical());
-        self.bar.write_reg_idx(IxgbeArrayRegs::Tdlen, i,
+        self.write_qreg_idx(IxgbeDmaArrayRegs::Tdlen, i,
             (self.transmit_ring.len() * mem::size_of::<ixgbe_adv_tx_desc>()) as u64
         );
+
+        // descriptor writeback magic values, important to get good performance and low PCIe overhead
+        // see 7.2.3.4.1 and 7.2.3.5 for an explanation of these values and how to find good ones
+        // we just use the defaults from DPDK here, but this is a potentially interesting point for optimizations
+        //let mut txdctl = self.read_reg_idx(IxgbeArrayRegs::Txdctl, i);
+        // there are no defines for this in ixgbe.rs for some reason
+        // pthresh: 6:0, hthresh: 14:8, wthresh: 22:16
+        //txdctl &= !(0x3F | (0x3F << 8) | (0x3F << 16));
+        //txdctl |= 36 | (8 << 8) | (4 << 16);
+
+        let mut txdctl = 0;
+        txdctl |= 8 << 16;
+
+        txdctl |= (1 << 8) | 32;
+
+        self.write_qreg_idx(IxgbeDmaArrayRegs::Txdctl, i, txdctl);
     }
 
     fn clean_tx_queue(&mut self) -> usize {
@@ -210,7 +323,8 @@ impl IxgbeDevice {
         }
 
         if sent > 0 {
-            self.bar.write_reg_tdt(0, self.transmit_index as u64);
+            //self.bar.write_reg_tdt(0, self.transmit_index as u64);
+            self.write_qreg_idx(IxgbeDmaArrayRegs::Tdt, 0, self.transmit_index as u64);
         }
 
         sent
@@ -325,8 +439,9 @@ impl IxgbeDevice {
         }
 
         if tx_index != last_tx_index {
-            //println!("Update tdt from {} to {}", self.bar.read_reg_idx(IxgbeArrayRegs::Tdt, 0), tx_index);
-            self.bar.write_reg_tdt(0, tx_index as u64);
+            //println!("Update tdt from {} to {}", self.read_reg_idx(IxgbeDmaArrayRegs::Tdt, 0), tx_index);
+            //self.bar.write_reg_tdt(0, tx_index as u64);
+            self.write_qreg_idx(IxgbeDmaArrayRegs::Tdt, 0, tx_index as u64);
             self.transmit_index = tx_index;
         }
 
@@ -411,8 +526,9 @@ impl IxgbeDevice {
         }
 
         if rx_index != last_rx_index {
-            //println!("Update rdt from {} to {}", self.bar.read_reg_idx(IxgbeArrayRegs::Rdt, 0), last_rx_index);
-            self.bar.write_reg_rdt(0, last_rx_index as u64);
+            //println!("Update rdt from {} to {}", self.read_reg_idx(IxgbeDmaArrayRegs::Rdt, 0), last_rx_index);
+            self.write_qreg_idx(IxgbeDmaArrayRegs::Rdt, 0, last_rx_index as u64);
+            //self.bar.write_reg_rdt(0, last_rx_index as u64);
             self.receive_index = rx_index;
         }
 
@@ -422,6 +538,34 @@ impl IxgbeDevice {
         received_packets
     }
 
+    pub fn dump_dma_regs(&self) {
+
+        let mut string = format!("Interrupt regs:\n\tEITR {:08X} IVAR(0) {:08X}\n",
+                    self.read_qreg_idx(IxgbeDmaArrayRegs::Eitr, 0) as u32,
+                    self.read_qreg_idx(IxgbeDmaArrayRegs::Ivar, 0) as u32);
+
+
+        string.push_str(&format!("Receive regs:\n\tRXPBSIZE(0): {:08X} SRRCTL(0) {:08X}\n\tRDBAL(0) {:08X} RDBAH(0) {:08X} \
+                                 \n\tRDLEN(0) {:08X} RDH(0) {:08X} RDT(0) {:08X}\n",
+                                 self.read_qreg_idx(IxgbeDmaArrayRegs::Rxpbsize, 0) as u32,
+                                 self.read_qreg_idx(IxgbeDmaArrayRegs::Srrctl, 0) as u32,
+                                 self.read_qreg_idx(IxgbeDmaArrayRegs::Rdbal, 0) as u32,
+                                 self.read_qreg_idx(IxgbeDmaArrayRegs::Rdbah, 0) as u32,
+                                 self.read_qreg_idx(IxgbeDmaArrayRegs::Rdlen, 0) as u32,
+                                 self.read_qreg_idx(IxgbeDmaArrayRegs::Rdh, 0) as u32,
+                                 self.read_qreg_idx(IxgbeDmaArrayRegs::Rdt, 0) as u32));
+
+        string.push_str(&format!("Transmit regs:\n\tTXDCTL(0) {:08X} TXPBSIZE(0): {:08X}\n\t \
+                                 TDBAL(0) {:08X} TDBAH(0) {:08X}\n\t \
+                                 TDLEN(0) {:08X} TDH(0) {:08X} TDT(0) {:08X}\n",
+                                 self.read_qreg_idx(IxgbeDmaArrayRegs::Txdctl, 0) as u32,
+                                 self.read_qreg_idx(IxgbeDmaArrayRegs::Txpbsize, 0) as u32,
+                                 self.read_qreg_idx(IxgbeDmaArrayRegs::Tdbal, 0) as u32,
+                                 self.read_qreg_idx(IxgbeDmaArrayRegs::Tdbah, 0) as u32,
+                                 self.read_qreg_idx(IxgbeDmaArrayRegs::Tdlen, 0) as u32,
+                                 self.read_qreg_idx(IxgbeDmaArrayRegs::Tdh, 0) as u32,
+                                 self.read_qreg_idx(IxgbeDmaArrayRegs::Tdt, 0) as u32));
+
+        print!("{}", string);
+    }
 }
-
-

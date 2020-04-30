@@ -1,6 +1,3 @@
-#![feature(alloc)]
-
-use crate::pci::{Pci, PciBar, PciHeader, PciHeaderError};
 use syscalls::PciResource;
 use console::println;
 use alloc::format;
@@ -10,24 +7,16 @@ use alloc::vec::Vec;
 use spin::Mutex;
 use pci_driver::PciClass;
 
+// Import from a safe interface
+use pcidevice::{PciDevice};
+
 lazy_static! {
-    pub static ref PCI_DEVICES: Mutex<Vec<PciHeader>> = {
+    pub static ref PCI_DEVICES: Mutex<Vec<PciDevice>> = {
         Mutex::new(Vec::new())
     };
 }
 
-#[derive(Hash, Eq, PartialEq, Copy, Clone, Debug)]
-pub struct PciDevice {
-    vendor_id: u16,
-    device_id: u16,
-}
-
-impl PciDevice {
-    pub fn new(vendor_id: u16, device_id: u16) -> PciDevice {
-        PciDevice { vendor_id, device_id }
-    }
-}
-
+/*
 fn print_header(bus_num: u8,
                         dev_num: u8, func_num: u8, header: &PciHeader) {
     let raw_class: u8 = header.class().into();
@@ -80,33 +69,19 @@ fn print_header(bus_num: u8,
     }
 
     println!("{}", string);
-}
+}*/
 
-pub fn scan_pci_devs(pci_resource: &dyn PciResource) {
-    let pci = Pci::new(pci_resource);
+pub fn scan_pci_devs() {
     let mut pci_devices = PCI_DEVICES.lock();
-    for bus in pci.buses() {
-        for dev in bus.devs() {
-            for func in dev.funcs() {
-                // do stuff here
-                let func_num = func.num;
-                match PciHeader::from_reader(func) {
-                    Ok(header) => {
-                        #[cfg(feature = "c220g2_ixgbe")]
-                        {
-                            // Cloudlab has dual port ixgbe devices and the we need to attach our driver
-                            // to the second device.
-                            if header.get_bar(0) == PciBar::Memory(0xc7900000) {
-                                continue;
-                            }
-                        }
-                        print_header(bus.num, dev.num, func_num, &header);
-                        pci_devices.push(header);
+    for bus in 0..=255 {
+        for dev in 0..32 {
+            for func in 0..8 {
+                match pcidevice::get_config(bus, dev, func) {
+                    Ok(pci_dev) => {
+                        //print_header(bus.num, dev.num, func_num, &header);
+                        pci_devices.push(pci_dev);
                     }
-                    Err(PciHeaderError::NoDevice) => {},
-                    Err(PciHeaderError::UnknownHeaderType(_id)) => {
-                        //println!("pcid: unknown header type: {}", id);
-                    }
+                    Err(_) => {}
                 }
             }
         }

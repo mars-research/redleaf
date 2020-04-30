@@ -9,6 +9,7 @@ edition = "2018"
 spin = { path = "../../../lib/spin-rs" }
 x86_64 = "0.7.5"
 syscalls = { path = "../../interfaces/syscalls", version = "0.1.0"}
+platform = { path = "../../interfaces/platform", version = "0.1.0"}
 
 #[dev-dependencies]
 #redleaf = { path = "../", version = "0.1.0" }

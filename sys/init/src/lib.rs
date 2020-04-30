@@ -178,18 +178,19 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
     );
     println!("created proxy");
 
-    let pci_resource = proxy.as_create_pci().get_pci_resource();
 
-    let pci_bar = proxy.as_create_pci().get_pci_bar();
-
-    let (dom_pci, pci) = proxy.as_create_pci().create_domain_pci(pci_resource, pci_bar);
+    println!("Creating pci");
+    let (dom_pci, pci) = proxy.as_create_pci().create_domain_pci();
 
     let pci2 = pci.pci_clone();
 
+    #[cfg(feature =  "ahci")]
     let (dom_ahci, bdev) = proxy.as_create_ahci().create_domain_ahci(pci);
 
+    println!("Creating ixgbe");
     let (dom_ixgbe, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci2);
 
+    #[cfg(feature =  "ahci")]
     let dom_xv6 = proxy.as_create_xv6().create_domain_xv6kernel(ints_clone, proxy.as_create_xv6fs(), proxy.as_create_xv6usr(), bdev);
 }
 
