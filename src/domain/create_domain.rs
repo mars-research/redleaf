@@ -169,7 +169,9 @@ pub fn create_domain_proxy(
     create_ixgbe: Arc<dyn create::CreateIxgbe>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
     create_xv6usr: Arc<dyn create::CreateXv6Usr>,
-    create_xv6: Arc<dyn create::CreateXv6>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
+    create_xv6: Arc<dyn create::CreateXv6>,
+    create_dom_a: Arc<dyn create::CreateDomA>,
+    create_dom_b: Arc<dyn create::CreateDomB>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
     extern "C" {
         fn _binary_usr_proxy_build_dom_proxy_start();
         fn _binary_usr_proxy_build_dom_proxy_end();
@@ -188,7 +190,9 @@ pub fn create_domain_proxy(
         create_ixgbe,
         create_xv6fs,
         create_xv6usr,
-        create_xv6)
+        create_xv6,
+        create_dom_a,
+        create_dom_b)
 }
 
 // AB: XXX: The following is is not supported in Rust at the moment
@@ -213,7 +217,9 @@ pub fn build_domain_init(name: &str,
                          Arc<dyn create::CreateXv6Usr>,
                          Arc<dyn create::CreatePCI>,
                          Arc<dyn create::CreateIxgbe>,
-                         Arc<dyn create::CreateAHCI>);
+                         Arc<dyn create::CreateAHCI>,
+                         Arc<dyn create::CreateDomA>,
+                         Arc<dyn create::CreateDomB>);
 
     let (dom, entry) = unsafe { 
         load_domain(name, binary_range)
@@ -228,6 +234,8 @@ pub fn build_domain_init(name: &str,
     user_ep(Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(Interrupt::new()),
             Box::new(PDomain::new(Arc::clone(&dom))),
+            Arc::new(PDomain::new(Arc::clone(&dom))),
+            Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
@@ -358,7 +366,9 @@ pub fn build_domain_proxy(
     create_ixgbe: Arc<dyn create::CreateIxgbe>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
     create_xv6usr: Arc<dyn create::CreateXv6Usr>,
-    create_xv6: Arc<dyn create::CreateXv6>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
+    create_xv6: Arc<dyn create::CreateXv6>,
+    create_dom_a: Arc<dyn create::CreateDomA>,
+    create_dom_b: Arc<dyn create::CreateDomB>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
     type UserInit = fn(
         Box<dyn Syscall>,
         create_pci: Arc<dyn create::CreatePCI>,
@@ -366,7 +376,9 @@ pub fn build_domain_proxy(
         create_ixgbe: Arc<dyn create::CreateIxgbe>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
         create_xv6usr: Arc<dyn create::CreateXv6Usr>,
-        create_xv6: Arc<dyn create::CreateXv6>) -> Arc<dyn proxy::Proxy>;
+        create_xv6: Arc<dyn create::CreateXv6>,
+        create_dom_a: Arc<dyn create::CreateDomA>,
+        create_dom_b: Arc<dyn create::CreateDomB>) -> Arc<dyn proxy::Proxy>;
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)
@@ -387,7 +399,9 @@ pub fn build_domain_proxy(
         create_ixgbe,
         create_xv6fs,
         create_xv6usr,
-        create_xv6);
+        create_xv6,
+        create_dom_a,
+        create_dom_b);
     disable_irq();
 
     println!("domain/{}: returned from entry point", name);

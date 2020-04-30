@@ -299,7 +299,9 @@ impl proxy::CreateProxy for PDomain {
         create_ixgbe: Arc<dyn create::CreateIxgbe>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
         create_xv6usr: Arc<dyn create::CreateXv6Usr>,
-        create_xv6: Arc<dyn create::CreateXv6>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
+        create_xv6: Arc<dyn create::CreateXv6>,
+        create_dom_a: Arc<dyn create::CreateDomA>,
+        create_dom_b: Arc<dyn create::CreateDomB>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
         disable_irq();
         let r = crate::domain::create_domain::create_domain_proxy(
             create_pci,
@@ -307,7 +309,9 @@ impl proxy::CreateProxy for PDomain {
             create_ixgbe,
             create_xv6fs,
             create_xv6usr,
-            create_xv6);
+            create_xv6,
+            create_dom_a,
+            create_dom_b);
         enable_irq();
         r
     }
