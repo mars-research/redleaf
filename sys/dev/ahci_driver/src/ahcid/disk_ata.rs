@@ -101,7 +101,7 @@ impl Disk for DiskATA {
         self.id
     }
 
-    fn size(&mut self) -> u64 {
+    fn size(&self) -> u64 {
         self.size
     }
 
@@ -161,7 +161,7 @@ impl Disk for DiskATA {
             let req = self.requests_opt[slot as usize].take().unwrap();
             self.port.set_slot_ready(slot, true);
             self.port.ata_stop(slot)?;
-            println!("Request to {}-{} sectors takes {} cycles", req.start_sector, req.start_sector + req.total_sectors, libtime::get_rdtsc() - req.start_time);
+            // println!("Request to {}-{} sectors takes {} cycles", req.start_sector, req.start_sector + req.total_sectors, libtime::get_rdtsc() - req.start_time);
             Ok(Some(req.buffer))
         }
     }

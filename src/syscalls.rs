@@ -15,7 +15,8 @@ use crate::thread;
 use platform::PciBarAddr;
 use usr;
 use proxy;
-//use crate::domain::domain::BOOTING_DOMAIN;
+use crate::kbd::{KBDCTRL};
+use pc_keyboard::{DecodedKey};
 
 extern crate syscalls; 
 
@@ -190,9 +191,23 @@ impl syscalls::Syscall for PDomain {
     }
 
     fn sys_dummy(&self) {
-        enable_irq();
         disable_irq();
+        enable_irq();
     }
+
+    fn sys_readch_kbd(&self) -> Result<Option<DecodedKey>, &'static str> {
+        disable_irq();
+        let rtn = KBDCTRL.lock().readch();
+        enable_irq();
+        rtn
+    }
+
+    fn sys_make_condvar(&self) -> syscalls::CondVarPtr {
+        disable_irq();
+        let rtn = crate::sync::condvar::make_condvar();
+        enable_irq();
+        rtn
+    } 
 }
 
 impl create::CreatePCI for PDomain {
@@ -228,7 +243,7 @@ impl create::CreateXv6 for PDomain {
     fn create_domain_xv6kernel(&self,
                                 ints: Box<dyn syscalls::Interrupt>,
                                 create_xv6fs: Arc<dyn create::CreateXv6FS>,
-                                create_xv6usr: Arc<dyn create::CreateXv6Usr>,
+                                create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
                                 bdev: Box<dyn usr::bdev::BDev + Send + Sync>) -> Box<dyn syscalls::Domain> {
         disable_irq();
         let r = crate::domain::create_domain::create_domain_xv6kernel(ints, 
@@ -241,7 +256,7 @@ impl create::CreateXv6 for PDomain {
 }   
 
 impl create::CreateXv6FS for PDomain {
-    fn create_domain_xv6fs(&self, bdev: Box<dyn usr::bdev::BDev>) ->(Box<dyn syscalls::Domain>, Box<dyn usr::vfs::VFS>) {
+    fn create_domain_xv6fs(&self, bdev: Box<dyn usr::bdev::BDev>) ->(Box<dyn syscalls::Domain>, Box<dyn usr::vfs::VFS + Send>) {
         disable_irq();
         let r = crate::domain::create_domain::create_domain_xv6fs(bdev);
         enable_irq();
@@ -250,9 +265,9 @@ impl create::CreateXv6FS for PDomain {
 }   
 
 impl create::CreateXv6Usr for PDomain {
-    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>) -> Box<dyn syscalls::Domain> {
+    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn syscalls::Domain>, &'static str> {
         disable_irq();
-        let r = crate::domain::create_domain::create_domain_xv6usr(name, xv6);
+        let r = crate::domain::create_domain::create_domain_xv6usr(name, xv6, blob, args);
         enable_irq();
         r
     }
@@ -265,7 +280,7 @@ impl proxy::CreateProxy for PDomain {
         create_ahci: Arc<dyn create::CreateAHCI>,
         create_ixgbe: Arc<dyn create::CreateIxgbe>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
-        create_xv6usr: Arc<dyn create::CreateXv6Usr>,
+        create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
         create_xv6: Arc<dyn create::CreateXv6>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
         disable_irq();
         let r = crate::domain::create_domain::create_domain_proxy(

@@ -1,3 +1,10 @@
 build/*
 mkfs
 big_file
+sh
+init
+ls
+wc
+benchfs
+shake
+large

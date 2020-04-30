@@ -18,7 +18,7 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use alloc::sync::Arc;
 use core::panic::PanicInfo;
-use libsyscalls::syscalls::{sys_create_thread, sys_yield, sys_recv_int, sys_backtrace};
+use libsyscalls::syscalls::{sys_create_thread, sys_yield, sys_recv_int, sys_backtrace, sys_readch_kbd};
 use console::println;
 use create::*;
 use proxy;
@@ -100,7 +100,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
             create_proxy: Box<dyn proxy::CreateProxy>,
             create_xv6: Arc<dyn create::CreateXv6>,
             create_xv6fs: Arc<dyn create::CreateXv6FS>,
-            create_xv6usr: Arc<dyn create::CreateXv6Usr>,
+            create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
             create_pci: Arc<dyn create::CreatePCI>,
             create_ixgbe: Arc<dyn create::CreateIxgbe>,
             create_ahci: Arc<dyn create::CreateAHCI>)

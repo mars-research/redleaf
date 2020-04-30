@@ -13,7 +13,7 @@ pub trait CreateProxy {
         create_ahci: Arc<dyn CreateAHCI>,
         create_ixgbe: Arc<dyn CreateIxgbe>,
         create_xv6fs: Arc<dyn CreateXv6FS>,
-        create_xv6usr: Arc<dyn CreateXv6Usr>,
+        create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>,
         create_xv6: Arc<dyn CreateXv6>) -> (Box<dyn Domain>, Arc<dyn Proxy>);
 }
 

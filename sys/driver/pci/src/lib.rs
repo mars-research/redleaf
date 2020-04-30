@@ -100,7 +100,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
 // This function is called on panic.
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    println!("panicked: {:?}", info);
+    println!("pci panicked: {:?}", info);
     sys_backtrace();
     loop {}
 }

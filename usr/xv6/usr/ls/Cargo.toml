@@ -1,0 +1,25 @@
+[package]
+name = "ls"
+version = "0.1.0"
+authors = ["RedLeaf Team"]
+edition = "2018"
+
+[lib]
+crate-type = ["staticlib"]
+test = false
+bench = false
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
+[dependencies]
+syscalls = { path = "../../../../sys/interfaces/syscalls", version = "0.1.0" }
+usr = { path = "../../../../sys/interfaces/usr", version = "0.1.0" }
+libsyscalls = { path = "../../../../sys/lib/libsyscalls", version = "0.1.0" }
+malloc = { path = "../../../../sys/lib/malloc", version = "0.1.0" }
+utils = { path = "../../../../lib/utils", version = "0.1.0" }
+usrlib = { package = "lib", path = "../lib", version = "0.1.0" }
+

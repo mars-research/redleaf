@@ -19,17 +19,18 @@ pub trait CreateIxgbe {
 }
 
 pub trait CreateXv6FS {
-    fn create_domain_xv6fs(&self, bdev: Box<dyn BDev>) ->(Box<dyn Domain>, Box<dyn VFS>);
+    fn create_domain_xv6fs(&self, bdev: Box<dyn BDev>) ->(Box<dyn Domain>, Box<dyn VFS + Send>);
 }
 
 pub trait CreateXv6Usr {
-    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn Xv6>) -> Box<dyn Domain>;
+    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn syscalls::Domain>, &'static str>;
 }
+pub type CreateXv6UsrPtr = Box<dyn CreateXv6Usr + Send + Sync>;
 
 pub trait CreateXv6 {
     fn create_domain_xv6kernel(&self,
                                ints: Box<dyn Interrupt>,
                                create_xv6fs: Arc<dyn CreateXv6FS>,
-                               create_xv6usr: Arc<dyn CreateXv6Usr>,
+                               create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>,
                                bdev: Box<dyn BDev + Send + Sync>) -> Box<dyn Domain>;
 }

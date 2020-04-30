@@ -3,6 +3,7 @@
 // A doubly-linked-list with the ability to remove a node from the list in O(1).
 // And it is Sync
 use alloc::sync::Arc;
+use core::ops::{Deref, DerefMut};
 use spin::Mutex;
 
 
@@ -28,6 +29,20 @@ impl<T> Node<T> {
             prev: None,
             next: None,
         }))
+    }
+}
+
+impl<T> Deref for Node<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.elem
+    }
+}
+
+impl<T> DerefMut for Node<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.elem
     }
 }
 
@@ -103,24 +118,22 @@ impl<T> List<T> {
 
     // Helper method for move_front.
     fn pop_node(&mut self, node: &mut Node<T>) {
-        match &node.prev {
-            Some(prev) => {
-                prev.lock().next = node.next.clone();
-                self.head.replace(prev.clone());
-            }
-            None => {/*noop*/}
+        let prev = node.prev.take();
+        let next = node.next.take();
+
+        match &prev {
+            Some(prev) => prev.lock().next = next.clone(),
+            None => {
+                core::mem::replace(&mut self.head, next.clone());
+            },
         }
 
-        match &node.next {
-            Some(next) => {
-                next.lock().prev = node.prev.clone();
-                self.head.replace(next.clone());
-            }
-            None => {/*noop*/}
+        match &next {
+            Some(next) => next.lock().prev = prev.clone(),
+            None => {
+                core::mem::replace(&mut self.tail, prev.clone());
+            },
         }
-
-        node.prev.take();
-        node.next.take();
     }
 
     // Move an existing node to the front
@@ -133,6 +146,10 @@ impl<T> List<T> {
     pub fn iter(&self) -> Iter<T> {
         Iter{ curr: self.head.clone() }
     }
+
+    pub fn rev(&self) -> RevIter<T> {
+        RevIter{ curr: self.tail.clone() }
+    }
 }
 
 impl<T> Drop for List<T> {
@@ -141,7 +158,7 @@ impl<T> Drop for List<T> {
     }
 }
 
-// Well this is ugly since it exposes the implementation, but we can't figure out how to do it nicely.
+// Well this is ugly since it exposes the internal implementation, but we can't figure out how to do it nicely.
 pub struct Iter<T> {
     curr: Link<T>
 }
@@ -156,11 +173,17 @@ impl<T> Iterator for Iter<T> {
     }
 }
 
-impl<T> DoubleEndedIterator for Iter<T> {
-    fn next_back(&mut self) -> Option<Self::Item> {
+pub struct RevIter<T> {
+    curr: Link<T>
+}
+
+impl<T> Iterator for RevIter<T> {
+    type Item = Arc<Mutex<Node<T>>>;
+    fn next(&mut self) -> Option<Self::Item> {
         self.curr.take().map(|node| {
             self.curr = node.lock().prev.clone();
             node.clone()
         })
     }
 }
+

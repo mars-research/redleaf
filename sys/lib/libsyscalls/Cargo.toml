@@ -10,6 +10,7 @@ spin = { path = "../../../lib/spin-rs" }
 x86_64 = "0.7.5"
 syscalls = { path = "../../interfaces/syscalls", version = "0.1.0"}
 platform = { path = "../../interfaces/platform", version = "0.1.0"}
+pc-keyboard = "0.3.1"
 
 #[dev-dependencies]
 #redleaf = { path = "../", version = "0.1.0" }

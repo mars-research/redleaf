@@ -19,7 +19,7 @@ pub fn init(
     create_ahci: Arc<dyn create::CreateAHCI>,
     create_ixgbe: Arc<dyn create::CreateIxgbe>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
-    create_xv6usr: Arc<dyn create::CreateXv6Usr>,
+    create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
     create_xv6: Arc<dyn create::CreateXv6>) -> Arc<dyn proxy::Proxy> {
 
     libsyscalls::syscalls::init(s);

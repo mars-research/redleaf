@@ -14,7 +14,7 @@ pub struct Proxy {
     create_ahci: Arc<dyn create::CreateAHCI>,
     create_ixgbe: Arc<dyn create::CreateIxgbe>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
-    create_xv6usr: Arc<dyn create::CreateXv6Usr>,
+    create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
     create_xv6: Arc<dyn create::CreateXv6>,
 }
 
@@ -27,7 +27,7 @@ impl Proxy {
         create_ahci: Arc<dyn create::CreateAHCI>,
         create_ixgbe: Arc<dyn create::CreateIxgbe>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
-        create_xv6usr: Arc<dyn create::CreateXv6Usr>,
+        create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
         create_xv6: Arc<dyn create::CreateXv6>
     ) -> Proxy {
         Proxy {
@@ -86,16 +86,16 @@ impl create::CreateIxgbe for Proxy {
 }
 
 impl create::CreateXv6FS for Proxy {
-    fn create_domain_xv6fs(&self, bdev: Box<dyn BDev>) ->(Box<dyn Domain>, Box<dyn VFS>) {
+    fn create_domain_xv6fs(&self, bdev: Box<dyn BDev>) -> (Box<dyn Domain>, Box<dyn VFS + Send>) {
         // TODO: write Xv6FSProxy
         self.create_xv6fs.create_domain_xv6fs(bdev)
     }
 }
 
 impl create::CreateXv6Usr for Proxy {
-    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn Xv6>) -> Box<dyn Domain> {
+    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn Domain>, &'static str> {
         // TODO: write Xv6UsrProxy
-        self.create_xv6usr.create_domain_xv6usr(name, xv6)
+        self.create_xv6usr.create_domain_xv6usr(name, xv6, blob, args)
     }
 }
 
@@ -103,7 +103,7 @@ impl create::CreateXv6 for Proxy {
     fn create_domain_xv6kernel(&self,
                                ints: Box<dyn Interrupt>,
                                create_xv6fs: Arc<dyn create::CreateXv6FS>,
-                               create_xv6usr: Arc<dyn create::CreateXv6Usr>,
+                               create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
                                bdev: Box<dyn BDev + Send + Sync>) -> Box<dyn Domain> {
         // TODO: write Xv6KernelProxy
         self.create_xv6.create_domain_xv6kernel(ints, create_xv6fs, create_xv6usr, bdev)
@@ -149,20 +149,6 @@ impl usr::bdev::BDev for BDevProxy {
         // data.move_to(callee_domain);
         let r = self.domain.write(block, data);
         // data.move_to(caller_domain);
-
-        // move thread back
-        unsafe { sys_update_current_domain_id(caller_domain) };
-
-        r
-    }
-
-    fn read_contig(&self, block: u32, data: &mut RRef<[u8; 512]>) {
-        // move thread to next domain
-        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
-
-        data.move_to(self.domain_id);
-        let r = self.domain.read(block, data);
-        data.move_to(caller_domain);
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };

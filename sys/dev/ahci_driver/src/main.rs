@@ -8,8 +8,9 @@
     alloc_error_handler,
     const_fn,
     const_raw_ptr_to_usize_cast,
+    option_expect_none,
+    panic_info_message,
     untagged_unions,
-    panic_info_message
 )]
 
 #[macro_use]
@@ -23,11 +24,15 @@ extern crate alloc;
 
 mod ahcid;
 
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 use core::panic::PanicInfo;
-use core::cell::RefCell;
-use syscalls::{Syscall};
-use libsyscalls::errors::Result;
+use byteorder::{LittleEndian, ByteOrder};
+use spin::Mutex;
 
+use syscalls::{Syscall};
+use libsyscalls::syscalls::{sys_backtrace, sys_yield};
+use libsyscalls::errors::Result;
 use console::println;
 use pci_driver::{BarRegions, PciClass};
 use alloc::boxed::Box;
@@ -44,7 +49,7 @@ struct Ahci {
     vendor_id: u16,
     device_id: u16,
     driver: pci_driver::PciDrivers,
-    disks: RefCell<Vec<Box<dyn Disk>>>,
+    disks: Mutex<Vec<Option<Box<dyn Disk>>>>,
 }
 
 impl Ahci {
@@ -55,9 +60,35 @@ impl Ahci {
             vendor_id: 0x1234,
             device_id: 0x1234,
             driver: pci_driver::PciDrivers::AhciDriver,
-            disks: RefCell::new(Vec::new()),
+            disks: Mutex::new(Vec::new()),
         }
     }
+
+        // TODO: return a Err if the disk is not found
+        fn with_disk<F, R>(&self, id: usize, f: F) -> R where F: FnOnce(&mut dyn Disk) -> R {
+            // Take the disk from `disks` so we can release the lock
+            let mut disk = loop {
+                let mut disk = self.disks.lock()[id].take();
+                match disk {
+                    None => {
+                        // The disk is currently being used by another thread
+                        // Wait and retry
+                        sys_yield();
+                        continue;
+                    },
+                    Some(disk) => break disk,
+                }
+            };
+            
+            // Do something with the disk
+            let rtn = f(&mut *disk);
+    
+            // Put the disk back after we are done using it
+            if self.disks.lock()[id].replace(disk).is_some() {
+                panic!("Disk<{}> is accessed by another thread while this thread is using it", id);
+            }
+            rtn
+        }
 }
 
 impl pci_driver::PciDriver for Ahci {
@@ -91,14 +122,14 @@ impl pci_driver::PciDriver for Ahci {
                             if has_magic_num {
                                 None
                             } else {
-                                Some(d)
+                                Some(Some(d))
                             }
                         })
                         .collect();
-        self.disks = RefCell::new(disks);
+        self.disks = Mutex::new(disks);
 
-        for (i, disk) in self.disks.borrow_mut().iter_mut().enumerate() {
-            println!("Disk {}: {}", i, disk.size());
+        for (i, disk) in self.disks.lock().iter().enumerate() {
+            println!("Disk {}: {}", i, disk.as_ref().unwrap().size());
         }
 
         println!("probe() finished");
@@ -117,19 +148,14 @@ impl pci_driver::PciDriver for Ahci {
     }
 }
 
-impl usr::bdev::BDev for Ahci {
-    fn read(&self, block: u32, data: &mut RRef<[u8; 512]>) {
-        self.disks.borrow_mut()[0].read(block as u64, &mut **data);
+impl usr::bdev::SyncBDev for Ahci {
+    fn read(&self, block: u32, data: &mut [u8]) {
+        self.with_disk(0, |d| d.read(block as u64, data))
     }
-
-    fn read_contig(&self, block: u32, data: &mut RRef<[u8; 512]>) {
-        self.disks.borrow_mut()[0].read(block as u64, &mut **data);
+    fn write(&self, block: u32, data: &[u8]) {
+        self.with_disk(0, |d| d.write(block as u64, data))
     }
-
-    fn write(&self, block: u32, data: &[u8; 512]) {
-        // println!("WARNING: BDEV.write is currently disabled");
-        self.disks.borrow_mut()[0].write(block as u64, data);
-    }
+}
 
 // TODO: impl with RRefs
 //    fn submit(&self, block: u64, write: bool, buf: Box<[u8]>) -> Result<u32> {
@@ -140,6 +166,8 @@ impl usr::bdev::BDev for Ahci {
 //        self.disks.borrow_mut()[0].poll(slot)
 //    }
 }
+
+impl usr::bdev::BDev for Ahci {}
 
 
 #[no_mangle]
@@ -158,15 +186,15 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
     
     verify_write(&ahci);
 
-//    benchmark_ahci(&ahci, 1, 1);
-//    benchmark_ahci_async(&ahci, 256, 1);
+    // benchmark_ahci(&ahci, 1, 1);
+    // benchmark_ahci_async(&ahci, 256, 1);
     // benchmark_ahci(&ahci, 8192, 8192);
-//    benchmark_ahci_async(&ahci, 8192, 8192);
+    // benchmark_ahci_async(&ahci, 8192, 8192);
     // benchmark_ahci(&ahci, 8192 * 128, 8192);
-//    benchmark_ahci_async(&ahci, 8192 * 128, 8192);
+    // benchmark_ahci_async(&ahci, 8192 * 128, 8192);
     // benchmark_ahci(&ahci, 32768, 32768);
     // benchmark_ahci(&ahci, 0xFFFF * 128, 0xFFFF);
-//    benchmark_ahci_async(&ahci, 0xFFFF * 128, 0xFFFF);
+    // benchmark_ahci_async(&ahci, 0xFFFF * 128, 0xFFFF);
     ahci
 }
 
@@ -241,7 +269,7 @@ fn verify_write(bdev: &Box<dyn usr::bdev::BDev>) {
 // This function is called on panic.
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    println!("panicked: {:?}", info);
-    // sys_backtrace();
+    println!("ahci panicked: {:?}", info);
+    sys_backtrace();
     loop {}
 }
