@@ -40,7 +40,7 @@ domain_list := sys/init/build/init \
 	usr/xv6/kernel/fs/build/xv6fs \
 	sys/driver/pci/build/pci \
 	sys/dev/ahci_driver/build/ahci_driver \
-	sys/dev/ixgbe_driver/build/ixgbe_driver
+	sys/driver/ixgbe/build/ixgbe
 
 qemu_common := ${MEM} -vga std -s
 qemu_common += -cdrom $(iso)
