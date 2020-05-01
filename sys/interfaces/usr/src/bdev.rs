@@ -5,9 +5,14 @@ use syscalls::errors::Result;
 
 pub const BSIZE: usize =        4096;   // block size
 
+// pub trait BDev {
+//     fn read(&self, block: u32, data: &mut RRef<[u8; BSIZE]>);
+//     fn write(&self, block: u32, data: &[u8; BSIZE]);
+// }
+
 pub trait BDev {
-    fn read(&self, block: u32, data: &mut RRef<[u8; BSIZE]>);
-    fn write(&self, block: u32, data: &[u8; BSIZE]);
+    fn read(&self, block: u32, data: RRef<[u8; BSIZE]>) -> RRef<[u8; BSIZE]>;
+    fn write(&self, block: u32, data: RRef<[u8; BSIZE]>) -> RRef<[u8; BSIZE]>;
 }
 
 // pub trait SyncBDev {

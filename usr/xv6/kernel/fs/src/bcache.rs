@@ -8,7 +8,7 @@ use alloc::sync::Arc;
 use alloc::boxed::Box;
 use alloc::string::String;
 use console::println;
-use core::ops::Deref;
+use core::ops::{Deref, DerefMut};
 use spin::{Mutex, Once};
 use utils::list2;
 use rref::RRef;
@@ -16,13 +16,34 @@ use usr_interface::bdev::BDev;
 
 pub static BCACHE: Once<BufferCache> = Once::new();
 
-pub type BufferBlock = [u8; BSIZE];
+pub type BufferBlock = RRef<[u8; BSIZE]>;
+
+pub struct BufferBlockWrapper(Option<BufferBlock>);
+
+impl BufferBlockWrapper {
+    fn take(&mut self) -> BufferBlock {
+        self.0.take().unwrap()
+    }
+}
+
+impl Deref for BufferBlockWrapper {
+    type Target = BufferBlock;
+    fn deref(&self) -> &Self::Target {
+        self.0.as_ref().unwrap()
+    }
+}
+
+impl DerefMut for BufferBlockWrapper {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0.as_mut().unwrap()
+    }
+}
 
 pub struct BufferGuard {
     dev: u32,
     block_number: u32,
     node: list2::Link<Buffer>,
-    data: Arc<Mutex<BufferBlock>>,
+    data: Arc<Mutex<BufferBlockWrapper>>,
 }
 
 impl BufferGuard {
@@ -34,7 +55,6 @@ impl BufferGuard {
         self.block_number
     }
 
-    // This is nasty. Fix this
     pub fn pin(&self) {
         let mut node = self.node.as_ref().take().unwrap().lock();
         // println!("bpin {} {}", self.block_number, node.reference_count);
@@ -57,7 +77,7 @@ impl Drop for BufferGuard {
 }
 
 impl Deref for BufferGuard {
-    type Target = Arc<Mutex<BufferBlock>>;
+    type Target = Arc<Mutex<BufferBlockWrapper>>;
 
     fn deref(&self) -> &Self::Target {
         &self.data
@@ -70,8 +90,8 @@ struct Buffer {
     block_number: u32,
     reference_count: u32,
     // The actual data
-    // Maybe it will be more efficient if we allocate it in the heap?
-    data: Arc<Mutex<BufferBlock>>,
+    // TODO: use a sleep mutex
+    data: Arc<Mutex<BufferBlockWrapper>>,
 }
 
 impl core::fmt::Debug for Buffer {
@@ -90,7 +110,7 @@ impl Buffer {
             dev: 0,
             block_number: 0,
             reference_count: 0,
-            data: Arc::new(Mutex::new([0u8; BSIZE])),
+            data: Arc::new(Mutex::new(BufferBlockWrapper(Some(RRef::new([0u8; BSIZE]))))),
         }
     }
 }
@@ -166,9 +186,7 @@ impl BufferCache {
         if !valid {
             let sector = buffer.block_number() * (BSIZE / SECTOR_SIZE) as u32;
             let mut guard = buffer.lock();
-            let mut buf = RRef::<[u8; BSIZE]>::new(*guard);
-            self.bdev.read(sector, &mut buf);
-            *guard = *buf;
+            *guard = BufferBlockWrapper(Some(self.bdev.read(sector, guard.take())));
         }
         buffer
     }
@@ -178,9 +196,9 @@ impl BufferCache {
     // This is not very safe since the user could pass in a `block_number` that
     // doesn't match with the `buffer_data`.
     // TODO: address the issue above by refactoring the `BufferGuard`
-    pub fn write(&self, block_number: u32, buffer_data: &mut BufferBlock) {
+    pub fn write(&self, block_number: u32, buffer_data: &mut BufferBlockWrapper) {
         let sector = block_number * (BSIZE / SECTOR_SIZE) as u32;
-        self.bdev.write(block_number, buffer_data);
+        *buffer_data = BufferBlockWrapper(Some(self.bdev.write(block_number, buffer_data.take())));
     }
 
     // This is confusing since it doesn't match xv6's brelse exactly so there could be a bug.
