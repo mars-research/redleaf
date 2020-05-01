@@ -31,13 +31,13 @@ impl MemAhci {
 }
 
 impl usr_interface::bdev::BDev for MemAhci {
-    fn read(&self, block: u32, data: &mut RRef<[u8; 512]>) {
+    fn read(&self, block: u32, data: &mut RRef<[u8; usr::bdev::BSIZE]>) {
         let start = block as usize * Self::BLOCK_SIZE;
         let size = data.len();
 
         data.copy_from_slice(&self.memdisk.lock()[start..start+size]);
     }
-    fn write(&self, block: u32, data: &[u8; 512]) {
+    fn write(&self, block: u32, data: &[u8; usr::bdev::BSIZE]) {
         let start = block as usize * Self::BLOCK_SIZE;
         let size = data.len();
 

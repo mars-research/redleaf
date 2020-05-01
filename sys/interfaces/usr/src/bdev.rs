@@ -3,9 +3,11 @@ use alloc::boxed::Box;
 use rref::RRef;
 use syscalls::errors::Result;
 
+pub const BSIZE: usize =        4096;   // block size
+
 pub trait BDev {
-    fn read(&self, block: u32, data: &mut RRef<[u8; 512]>);
-    fn write(&self, block: u32, data: &[u8; 512]);
+    fn read(&self, block: u32, data: &mut RRef<[u8; BSIZE]>);
+    fn write(&self, block: u32, data: &[u8; BSIZE]);
 }
 
 // pub trait SyncBDev {

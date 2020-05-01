@@ -143,7 +143,7 @@ impl BDevProxy {
 }
 
 impl usr::bdev::BDev for BDevProxy {
-    fn read(&self, block: u32, data: &mut RRef<[u8; 512]>) {
+    fn read(&self, block: u32, data: &mut RRef<[u8; usr::bdev::BSIZE]>) {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
@@ -157,7 +157,7 @@ impl usr::bdev::BDev for BDevProxy {
         r
     }
 
-    fn write(&self, block: u32, data: &[u8; 512]) {
+    fn write(&self, block: u32, data: &[u8; usr::bdev::BSIZE]) {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
