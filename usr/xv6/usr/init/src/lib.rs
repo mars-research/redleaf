@@ -19,13 +19,14 @@ use alloc::boxed::Box;
 
 use usrlib::{dbg, println};
 use usrlib::syscalls::{sys_load_domain};
-use syscalls::Syscall;
+use syscalls::{Syscall, Heap};
 use usr_interface::xv6::Xv6;
 use usr_interface::vfs::FileMode;
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>, rv6: Box<dyn Xv6 + Send + Sync>, args: &str) {
+pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, rv6: Box<dyn Xv6 + Send + Sync>, args: &str) {
     libsyscalls::syscalls::init(s);
+    rref::init(heap);
     usrlib::init(rv6.clone());
 
     // stdout not initialized yet so we can't print it there yet 
