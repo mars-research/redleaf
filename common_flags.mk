@@ -1,5 +1,6 @@
 DEBUG = true
 TARGET_SUB_DIR = debug
+MEMBDEV = true
 
 CARGO_FLAGS ?=
 CARGO_COMMAND = xbuild

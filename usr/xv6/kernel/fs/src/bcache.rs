@@ -2,43 +2,27 @@
 // The entire ownership system is a mess and error-prone(no one is the owner).
 // Need to revisit this and fix it one day.
 
-use crate::params::{NBUF, BSIZE};
+use crate::params::{NBUF, BSIZE, SECTOR_SIZE};
 
 use alloc::sync::Arc;
 use alloc::boxed::Box;
+use alloc::string::String;
 use console::println;
 use core::ops::Deref;
 use spin::{Mutex, Once};
 use utils::list2;
 use rref::RRef;
-use usr::bdev::BDev;
-
-const B_DIRTY: u32 = 1 << 0;
-const B_VALID: u32 = 1 << 1;
+use usr_interface::bdev::BDev;
 
 pub static BCACHE: Once<BufferCache> = Once::new();
 
 pub type BufferBlock = [u8; BSIZE];
 
-pub struct BufferData {
-    flags: u32,
-    pub data: BufferBlock,
-}
-
-impl BufferData {
-    fn new() -> Self {
-        Self {
-            flags: 0,
-            data: [0; BSIZE],
-        }
-    }
-}
-
 pub struct BufferGuard {
     dev: u32,
     block_number: u32,
     node: list2::Link<Buffer>,
-    data: Arc<Mutex<BufferData>>,
+    data: Arc<Mutex<BufferBlock>>,
 }
 
 impl BufferGuard {
@@ -52,11 +36,15 @@ impl BufferGuard {
 
     // This is nasty. Fix this
     pub fn pin(&self) {
-        self.node.as_ref().take().unwrap().lock().elem.reference_count += 1;
+        let mut node = self.node.as_ref().take().unwrap().lock();
+        // println!("bpin {} {}", self.block_number, node.reference_count);
+        node.reference_count += 1;
     }
 
     pub fn unpin(&self) {
-        self.node.as_ref().take().unwrap().lock().elem.reference_count -= 1;
+        let mut node = self.node.as_ref().take().unwrap().lock();
+        // println!("bunpin {} {}", self.block_number, node.reference_count);
+        node.reference_count -= 1;
     }
 }
 
@@ -69,7 +57,7 @@ impl Drop for BufferGuard {
 }
 
 impl Deref for BufferGuard {
-    type Target = Arc<Mutex<BufferData>>;
+    type Target = Arc<Mutex<BufferBlock>>;
 
     fn deref(&self) -> &Self::Target {
         &self.data
@@ -81,10 +69,19 @@ struct Buffer {
     dev: u32,
     block_number: u32,
     reference_count: u32,
-    flags: u32,
     // The actual data
     // Maybe it will be more efficient if we allocate it in the heap?
-    data: Arc<Mutex<BufferData>>,
+    data: Arc<Mutex<BufferBlock>>,
+}
+
+impl core::fmt::Debug for Buffer {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+        fmt.debug_struct("BufferBlock")
+           .field("dev", &self.dev)
+           .field("block_number", &self.block_number)
+           .field("reference_count", &self.reference_count)
+           .finish()
+    }
 }
 
 impl Buffer {
@@ -93,8 +90,7 @@ impl Buffer {
             dev: 0,
             block_number: 0,
             reference_count: 0,
-            flags: 0,
-            data: Arc::new(Mutex::new(BufferData::new())),
+            data: Arc::new(Mutex::new([0u8; BSIZE])),
         }
     }
 }
@@ -119,41 +115,41 @@ impl BufferCache {
     // look through buffer cache, return the buffer
     // If the block does not exist, we preempt a not-in-use one
     // We let the caller to lock the buffer when they need to use it
-    fn get(&self, dev: u32, block_number: u32) -> BufferGuard {
+    fn get(&self, dev: u32, block_number: u32) -> (bool, BufferGuard) {
         // we probably don't need a lock here since there's a outer lock for
         // the shared `BCACHE` object.
         for mutex in self.list.lock().iter() {
-            let mut node = mutex.lock();
-            let mut buffer = &mut node.elem;
+            let buffer = &mut **mutex.lock();
             if buffer.dev == dev && buffer.block_number == block_number {
+                // println!("bcache hit: {:?}", buffer);
                 buffer.reference_count += 1;
-                return BufferGuard {
+                return (true, BufferGuard {
                     dev: buffer.dev,
                     block_number: buffer.block_number,
                     node: Some(mutex.clone()),
                     data: buffer.data.clone(),
-                };
+                });
             }
         }
 
+        // println!("bcache not hit: {} {}", dev, block_number);
         // Not cached; recycle an unused buffer.
-        for mutex in self.list.lock().iter().rev() {
-            let mut node = mutex.lock();
-            let mut buffer = &mut node.elem;
-            if buffer.reference_count == 0 && (buffer.flags & B_DIRTY) == 0 {
+        for mutex in self.list.lock().rev() {
+            let buffer = &mut **mutex.lock();
+            if buffer.reference_count == 0 {
                 buffer.dev = dev;
                 buffer.block_number = block_number;
-                buffer.flags = 0;
                 buffer.reference_count = 1;
-                return BufferGuard {
+                return (false, BufferGuard {
                     dev: buffer.dev,
                     block_number: buffer.block_number,
                     node: Some(mutex.clone()),
                     data: buffer.data.clone(),
-                };
+                });
             }
         }
-        panic!("Not reusable block in bcache");
+        println!("{:?}", self);
+        panic!("No free block in bcache");
     }
 
     // Return a unlocked buffer with the contents of the indicated block.
@@ -165,18 +161,14 @@ impl BufferCache {
     // This is okay because the buffer will become valid only if it is a reused buffer.
     // We can also merge `bread` with `bget` since `bget` is only a helper for `bread`
     pub fn read(&self, device: u32, block_number: u32) -> BufferGuard {
-        println!("bread dev#{} block#{}", device, block_number);
-        let buffer = self.get(device, block_number);
-        {
+        // println!("bread dev#{} block#{}", device, block_number);
+        let (valid, buffer) = self.get(device, block_number);
+        if !valid {
+            let sector = buffer.block_number() * (BSIZE / SECTOR_SIZE) as u32;
             let mut guard = buffer.lock();
-            if (guard.flags & B_VALID) == 0 {
-                // iderw will set the buffer to valid
-                // Note that this is different from xv6-risvc
-                let mut buf = RRef::<[u8; BSIZE]>::new(guard.data);
-                self.bdev.read(buffer.block_number(), &mut buf);
-                (*guard).data = *buf;
-            }
-            // println!("bread block#{}: {:X?}", block_number, &guard.data[..]);
+            let mut buf = RRef::<[u8; BSIZE]>::new(*guard);
+            self.bdev.read(sector, &mut buf);
+            *guard = *buf;
         }
         buffer
     }
@@ -186,19 +178,30 @@ impl BufferCache {
     // This is not very safe since the user could pass in a `block_number` that
     // doesn't match with the `buffer_data`.
     // TODO: address the issue above by refactoring the `BufferGuard`
-    pub fn write(&self, block_number: u32, buffer_data: &mut BufferData) {
-        self.bdev.write(block_number, &buffer_data.data);
+    pub fn write(&self, block_number: u32, buffer_data: &mut BufferBlock) {
+        let sector = block_number * (BSIZE / SECTOR_SIZE) as u32;
+        self.bdev.write(block_number, buffer_data);
     }
 
     // This is confusing since it doesn't match xv6's brelse exactly so there could be a bug.
     // Check xv6 for details
     // TODO(tianjiao): fix this
     pub fn release(&self, guard: &mut BufferGuard) {
-        println!("brlse dev{} block{}", guard.dev, guard.block_number);
+        // println!("brlse dev{} block{}", guard.dev, guard.block_number);
         let node = guard.node.take().expect("Buffer is not initialized or already released.");
         let mut list = self.list.lock();
-        node.lock().elem.reference_count -= 1;
+        // println!("refcnt {}", node.lock().reference_count);
+        node.lock().reference_count -= 1;
         list.move_front(node);
     }
 
+}
+
+
+impl core::fmt::Debug for BufferCache {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+        self.list.lock().iter()
+                        .map(|b| writeln!(fmt, "{:?}", **b.lock()))
+                        .fold(Ok(()), core::fmt::Result::and)
+    }
 }

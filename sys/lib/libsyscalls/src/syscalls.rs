@@ -2,6 +2,7 @@ extern crate alloc;
 use spin::Once;
 use alloc::boxed::Box;
 use syscalls::{Syscall, Thread, Interrupt, Mmap};
+use pc_keyboard::{DecodedKey};
 use platform::PciBarAddr;
 
 static SYSCALL: Once<Box<dyn Syscall + Send + Sync>> = Once::new();
@@ -98,4 +99,14 @@ pub fn sys_backtrace() {
 pub fn sys_dummy() {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
     scalls.sys_dummy()
+}
+
+pub fn sys_readch_kbd() -> Result<Option<DecodedKey>, &'static str> {
+    let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
+    scalls.sys_readch_kbd()
+}
+
+pub fn sys_make_condvar() -> syscalls::CondVarPtr {
+    let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
+    scalls.sys_make_condvar()
 }

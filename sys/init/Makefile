@@ -15,6 +15,10 @@ FEATURES =
 #FEATURES += --features "test_timer_thread" 
 #FEATURES += --features "test_threads" 
 
+ifeq ($(MEMBDEV),true)
+FEATURES += --features "membdev"
+endif
+
 .PHONY: all
 all: $(bin) checkstack
 

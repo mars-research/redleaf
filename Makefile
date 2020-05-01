@@ -39,21 +39,25 @@ domain_list := sys/init/build/init \
 	usr/xv6/kernel/core/build/xv6kernel \
 	usr/xv6/kernel/fs/build/xv6fs \
 	sys/driver/pci/build/pci \
-	sys/dev/ahci_driver/build/ahci_driver \
-	sys/driver/ixgbe/build/ixgbe \
-	usr/xv6/usr/shell/build/shell
+	sys/driver/ixgbe/build/ixgbe
+
+ifeq ($(MEMBDEV),false)
+domain_list += sys/dev/ahci_driver/build/ahci_drive
+else
+domain_list += sys/driver/membdev/build/membdev
+endif
 
 qemu_common := ${MEM} -vga std -s
 qemu_common += -cdrom $(iso)
 qemu_common += -no-reboot -no-shutdown -d int,cpu_reset
-qemu_common += -drive id=satadisk,file=$(xv6fs_img),if=none
+qemu_common += -drive id=satadisk,file=$(xv6fs_img),format=raw,if=none
 qemu_common += -device ahci,id=ahci
 qemu_common += -device ide-drive,drive=satadisk,bus=ahci.0
-qemu_common += -cpu Haswell-IBRS
 #qemu_common += -smp 4
 qemu_common += -monitor telnet:127.0.0.1:55555,server,nowait
-qemu_common += -cpu Icelake-Server-v2 -machine q35
+qemu_common += -cpu 'Haswell,pdpe1gb' -machine q35
 #qemu_common += -device vfio-pci,romfile=,host=06:00.1
+#qemu_common += -vnc :0
 
 
 QEMU := qemu-system-x86_64
@@ -132,6 +136,8 @@ qemu-nox-cloudlab: $(iso)
 qemu-efi-nox: $(iso) $(xv6fs_img) ovmf-code
 	$(QEMU) $(qemu_common) $(qemu_nox) -bios OVMF_CODE.fd
 
+# always build this target
+.PHONY: $(xv6fs_img)
 $(xv6fs_img):
 	make -C usr/mkfs 
 

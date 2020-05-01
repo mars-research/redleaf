@@ -9,9 +9,9 @@ ASFLAGS = -m32 -gdwarf-2 -Wa,-divide
 # FreeBSD ld wants ``elf_i386_fbsd''
 LDFLAGS += -m $(shell $(LD) -V | grep elf_i386 2>/dev/null | head -n 1)
 
-all: fs.img
+all: build/fs.img
 	
-mkfs: mkfs.c fs.h
+mkfs: mkfs.c fs.h param.h stat.h types.h
 	gcc -Werror -Wall -g -o mkfs mkfs.c
 
 # Prevent deletion of intermediate files, e.g. cat.o, after first build, so
@@ -22,17 +22,35 @@ mkfs: mkfs.c fs.h
 
 FILES=\
 	README\
-	big_file\
+	large\
 
-big_file: mk_large_file
-	./mk_large_file
+BINS=\
+	init\
+	sh\
+	ls\
+	wc\
+	benchfs\
 
-fs.img: mkfs $(FILES)
+build/fs.img: mkfs $(FILES) $(BINS)
 	mkdir -p build
-	./mkfs build/fs.img $(FILES)
+	./mkfs build/fs.img $(FILES) $(BINS)
 
+large:
+# 	# wget https://ocw.mit.edu/ans7870/6/6.006/s08/lecturenotes/files/t8.shakespeare.txt -O $@
+	fallocate -l 1M $@
+
+$(BINS): $(shell find ../xv6/usr/$@ -type f -name '*.rs')
+	make -C ../xv6/usr/$@	
+	cp ../xv6/usr/$@/build/$@ . -f
+
+.PHONY: clean
 clean: 
 	rm -f *.o *.d
 	rm -rf build
 	rm -f ./mkfs
-	rm -f ./big_file
+	rm -f ./init
+	rm -f ./sh
+	rm -f ./ls
+	rm -f ./wc
+	rm -f ./benchfs
+	rm -f ./large

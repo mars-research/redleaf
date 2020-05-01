@@ -5,6 +5,7 @@
     allocator_api,
     alloc_layout_extra,
     alloc_error_handler,
+    box_syntax,
     const_fn,
     const_raw_ptr_to_usize_cast,
     thread_local,
@@ -36,6 +37,8 @@ mod redsys;
 mod drivers;
 mod heap;
 mod buildinfo;
+mod kbd;
+mod cb;
 pub mod gdt;
 
 
@@ -55,6 +58,7 @@ mod pci;
 mod domain;
 mod dev;
 mod waitqueue;
+mod sync;
 
 use x86::cpuid::CpuId;
 use crate::arch::{init_buddy};
@@ -268,6 +272,12 @@ pub extern "C" fn rust_main_ap() -> ! {
 
     if cpu_id == 0 {
         domain::domain::init_domains();
+        use kbd::KBDCTRL;
+        use crate::drivers::Driver;
+        {
+            let registrar = unsafe { interrupt::get_irq_registrar(KBDCTRL.clone()) };
+            KBDCTRL.lock().set_irq_registrar(registrar);
+        }
 
     }
 

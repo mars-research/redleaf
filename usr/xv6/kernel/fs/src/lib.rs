@@ -1,11 +1,12 @@
 #![no_std]
-#![forbid(unsafe_code)]
+// #![forbid(unsafe_code)]
 #![feature(abi_x86_interrupt)]
 #![feature(
     asm,
     allocator_api,
     alloc_layout_extra,
     alloc_error_handler,
+    box_syntax,
     const_fn,
     const_raw_ptr_to_usize_cast,
     thread_local,
@@ -21,7 +22,6 @@ extern crate spin;
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
-extern crate num_derive;
 extern crate byteorder;
 extern crate syscalls;
 extern crate tls;
@@ -31,66 +31,110 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use console::println;
 use core::panic::PanicInfo;
-use syscalls::{Syscall, Heap};
+
 use libtime::get_rdtsc;
-use usr::bdev::BDev;
-use crate::bcache::{BCACHE, BufferCache};
 use rref;
+use sysfile::{FileMode, FileStat};
+use syscalls::{Syscall, Heap};
+use usr_interface::vfs::{UsrVFS, KernelVFS, VFS, VFSPtr, NFILE};
+use usr_interface::bdev::BDev;
 
 mod bcache;
 mod block;
-mod directory;
-mod file;
+mod console_device;
+mod cross_thread_temp_store;
+mod cwd;
 mod fs;
 mod icache;
 mod log;
+#[cfg(feature = "memfs")]
+mod memahci;
+mod opened_file;
 mod params;
+mod pipe;
 mod sysfile;
 
-struct VFS {}
+struct Rv6FS {}
 
-impl VFS {
-    fn new() -> VFS {
-        VFS{}
+impl Rv6FS {
+    fn new() -> Self {
+        Self{}
     }
 }
 
-impl usr::vfs::VFS for VFS {}
+impl VFS for Rv6FS {
+    fn clone(&self) -> VFSPtr {
+        box Self{}
+    }
+}
+
+impl KernelVFS for Rv6FS {
+    fn sys_save_threadlocal(&self, fds: [Option<usize>; NFILE]) -> Result<usize, &'static str> {
+        sysfile::sys_save_threadlocal(fds)
+    }
+    fn sys_set_threadlocal(&self, id: usize) -> Result<(), &'static str> {
+        sysfile::sys_set_threadlocal(id)
+    }
+    fn sys_thread_exit(&self) {
+        sysfile::sys_thread_exit()
+    }
+}
+
+impl UsrVFS for Rv6FS {
+    fn sys_open(&self, path: &str, mode: FileMode) -> Result<usize, &'static str> {
+        sysfile::sys_open(path, mode)
+    }
+    fn sys_close(&self, fd: usize) -> Result<(), &'static str> {
+        sysfile::sys_close(fd)
+    }
+    fn sys_read(&self, fd: usize, buffer: &mut[u8]) -> Result<usize, &'static str> {
+        sysfile::sys_read(fd, buffer)
+    }
+    fn sys_write(&self, fd: usize, buffer: &[u8]) -> Result<usize, &'static str> {
+        sysfile::sys_write(fd, buffer)
+    }
+    fn sys_fstat(&self, fd: usize) -> Result<FileStat, &'static str> {
+        sysfile::sys_fstat(fd)
+    }
+    fn sys_mknod(&self, path: &str, major: i16, minor: i16) -> Result<(), &'static str> {
+        sysfile::sys_mknod(path, major, minor)
+    }
+    fn sys_dup(&self, fd: usize) -> Result<usize, &'static str> {
+        sysfile::sys_dup(fd)
+    }
+    fn sys_pipe(&self) -> Result<(usize, usize), &'static str> {
+        sysfile::sys_pipe()
+    }
+    fn sys_dump_inode(&self) {
+        let inode = icache::ICACHE.lock().get(params::ROOTDEV, params::ROOTINO).unwrap();
+        inode.lock().print(&mut log::LOG.r#try().unwrap().begin_transaction(), 0);
+    }
+}
 
 
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>,
             heap: Box<dyn Heap + Send + Sync>,
-            bdev: Box<dyn BDev + Send + Sync>) -> Box<dyn usr::vfs::VFS> {
+            bdev: Box<dyn BDev + Send + Sync>) -> Box<dyn VFS> {
     libsyscalls::syscalls::init(s);
     rref::init(heap);
+    #[cfg(feature = "memfs")]
+    let bdev: Box<BDev + Send + Sync> = Box::new(memahci::MemAhci::new());
+    // libusr::sysbdev::init(bdev);
 
-    // let mut buffer = [0u8; params::BSIZE];
-    let mut buffer = rref::RRef::new([0u8; params::BSIZE]);
-    bdev.read(1, &mut buffer);
-    let sb = fs::SuperBlock::from_bytes(&*buffer);
-    println!("sb {:?}", sb);
     println!("init xv6 filesystem");
-    fs::fsinit(0, bdev);
+    fs::fsinit(params::ROOTDEV, bdev);
     println!("finish init xv6 filesystem");
-
-
-//    println!("beginning rref benchmark");
-//    rref_benchmark(1_000_000);
-//    println!("finished rref benchmark");
-
-   ls("/").unwrap();
-//    fs_benchmark(512, "/big_file");
-    Box::new(VFS::new()) 
+    Box::new(Rv6FS::new()) 
 }
 
 fn fs_benchmark(buf_size: usize, path: &str) {
     let start = get_rdtsc();
-    let fd = sysfile::sys_open(path, sysfile::FileMode::Read).unwrap();
+    let fd = sysfile::sys_open(path, FileMode::Read).unwrap();
     let mut buff = Vec::new();
     buff.resize(buf_size, 0 as u8);
     let mut bytes_read = 0;
-    while let Some(sz) = sysfile::sys_read(fd, buff.as_mut_slice()) {
+    while let Ok(sz) = sysfile::sys_read(fd, buff.as_mut_slice()) {
         bytes_read += sz;
         if sz < 512 {
             break;
@@ -99,43 +143,6 @@ fn fs_benchmark(buf_size: usize, path: &str) {
     sysfile::sys_close(fd);
     let end = get_rdtsc();
     println!("we read {} bytes at a time, in total {} bytes from {} using {} cycles", buf_size, bytes_read, path, end - start);
-}
-
-fn ls(path: &str) -> Result<(), String> {
-    let fd = sysfile::sys_open("/", sysfile::FileMode::Read)
-        .ok_or(alloc::format!("ls: cannot open {}", path))?;
-    let stat = sysfile::sys_fstat(fd)
-        .ok_or(alloc::format!("ls: cannot stat {}", path))?;
-
-    const DIRENT_SIZE: usize = core::mem::size_of::<directory::DirectoryEntryDisk>();
-    let mut buffer = [0 as u8; DIRENT_SIZE];
-    match &stat.file_type {
-        icache::INodeFileType::File => {
-            println!("ls path:{} type:{:?} inum:{} size:{}", path, stat.file_type, stat.inum, stat.size);
-        },
-        icache::INodeFileType::Directory => {
-            // Assuming DIRENT_SIZE > 0
-            while sysfile::sys_read(fd, &mut buffer[..]).unwrap_or(0) == DIRENT_SIZE {
-                let de = directory::DirectoryEntry::from_byte_array(&buffer[..]);
-                println!("ls de.inum: {:?} de.name {:X?}", de.inum, de.name);
-                if de.inum == 0 {
-                    continue;
-                }
-                // null-terminated string to String
-                let filename = utils::cstr::to_string(de.name)
-                                .map_err(|_| String::from("ls: cannot convert filename to utf8 string"))?;
-                let file_path = alloc::format!("{}/{}", path, filename);
-                let file_fd = sysfile::sys_open(&file_path, sysfile::FileMode::Read)
-                                .ok_or(alloc::format!("ls: cannot open {}", file_path))?;
-                let file_stat = sysfile::sys_fstat(file_fd)
-                                .ok_or(alloc::format!("ls: cannot stat {}", file_path))?;
-                println!("ls path:{} type:{:?} inum:{} size:{}", file_path, file_stat.file_type, file_stat.inum, file_stat.size);
-            }
-        }
-        _ => unimplemented!(),
-    }
-
-    Ok(())
 }
 
 // This function is called on panic.

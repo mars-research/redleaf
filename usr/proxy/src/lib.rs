@@ -17,9 +17,10 @@ pub fn init(
     s: Box<dyn syscalls::Syscall + Send + Sync>,
     create_pci: Arc<dyn create::CreatePCI>,
     create_ahci: Arc<dyn create::CreateAHCI>,
+    create_membdev: Arc<dyn create::CreateMemBDev>,
     create_ixgbe: Arc<dyn create::CreateIxgbe>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
-    create_xv6usr: Arc<dyn create::CreateXv6Usr>,
+    create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
     create_xv6: Arc<dyn create::CreateXv6>) -> Arc<dyn proxy::Proxy> {
 
     libsyscalls::syscalls::init(s);
@@ -27,6 +28,7 @@ pub fn init(
     Arc::new(gen::Proxy::new(
         create_pci,
         create_ahci,
+        create_membdev,
         create_ixgbe,
         create_xv6fs,
         create_xv6usr,

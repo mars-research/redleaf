@@ -11,6 +11,7 @@ use core::alloc::Layout;
 extern crate platform;
 use platform::PciBarAddr;
 use pci_driver::PciClass;
+use pc_keyboard::{DecodedKey};
 
 pub mod errors;
 
@@ -29,6 +30,9 @@ pub trait Syscall {
     fn sys_free_huge(&self, p: *mut u8);
     fn sys_backtrace(&self);
     fn sys_dummy(&self);
+    // call this one to read a character from keyboard
+    fn sys_readch_kbd(&self) -> Result<Option<DecodedKey>, &'static str>; 
+    fn sys_make_condvar(&self) -> CondVarPtr;
 }
 
 #[derive(Clone,Copy,Debug)]
@@ -39,7 +43,7 @@ pub enum ThreadState {
 }
 
 /// RedLeaf thread interface
-pub trait Thread {
+pub trait Thread : Send {
     fn get_id(&self) -> u64;
     fn set_affinity(&self, affinity: u64);
     fn set_priority(&self, prio: u64);
@@ -95,3 +99,11 @@ pub trait PciBar {
                       pci_driver: pci_driver::PciDrivers) ->  pci_driver::BarRegions;
 
 }
+
+pub trait CondVar {
+    // Atomically goes to sleep and release the guard
+    fn sleep<'a>(&self, guard: MutexGuard<'a, ()>);
+    // Wakes up one sleeping thread
+    fn wakeup(&self);
+}
+pub type CondVarPtr = Box<dyn CondVar + Send + Sync>;

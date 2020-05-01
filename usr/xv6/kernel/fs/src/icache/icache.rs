@@ -1,0 +1,215 @@
+use alloc::sync::Arc;
+use alloc::vec::Vec;
+use core::convert::TryInto;
+use core::mem;
+use core::ops::Drop;
+use core::sync::atomic::Ordering;
+use spin::{Mutex, MutexGuard};
+
+use crate::cwd::CWD;
+use crate::bcache::{BCACHE};
+use crate::fs::{SUPER_BLOCK, block_num_for_node};
+use crate::log::Transaction;
+use crate::params;
+use crate::sysfile::FileStat;
+use super::inode::{INode, DINode, INodeFileType};
+
+pub struct ICache {
+    pub inodes: [Arc<INode>; params::NINODE],
+}
+
+impl ICache {
+    pub fn new() -> ICache {
+        ICache {
+            inodes: array_init::array_init(|_| core::default::Default::default()),
+        }
+    }
+
+    // Allocate a node on device.
+    // Looks for a free inode on disk, marks it as used
+    pub fn alloc(&mut self, trans: &mut Transaction, device: u32, file_type: INodeFileType) -> Option<Arc<INode>> {
+        let super_block = SUPER_BLOCK.r#try().expect("fs not initialized");
+        for inum in 1..super_block.ninodes as u16 {
+            let mut bguard = BCACHE.force_get().read(device, block_num_for_node(inum, super_block));
+            let mut buffer = bguard.lock();
+
+            // Okay, there're a lot of copying happening here but we don't have time to make it nice.
+            const DINODE_SIZE: usize = mem::size_of::<DINode>();
+            let dinode_offset = (inum as usize % params::IPB) * DINODE_SIZE;
+            let mut dinode_slice = &mut buffer[dinode_offset..dinode_offset + DINODE_SIZE];
+            let mut dinode = DINode::from_bytes(dinode_slice);
+
+            if dinode.file_type == INodeFileType::Unitialized {
+                // free inode
+                // memset to 0
+                dinode = DINode::new();
+                // setting file_type marks it as used
+                dinode.file_type = file_type;
+                dinode.to_bytes(dinode_slice);
+                trans.write(&bguard);
+
+                drop(buffer);
+                BCACHE.force_get().release(&mut bguard);
+                return self.get(device, inum);
+            }
+            drop(buffer);
+            BCACHE.force_get().release(&mut bguard);
+        }
+        None
+    }
+
+    // Get in-memory inode matching device and inum. Does not read from disk.
+    pub fn get(&mut self, device: u32, inum: u16) -> Option<Arc<INode>> {
+        let mut empty: Option<&mut Arc<INode>> = None;
+        for inode in self.inodes.iter_mut() {
+            if Arc::strong_count(inode) == 1
+                && inode.meta.device == device
+                && inode.meta.inum == inum
+            {
+                return Some(inode.clone());
+            }
+            if empty.is_none() && Arc::strong_count(inode) == 1 {
+                empty = Some(inode);
+            }
+        }
+
+        match empty {
+            None => None,
+            Some(node) => {
+                // we just checked that strong_count == 1, and self is locked, so this should never fail
+                let node_mut = Arc::get_mut(node).unwrap();
+                node_mut.meta.device = device;
+                node_mut.meta.inum = inum;
+                node_mut.meta.valid.store(false, Ordering::Relaxed);
+                Some(node.clone())
+            }
+        }
+    }
+
+    // Corresponds to iput
+    pub fn put(trans: &mut Transaction, inode: Arc<INode>) {
+        // TODO: race condition?
+        if Arc::strong_count(&inode) == 2 && inode.meta.valid.load(Ordering::Relaxed) {
+            // if this is the only reference (other than ICache), and it has no links,
+            // then truncate and free
+
+            // we already know inode is valid, so this is a cheap operation
+            // TODO: ...right?
+            let mut inode_guard = inode.lock();
+
+            if inode_guard.data.nlink == 0 {
+                inode_guard.truncate(trans);
+                inode_guard.data.file_type = INodeFileType::Unitialized;
+                inode_guard.update(trans);
+                inode.meta.valid.store(false, Ordering::Relaxed);
+            }
+        }
+        // make sure this reference is not used afterwards
+        drop(inode);
+    }
+
+    // Look up and return the inode for a path.
+    // If parent is true, return the inode for the parent and the final path element.
+    // Must be called inside a transaction since it calls iput().
+    fn namex<'a, 'b>(trans: &'a mut Transaction, path: &'b str, parent: bool) -> Option<(Arc<INode>, &'b str)> {
+        let mut inode = if path.starts_with('/') {
+            ICACHE.lock().get(params::ROOTDEV, params::ROOTINO)?
+        } else {
+            CWD.with(|cwd| {
+                cwd.clone()
+            })
+        };
+
+        let components: Vec<&str> = path.split('/').filter(|n| !n.is_empty()).collect();
+
+        let mut components_iter = components.iter().peekable();
+        while let Some(component) = components_iter.next() {
+            let mut iguard = inode.lock();
+
+            // only the last path component can be a file
+            if iguard.data.file_type != INodeFileType::Directory {
+                drop(iguard);
+                Self::put(trans, inode);
+                return None;
+            }
+
+            // return the parent of the last path component
+            if parent && components_iter.peek().is_none() {
+                drop(iguard);
+                return Some((inode, component));
+            }
+
+            let next = iguard.dirlookup(trans, component);
+            drop(iguard);
+            Self::put(trans, inode);
+
+            match next {
+                Some(next) => inode = next,
+                None => return None,
+            }
+        }
+
+        if parent {
+            Self::put(trans, inode);
+            return None;
+        }
+
+        // if we have a last component, return it along with the last inode
+        Some((inode, components.last().unwrap_or(&"")))
+    }
+
+    pub fn namei(trans: &mut Transaction, path: &str) -> Option<Arc<INode>> {
+        Self::namex(trans, path, false).map(|(inode, _)| inode)
+    }
+
+    pub fn nameiparent<'a, 'b>(trans: &'a mut Transaction, path: &'b str) -> Option<(Arc<INode>, &'b str)> {
+        Self::namex(trans, path, true)
+    }
+
+    pub fn create(trans: &mut Transaction, path: &str, file_type: INodeFileType, major: i16, minor: i16) -> Option<Arc<INode>> {
+        let (dirnode, name) = ICache::nameiparent(trans, path)?;
+        // found parent directory
+        let mut dirguard = dirnode.lock();
+
+        if let Some(inode) = dirguard.dirlookup(trans, name) {
+            // full path already exists
+            drop(&mut dirguard);
+
+            let iguard = inode.lock();
+            if file_type == INodeFileType::File && iguard.data.file_type == INodeFileType::File {
+                return Some(inode.clone());
+            }
+            return None
+        }
+
+        // create child
+        let inode = ICACHE.lock().alloc(trans, dirnode.meta.device, file_type).expect("ICache alloc failed");
+
+        let mut iguard = inode.lock();
+        iguard.data.major = major;
+        iguard.data.minor = minor;
+        iguard.data.nlink = 1;
+        iguard.update(trans);
+
+        if file_type == INodeFileType::Directory {
+            // create . and ..
+            dirguard.data.nlink += 1; // ..
+            dirguard.update(trans);
+
+            if iguard.dirlink(trans, ".", inode.meta.inum).is_err() ||
+                iguard.dirlink(trans, "..", dirnode.meta.inum).is_err() {
+                // failed to add dot entries
+                return None;
+            }
+        }
+
+        dirguard.dirlink(trans, name, inode.meta.inum);
+        drop(&mut dirguard);
+
+        Some(inode.clone())
+    }
+}
+
+lazy_static! {
+    pub static ref ICACHE: Mutex<ICache> = { Mutex::new(ICache::new()) };
+}

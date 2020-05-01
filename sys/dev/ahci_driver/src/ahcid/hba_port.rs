@@ -287,7 +287,7 @@ impl HbaPort {
     }
 
     pub fn ata_dma(&mut self, block: u64, sectors: u16, write: bool, clb: &mut Dma<[HbaCmdHeader; 32]>, ctbas: &mut [Dma<HbaCmdTable>; 32], buf: &[u8]) -> Option<u32> {
-        println!("AHCI {} DMA BLOCK: {:X} SECTORS: {} WRITE: {}", self.port, block, sectors, write);
+        // println!("AHCI {} DMA BLOCK: {:X} SECTORS: {} WRITE: {}", self.port, block, sectors, write);
         if sectors > 0xFFFF {
             println!("Cannot R/W to more than {} sectors at a time", 0xFFFF);
             return None;
@@ -308,7 +308,7 @@ impl HbaPort {
             }
             
             cmdheader.prdtl.write(num_chuncks);
-            println!("The buffer is splitted into {} chuncks", num_chuncks);
+            // println!("The buffer is splitted into {} chuncks", num_chuncks);
 
             cmdfis.pm.write(1 << 7);
             if write {

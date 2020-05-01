@@ -2,7 +2,7 @@ use alloc::boxed::Box;
 use byteorder::{ByteOrder, LittleEndian};
 use spin::Once;
 
-use usr::bdev::BDev;
+use usr_interface::bdev::BDev;
 
 use crate::params;
 use crate::log::{Log, LOG};
@@ -45,7 +45,7 @@ impl SuperBlock {
 // TODO: load super block from disk
 fn read_superblock(dev: u32) -> SuperBlock {
     let mut buffer = BCACHE.force_get().read(dev, 1);
-    let superblock = SuperBlock::from_bytes(&buffer.lock().data);
+    let superblock = SuperBlock::from_bytes(&*buffer.lock());
     BCACHE.force_get().release(&mut buffer);
     console::println!("Superblock read from disk: {:?}", superblock);
     superblock

@@ -203,6 +203,14 @@ pub struct Context {
   rflags: usize,
 }
 
+// Without unsafe impl Send, the compiler will compain
+//   > "`*mut u64` cannot be sent between threads safely"
+// This is safe for us because all threads/processes are 
+// in the same address space and the pointer doesn't point to
+// tls variables.
+// https://internals.rust-lang.org/t/shouldnt-pointers-be-send-sync-or/8818
+unsafe impl core::marker::Send for Thread {}
+
 pub struct Thread {
     pub id: u64,
     pub current_domain_id: u64,
@@ -546,7 +554,7 @@ extern "C" fn die(/*func: extern fn()*/) {
     disable_irq();
     
     loop {
-        println!("waiting to be cleaned up"); 
+        // println!("waiting to be cleaned up"); 
         do_yield();
     };
 }
@@ -846,16 +854,17 @@ impl syscalls::Thread for PThread {
         enable_irq(); 
     }
 
+    // Drop the guard and goes to sleep atomically
     fn sleep(&self, guard: MutexGuard<()>) {
         disable_irq();
 
         {
             let mut thread = self.thread.lock();
             thread.state = ThreadState::Waiting;
+            drop(guard);
             drop(thread);
         }
 
-        drop(guard);
         do_yield();
 
         enable_irq();
