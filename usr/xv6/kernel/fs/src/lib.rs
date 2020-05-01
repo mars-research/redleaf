@@ -47,8 +47,6 @@ mod cwd;
 mod fs;
 mod icache;
 mod log;
-#[cfg(feature = "memfs")]
-mod memahci;
 mod opened_file;
 mod params;
 mod pipe;
@@ -118,8 +116,6 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
             bdev: Box<dyn BDev + Send + Sync>) -> Box<dyn VFS> {
     libsyscalls::syscalls::init(s);
     rref::init(heap);
-    #[cfg(feature = "memfs")]
-    let bdev: Box<BDev + Send + Sync> = Box::new(memahci::MemAhci::new());
     // libusr::sysbdev::init(bdev);
 
     println!("init xv6 filesystem");
