@@ -12,6 +12,7 @@ use usr::{bdev::BDev, vfs::VFS, xv6::Xv6};
 pub struct Proxy {
     create_pci: Arc<dyn create::CreatePCI>,
     create_ahci: Arc<dyn create::CreateAHCI>,
+    create_membdev: Arc<dyn create::CreateMemBDev>,
     create_ixgbe: Arc<dyn create::CreateIxgbe>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
     create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
@@ -25,6 +26,7 @@ impl Proxy {
     pub fn new(
         create_pci: Arc<dyn create::CreatePCI>,
         create_ahci: Arc<dyn create::CreateAHCI>,
+        create_membdev: Arc<dyn create::CreateMemBDev>,
         create_ixgbe: Arc<dyn create::CreateIxgbe>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
         create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
@@ -33,6 +35,7 @@ impl Proxy {
         Proxy {
             create_pci,
             create_ahci,
+            create_membdev,
             create_ixgbe,
             create_xv6fs,
             create_xv6usr,
@@ -49,13 +52,16 @@ impl proxy::Proxy for Proxy {
     fn as_create_ahci(&self) -> Arc<dyn create::CreateAHCI> {
         Arc::new(self.clone())
     }
+    fn as_create_membdev(&self) -> Arc<dyn create::CreateMemBDev> {
+        Arc::new(self.clone())
+    }
     fn as_create_ixgbe(&self) -> Arc<dyn create::CreateIxgbe> {
         Arc::new(self.clone())
     }
     fn as_create_xv6fs(&self) -> Arc<dyn create::CreateXv6FS> {
         Arc::new(self.clone())
     }
-    fn as_create_xv6usr(&self) -> Arc<dyn create::CreateXv6Usr> {
+    fn as_create_xv6usr(&self) -> Arc<dyn create::CreateXv6Usr + Send + Sync> {
         Arc::new(self.clone())
     }
     fn as_create_xv6(&self) -> Arc<dyn create::CreateXv6> {
@@ -77,6 +83,15 @@ impl create::CreateAHCI for Proxy {
         return (domain, Box::new(BDevProxy::new(domain_id, ahci)));
     }
 }
+
+impl create::CreateMemBDev for Proxy {
+    fn create_domain_membdev(&self) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>) {
+        let (domain, membdev) = self.create_membdev.create_domain_membdev();
+        let domain_id = domain.get_domain_id();
+        return (domain, Box::new(BDevProxy::new(domain_id, membdev)));
+    }
+}
+
 
 impl create::CreateIxgbe for Proxy {
     fn create_domain_ixgbe(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net>) {

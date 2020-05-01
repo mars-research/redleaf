@@ -119,7 +119,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
     libsyscalls::syscalls::init(s);
     rref::init(heap);
     #[cfg(feature = "memfs")]
-    let bdev: BDevPtr = Box::new(memahci::MemAhci::new());
+    let bdev: Box<BDev + Send + Sync> = Box::new(memahci::MemAhci::new());
     // libusr::sysbdev::init(bdev);
 
     println!("init xv6 filesystem");

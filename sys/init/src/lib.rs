@@ -103,7 +103,8 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
             create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
             create_pci: Arc<dyn create::CreatePCI>,
             create_ixgbe: Arc<dyn create::CreateIxgbe>,
-            create_ahci: Arc<dyn create::CreateAHCI>)
+            create_ahci: Arc<dyn create::CreateAHCI>,
+            create_membdev: Arc<dyn create::CreateMemBDev>,)
 {
     libsyscalls::syscalls::init(s);
 
@@ -171,6 +172,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
     let (dom_proxy, proxy) = create_proxy.create_domain_proxy(
         create_pci,
         create_ahci,
+        create_membdev,
         create_ixgbe,
         create_xv6fs,
         create_xv6usr,
@@ -184,13 +186,15 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
 
     let pci2 = pci.pci_clone();
 
-    #[cfg(feature =  "ahci")]
+    #[cfg(not(feature = "membdev"))]
     let (dom_ahci, bdev) = proxy.as_create_ahci().create_domain_ahci(pci);
+
+    #[cfg(feature = "membdev")]
+    let (dom_ahci, bdev) = proxy.as_create_membdev().create_domain_membdev();
 
     println!("Creating ixgbe");
     let (dom_ixgbe, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci2);
 
-    #[cfg(feature =  "ahci")]
     let dom_xv6 = proxy.as_create_xv6().create_domain_xv6kernel(ints_clone, proxy.as_create_xv6fs(), proxy.as_create_xv6usr(), bdev);
 }
 

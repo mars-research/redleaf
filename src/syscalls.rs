@@ -230,6 +230,15 @@ impl create::CreateAHCI for PDomain {
     }
 }
 
+impl create::CreateMemBDev for PDomain {
+    fn create_domain_membdev(&self) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev + Send + Sync>) {
+        disable_irq();
+        let r = crate::domain::create_domain::create_domain_membdev();
+        enable_irq();
+        r
+    }
+}
+
 impl create::CreateIxgbe for PDomain {
     fn create_domain_ixgbe(&self, pci: Box<dyn syscalls::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn syscalls::Net>) {
         disable_irq();
@@ -278,6 +287,7 @@ impl proxy::CreateProxy for PDomain {
         &self,
         create_pci: Arc<dyn create::CreatePCI>,
         create_ahci: Arc<dyn create::CreateAHCI>,
+        create_membdev: Arc<dyn create::CreateMemBDev>,
         create_ixgbe: Arc<dyn create::CreateIxgbe>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
         create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
@@ -286,6 +296,7 @@ impl proxy::CreateProxy for PDomain {
         let r = crate::domain::create_domain::create_domain_proxy(
             create_pci,
             create_ahci,
+            create_membdev,
             create_ixgbe,
             create_xv6fs,
             create_xv6usr,

@@ -14,6 +14,10 @@ pub trait CreateAHCI {
     fn create_domain_ahci(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>);
 }
 
+pub trait CreateMemBDev {
+    fn create_domain_membdev(&self) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>);
+}
+
 pub trait CreateIxgbe {
     fn create_domain_ixgbe(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net>);
 }
