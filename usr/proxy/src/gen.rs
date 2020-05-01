@@ -6,7 +6,8 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain_id};
 use syscalls::{Heap, Domain, PCI, PciBar, PciResource, Net, Interrupt};
-use usr::{bdev::BDev, vfs::VFS, xv6::Xv6, dom_a::DomA};
+use usr::{vfs::VFS, xv6::Xv6, dom_a::DomA};
+use usr::bdev::{BDev, BSIZE};
 
 #[derive(Clone)]
 pub struct Proxy {
@@ -166,8 +167,8 @@ impl BDevProxy {
     }
 }
 
-impl usr::bdev::BDev for BDevProxy {
-    fn read(&self, block: u32, data: &mut RRef<[u8; usr::bdev::BSIZE]>) {
+impl BDev for BDevProxy {
+    fn read(&self, block: u32, data: RRef<[u8; BSIZE]>) -> RRef<[u8; BSIZE]> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
@@ -181,7 +182,7 @@ impl usr::bdev::BDev for BDevProxy {
         r
     }
 
-    fn write(&self, block: u32, data: &[u8; usr::bdev::BSIZE]) {
+    fn write(&self, block: u32, data: RRef<[u8; BSIZE]>) -> RRef<[u8; BSIZE]> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
