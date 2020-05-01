@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain_id};
 use syscalls::{Heap, Domain, PCI, PciBar, PciResource, Net, Interrupt};
-use usr::{bdev::BDev, vfs::VFS, xv6::Xv6};
+use usr::{bdev::BDev, vfs::VFS, xv6::Xv6, dom_a::DomA};
 
 #[derive(Clone)]
 pub struct Proxy {
@@ -17,6 +17,8 @@ pub struct Proxy {
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
     create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
     create_xv6: Arc<dyn create::CreateXv6>,
+    create_dom_a: Arc<dyn create::CreateDomA>,
+    create_dom_b: Arc<dyn create::CreateDomB>,
 }
 
 unsafe impl Send for Proxy {}
@@ -30,7 +32,9 @@ impl Proxy {
         create_ixgbe: Arc<dyn create::CreateIxgbe>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
         create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
-        create_xv6: Arc<dyn create::CreateXv6>
+        create_xv6: Arc<dyn create::CreateXv6>,
+        create_dom_a: Arc<dyn create::CreateDomA>,
+        create_dom_b: Arc<dyn create::CreateDomB>,
     ) -> Proxy {
         Proxy {
             create_pci,
@@ -40,6 +44,8 @@ impl Proxy {
             create_xv6fs,
             create_xv6usr,
             create_xv6,
+            create_dom_a,
+            create_dom_b,
         }
     }
 }
@@ -65,6 +71,12 @@ impl proxy::Proxy for Proxy {
         Arc::new(self.clone())
     }
     fn as_create_xv6(&self) -> Arc<dyn create::CreateXv6> {
+        Arc::new(self.clone())
+    }
+    fn as_create_dom_a(&self) -> Arc<dyn create::CreateDomA> {
+        Arc::new(self.clone())
+    }
+    fn as_create_dom_b(&self) -> Arc<dyn create::CreateDomB> {
         Arc::new(self.clone())
     }
 }
@@ -122,6 +134,18 @@ impl create::CreateXv6 for Proxy {
                                bdev: Box<dyn BDev + Send + Sync>) -> Box<dyn Domain> {
         // TODO: write Xv6KernelProxy
         self.create_xv6.create_domain_xv6kernel(ints, create_xv6fs, create_xv6usr, bdev)
+    }
+}
+
+impl create::CreateDomA for Proxy {
+    fn create_domain_dom_a(&self) ->(Box<dyn Domain>, Box<dyn DomA>) {
+        self.create_dom_a.create_domain_dom_a()
+    }
+}
+
+impl create::CreateDomB for Proxy {
+    fn create_domain_dom_b(&self, dom_a: Box<dyn DomA>) ->(Box<dyn Domain>) {
+        self.create_dom_b.create_domain_dom_b(dom_a)
     }
 }
 

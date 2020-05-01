@@ -21,7 +21,10 @@ pub fn init(
     create_ixgbe: Arc<dyn create::CreateIxgbe>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
     create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
-    create_xv6: Arc<dyn create::CreateXv6>) -> Arc<dyn proxy::Proxy> {
+    create_xv6: Arc<dyn create::CreateXv6>,
+    create_dom_a: Arc<dyn create::CreateDomA>,
+    create_dom_b: Arc<dyn create::CreateDomB>
+) -> Arc<dyn proxy::Proxy> {
 
     libsyscalls::syscalls::init(s);
 
@@ -32,7 +35,9 @@ pub fn init(
         create_ixgbe,
         create_xv6fs,
         create_xv6usr,
-        create_xv6
+        create_xv6,
+        create_dom_a,
+        create_dom_b,
     ))
 }
 

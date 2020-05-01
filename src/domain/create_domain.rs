@@ -1,7 +1,7 @@
 use elfloader::ElfBinary;
 use super::Domain;
 use syscalls::{Syscall, Heap, PCI, PciResource, Net, PciBar};
-use usr::{bdev::BDev, vfs::VFS};
+use usr::{bdev::BDev, vfs::VFS, dom_a::DomA};
 use crate::syscalls::{PDomain, Interrupt, Mmap};
 use core::mem::transmute;
 use crate::interrupt::{disable_irq, enable_irq};
@@ -134,14 +134,44 @@ pub fn create_domain_xv6usr(name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8]
     Ok(build_domain_xv6usr(name, xv6, blob, args))
 }
 
+pub fn create_domain_dom_a() -> (Box<dyn syscalls::Domain>, Box<dyn DomA>) {
+    extern "C" {
+        fn _binary_usr_test_dom_a_build_dom_a_start();
+        fn _binary_usr_test_dom_a_build_dom_a_end();
+    }
+
+    let binary_range = (
+        _binary_usr_test_dom_a_build_dom_a_start as *const u8,
+        _binary_usr_test_dom_a_build_dom_a_end as *const u8
+    );
+
+    build_domain_dom_a("dom_a", binary_range)
+}
+
+pub fn create_domain_dom_b(dom_a: Box<dyn DomA>) -> Box<dyn syscalls::Domain> {
+    extern "C" {
+        fn _binary_usr_test_dom_b_build_dom_b_start();
+        fn _binary_usr_test_dom_b_build_dom_b_end();
+    }
+
+    let binary_range = (
+        _binary_usr_test_dom_b_build_dom_b_start as *const u8,
+        _binary_usr_test_dom_b_build_dom_b_end as *const u8
+    );
+
+    build_domain_dom_b("dom_b", binary_range, dom_a)
+}
+
 pub fn create_domain_proxy(
     create_pci: Arc<dyn create::CreatePCI>,
     create_ahci: Arc<dyn create::CreateAHCI>,
     create_membdev: Arc<dyn create::CreateMemBDev>,
     create_ixgbe: Arc<dyn create::CreateIxgbe>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
-    create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
-    create_xv6: Arc<dyn create::CreateXv6>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
+    create_xv6usr: Arc<dyn create::CreateXv6Usr>,
+    create_xv6: Arc<dyn create::CreateXv6>,
+    create_dom_a: Arc<dyn create::CreateDomA>,
+    create_dom_b: Arc<dyn create::CreateDomB>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
     extern "C" {
         fn _binary_usr_proxy_build_dom_proxy_start();
         fn _binary_usr_proxy_build_dom_proxy_end();
@@ -161,7 +191,9 @@ pub fn create_domain_proxy(
         create_ixgbe,
         create_xv6fs,
         create_xv6usr,
-        create_xv6)
+        create_xv6,
+        create_dom_a,
+        create_dom_b)
 }
 
 // AB: XXX: The following is is not supported in Rust at the moment
@@ -187,7 +219,9 @@ pub fn build_domain_init(name: &str,
                          Arc<dyn create::CreatePCI>,
                          Arc<dyn create::CreateIxgbe>,
                          Arc<dyn create::CreateAHCI>,
-                         Arc<dyn create::CreateMemBDev>);
+                         Arc<dyn create::CreateMemBDev>,
+                         Arc<dyn create::CreateDomA>,
+                         Arc<dyn create::CreateDomB>);
 
     let (dom, entry) = unsafe { 
         load_domain(name, binary_range)
@@ -202,6 +236,8 @@ pub fn build_domain_init(name: &str,
     user_ep(Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(Interrupt::new()),
             Box::new(PDomain::new(Arc::clone(&dom))),
+            Arc::new(PDomain::new(Arc::clone(&dom))),
+            Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
@@ -356,8 +392,10 @@ pub fn build_domain_proxy(
     create_membdev: Arc<dyn create::CreateMemBDev>,
     create_ixgbe: Arc<dyn create::CreateIxgbe>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
-    create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
-    create_xv6: Arc<dyn create::CreateXv6>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
+    create_xv6usr: Arc<dyn create::CreateXv6Usr>,
+    create_xv6: Arc<dyn create::CreateXv6>,
+    create_dom_a: Arc<dyn create::CreateDomA>,
+    create_dom_b: Arc<dyn create::CreateDomB>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
     type UserInit = fn(
         Box<dyn Syscall>,
         create_pci: Arc<dyn create::CreatePCI>,
@@ -365,8 +403,10 @@ pub fn build_domain_proxy(
         create_membdev: Arc<dyn create::CreateMemBDev>,
         create_ixgbe: Arc<dyn create::CreateIxgbe>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
-        create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
-        create_xv6: Arc<dyn create::CreateXv6>) -> Arc<dyn proxy::Proxy>;
+        create_xv6usr: Arc<dyn create::CreateXv6Usr>,
+        create_xv6: Arc<dyn create::CreateXv6>,
+        create_dom_a: Arc<dyn create::CreateDomA>,
+        create_dom_b: Arc<dyn create::CreateDomB>) -> Arc<dyn proxy::Proxy>;
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)
@@ -388,7 +428,9 @@ pub fn build_domain_proxy(
         create_ixgbe,
         create_xv6fs,
         create_xv6usr,
-        create_xv6);
+        create_xv6,
+        create_dom_a,
+        create_dom_b);
     disable_irq();
 
     println!("domain/{}: returned from entry point", name);
@@ -455,6 +497,56 @@ pub fn build_domain_xv6usr(name: &str,
     disable_irq(); 
 
     println!("domain/{}: returned from entry point with return code", name);
+    Box::new(PDomain::new(Arc::clone(&dom)))
+}
+
+pub fn build_domain_dom_a(name: &str,
+                           binary_range: (*const u8, *const u8)) -> (Box<dyn syscalls::Domain>, Box<dyn DomA>)
+{
+    type UserInit = fn(Box<dyn Syscall>, Box<dyn Heap>) -> Box<dyn DomA>;
+
+    let (dom, entry) = unsafe {
+        load_domain(name, binary_range)
+    };
+
+    let user_ep: UserInit = unsafe {
+        transmute::<*const(), UserInit>(entry)
+    };
+
+    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pheap = Box::new(PHeap::new());
+
+    // Enable interrupts on exit to user so it can be preempted
+    enable_irq();
+    let dom_a = user_ep(pdom, pheap);
+    disable_irq();
+
+    println!("domain/{}: returned from entry point", name);
+    (Box::new(PDomain::new(Arc::clone(&dom))), dom_a)
+}
+
+pub fn build_domain_dom_b(name: &str,
+                          binary_range: (*const u8, *const u8),
+                          dom_a: Box<dyn DomA>) -> Box<dyn syscalls::Domain> {
+    type UserInit = fn(Box<dyn Syscall>, Box<dyn Heap>, Box<dyn DomA>);
+
+    let (dom, entry) = unsafe {
+        load_domain(name, binary_range)
+    };
+
+    let user_ep: UserInit = unsafe {
+        transmute::<*const(), UserInit>(entry)
+    };
+
+    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pheap = Box::new(PHeap::new());
+
+    // Enable interrupts on exit to user so it can be preempted
+    enable_irq();
+    user_ep(pdom, pheap, dom_a);
+    disable_irq();
+
+    println!("domain/{}: returned from entry point", name);
     Box::new(PDomain::new(Arc::clone(&dom)))
 }
 

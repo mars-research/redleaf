@@ -271,12 +271,30 @@ impl create::CreateXv6FS for PDomain {
         enable_irq();
         r
     }
-}   
+}
 
 impl create::CreateXv6Usr for PDomain {
     fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn syscalls::Domain>, &'static str> {
         disable_irq();
         let r = crate::domain::create_domain::create_domain_xv6usr(name, xv6, blob, args);
+        enable_irq();
+        r
+    }
+}
+
+impl create::CreateDomA for PDomain {
+    fn create_domain_dom_a(&self) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_a::DomA>) {
+        disable_irq();
+        let r = crate::domain::create_domain::create_domain_dom_a();
+        enable_irq();
+        r
+    }
+}
+
+impl create::CreateDomB for PDomain {
+    fn create_domain_dom_b(&self, dom_a: Box<dyn usr::dom_a::DomA>) -> Box<dyn syscalls::Domain> {
+        disable_irq();
+        let r = crate::domain::create_domain::create_domain_dom_b(dom_a);
         enable_irq();
         r
     }
@@ -290,8 +308,10 @@ impl proxy::CreateProxy for PDomain {
         create_membdev: Arc<dyn create::CreateMemBDev>,
         create_ixgbe: Arc<dyn create::CreateIxgbe>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
-        create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
-        create_xv6: Arc<dyn create::CreateXv6>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
+        create_xv6usr: Arc<dyn create::CreateXv6Usr>,
+        create_xv6: Arc<dyn create::CreateXv6>,
+        create_dom_a: Arc<dyn create::CreateDomA>,
+        create_dom_b: Arc<dyn create::CreateDomB>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
         disable_irq();
         let r = crate::domain::create_domain::create_domain_proxy(
             create_pci,
@@ -300,7 +320,9 @@ impl proxy::CreateProxy for PDomain {
             create_ixgbe,
             create_xv6fs,
             create_xv6usr,
-            create_xv6);
+            create_xv6,
+            create_dom_a,
+            create_dom_b);
         enable_irq();
         r
     }
