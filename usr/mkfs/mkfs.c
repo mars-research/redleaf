@@ -255,7 +255,8 @@ balloc(int used)
     wsect(sb.bmapstart+block_offset, buf);
     used -= BPB;
   }
-  fprintf(stderr, "cannot allocate more blocks\n");
+  if (used <= 0) return;
+  fprintf(stderr, "cannot allocate %d more blocks.\n", used);
   exit(2);
 }
 
