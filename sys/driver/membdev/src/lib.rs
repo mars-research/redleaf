@@ -11,6 +11,7 @@
     maybe_uninit_extra
 )]
 
+mod mem;
 mod membdev;
 
 use alloc::boxed::Box;
