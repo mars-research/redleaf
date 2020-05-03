@@ -47,6 +47,7 @@ mod cwd;
 mod fs;
 mod icache;
 mod log;
+mod mem;
 mod opened_file;
 mod params;
 mod pipe;
