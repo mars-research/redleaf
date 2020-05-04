@@ -9,12 +9,9 @@ use alloc::boxed::Box;
 use spin::Mutex;
 use alloc::sync::Arc; 
 use crate::domain::domain::{Domain}; 
-use syscalls::{PciResource, PciBar};
 use crate::round_up;
 use crate::thread;
 use platform::PciBarAddr;
-use usr;
-use proxy;
 use crate::kbd::{KBDCTRL};
 use pc_keyboard::{DecodedKey};
 
@@ -209,125 +206,6 @@ impl syscalls::Syscall for PDomain {
         rtn
     } 
 }
-
-impl create::CreatePCI for PDomain {
-    fn create_domain_pci(&self)
-                    -> (Box<dyn syscalls::Domain>, Box<dyn syscalls::PCI>) {
-        disable_irq();
-        let r = crate::domain::create_domain::create_domain_pci();
-        enable_irq();
-        r
-    }
-}
-
-impl create::CreateAHCI for PDomain {
-    fn create_domain_ahci(&self,
-                          pci: Box<dyn syscalls::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev + Send + Sync>) {
-        disable_irq();
-        let r = crate::domain::create_domain::create_domain_ahci(pci);
-        enable_irq();
-        r
-    }
-}
-
-impl create::CreateMemBDev for PDomain {
-    fn create_domain_membdev(&self) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev + Send + Sync>) {
-        disable_irq();
-        let r = crate::domain::create_domain::create_domain_membdev();
-        enable_irq();
-        r
-    }
-}
-
-impl create::CreateIxgbe for PDomain {
-    fn create_domain_ixgbe(&self, pci: Box<dyn syscalls::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn syscalls::Net>) {
-        disable_irq();
-        let r = crate::domain::create_domain::create_domain_ixgbe(pci);
-        enable_irq();
-        r
-    }
-}
-
-impl create::CreateXv6 for PDomain {
-    fn create_domain_xv6kernel(&self,
-                                ints: Box<dyn syscalls::Interrupt>,
-                                create_xv6fs: Arc<dyn create::CreateXv6FS>,
-                                create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
-                                bdev: Box<dyn usr::bdev::BDev + Send + Sync>) -> Box<dyn syscalls::Domain> {
-        disable_irq();
-        let r = crate::domain::create_domain::create_domain_xv6kernel(ints, 
-                        create_xv6fs,
-                        create_xv6usr,
-                        bdev);
-        enable_irq();
-        r
-    }
-}   
-
-impl create::CreateXv6FS for PDomain {
-    fn create_domain_xv6fs(&self, bdev: Box<dyn usr::bdev::BDev>) ->(Box<dyn syscalls::Domain>, Box<dyn usr::vfs::VFS + Send>) {
-        disable_irq();
-        let r = crate::domain::create_domain::create_domain_xv6fs(bdev);
-        enable_irq();
-        r
-    }
-}
-
-impl create::CreateXv6Usr for PDomain {
-    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn syscalls::Domain>, &'static str> {
-        disable_irq();
-        let r = crate::domain::create_domain::create_domain_xv6usr(name, xv6, blob, args);
-        enable_irq();
-        r
-    }
-}
-
-impl create::CreateDomA for PDomain {
-    fn create_domain_dom_a(&self) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_a::DomA>) {
-        disable_irq();
-        let r = crate::domain::create_domain::create_domain_dom_a();
-        enable_irq();
-        r
-    }
-}
-
-impl create::CreateDomB for PDomain {
-    fn create_domain_dom_b(&self, dom_a: Box<dyn usr::dom_a::DomA>) -> Box<dyn syscalls::Domain> {
-        disable_irq();
-        let r = crate::domain::create_domain::create_domain_dom_b(dom_a);
-        enable_irq();
-        r
-    }
-}
-
-impl proxy::CreateProxy for PDomain {
-    fn create_domain_proxy(
-        &self,
-        create_pci: Arc<dyn create::CreatePCI>,
-        create_ahci: Arc<dyn create::CreateAHCI>,
-        create_membdev: Arc<dyn create::CreateMemBDev>,
-        create_ixgbe: Arc<dyn create::CreateIxgbe>,
-        create_xv6fs: Arc<dyn create::CreateXv6FS>,
-        create_xv6usr: Arc<dyn create::CreateXv6Usr>,
-        create_xv6: Arc<dyn create::CreateXv6>,
-        create_dom_a: Arc<dyn create::CreateDomA>,
-        create_dom_b: Arc<dyn create::CreateDomB>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
-        disable_irq();
-        let r = crate::domain::create_domain::create_domain_proxy(
-            create_pci,
-            create_ahci,
-            create_membdev,
-            create_ixgbe,
-            create_xv6fs,
-            create_xv6usr,
-            create_xv6,
-            create_dom_a,
-            create_dom_b);
-        enable_irq();
-        r
-    }
-}
-
 
 #[derive(Clone)]
 pub struct Interrupt {

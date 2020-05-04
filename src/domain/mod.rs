@@ -1,9 +1,9 @@
 pub mod domain;
 pub use domain::Domain;
 
-pub mod create_domain;
+mod load_domain;
+pub use load_domain::load_domain;
+
 mod trusted_binary;
-//pub use create_domain::create_domain;
 
 pub mod sys_init;
-

@@ -54,6 +54,7 @@ mod tls;
 mod thread;
 mod panic;
 mod syscalls;
+mod gen;
 mod pci;
 mod domain;
 mod dev;
@@ -158,7 +159,7 @@ extern fn init_user() {
     // die() enables interrupts as it thinks it is
     // starting a user thead, lets disable them
     disable_irq();
-    crate::domain::create_domain::create_domain_init();
+    gen::create_domain_init();
     enable_irq();
 }
 
