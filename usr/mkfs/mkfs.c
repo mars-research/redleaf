@@ -215,7 +215,7 @@ rsect(uint sec, void *buf)
   }
   int sz = read(fsfd, buf, BSIZE);
   if(sz != BSIZE){
-    printf("%d\n", sz);
+    fprintf(stderr, "read %d bytes\n", sz);
     perror("read");
     exit(1);
   }
