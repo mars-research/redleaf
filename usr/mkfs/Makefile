@@ -37,7 +37,7 @@ build/fs.img: mkfs $(FILES) $(BINS)
 
 large:
 # 	# wget https://ocw.mit.edu/ans7870/6/6.006/s08/lecturenotes/files/t8.shakespeare.txt -O $@
-	fallocate -l 1M $@
+	fallocate -l 1Mb $@
 
 $(BINS): $(shell find ../xv6/usr/$@ -type f -name '*.rs')
 	make -C ../xv6/usr/$@	
