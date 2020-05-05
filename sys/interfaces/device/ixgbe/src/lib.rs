@@ -61,9 +61,12 @@ pub struct IxgbeDevice {
     transmit_index: usize,
     transmit_clean_index: usize,
     rx_clean_index: usize,
+    tx_clean_index: usize,
     receive_index: usize,
     regs: IxgbeDmaRegs,
     pub nd_regs: IxgbeNonDmaRegs,
+    dump: bool,
+    rx_dump: bool,
 }
 
 fn wrap_ring(index: usize, ring_size: usize) -> usize {
@@ -80,6 +83,7 @@ impl IxgbeDevice {
             transmit_index: 0,
             transmit_clean_index: 0,
             rx_clean_index: 0,
+            tx_clean_index: 0,
             receive_index: 0,
             tx_slot: [false; 512],
             rx_slot: [false; 512],
@@ -87,6 +91,8 @@ impl IxgbeDevice {
             transmit_ring: allocate_dma().unwrap(),
             regs: unsafe { IxgbeDmaRegs::new(bar) },
             nd_regs: unsafe { IxgbeNonDmaRegs::new(bar) },
+            dump: false,
+            rx_dump: false,
         }
     }
 
@@ -344,6 +350,7 @@ impl IxgbeDevice {
         let num_descriptors = self.transmit_ring.len();
         let mut reaped: usize = 0;
         let mut count: usize = 0;
+        let mut tx_clean_index: usize = self.tx_clean_index;
 
         for tx_index in 0..num_descriptors {
             let status = unsafe {
@@ -352,20 +359,29 @@ impl IxgbeDevice {
             };
 
             if (status & IXGBE_ADVTXD_STAT_DD) != 0 {
-                count += 1;
                 if self.tx_slot[tx_index] {
+                    count += 1;
                     if let Some(pkt) = &mut self.transmit_buffers[tx_index] {
                         let mut buf = pkt.as_mut_ptr();
-                        println!("pkt len {}", pkt.len());
                         let vec = unsafe { Vec::from_raw_parts(buf, pkt.len(), pkt.capacity()) };
                         reap_queue.push_front(vec);
                     }
                     self.tx_slot[tx_index] = false;
+                    self.transmit_buffers[tx_index] = None;
                     reaped += 1;
+                    tx_clean_index = tx_index;
                 }
             }
         }
         println!("Found {} sent DDs", count);
+        let head = self.read_qreg_idx(IxgbeDmaArrayRegs::Tdh, 0);
+        let tail = self.read_qreg_idx(IxgbeDmaArrayRegs::Tdt, 0);
+
+        print!("Tx ring {:16x} len {} HEAD {} TAIL {}\n", self.transmit_ring.physical(), self.transmit_ring.len(), head, tail);
+
+        if reaped > 0 {
+            self.tx_clean_index = tx_clean_index;
+        }
         reaped
     }
 
@@ -374,6 +390,7 @@ impl IxgbeDevice {
         let num_descriptors = self.receive_ring.len();
         let mut reaped: usize = 0;
         let mut count: usize = 0;
+        let mut rx_clean_index: usize = self.rx_clean_index;
 
         for rx_index in 0..num_descriptors {
             let mut desc = unsafe { &mut*(self.receive_ring.as_ptr().add(rx_index) as *mut ixgbe_adv_rx_desc) };
@@ -387,8 +404,8 @@ impl IxgbeDevice {
             }
 
             if (status & IXGBE_RXDADV_STAT_DD) != 0 {
-                count += 1;
                 if self.rx_slot[rx_index] {
+                    count += 1;
                     if let Some(pkt) = &mut self.receive_buffers[rx_index] {
                         let length = unsafe { core::ptr::read_volatile(
                                 &(*desc).wb.upper.length as *const u16) as usize
@@ -399,107 +416,242 @@ impl IxgbeDevice {
                         reap_queue.push_front(vec);
                     }
                     self.rx_slot[rx_index] = false;
+                    self.receive_buffers[rx_index] = None;
                     reaped += 1;
+                    rx_clean_index = rx_index;
                 }
             }
         }
         println!("Found {} sent DDs", count);
-        self.receive_index = 0;
-        self.rx_clean_index = 0;
+
+        let head = self.read_qreg_idx(IxgbeDmaArrayRegs::Rdh, 0);
+        let tail = self.read_qreg_idx(IxgbeDmaArrayRegs::Rdt, 0);
+
+        print!("Rx ring {:16x} len {} HEAD {} TAIL {}\n", self.receive_ring.physical(), self.receive_ring.len(), head, tail);
+
+        if reaped > 0 {
+            println!("update clean index to {}", rx_clean_index);
+            self.rx_clean_index = rx_clean_index;
+        }
         reaped
+    }
+
+    fn dump_rx_desc(&mut self) {
+        print!("=====================\n");
+        print!("Rx descriptors\n");
+        print!("=====================\n");
+
+        let head = self.read_qreg_idx(IxgbeDmaArrayRegs::Rdh, 0);
+        let tail = self.read_qreg_idx(IxgbeDmaArrayRegs::Rdt, 0);
+
+        print!("Rx ring {:16x} len {} HEAD {} TAIL {}\n", self.receive_ring.physical(), self.receive_ring.len(), head, tail);
+        print!("rx_index: {} rx_clean_index {}\n", self.receive_index, self.rx_clean_index);
+
+        let mut str = format!("[Idx]  [buffer]   [slot]   [status]\n");
+        for i in 0..self.receive_ring.len() {
+            let mut desc = unsafe { &mut*(self.receive_ring.as_ptr().add(i) as *mut ixgbe_adv_rx_desc) };
+
+            let status = unsafe {
+                core::ptr::read_volatile(&mut (*desc).wb.upper.status_error as *mut u32) };
+
+            if i == head as usize {
+                str.push_str(&format!("H=>"));
+            } 
+            
+            if i == tail as usize {
+                str.push_str(&format!("T=>"));
+            }
+
+            let mut buffer: u64 = 0;
+            if let Some(pkt) = &self.receive_buffers[i] {
+                buffer = pkt.as_ptr() as u64;
+            }
+            str.push_str(&format!("[{}] buffer: {:16x} rx_slot {} status {:x}\n", i, buffer, self.rx_slot[i], status));
+        } 
+        print!("{}", str);
+        self.rx_dump = true;
+    }
+
+    fn dump_tx_desc(&mut self) {
+        print!("=====================\n");
+        print!("Tx descriptors\n");
+        print!("=====================\n");
+
+        let head = self.read_qreg_idx(IxgbeDmaArrayRegs::Tdh, 0);
+        let tail = self.read_qreg_idx(IxgbeDmaArrayRegs::Tdt, 0);
+
+        print!("Tx ring {:16x} len {} HEAD {} TAIL {}\n", self.transmit_ring.physical(), self.transmit_ring.len(), head, tail);
+
+        let mut str = format!("[Idx]  [buffer]   [slot]   [status]\n");
+        for i in 0..self.transmit_ring.len() {
+            let mut desc = unsafe { &mut*(self.transmit_ring.as_ptr().add(i) as *mut ixgbe_adv_tx_desc) };
+
+            let status = unsafe {
+                core::ptr::read_volatile(&mut (*desc).wb.status as *mut u32) };
+
+            if i == head as usize {
+                str.push_str(&format!("H=>"));
+            } 
+            
+            if i == tail as usize {
+                str.push_str(&format!("T=>"));
+            }
+
+            let mut buffer: u64 = 0;
+            if let Some(pkt) = &self.transmit_buffers[i] {
+                buffer = pkt.as_ptr() as u64;
+            }
+            str.push_str(&format!("[{}] buffer: {:16x} tx_slot {} status {:x}\n", i, buffer, self.tx_slot[i], status));
+        } 
+        print!("{}", str);
+        self.dump = true;
     }
 
     //#[inline(always)]
     fn tx_submit_and_poll(&mut self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, debug: bool) -> usize {
         let mut sent = 0;
         let mut tx_index = self.transmit_index;
+        let mut tx_clean_index = self.tx_clean_index;
         let mut last_tx_index = self.transmit_index;
         let num_descriptors = self.transmit_ring.len();
 
-        //println!("tx index {} packets {}", tx_index, packets.len());
-        while let Some(packet) = packets.pop_front() {
 
-            //println!("Found packet!");
-            let mut desc = unsafe { &mut*(self.transmit_ring.as_ptr().add(tx_index) as *mut ixgbe_adv_tx_desc) };
-
-            let status = unsafe {
-                core::ptr::read_volatile(&mut (*desc).wb.status as *mut u32) };
-
-            unsafe {
-                //println!("pkt_addr {:08X} tx_Buffer {:08X}",
-                //            (*desc).read.pkt_addr as *const u64 as u64,
-                //            self.transmit_buffer[tx_index].physical());
-            }
-
-            // DD == 0 on a TX desc leaves us with 2 possibilities
-            // 1) The desc is populated (tx_slot[i] = true), the device did not sent it out yet
-            // 2) The desc is not populated. In that case, tx_slot[i] = false
-            if ((status & IXGBE_RXDADV_STAT_DD) == 0) && self.tx_slot[tx_index] {
-                packets.push_front(packet);
-                break;
-            }
-
-            let pkt_len = packet.len();
+        if packets.len() > 0 {
             if debug {
-                //println!("packet len {}", pkt_len);
+                println!("tx index {} packets {}", tx_index, packets.len());
             }
-            unsafe {
-                if self.tx_slot[tx_index] {
-                    if let Some(pkt) = &mut self.transmit_buffers[tx_index] {
-                        let mut buf = pkt.as_mut_ptr();
-                        let vec = Vec::from_raw_parts(buf, pkt_len, pkt.capacity());
-                        if debug {
-                            //println!("buf {:x} vec_raw_parts {:x}", buf as u64, vec.as_ptr() as u64);
+            while let Some(packet) = packets.pop_front() {
+
+                //println!("Found packet!");
+                let mut desc = unsafe { &mut*(self.transmit_ring.as_ptr().add(tx_index) as *mut ixgbe_adv_tx_desc) };
+
+                let status = unsafe {
+                    core::ptr::read_volatile(&mut (*desc).wb.status as *mut u32) };
+
+                unsafe {
+                    //println!("pkt_addr {:08X} tx_Buffer {:08X}",
+                    //            (*desc).read.pkt_addr as *const u64 as u64,
+                    //            self.transmit_buffer[tx_index].physical());
+                }
+
+                // DD == 0 on a TX desc leaves us with 2 possibilities
+                // 1) The desc is populated (tx_slot[i] = true), the device did not sent it out yet
+                // 2) The desc is not populated. In that case, tx_slot[i] = false
+                if ((status & IXGBE_RXDADV_STAT_DD) == 0) && self.tx_slot[tx_index] {
+                    if debug {
+                        println!("No free slot. Fucked");
+                        if !self.dump {
+                            self.dump_tx_desc();
                         }
-                        reap_queue.push_front(vec);
                     }
+                    packets.push_front(packet);
+                    break;
                 }
 
-
+                let pkt_len = packet.len();
                 if debug {
-                    //println!("programming new buffer! {:x} packet[0] {:x}", packet.as_ptr() as u64, packet[0]);
+                    println!("packet len {}", pkt_len);
                 }
-                // switch to a new buffer
-                core::ptr::write_volatile(
-                    &(*self.transmit_ring.as_ptr().add(tx_index)).read.buffer_addr as *const u64 as *mut u64,
-                    packet.as_ptr() as u64);
+                unsafe {
+                    if self.tx_slot[tx_index] {
+                        if let Some(pkt) = &mut self.transmit_buffers[tx_index] {
+                            let mut buf = pkt.as_mut_ptr();
+                            let vec = Vec::from_raw_parts(buf, pkt_len, pkt.capacity());
+                            if debug {
+                                println!("buf {:x} vec_raw_parts {:x}", buf as u64, vec.as_ptr() as u64);
+                            }
+                            reap_queue.push_front(vec);
+                        }
 
-                self.transmit_buffers[tx_index] = Some(packet);
-                self.tx_slot[tx_index] = true;
+                        tx_clean_index = wrap_ring(tx_clean_index, self.transmit_ring.len());
+                    }
 
-                core::ptr::write_volatile(
-                        &(*self.transmit_ring.as_ptr().add(tx_index)).read.cmd_type_len as *const u32 as *mut u32,
-                        IXGBE_ADVTXD_DCMD_EOP
-                                | IXGBE_ADVTXD_DCMD_RS
-                                | IXGBE_ADVTXD_DCMD_IFCS
-                                | IXGBE_ADVTXD_DCMD_DEXT
-                                | IXGBE_ADVTXD_DTYP_DATA
-                                | pkt_len as u32,
-                );
 
-                core::ptr::write_volatile(
-                        &(*self.transmit_ring.as_ptr().add(tx_index)).read.olinfo_status as *const u32 as *mut u32,
-                        (pkt_len as u32) << IXGBE_ADVTXD_PAYLEN_SHIFT,
-                );
+                    if debug {
+                        println!("programming new buffer! {:x} packet[0] {:x}", packet.as_ptr() as u64, packet[0]);
+                    }
+                    // switch to a new buffer
+                    core::ptr::write_volatile(
+                        &(*self.transmit_ring.as_ptr().add(tx_index)).read.buffer_addr as *const u64 as *mut u64,
+                        packet.as_ptr() as u64);
+
+                    self.transmit_buffers[tx_index] = Some(packet);
+                    self.tx_slot[tx_index] = true;
+
+                    core::ptr::write_volatile(
+                            &(*self.transmit_ring.as_ptr().add(tx_index)).read.cmd_type_len as *const u32 as *mut u32,
+                            IXGBE_ADVTXD_DCMD_EOP
+                                    | IXGBE_ADVTXD_DCMD_RS
+                                    | IXGBE_ADVTXD_DCMD_IFCS
+                                    | IXGBE_ADVTXD_DCMD_DEXT
+                                    | IXGBE_ADVTXD_DTYP_DATA
+                                    | pkt_len as u32,
+                    );
+
+                    core::ptr::write_volatile(
+                            &(*self.transmit_ring.as_ptr().add(tx_index)).read.olinfo_status as *const u32 as *mut u32,
+                            (pkt_len as u32) << IXGBE_ADVTXD_PAYLEN_SHIFT,
+                    );
+                }
+
+                last_tx_index = tx_index;
+                tx_index = wrap_ring(tx_index, self.transmit_ring.len());
+                sent += 1;
             }
+        } /*else {
+            //if debug {
+                println!("no packets to send. polling");
+            //}
+            let mut tx_clean_index = self.tx_clean_index;
+            let mut reaped = 0;
 
-            last_tx_index = tx_index;
-            tx_index = wrap_ring(tx_index, self.transmit_ring.len());
-            sent += 1;
+            loop {
+                let status = unsafe {
+                    core::ptr::read_volatile(&(*self.transmit_ring.as_ptr().add(tx_clean_index)).wb.status
+                       as *const u32)
+                };
+
+                if (status & IXGBE_ADVTXD_STAT_DD) != 0 {
+                    if self.tx_slot[tx_clean_index] {
+                        if let Some(pkt) = &mut self.transmit_buffers[tx_clean_index] {
+                            let mut buf = pkt.as_mut_ptr();
+                            let vec = unsafe { Vec::from_raw_parts(buf, pkt.len(), pkt.capacity()) };
+                            reap_queue.push_front(vec);
+                        }
+                        self.tx_slot[tx_clean_index] = false;
+                        self.transmit_buffers[tx_clean_index] = None;
+                        reaped += 1;
+                    }
+                    tx_clean_index = wrap_ring(tx_clean_index, self.transmit_ring.len());
+                }
+
+                if tx_clean_index == self.transmit_index {
+                    break;
+                }
+
+            }
+            self.tx_clean_index = tx_clean_index;
+            return reaped;
+        }*/
+
+        if sent > 0 && tx_index == last_tx_index {
+            println!("Queued packets, but failed to update idx");
+            println!("last_tx_index {} tx_index {} tx_clean_index {}", last_tx_index, tx_index, tx_clean_index);
         }
 
         if tx_index != last_tx_index {
             if debug {
-                //println!("Update tdt from {} to {}", self.read_qreg_idx(IxgbeDmaArrayRegs::Tdt, 0), tx_index);
+                println!("Update tdt from {} to {}", self.read_qreg_idx(IxgbeDmaArrayRegs::Tdt, 0), tx_index);
             }
             //self.bar.write_reg_tdt(0, tx_index as u64);
             self.write_qreg_idx(IxgbeDmaArrayRegs::Tdt, 0, tx_index as u64);
             self.transmit_index = tx_index;
+            self.tx_clean_index = tx_clean_index;
         }
 
-        //if sent > 0 {
+        if sent == 0 {
             //println!("Sent {} packets", sent);
-        //}
+        }
         sent
     }
 
@@ -535,7 +687,7 @@ impl IxgbeDevice {
                     println!("rx_index {} clean_index {}", rx_index, rx_clean_index);
                 }
                 if ((status & IXGBE_RXDADV_STAT_DD) == 0) && self.rx_slot[rx_index] {
-                    println!("no packets to rx");
+                    //println!("no packets to rx");
                     packets.push_front(packet);
                     break;
                 }
@@ -573,6 +725,7 @@ impl IxgbeDevice {
                             } else {
                                 println!("Not pushed");
                             }
+                            self.receive_buffers[rx_index] = None;
                         }
                         rx_clean_index = wrap_ring(rx_clean_index, self.receive_ring.len());
                     }
@@ -633,9 +786,9 @@ impl IxgbeDevice {
                     self.rx_slot[rx_clean_index] = false;
                     self.receive_buffers[rx_clean_index] = None;
                     reaped += 1;
-                    rx_clean_index = wrap_ring(rx_clean_index, self.receive_ring.len());
-                }
                     //rx_clean_index = wrap_ring(rx_clean_index, self.receive_ring.len());
+                }
+                rx_clean_index = wrap_ring(rx_clean_index, self.receive_ring.len());
 
                 if rx_clean_index == self.receive_index {
                     break;
