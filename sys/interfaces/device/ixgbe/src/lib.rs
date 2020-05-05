@@ -49,15 +49,18 @@ const IXGBE_TXDCTL_ENABLE: u64              = 0x02000000; /* Ena specific Tx Que
 
 const ONE_MS_IN_NS: u64 = 1_000_000 * 1;
 
+const NUM_TX_DESCS: usize = 512;
+const NUM_RX_DESCS: usize = 512;
+
 pub struct IxgbeDevice {
     //pub bar: Box<dyn IxgbeBarRegion>,
     bar: PciBarAddr,
-    transmit_buffers: [Option<Vec<u8>>; 512],
-    transmit_ring: Dma<[ixgbe_adv_tx_desc; 512]>,
-    receive_buffers: [Option<Vec<u8>>; 512],
-    receive_ring: Dma<[ixgbe_adv_rx_desc; 512]>,
-    tx_slot: [bool; 512],
-    rx_slot: [bool; 512],
+    transmit_buffers: [Option<Vec<u8>>; NUM_TX_DESCS],
+    transmit_ring: Dma<[ixgbe_adv_tx_desc; NUM_TX_DESCS]>,
+    receive_buffers: [Option<Vec<u8>>; NUM_RX_DESCS],
+    receive_ring: Dma<[ixgbe_adv_rx_desc; NUM_RX_DESCS]>,
+    tx_slot: [bool; NUM_TX_DESCS],
+    rx_slot: [bool; NUM_RX_DESCS],
     transmit_index: usize,
     transmit_clean_index: usize,
     rx_clean_index: usize,
@@ -74,7 +77,6 @@ fn wrap_ring(index: usize, ring_size: usize) -> usize {
 }
 
 impl IxgbeDevice {
-
     pub fn new(bar: PciBarAddr) -> IxgbeDevice {
         IxgbeDevice {
             bar,
@@ -85,8 +87,8 @@ impl IxgbeDevice {
             rx_clean_index: 0,
             tx_clean_index: 0,
             receive_index: 0,
-            tx_slot: [false; 512],
-            rx_slot: [false; 512],
+            tx_slot: [false; NUM_TX_DESCS],
+            rx_slot: [false; NUM_RX_DESCS],
             receive_ring: allocate_dma().unwrap(),
             transmit_ring: allocate_dma().unwrap(),
             regs: unsafe { IxgbeDmaRegs::new(bar) },
@@ -505,6 +507,11 @@ impl IxgbeDevice {
         } 
         print!("{}", str);
         self.dump = true;
+    }
+
+    pub fn dump_tx_descs(&mut self) {
+        self.dump_tx_desc();
+        self.dump = false;
     }
 
     //#[inline(always)]

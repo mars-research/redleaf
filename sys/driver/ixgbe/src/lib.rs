@@ -128,8 +128,11 @@ impl pci_driver::PciDriver for Ixgbe {
     }
 }
 
+const BATCH_SIZE: usize = 32;
+
 fn run_tx_udp_test(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
-    let mut packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(32);
+    let batch_sz: usize = BATCH_SIZE;
+    let mut packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
     let mut collect: VecDeque<Vec<u8>> = VecDeque::new();
 
     let mac_data = alloc::vec![
@@ -177,7 +180,7 @@ fn run_tx_udp_test(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
 
     println!("Packet len is {}", pkt.len());
 
-    for i in 0..32 {
+    for i in 0..batch_sz {
         packets.push_front(pkt.clone());
     }
 
@@ -189,7 +192,7 @@ fn run_tx_udp_test(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
         let mut sum: usize = 0;
         let start = rdtsc();
         //while sum <= 20_000_000 {
-        let end = rdtsc() + 30 * 2_600_000_000;
+        let end = rdtsc() + 5 * 2_600_000_000;
 
         loop{
             let ret = dev.device.submit_and_poll(&mut packets, &mut collect, true, debug);
@@ -206,7 +209,7 @@ fn run_tx_udp_test(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
 
             if packets.len() == 0 {
                 alloc_count += 1;
-                for i in 0..32 {
+                for i in 0..batch_sz {
                     packets.push_front(pkt.clone());
                 }
             }
@@ -223,15 +226,17 @@ fn run_tx_udp_test(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
         dev.dump_stats();
         println!(" alloc_count {}", alloc_count * 32);
         println!("Reaped {} packets", dev.device.tx_poll(&mut collect));
+        //dev.dump_tx_descs();
     }
 }
 
 fn run_rx_udptest(dev: &Ixgbe, pkt_size: usize, debug: bool) {
     let pkt_size = 2048;
-    let mut packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(32);
+    let batch_sz: usize = BATCH_SIZE;
+    let mut packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
     let mut collect: VecDeque<Vec<u8>> = VecDeque::new();
 
-    for i in 0..32 {
+    for i in 0..batch_sz {
         packets.push_front(Vec::with_capacity(pkt_size));
     }
 
@@ -250,7 +255,7 @@ fn run_rx_udptest(dev: &Ixgbe, pkt_size: usize, debug: bool) {
 
         let start = rdtsc();
         //let report_interval = 2_600_000_000;
-        let end = start + 30 * 2_600_000_000;
+        let end = start + 5* 2_600_000_000;
 
         //while sum <= 20_000_000 {
         loop {
@@ -285,7 +290,7 @@ fn run_rx_udptest(dev: &Ixgbe, pkt_size: usize, debug: bool) {
                 println!("allocating new batch");
                 alloc_count += 1;
 
-                for i in 0..32 {
+                for i in 0..batch_sz {
                     packets.push_front(Vec::with_capacity(pkt_size));
                 }
             }
@@ -335,17 +340,18 @@ fn dump_packet(pkt: &Vec<u8>) {
 }
 
 fn run_fwd_udptest(dev: &Ixgbe, pkt_size: u16) {
-    let batch_sz = 32;
-    let mut packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
-    let mut collect: VecDeque<Vec<u8>> = VecDeque::new();
-    let mut collect_tx: VecDeque<Vec<u8>> = VecDeque::new();
+    let batch_sz = BATCH_SIZE;
+    let mut rx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
+    let mut tx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
     let mut submit_rx_hist = Base2Histogram::new();
     let mut submit_tx_hist = Base2Histogram::new();
-    let mut collect_rx_hist = Base2Histogram::new();
-    let mut collect_tx_hist = Base2Histogram::new();
+    
+    let mut sender_mac = alloc::vec![ 0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81];
+    let mut our_mac = alloc::vec![0x90, 0xe2, 0xba, 0xb5, 0x14, 0xcd];
+
 
     for i in 0..batch_sz {
-        packets.push_front(Vec::with_capacity(2048));
+        rx_packets.push_front(Vec::with_capacity(2048));
     }
 
     if let Some(device) = dev.device.borrow_mut().as_mut() {
@@ -361,79 +367,54 @@ fn run_fwd_udptest(dev: &Ixgbe, pkt_size: u16) {
 
         let mut submit_rx: usize = 0;
         let mut submit_tx: usize = 0;
-        let mut collect_rx: usize = 0;
-        let mut collect_tx: usize = 0;
         let mut loop_count: usize = 0;
 
         loop {
             loop_count = loop_count.wrapping_add(1);
-            submit_rx += packets.len();
-            submit_rx_hist.record(packets.len() as u64);
+
+            submit_rx += rx_packets.len();
+            submit_rx_hist.record(rx_packets.len() as u64);
             //println!("call rx_submit_poll packet {}", packets.len());
-            let ret = dev.device.submit_and_poll(&mut packets, &mut collect, false, false);
+            let rx_start = rdtsc();
+            let ret = dev.device.submit_and_poll(&mut rx_packets, &mut tx_packets, false, false);
+            rx_elapsed += rdtsc() - rx_start;
             sum += ret;
 
-            //println!("rx: packets: {} submitted {} collect {}", packets.len(), ret, collect.len());
-    
-            let rx_start = rdtsc();
-            collect_rx_hist.record(collect.len() as u64);
-            collect_rx += collect.len();
-            packets.append(&mut collect);
-            rx_elapsed += rdtsc() - rx_start;
+            //println!("rx: submitted {} collect {}", ret, tx_packets.len());
 
-            //println!("packets len {}", packets.len());
-            /*if packets.len() == 0 {
-                println!("Allocating new rx batch");
-                for i in 0..batch_sz {
-                    packets.push_front(Vec::with_capacity(2048));
-                }
-                continue;
-            }*/
-
-            /*for pkt in packets.iter_mut() {
-                let mut sender_mac: Vec<u8> = Vec::with_capacity(6);
-                let mut our_mac: Vec<u8> = Vec::with_capacity(6);
+            for pkt in tx_packets.iter_mut() {
                 unsafe {
-                    ptr::copy(pkt.as_ptr(), our_mac.as_mut_ptr(), our_mac.capacity());
-                    ptr::copy(pkt.as_ptr().offset(6), sender_mac.as_mut_ptr(), sender_mac.capacity());
                     ptr::copy(our_mac.as_ptr(), pkt.as_mut_ptr().offset(6), our_mac.capacity());
                     ptr::copy(sender_mac.as_ptr(), pkt.as_mut_ptr().offset(0), sender_mac.capacity());
                 }
-            }*/
-
-
-            for pkt in packets.iter() {
-                //print!("pkt\n");
-                //dump_packet(&pkt);
             }
 
-            submit_tx += packets.len();
-            submit_tx_hist.record(packets.len() as u64);
-            let ret = dev.device.submit_and_poll(&mut packets, &mut collect, true, false);
+            submit_tx += tx_packets.len();
+            submit_tx_hist.record(tx_packets.len() as u64);
+            let tx_start = rdtsc();
+            let ret = dev.device.submit_and_poll(&mut tx_packets, &mut rx_packets, true, false);
+            tx_elapsed += rdtsc() - tx_start;
             fwd_sum += ret;
 
-            print!("tx: packets: {} submitted {} collect {}\n", packets.len(), ret, collect.len());
+            //print!("tx: submitted {} collect {}\n", ret, rx_packets.len());
 
-            let tx_start = rdtsc();
-            collect_tx_hist.record(collect.len() as u64);
-            collect_tx += collect.len();
-            packets.append(&mut collect);
-            tx_elapsed += rdtsc() - tx_start;
-
-            if packets.len() == 0 {
+            if rx_packets.len() == 0 && tx_packets.len() < batch_sz * 4 {
+            //if rx_packets.len() == 0 {// && tx_packets.len() < batch_sz * 4 {
                 println!("-> Allocating new rx_ptx batch");
                 for i in 0..batch_sz {
-                    packets.push_front(Vec::with_capacity(2048));
+                    rx_packets.push_front(Vec::with_capacity(2048));
                 }
             }
+
             //dev.dump_stats();
+
             if rdtsc() > end {
                 break;
             }
         }
 
         let elapsed = rdtsc() - start;
-        for hist in alloc::vec![submit_rx_hist, collect_rx_hist, submit_tx_hist, collect_tx_hist] {
+        for hist in alloc::vec![submit_rx_hist, submit_tx_hist] {
             println!("hist:");
             // Iterate buckets that have observations
             for bucket in hist.iter().filter(|b| b.count > 0) {
@@ -441,13 +422,17 @@ fn run_fwd_udptest(dev: &Ixgbe, pkt_size: u16) {
                 print!("\n");
             }
         }
-        println!(" ==> collect_rx {} (avg {}) collect_tx {} (avg {}) loop_count {}", collect_rx, collect_rx / loop_count, collect_tx, collect_tx / loop_count, loop_count);
-        println!(" ==> submit_rx {} (avg {}) submit_tx {} (avg {}) loop_count {}", submit_rx, submit_rx / loop_count, submit_tx, submit_tx / loop_count, loop_count);
-        println!(" ==> rx batching {}B: {} packets took {} cycles (avg = {})", pkt_size, sum, rx_elapsed, rx_elapsed  / sum as u64);
-        println!(" ==> tx batching {}B: {} packets took {} cycles (avg = {})", pkt_size, fwd_sum, tx_elapsed, tx_elapsed  / fwd_sum as u64);
+
         println!("Received {} forwarded {}", sum, fwd_sum);
-        println!("==> fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_size, sum, elapsed, elapsed / sum as u64);
-        dev.dump_all_regs();
+        println!(" ==> submit_rx {} (avg {}) submit_tx {} (avg {}) loop_count {}",
+                            submit_rx, submit_rx / loop_count, submit_tx, submit_tx / loop_count, loop_count);
+        println!(" ==> rx batching {}B: {} packets took {} cycles (avg = {})",
+                            pkt_size, sum, rx_elapsed, rx_elapsed  / sum as u64);
+        println!(" ==> tx batching {}B: {} packets took {} cycles (avg = {})",
+                            pkt_size, fwd_sum, tx_elapsed, tx_elapsed  / fwd_sum as u64);
+        println!("==> fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_size, fwd_sum, elapsed, elapsed / fwd_sum as u64);
+        dev.dump_stats();
+        //dev.dump_tx_descs();
     }
 }
 
@@ -477,8 +462,13 @@ pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
         }
     }*/
 
+    run_tx_udp_test(&ixgbe, 64-42, false);
+
+    run_tx_udp_test(&ixgbe, 64, false);
+
     println!("=> Running rx tests...");
-    //run_rx_udptest(&ixgbe, 64-42, false);
+
+    run_rx_udptest(&ixgbe, 64-42, false);
 
     /*for _ in 0..1024 {
         run_rx_udptest(&ixgbe, 64-42, false);
