@@ -31,15 +31,16 @@ BINS=\
 	wc\
 	benchfs\
 
-build/fs.img: mkfs $(FILES) $(BINS)
+build/fs.img: mkfs $(FILES) $(BINS) Makefile
 	mkdir -p build
 	./mkfs build/fs.img $(FILES) $(BINS)
 
-large:
-# 	# wget https://ocw.mit.edu/ans7870/6/6.006/s08/lecturenotes/files/t8.shakespeare.txt -O $@
+large: Makefile
 	fallocate -l 1Mb $@
+ 	# wget https://ocw.mit.edu/ans7870/6/6.006/s08/lecturenotes/files/t8.shakespeare.txt -O $@
+	# fallocate -l 128M $@
 
-$(BINS): $(shell find ../xv6/usr/$@ -type f -name '*.rs')
+$(BINS): $(shell find ../xv6/usr/$@ -type f -name '*.rs') Makefile
 	make -C ../xv6/usr/$@	
 	cp ../xv6/usr/$@/build/$@ . -f
 
