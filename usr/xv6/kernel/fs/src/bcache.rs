@@ -148,7 +148,6 @@ impl BufferCacheInternal {
     // If the block does not exist, we preempt a not-in-use one
     // We let the caller to lock the buffer when they need to use it
     fn get(&mut self, dev: u32, block_number: u32) -> (bool, usize, Arc<Mutex<BufferBlockWrapper>>) {
-        // println!("{:?} {:?}", &(dev, block_number), self.map.get(&(dev, block_number)));
         match self.map.get(&(dev, block_number)) {
             Some(index) => {
                 let buffer = &mut self.buffers[*index];
@@ -184,19 +183,25 @@ impl BufferCacheInternal {
     }
 
     fn release(&mut self, index: usize) {
-        // println!("brelse {}", index);
         self.buffers[index].reference_count -= 1;
         if self.buffers[index].reference_count == 0 {
-            // Move to the tail
+            // Move to the head to prevent it from being preempted early
             // Pop the node
             let prev = self.buffers[index].prev as usize;
             let next = self.buffers[index].next as usize;
             self.buffers[next].prev = self.buffers[index].prev;
             self.buffers[prev].next = self.buffers[index].next;
-            // Put it at the tail
+            if self.head == index {
+                self.head = self.buffers[self.head].next as usize;
+            }
+            // Update its pointers
+            let head_prev = self.buffers[self.head].prev;
             self.buffers[index].next = self.head as i32;
-            self.buffers[index].prev = self.buffers[self.head].prev;
+            self.buffers[index].prev = head_prev;
+            // Move it to the head
             self.buffers[self.head].prev = index as i32;
+            self.buffers[head_prev as usize].next = index as i32;
+            self.head = index;
         }
     }
 
@@ -255,6 +260,7 @@ impl BufferCache {
     // Check xv6 for details
     // TODO(tianjiao): fix this
     fn release(&self, index: usize) {
+        // println!("brelse {}", index);
         self.internal.lock().release(index);
     }
 
