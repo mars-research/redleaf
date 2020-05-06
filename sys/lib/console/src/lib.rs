@@ -33,8 +33,8 @@ macro_rules! code_origin {
 
 #[macro_export]
 macro_rules! dbg {
-    () => ($crate::print!("{}", code_origin!()));
-    ($($arg:tt)*) => ($crate::println!("{}:{}", $crate::code_origin!(), format_args!($($arg)*)));
+    () => (console::println!("{}", console::code_origin!()));
+    ($($arg:tt)*) => (console::println!("{}:{}", console::code_origin!(), format_args!($($arg)*)));
 }
 
 #[doc(hidden)]
