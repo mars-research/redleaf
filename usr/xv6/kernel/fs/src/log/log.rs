@@ -74,17 +74,14 @@ impl LogInternal {
                 BCACHE.force_get().write(dbuf.block_number(), &mut locked_dbuf);  // write dst to disk
             }
             dbuf.unpin();
-            BCACHE.force_get().release(&mut lbuf);
-            BCACHE.force_get().release(&mut dbuf);
-        }
+                                }
     }
 
     // Read the log header from disk into the in-memory log header
     fn read_head(&mut self) {
         let mut buf = BCACHE.force_get().read(self.dev, self.start);
         self.logheader.from_buffer_block(&buf.lock());
-        BCACHE.force_get().release(&mut buf);
-        console::println!("Log::read_head: {:?}", self);
+                console::println!("Log::read_head: {:?}", self);
     }
 
     // Write in-memory log header to disk.
@@ -97,8 +94,7 @@ impl LogInternal {
             self.logheader.to_buffer_block(&mut locked_buf);
             BCACHE.force_get().write(buf.block_number(), &mut locked_buf);
         }
-        BCACHE.force_get().release(&mut buf);
-    }
+            }
 
     fn recover_from_log(&mut self) {
         self.read_head();
@@ -114,7 +110,7 @@ impl LogInternal {
     // And end_op will be called when the guard is dropped.
     // TODO(tianjiao): fix this
     pub fn try_begin_op(&mut self) -> bool {
-        console::println!("try_begin_op; {:?}", self);
+        // console::println!("try_begin_op; {:?}", self);
         if self.committing {
             return false;
         }
@@ -157,9 +153,7 @@ impl LogInternal {
                 locked_to = from.lock();
                 BCACHE.force_get().write(to.block_number(), &mut locked_to);  // write the log
             }
-            BCACHE.force_get().release(&mut from);
-            BCACHE.force_get().release(&mut to);
-        }
+                                }
     }
 
     fn commit(&mut self) {
@@ -187,7 +181,7 @@ impl LogInternal {
             "too big a transaction");
         assert!(self.outstanding >= 1, "log_write outside of trans");
 
-        console::println!("writing {} to transaction", buffer.block_number());
+        // console::println!("writing {} to transaction", buffer.block_number());
         // Find the index that the block should belong to.
         // Log absorbtion: if the block is already in the log, don't need to do anything.
         //  Else, add the new block to the log

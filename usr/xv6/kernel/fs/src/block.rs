@@ -18,7 +18,6 @@ pub fn free(trans: &mut Transaction, device: u32, block: u32) {
     buffer[bi / 8] &= !m;
     trans.write(&bguard);
     drop(buffer);
-    BCACHE.force_get().release(&mut bguard);
 }
 
 // Allocate a zeroed disk block.
@@ -39,8 +38,7 @@ pub fn alloc(trans: &mut Transaction, device: u32) -> Option<u32> {
                 trans.write(&bguard);
 
                 drop(buffer);
-                BCACHE.force_get().release(&mut bguard);
-
+                
                 zero(trans, device, b + bi as u32);
                 return Some(b + bi as u32);
             }
@@ -48,8 +46,7 @@ pub fn alloc(trans: &mut Transaction, device: u32) -> Option<u32> {
         }
 
         drop(buffer);
-        BCACHE.force_get().release(&mut bguard);
-    }
+            }
 
     // out of blocks
     None
@@ -67,8 +64,7 @@ fn zero(trans: &mut Transaction, device: u32, block_number: u32) {
 
     trans.write(&bguard);
     drop(buffer);
-    BCACHE.force_get().release(&mut bguard);
-}
+    }
 
 // Block of free map containing bit for block b
 // xv6 equivalent: BBLOCK

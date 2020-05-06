@@ -49,12 +49,10 @@ impl ICache {
                 trans.write(&bguard);
 
                 drop(buffer);
-                BCACHE.force_get().release(&mut bguard);
-                return self.get(device, inum);
+                                return self.get(device, inum);
             }
             drop(buffer);
-            BCACHE.force_get().release(&mut bguard);
-        }
+                    }
         None
     }
 

@@ -146,8 +146,7 @@ impl INodeDataGuard<'_> {
         trans.write(&bguard);
 
         drop(buffer);
-        BCACHE.force_get().release(&mut bguard);
-    }
+            }
 
     // Discard contents of node
     // Only called when node has no links and no other in-memory references to it
@@ -175,8 +174,7 @@ impl INodeDataGuard<'_> {
                 }
             }
             drop(buffer);
-            BCACHE.force_get().release(&mut bguard);
-
+            
             self.data.addresses[params::NDIRECT] = 0;
         }
 
@@ -244,8 +242,7 @@ impl INodeDataGuard<'_> {
         }
 
         drop(buffer);
-        BCACHE.force_get().release(&mut bguard);
-
+        
         // Load level 2 indirect block, allocating if necessary.
         let mut bguard = BCACHE.force_get().read(self.node.meta.device, address);
         let buffer = bguard.lock();
@@ -266,8 +263,7 @@ impl INodeDataGuard<'_> {
         }
 
         drop(buffer);
-        BCACHE.force_get().release(&mut bguard);
-
+        
         address
     }
 
@@ -368,8 +364,7 @@ impl INodeDataGuard<'_> {
             user_buffer[user_offset..(user_offset + bytes_read)].copy_from_slice(&buffer[start..(start + bytes_read)]);
 
             drop(buffer);
-            BCACHE.force_get().release(&mut bguard);
-
+            
             total += bytes_read;
             offset += bytes_read;
             user_offset += bytes_read;
@@ -410,8 +405,7 @@ impl INodeDataGuard<'_> {
 
             trans.write(&bguard);
             drop(buffer);
-            BCACHE.force_get().release(&mut bguard);
-
+            
             total += bytes_written;
             offset += bytes_written;
             user_offset += bytes_written;
@@ -457,11 +451,9 @@ impl INodeDataGuard<'_> {
                 }
             }
             drop(buffer);
-            BCACHE.force_get().release(&mut bguard);
-        }
+                    }
         drop(buffer);
-        BCACHE.force_get().release(&mut bguard);
-
+        
         if self.data.file_type != INodeFileType::Directory {
             return;
         }
@@ -545,8 +537,7 @@ impl INode {
             data.copy_from_bytes(&buffer[dinode_offset..dinode_offset + DINODE_SIZE]);
 
             drop(buffer);
-            BCACHE.force_get().release(&mut bguard);
-
+            
             self.meta.valid.store(true, Ordering::Relaxed);
 
             if data.file_type == INodeFileType::Unitialized {

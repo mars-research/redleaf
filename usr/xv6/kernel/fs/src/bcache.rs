@@ -45,7 +45,7 @@ impl DerefMut for BufferBlockWrapper {
 pub struct BufferGuard {
     dev: u32,
     block_number: u32,
-    index: i32,
+    index: usize,
     buffer: Arc<Mutex<BufferBlockWrapper>>,
     bcache: &'static BufferCache,
 }
@@ -60,11 +60,11 @@ impl BufferGuard {
     }
 
     pub fn pin(&self) {
-        self.bcache.pin(self.index as usize)
+        self.bcache.pin(self.index)
     }
 
     pub fn unpin(&self) {
-        self.bcache.unpin(self.index as usize)
+        self.bcache.unpin(self.index)
     }
 }
 
@@ -72,7 +72,7 @@ impl BufferGuard {
 // But I don't want to deal with the lifetime for now. Might do it later
 impl Drop for BufferGuard {
     fn drop(&mut self) {
-        assert!(self.index < 0, "You forgot to release the buffer back to the bcache");
+        self.bcache.release(self.index)
     }
 }
 
@@ -147,7 +147,7 @@ impl BufferCacheInternal {
     // look through buffer cache, return the buffer
     // If the block does not exist, we preempt a not-in-use one
     // We let the caller to lock the buffer when they need to use it
-    fn get(&mut self, dev: u32, block_number: u32) -> (bool, i32, Arc<Mutex<BufferBlockWrapper>>) {
+    fn get(&mut self, dev: u32, block_number: u32) -> (bool, usize, Arc<Mutex<BufferBlockWrapper>>) {
         // println!("{:?} {:?}", &(dev, block_number), self.map.get(&(dev, block_number)));
         match self.map.get(&(dev, block_number)) {
             Some(index) => {
@@ -155,7 +155,7 @@ impl BufferCacheInternal {
                 assert!(buffer.dev == dev);
                 assert!(buffer.block_number == block_number);
                 buffer.reference_count += 1;
-                (true, *index as i32, buffer.data.clone())
+                (true, *index, buffer.data.clone())
             },
             None => {
                 // Not cached; recycle an unused buffer.
@@ -173,7 +173,7 @@ impl BufferCacheInternal {
                         buffer.block_number = block_number;
                         buffer.reference_count = 1;
                         assert!(self.map.insert((dev, block_number), curr as usize).is_none());
-                        return (false, curr, buffer.data.clone())
+                        return (false, curr as usize, buffer.data.clone())
                     }
                     curr = buffer.prev;
                 }
@@ -254,9 +254,8 @@ impl BufferCache {
     // This is confusing since it doesn't match xv6's brelse exactly so there could be a bug.
     // Check xv6 for details
     // TODO(tianjiao): fix this
-    pub fn release(&self, guard: &mut BufferGuard) {
-        self.internal.lock().release(guard.index as usize);
-        guard.index = -1;
+    fn release(&self, index: usize) {
+        self.internal.lock().release(index);
     }
 
     fn pin(&self, index: usize) {
