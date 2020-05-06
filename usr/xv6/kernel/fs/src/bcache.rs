@@ -46,7 +46,8 @@ pub struct BufferGuard {
     dev: u32,
     block_number: u32,
     index: i32,
-    data: Arc<Mutex<BufferBlockWrapper>>,
+    buffer: Arc<Mutex<BufferBlockWrapper>>,
+    bcache: &'static BufferCache,
 }
 
 impl BufferGuard {
@@ -59,11 +60,11 @@ impl BufferGuard {
     }
 
     pub fn pin(&self) {
-        // unimplemented!()
+        self.bcache.pin(self.index as usize)
     }
 
     pub fn unpin(&self) {
-        // unimplemented!()
+        self.bcache.unpin(self.index as usize)
     }
 }
 
@@ -79,7 +80,7 @@ impl Deref for BufferGuard {
     type Target = Arc<Mutex<BufferBlockWrapper>>;
 
     fn deref(&self) -> &Self::Target {
-        &self.data
+        &self.buffer
     }
 }
 
@@ -146,18 +147,15 @@ impl BufferCacheInternal {
     // look through buffer cache, return the buffer
     // If the block does not exist, we preempt a not-in-use one
     // We let the caller to lock the buffer when they need to use it
-    fn get(&mut self, dev: u32, block_number: u32) -> (bool, BufferGuard) {
+    fn get(&mut self, dev: u32, block_number: u32) -> (bool, i32, Arc<Mutex<BufferBlockWrapper>>) {
         // println!("{:?} {:?}", &(dev, block_number), self.map.get(&(dev, block_number)));
         match self.map.get(&(dev, block_number)) {
             Some(index) => {
                 let buffer = &mut self.buffers[*index];
+                assert!(buffer.dev == dev);
+                assert!(buffer.block_number == block_number);
                 buffer.reference_count += 1;
-                (true, BufferGuard {
-                    dev: buffer.dev,
-                    block_number: buffer.block_number,
-                    index: *index as i32,
-                    data: buffer.data.clone(),
-                })
+                (true, *index as i32, buffer.data.clone())
             },
             None => {
                 // Not cached; recycle an unused buffer.
@@ -175,12 +173,7 @@ impl BufferCacheInternal {
                         buffer.block_number = block_number;
                         buffer.reference_count = 1;
                         assert!(self.map.insert((dev, block_number), curr as usize).is_none());
-                        return (false, BufferGuard {
-                            dev: buffer.dev,
-                            block_number: buffer.block_number,
-                            index: curr,
-                            data: buffer.data.clone(),
-                        });
+                        return (false, curr, buffer.data.clone())
                     }
                     curr = buffer.prev;
                 }
@@ -230,15 +223,21 @@ impl BufferCache {
     // then unlock it and return it to the caller.
     // This is okay because the buffer will become valid only if it is a reused buffer.
     // We can also merge `bread` with `bget` since `bget` is only a helper for `bread`
-    pub fn read(&self, device: u32, block_number: u32) -> BufferGuard {
+    pub fn read(&'static self, device: u32, block_number: u32) -> BufferGuard {
         // println!("bread dev#{} block#{}", device, block_number);
-        let (valid, buffer) = self.internal.lock().get(device, block_number);
+        let (valid, index, buffer) = self.internal.lock().get(device, block_number);
         if !valid {
-            let sector = buffer.block_number() * (BSIZE / SECTOR_SIZE) as u32;
+            let sector = block_number * (BSIZE / SECTOR_SIZE) as u32;
             let mut guard = buffer.lock();
             *guard = BufferBlockWrapper(Some(self.bdev.read(sector, guard.take())));
         }
-        buffer
+        BufferGuard {
+            dev: device,
+            block_number,
+            index,
+            buffer,
+            bcache: self,
+        }
     }
 
     // Write b's contents to disk 
@@ -260,6 +259,13 @@ impl BufferCache {
         guard.index = -1;
     }
 
+    fn pin(&self, index: usize) {
+        self.internal.lock().buffers[index].reference_count += 1;
+    }
+
+    fn unpin(&self, index: usize) {
+        self.internal.lock().buffers[index].reference_count -= 1;
+    }
 }
 
 impl core::fmt::Debug for BufferCache {
