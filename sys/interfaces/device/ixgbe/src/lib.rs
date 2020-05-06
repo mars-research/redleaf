@@ -382,7 +382,7 @@ impl IxgbeDevice {
         print!("Tx ring {:16x} len {} HEAD {} TAIL {}\n", self.transmit_ring.physical(), self.transmit_ring.len(), head, tail);
 
         if reaped > 0 {
-            self.tx_clean_index = tx_clean_index;
+            self.tx_clean_index = self.transmit_index;
         }
         reaped
     }
@@ -409,6 +409,9 @@ impl IxgbeDevice {
                 if self.rx_slot[rx_index] {
                     count += 1;
                     if let Some(pkt) = &mut self.receive_buffers[rx_index] {
+
+                        //println!("{}, buffer {:16x}", rx_index, pkt.as_ptr() as u64);
+
                         let length = unsafe { core::ptr::read_volatile(
                                 &(*desc).wb.upper.length as *const u16) as usize
                         };
@@ -429,11 +432,12 @@ impl IxgbeDevice {
         let head = self.read_qreg_idx(IxgbeDmaArrayRegs::Rdh, 0);
         let tail = self.read_qreg_idx(IxgbeDmaArrayRegs::Rdt, 0);
 
+        print!("rx_index {} rx_clean_index {}\n", self.receive_index, self.rx_clean_index);
         print!("Rx ring {:16x} len {} HEAD {} TAIL {}\n", self.receive_ring.physical(), self.receive_ring.len(), head, tail);
 
         if reaped > 0 {
             println!("update clean index to {}", rx_clean_index);
-            self.rx_clean_index = rx_clean_index;
+            self.rx_clean_index = self.receive_index;
         }
         reaped
     }
@@ -509,18 +513,24 @@ impl IxgbeDevice {
         self.dump = true;
     }
 
+    pub fn dump_rx_descs(&mut self) {
+        self.dump_rx_desc();
+        self.rx_dump = false;
+    }
+
     pub fn dump_tx_descs(&mut self) {
         self.dump_tx_desc();
         self.dump = false;
     }
 
-    //#[inline(always)]
+    #[inline(always)]
     fn tx_submit_and_poll(&mut self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, debug: bool) -> usize {
         let mut sent = 0;
         let mut tx_index = self.transmit_index;
         let mut tx_clean_index = self.tx_clean_index;
         let mut last_tx_index = self.transmit_index;
         let num_descriptors = self.transmit_ring.len();
+        let BATCH_SIZE = 32;
 
 
         if packets.len() > 0 {
@@ -605,41 +615,40 @@ impl IxgbeDevice {
                 tx_index = wrap_ring(tx_index, self.transmit_ring.len());
                 sent += 1;
             }
-        } /*else {
-            //if debug {
-                println!("no packets to send. polling");
-            //}
-            let mut tx_clean_index = self.tx_clean_index;
-            let mut reaped = 0;
+            if reap_queue.len() < BATCH_SIZE {
+                let mut reaped = 0;
+                let mut count = 0;
+                let batch = BATCH_SIZE - reap_queue.len();
 
-            loop {
-                let status = unsafe {
-                    core::ptr::read_volatile(&(*self.transmit_ring.as_ptr().add(tx_clean_index)).wb.status
-                       as *const u32)
-                };
+                loop {
+                    let status = unsafe {
+                        core::ptr::read_volatile(&(*self.transmit_ring.as_ptr().add(tx_clean_index)).wb.status
+                           as *const u32)
+                    };
 
-                if (status & IXGBE_ADVTXD_STAT_DD) != 0 {
-                    if self.tx_slot[tx_clean_index] {
-                        if let Some(pkt) = &mut self.transmit_buffers[tx_clean_index] {
-                            let mut buf = pkt.as_mut_ptr();
-                            let vec = unsafe { Vec::from_raw_parts(buf, pkt.len(), pkt.capacity()) };
-                            reap_queue.push_front(vec);
+                    if (status & IXGBE_ADVTXD_STAT_DD) != 0 {
+                        if self.tx_slot[tx_clean_index] {
+                            if let Some(pkt) = &mut self.transmit_buffers[tx_clean_index] {
+                                let mut buf = pkt.as_mut_ptr();
+                                let vec = unsafe { Vec::from_raw_parts(buf, pkt.len(), pkt.capacity()) };
+                                reap_queue.push_front(vec);
+                            }
+                            self.tx_slot[tx_clean_index] = false;
+                            self.transmit_buffers[tx_clean_index] = None;
+                            reaped += 1;
                         }
-                        self.tx_slot[tx_clean_index] = false;
-                        self.transmit_buffers[tx_clean_index] = None;
-                        reaped += 1;
+                        tx_clean_index = wrap_ring(tx_clean_index, self.transmit_ring.len());
                     }
-                    tx_clean_index = wrap_ring(tx_clean_index, self.transmit_ring.len());
-                }
 
-                if tx_clean_index == self.transmit_index {
-                    break;
-                }
+                    count += 1;
 
+                    if tx_clean_index == self.transmit_index || count == batch {
+                        break;
+                    }
+                }
+                self.tx_clean_index = wrap_ring(tx_clean_index, self.transmit_ring.len());
             }
-            self.tx_clean_index = tx_clean_index;
-            return reaped;
-        }*/
+        }
 
         if sent > 0 && tx_index == last_tx_index {
             println!("Queued packets, but failed to update idx");
@@ -665,18 +674,13 @@ impl IxgbeDevice {
 
     #[inline(always)]
     fn rx_submit_and_poll(&mut self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, debug: bool) -> usize {
-        let mut rx_index;
-        let mut last_rx_index;
+        let mut rx_index = self.receive_index;
+        let mut last_rx_index = self.receive_index;
         let mut received_packets = 0;
-        let mut start_rx_index = 0;
-        let mut rx_clean_index = 0;
+        let mut rx_clean_index = self.rx_clean_index;
+        let BATCH_SIZE = 32;
 
         if packets.len() > 0 {
-            rx_clean_index = self.rx_clean_index;
-            start_rx_index = self.receive_index;
-            rx_index = self.receive_index;
-            last_rx_index = self.receive_index;
-
             while let Some(packet) = packets.pop_front() {
 
                 let mut desc = unsafe { &mut*(self.receive_ring.as_ptr().add(rx_index) as *mut ixgbe_adv_rx_desc) };
@@ -734,6 +738,7 @@ impl IxgbeDevice {
                             }
                             self.receive_buffers[rx_index] = None;
                         }
+                        self.rx_slot[rx_index] = false;
                         rx_clean_index = wrap_ring(rx_clean_index, self.receive_ring.len());
                     }
 
@@ -754,74 +759,82 @@ impl IxgbeDevice {
 
                 received_packets += 1;
             }
-        } else {
 
-            let mut rx_clean_index = self.rx_clean_index;
-            let rx_index = self.receive_index;
-            let mut reaped = 0;
+            rx_clean_index = wrap_ring(rx_clean_index, self.receive_ring.len());
 
-            loop {
-                let mut desc = unsafe { &mut*(self.receive_ring.as_ptr().add(rx_clean_index) as
-                                              *mut ixgbe_adv_rx_desc) };
+            if reap_queue.len() < BATCH_SIZE {
+                let rx_index = self.receive_index;
+                let mut reaped = 0;
+                let batch = BATCH_SIZE - reap_queue.len(); 
+                let mut count = 0;
+                let last_rx_clean = rx_clean_index;
+                //print!("reap_queue {} ", reap_queue.len());
 
-                let status = unsafe {
-                        core::ptr::read_volatile(&mut (*desc).wb.upper.status_error as *mut u32)
-                };
+                loop {
+                    let mut desc = unsafe { &mut*(self.receive_ring.as_ptr().add(rx_clean_index) as
+                                                  *mut ixgbe_adv_rx_desc) };
+
+                    let status = unsafe {
+                            core::ptr::read_volatile(&mut (*desc).wb.upper.status_error as *mut u32)
+                    };
+
+                    if debug {
+                        println!("checking status[{}] {:x}", rx_clean_index, status);
+                    }
+
+                    if ((status & IXGBE_RXDADV_STAT_DD) == 0) {
+                        break;
+                    }
+
+                    if ((status & IXGBE_RXDADV_STAT_DD) != 0) && ((status & IXGBE_RXDADV_STAT_EOP) == 0) {
+                        panic!("increase buffer size or decrease MTU")
+                    }
+
+                    if self.rx_slot[rx_clean_index] {
+                        if let Some(pkt) = &mut self.receive_buffers[rx_clean_index] {
+                            let length = unsafe { core::ptr::read_volatile(
+                                    &(*desc).wb.upper.length as *const u16) as usize
+                            };
+
+                            let mut buf = pkt.as_mut_ptr();
+                            let vec = unsafe { Vec::from_raw_parts(buf, length, pkt.capacity()) };
+                            reap_queue.push_back(vec);
+                        }
+                        self.rx_slot[rx_clean_index] = false;
+                        self.receive_buffers[rx_clean_index] = None;
+                        reaped += 1;
+                        rx_clean_index = wrap_ring(rx_clean_index, self.receive_ring.len());
+                    }
+
+                    count += 1;
+
+                    if rx_clean_index == rx_index || count == BATCH_SIZE {
+                        break;
+                    }
+                }
 
                 if debug {
-                    println!("checking status[{}] {:x}", rx_clean_index, status);
+                    println!("clean_index {}", rx_clean_index);
                 }
 
-                if ((status & IXGBE_RXDADV_STAT_DD) == 0) {
-                    break;
-                }
+                //print!("reap_queue_after {}\n", reap_queue.len());
 
-                if ((status & IXGBE_RXDADV_STAT_DD) != 0) && ((status & IXGBE_RXDADV_STAT_EOP) == 0) {
-                    panic!("increase buffer size or decrease MTU")
-                }
-
-                if self.rx_slot[rx_clean_index] {
-                    if let Some(pkt) = &mut self.receive_buffers[rx_clean_index] {
-                        let length = unsafe { core::ptr::read_volatile(
-                                &(*desc).wb.upper.length as *const u16) as usize
-                        };
-
-                        let mut buf = pkt.as_mut_ptr();
-                        let vec = unsafe { Vec::from_raw_parts(buf, length, pkt.capacity()) };
-                        reap_queue.push_back(vec);
-                    }
-                    self.rx_slot[rx_clean_index] = false;
-                    self.receive_buffers[rx_clean_index] = None;
-                    reaped += 1;
-                    //rx_clean_index = wrap_ring(rx_clean_index, self.receive_ring.len());
-                }
-                rx_clean_index = wrap_ring(rx_clean_index, self.receive_ring.len());
-
-                if rx_clean_index == self.receive_index {
-                    break;
+                if last_rx_clean != rx_clean_index {
+                    rx_clean_index = wrap_ring(rx_clean_index, self.receive_ring.len());
                 }
             }
-            if debug {
-                println!("clean_index {}", rx_clean_index);
-            }
-            self.rx_clean_index = rx_clean_index;
-            return reaped;
         }
 
         if rx_index != last_rx_index {
-            //println!("Update rdt from {} to {}", self.read_reg_idx(IxgbeDmaArrayRegs::Rdt, 0), last_rx_index);
-            self.write_qreg_idx(IxgbeDmaArrayRegs::Rdt, 0, last_rx_index as u64);
-            //self.bar.write_reg_rdt(0, last_rx_index as u64);
-            self.receive_index = rx_index;
-            self.rx_clean_index = rx_clean_index;
             if debug {
+                println!("Update rdt from {} to {}", self.read_qreg_idx(IxgbeDmaArrayRegs::Rdt, 0), last_rx_index);
                 println!("rx_index {} clean_index {}", rx_index, self.rx_clean_index);
             }
+            self.write_qreg_idx(IxgbeDmaArrayRegs::Rdt, 0, last_rx_index as u64);
+            self.receive_index = rx_index;
+            self.rx_clean_index = rx_clean_index;
         }
 
-        //if received_packets > 0 {
-            //println!("Received {} packets", received_packets);
-        //}
         received_packets
     }
 

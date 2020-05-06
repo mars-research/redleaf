@@ -191,19 +191,13 @@ fn run_tx_udp_test(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
         let dev: &mut Intel8259x = device;
         let mut sum: usize = 0;
         let start = rdtsc();
-        //while sum <= 20_000_000 {
-        let end = rdtsc() + 5 * 2_600_000_000;
+        let end = rdtsc() + 15 * 2_600_000_000;
 
         loop{
             let ret = dev.device.submit_and_poll(&mut packets, &mut collect, true, debug);
 
             sum += ret;
     
-            if sum == 0 {
-                //println!("Turn on DEBUGGING");
-                debug = true;
-            }
-
             packets.append(&mut collect);
 
 
@@ -226,7 +220,6 @@ fn run_tx_udp_test(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
         dev.dump_stats();
         println!(" alloc_count {}", alloc_count * 32);
         println!("Reaped {} packets", dev.device.tx_poll(&mut collect));
-        //dev.dump_tx_descs();
     }
 }
 
@@ -254,10 +247,8 @@ fn run_rx_udptest(dev: &Ixgbe, pkt_size: usize, debug: bool) {
         let mut seq_end: u64 = 0;
 
         let start = rdtsc();
-        //let report_interval = 2_600_000_000;
-        let end = start + 5* 2_600_000_000;
+        let end = start + 15 * 2_600_000_000;
 
-        //while sum <= 20_000_000 {
         loop {
             submit_rx_hist.record(packets.len() as u64);
             let ret = idev.device.submit_and_poll(&mut packets, &mut collect, false, debug);
@@ -277,17 +268,12 @@ fn run_rx_udptest(dev: &Ixgbe, pkt_size: usize, debug: bool) {
 
             packets.append(&mut collect);
 
-            if packets.len() == 0 {
-                unsafe {
-                    asm!("pause");
-                }
-            }
-
             if rdtsc() > end {
                 break;
             }
-            if packets.len() == 0 {
-                println!("allocating new batch");
+
+            if packets.len() < batch_sz / 4 {
+                //println!("allocating new batch");
                 alloc_count += 1;
 
                 for i in 0..batch_sz {
@@ -299,16 +285,11 @@ fn run_rx_udptest(dev: &Ixgbe, pkt_size: usize, debug: bool) {
         let elapsed = rdtsc() - start;
 
         println!("rx packets.len {} collect.len {} ", packets.len(), collect.len());
-        let ret = idev.device.submit_and_poll(&mut packets, &mut collect, false, true);
+        let ret = idev.device.submit_and_poll(&mut packets, &mut collect, false, false);
         if collect_end && !collect.is_empty() {
             let pkt = &collect[0];
             dump_packet(pkt);
             seq_end = BigEndian::read_u64(&pkt[42..42+8]);
-
-            /*if let Some(pkt) = collect[0] {
-                dump_packet(&pkt);
-                seq_end = BigEndian::read_u64(&pkt[42..42+8]);
-            }*/
         }
 
         println!("seq_start {} seq_end {} delta {}", seq_start, seq_end, seq_end - seq_start);
@@ -399,14 +380,11 @@ fn run_fwd_udptest(dev: &Ixgbe, pkt_size: u16) {
             //print!("tx: submitted {} collect {}\n", ret, rx_packets.len());
 
             if rx_packets.len() == 0 && tx_packets.len() < batch_sz * 4 {
-            //if rx_packets.len() == 0 {// && tx_packets.len() < batch_sz * 4 {
-                println!("-> Allocating new rx_ptx batch");
+                //println!("-> Allocating new rx_ptx batch");
                 for i in 0..batch_sz {
                     rx_packets.push_front(Vec::with_capacity(2048));
                 }
             }
-
-            //dev.dump_stats();
 
             if rdtsc() > end {
                 break;
@@ -454,42 +432,20 @@ pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
 
     let payload_sz = alloc::vec![64 - 42, 64, 128, 256, 512, 1470];
 
-    /*println!("=> Running tx tests...");
-    for _ in 0..2 {
-        for p in payload_sz.iter() {
-            println!("running {}B payload test", p);
-            run_tx_udp_test(&ixgbe, *p, false);
-        }
-    }*/
+    println!("=> Running tests...");
 
-    run_tx_udp_test(&ixgbe, 64-42, false);
-
-    run_tx_udp_test(&ixgbe, 64, false);
-
-    println!("=> Running rx tests...");
-
-    run_rx_udptest(&ixgbe, 64-42, false);
-
-    /*for _ in 0..1024 {
-        run_rx_udptest(&ixgbe, 64-42, false);
-    }*/
-
-    run_fwd_udptest(&ixgbe, 64 - 42);
-    /*
     for p in payload_sz.iter() {
-        println!("running {}B rx test", p);
-        run_rx_udptest(&ixgbe, *p);
+        println!("running {}B payload test", p);
+        println!("Tx test");
+        run_tx_udp_test(&ixgbe, *p, false);
+
+        println!("Rx test");
+        run_tx_udp_test(&ixgbe, *p, false);
+
+        println!("Fwd test");
+        run_fwd_udptest(&ixgbe, 64 - 42);
     }
 
-    //run_tx_udp_test(&ixgbe, 64-42);
-    run_rx_udptest(&ixgbe, 64-42);
-
-
-    sys_ns_loopsleep(ONE_MS_IN_NS * 1000 * 3);
-
-    //println!("running 64B fwd test");
-    run_fwd_udptest(&ixgbe, 64 - 42);
-    */
     Box::new(ixgbe)
 }
 
