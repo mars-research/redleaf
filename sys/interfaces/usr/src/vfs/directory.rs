@@ -6,6 +6,7 @@ const DIRSIZ: usize = 14;
 
 // Correspond to dirent in xv6
 #[repr(C)]
+#[derive(Debug)]
 pub struct DirectoryEntry {
     pub inum: u16,
     pub name: [u8; DIRSIZ],
@@ -21,6 +22,7 @@ impl DirectoryEntry {
 }
 
 // DirectoryEntry but without copying the `name`
+#[derive(Debug)]
 pub struct DirectoryEntryRef<'a> {
     pub inum: u16,
     pub name: &'a [u8],

@@ -36,7 +36,7 @@ impl ICache {
             // Okay, there're a lot of copying happening here but we don't have time to make it nice.
             const DINODE_SIZE: usize = mem::size_of::<DINode>();
             let dinode_offset = (inum as usize % params::IPB) * DINODE_SIZE;
-            let mut dinode_slice = &mut buffer[dinode_offset..dinode_offset + DINODE_SIZE];
+            let dinode_slice = &mut buffer[dinode_offset..dinode_offset + DINODE_SIZE];
             let mut dinode = DINode::from_bytes(dinode_slice);
 
             if dinode.file_type == INodeFileType::Unitialized {
