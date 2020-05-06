@@ -4,9 +4,9 @@
 
 use crate::params::{NBUF, BSIZE, SECTOR_SIZE};
 
-use alloc::sync::Arc;
 use alloc::boxed::Box;
 use alloc::string::String;
+use alloc::sync::Arc;
 use alloc::vec::Vec;
 use console::println;
 use core::ops::{Deref, DerefMut};
@@ -59,11 +59,11 @@ impl BufferGuard {
     }
 
     pub fn pin(&self) {
-        unimplemented!()
+        // unimplemented!()
     }
 
     pub fn unpin(&self) {
-        unimplemented!()
+        // unimplemented!()
     }
 }
 
@@ -147,6 +147,7 @@ impl BufferCacheInternal {
     // If the block does not exist, we preempt a not-in-use one
     // We let the caller to lock the buffer when they need to use it
     fn get(&mut self, dev: u32, block_number: u32) -> (bool, BufferGuard) {
+        // println!("{:?} {:?}", &(dev, block_number), self.map.get(&(dev, block_number)));
         match self.map.get(&(dev, block_number)) {
             Some(index) => {
                 let buffer = &mut self.buffers[*index];
@@ -164,9 +165,16 @@ impl BufferCacheInternal {
                 for _ in 0..NBUF {
                     let buffer = &mut self.buffers[curr as usize];
                     if buffer.reference_count == 0 {
+                        // Move it out from the map
+                        if buffer.block_number != 0 {
+                            assert!(self.map.remove(&(buffer.dev, buffer.block_number)).is_some());
+                        }
+
+                        // Clear the buffer and return it
                         buffer.dev = dev;
                         buffer.block_number = block_number;
                         buffer.reference_count = 1;
+                        assert!(self.map.insert((dev, block_number), curr as usize).is_none());
                         return (false, BufferGuard {
                             dev: buffer.dev,
                             block_number: buffer.block_number,
@@ -237,6 +245,7 @@ impl BufferCache {
     // doesn't match with the `buffer_data`.
     // TODO: address the issue above by refactoring the `BufferGuard`
     pub fn write(&self, block_number: u32, buffer_data: &mut BufferBlockWrapper) {
+        // println!("bwrite block#{}", block_number);
         let sector = block_number * (BSIZE / SECTOR_SIZE) as u32;
         *buffer_data = BufferBlockWrapper(Some(self.bdev.write(block_number, buffer_data.take())));
     }
@@ -250,15 +259,6 @@ impl BufferCache {
     }
 
 }
-
-
-// impl core::fmt::Debug for BufferCache {
-//     fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
-//         self.list.lock().iter()
-//                         .map(|b| writeln!(fmt, "{:?}", **b.lock()))
-//                         .fold(Ok(()), core::fmt::Result::and)
-//     }
-// }
 
 impl core::fmt::Debug for BufferCache {
     fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
