@@ -65,7 +65,7 @@ impl LogInternal {
     // Copy committed blocks from log to their home location
     fn install_trans(&mut self) {
         for tail in 0..self.logheader.n {
-            console::println!("committing {} to {}", self.start + tail + 1, self.logheader.block_nums[tail as usize]);
+            // console::println!("committing {} to {}", self.start + tail + 1, self.logheader.block_nums[tail as usize]);
             let mut lbuf = BCACHE.force_get().read(self.dev, self.start + tail + 1);
             let mut dbuf = BCACHE.force_get().read(self.dev, self.logheader.block_nums[tail as usize]);
             {
