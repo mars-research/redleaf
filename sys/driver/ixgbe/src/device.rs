@@ -346,6 +346,14 @@ impl Intel8259x {
         println!("   - link speed is {} Mbit/s", self.get_link_speed());
     }
 
+    pub fn dump_rx_descs(&mut self) {
+        self.device.dump_rx_descs();
+    }
+
+    pub fn dump_tx_descs(&mut self) {
+        self.device.dump_tx_descs();
+    }
+
     pub fn dump_stats(&self) {
         println!("Ixgbe statistics:");
         let mut string = format!("Stats regs:\n\tGPRC {:08X} GPTC {:08X}\n \
