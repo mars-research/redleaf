@@ -1,7 +1,7 @@
-use rref::RRef;
 use proxy;
 use usr;
 use create;
+use rref::{RRef, RRefDeque};
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain_id};
@@ -140,7 +140,9 @@ impl create::CreateXv6 for Proxy {
 
 impl create::CreateDomA for Proxy {
     fn create_domain_dom_a(&self) ->(Box<dyn Domain>, Box<dyn DomA>) {
-        self.create_dom_a.create_domain_dom_a()
+        let (domain, dom_a) = self.create_dom_a.create_domain_dom_a();
+        let domain_id = domain.get_domain_id();
+        return (domain, Box::new(DomAProxy::new(domain_id, dom_a)));
     }
 }
 
@@ -189,6 +191,63 @@ impl BDev for BDevProxy {
         // data.move_to(callee_domain);
         let r = self.domain.write(block, data);
         // data.move_to(caller_domain);
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
+    }
+}
+
+struct DomAProxy {
+    domain: Box<dyn usr::dom_a::DomA>,
+    domain_id: u64,
+}
+
+unsafe impl Sync for DomAProxy {}
+unsafe impl Send for DomAProxy {}
+
+impl DomAProxy {
+    fn new(domain_id: u64, domain: Box<dyn usr::dom_a::DomA>) -> Self {
+        Self {
+            domain,
+            domain_id,
+        }
+    }
+}
+
+impl usr::dom_a::DomA for DomAProxy {
+    fn ping_pong(&self, buffer: RRef<[u8; 1024]>) -> RRef<[u8; 1024]> {
+        // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        buffer.move_to(self.domain_id);
+        let r = self.domain.ping_pong(buffer);
+        r.move_to(caller_domain);
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
+    }
+
+    fn tx_submit_and_poll(
+        &mut self,
+        packets: RRefDeque<RRef<[u8; 100]>, 32>,
+        reap_queue: RRefDeque<RRef<[u8; 100]>, 32>)
+    -> (
+        usize,
+        RRefDeque<RRef<[u8; 100]>, 32>,
+        RRefDeque<RRef<[u8; 100]>, 32>
+    ) {
+        // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        packets.move_to(self.domain_id);
+        reap_queue.move_to(self.domain_id);
+        let r = self.domain.tx_submit_and_poll(packets, reap_queue);
+        r.1.move_to(caller_domain);
+        r.2.move_to(caller_domain);
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };

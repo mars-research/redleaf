@@ -41,6 +41,11 @@ impl<T, const N: usize> RRefDeque<T, N> {
         }
     }
 
+    // TODO: mark unsafe?
+    pub fn move_to(&self, new_domain_id: u64) {
+        self.arr.move_to(new_domain_id);
+    }
+
     pub fn push_back(&mut self, value: T) -> Option<T> {
         if self.arr[self.head].is_some() {
             return Some(value);
