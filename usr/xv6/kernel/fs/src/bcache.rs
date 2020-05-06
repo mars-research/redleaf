@@ -191,17 +191,19 @@ impl BufferCacheInternal {
     }
 
     fn release(&mut self, index: usize) {
+        // println!("brelse {}", index);
         self.buffers[index].reference_count -= 1;
         if self.buffers[index].reference_count == 0 {
-            // Move to the head
+            // Move to the tail
+            // Pop the node
             let prev = self.buffers[index].prev as usize;
             let next = self.buffers[index].next as usize;
             self.buffers[next].prev = self.buffers[index].prev;
             self.buffers[prev].next = self.buffers[index].next;
+            // Put it at the tail
             self.buffers[index].next = self.head as i32;
             self.buffers[index].prev = self.buffers[self.head].prev;
             self.buffers[self.head].prev = index as i32;
-            self.head = index;
         }
     }
 
@@ -247,7 +249,7 @@ impl BufferCache {
     pub fn write(&self, block_number: u32, buffer_data: &mut BufferBlockWrapper) {
         // println!("bwrite block#{}", block_number);
         let sector = block_number * (BSIZE / SECTOR_SIZE) as u32;
-        *buffer_data = BufferBlockWrapper(Some(self.bdev.write(block_number, buffer_data.take())));
+        *buffer_data = BufferBlockWrapper(Some(self.bdev.write(sector, buffer_data.take())));
     }
 
     // This is confusing since it doesn't match xv6's brelse exactly so there could be a bug.
