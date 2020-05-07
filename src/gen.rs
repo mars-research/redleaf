@@ -511,6 +511,7 @@ pub fn build_domain_proxy(
     create_dom_b: Arc<dyn create::CreateDomB>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
     type UserInit = fn(
         Box<dyn syscalls::Syscall>,
+        Box<dyn syscalls::Heap>,
         create_pci: Arc<dyn create::CreatePCI>,
         create_ahci: Arc<dyn create::CreateAHCI>,
         create_membdev: Arc<dyn create::CreateMemBDev>,
@@ -530,11 +531,13 @@ pub fn build_domain_proxy(
     };
 
     let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pheap = Box::new(PHeap::new());
 
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     let proxy = user_ep(
         pdom,
+        pheap,
         create_pci,
         create_ahci,
         create_membdev,

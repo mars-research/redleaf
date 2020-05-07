@@ -6,6 +6,7 @@ extern crate alloc;
 use libsyscalls;
 use syscalls;
 use create;
+use rref;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use console::println;
@@ -15,6 +16,7 @@ use core::panic::PanicInfo;
 #[no_mangle]
 pub fn init(
     s: Box<dyn syscalls::Syscall + Send + Sync>,
+    heap: Box<dyn syscalls::Heap + Send + Sync>,
     create_pci: Arc<dyn create::CreatePCI>,
     create_ahci: Arc<dyn create::CreateAHCI>,
     create_membdev: Arc<dyn create::CreateMemBDev>,
@@ -27,6 +29,7 @@ pub fn init(
 ) -> Arc<dyn proxy::Proxy> {
 
     libsyscalls::syscalls::init(s);
+    rref::init(heap);
 
     Arc::new(gen::Proxy::new(
         create_pci,
