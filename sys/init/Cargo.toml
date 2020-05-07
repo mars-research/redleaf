@@ -37,8 +37,15 @@ version = "0.2.8"
 default-features = false
 
 [features]
+default = [
+#    "test_ab",
+#    "test_shadow",
+]
+
 test_sleep = [ ]
 test_timer_thread = [ ]
 test_threads = [ ]
 test_guard_page = [ ]
+test_ab = []
+test_shadow = []
 membdev = []

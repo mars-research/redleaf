@@ -204,8 +204,18 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
     println!("Creating ixgbe");
     let (dom_ixgbe, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci2);
 
-    // let (dom_dom_a, dom_a) = proxy.as_create_dom_a().create_domain_dom_a();
-    // let dom_dom_b = proxy.as_create_dom_b().create_domain_dom_b(dom_a);
+    #[cfg(feature = "test_ab")]
+    {
+        let (dom_dom_a, dom_a) = proxy.as_create_dom_a().create_domain_dom_a();
+        let dom_dom_b = proxy.as_create_dom_b().create_domain_dom_b(dom_a);
+    }
+
+    #[cfg(feature = "test_shadow")]
+    {
+        let (dom_dom_c, dom_c) = proxy.as_create_dom_c().create_domain_dom_c();
+        let (dom_shadow, shadow) = proxy.as_create_shadow().create_domain_shadow(dom_c);
+        let dom_dom_d = proxy.as_create_dom_d().create_domain_dom_d(shadow);
+    }
 
     let dom_xv6 = proxy.as_create_xv6().create_domain_xv6kernel(ints_clone, proxy.as_create_xv6fs(), proxy.as_create_xv6usr(), bdev);
 }
