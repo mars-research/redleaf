@@ -5,6 +5,7 @@ extern crate alloc;
 pub mod allocator;
 pub mod ahci;
 pub mod ixgbe;
+pub mod nvme;
 mod dma;
 mod mmio;
 

@@ -22,6 +22,7 @@ pub struct Proxy {
     create_membdev: Arc<dyn create::CreateMemBDev>,
     create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
     create_ixgbe: Arc<dyn create::CreateIxgbe>,
+    create_nvme: Arc<dyn create::CreateNvme>,
     create_net_shadow: Arc<dyn create::CreateNetShadow>,
     create_benchnet: Arc<dyn create::CreateBenchnet>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
@@ -44,6 +45,7 @@ impl Proxy {
         create_membdev: Arc<dyn create::CreateMemBDev>,
         create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
         create_ixgbe: Arc<dyn create::CreateIxgbe>,
+        create_nvme: Arc<dyn create::CreateNvme>,
         create_net_shadow: Arc<dyn create::CreateNetShadow>,
         create_benchnet: Arc<dyn create::CreateBenchnet>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
@@ -61,6 +63,7 @@ impl Proxy {
             create_membdev,
             create_bdev_shadow,
             create_ixgbe,
+            create_nvme,
             create_net_shadow,
             create_benchnet,
             create_xv6fs,
@@ -96,6 +99,9 @@ impl proxy::Proxy for Proxy {
         Arc::new(self.clone())
     }
     fn as_create_benchnet(&self) -> Arc<dyn create::CreateBenchnet> {
+        Arc::new(self.clone())
+    }
+    fn as_create_nvme(&self) -> Arc<dyn create::CreateNvme> {
         Arc::new(self.clone())
     }
     fn as_create_xv6fs(&self) -> Arc<dyn create::CreateXv6FS> {
@@ -174,6 +180,13 @@ impl create::CreateNetShadow for Proxy {
         let (domain, shadow) = self.create_net_shadow.create_domain_net_shadow(create, pci);
         let domain_id = domain.get_domain_id();
         return (domain, Box::new(IxgbeProxy::new(domain_id, shadow)));
+    }
+}
+
+impl create::CreateNvme for Proxy {
+    fn create_domain_nvme(&self, pci: Box<dyn PCI>) -> Box<dyn Domain> {
+        // TODO: write NvmeProxy
+        self.create_nvme.create_domain_nvme(pci)
     }
 }
 

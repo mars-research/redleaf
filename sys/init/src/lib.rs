@@ -103,6 +103,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
             create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
             create_pci: Arc<dyn create::CreatePCI>,
             create_ixgbe: Arc<dyn create::CreateIxgbe>,
+            create_nvme: Arc<dyn create::CreateNvme>,
             create_net_shadow: Arc<dyn create::CreateNetShadow>,
             create_benchnet: Arc<dyn create::CreateBenchnet>,
             create_ahci: Arc<dyn create::CreateAHCI>,
@@ -182,6 +183,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
         create_membdev,
         create_bdev_shadow,
         create_ixgbe,
+        create_nvme,
         create_net_shadow,
         create_benchnet,
         create_xv6fs,
@@ -200,6 +202,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
     let (dom_pci, pci) = proxy.as_create_pci().create_domain_pci();
 
     let pci2 = pci.pci_clone();
+    let pci3 = pci.pci_clone();
 
     #[cfg(not(feature = "membdev"))]
     let (dom_ahci, bdev) = proxy.as_create_ahci().create_domain_ahci(pci);
@@ -227,6 +230,8 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
         let (dom_shadow, shadow) = proxy.as_create_shadow().create_domain_shadow(proxy.as_create_dom_c());
         let dom_dom_d = proxy.as_create_dom_d().create_domain_dom_d(shadow);
     }
+
+    let dom_nvme = proxy.as_create_nvme().create_domain_nvme(pci3);
 
     #[cfg(not(feature = "benchnet"))]
     {

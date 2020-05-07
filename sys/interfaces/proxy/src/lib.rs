@@ -9,6 +9,7 @@ use create::{CreatePCI,
              CreateMemBDev, 
              CreateBDevShadow,
              CreateIxgbe, 
+             CreateNvme,
              CreateNetShadow,
              CreateBenchnet,
              CreateXv6FS, 
@@ -29,6 +30,7 @@ pub trait CreateProxy {
         create_membdev: Arc<dyn CreateMemBDev>,
         create_bdev_shadow: Arc<dyn CreateBDevShadow>,
         create_ixgbe: Arc<dyn CreateIxgbe>,
+        create_nvme: Arc<dyn CreateNvme>,
         create_net_shadow: Arc<dyn create::CreateNetShadow>,
         create_benchnet: Arc<dyn CreateBenchnet>,
         create_xv6fs: Arc<dyn CreateXv6FS>,
@@ -62,6 +64,7 @@ pub trait Proxy: CreatePCI +
     fn as_create_membdev(&self) -> Arc<dyn CreateMemBDev>;
     fn as_create_bdev_shadow(&self) -> Arc<dyn CreateBDevShadow>;
     fn as_create_ixgbe(&self) -> Arc<dyn CreateIxgbe>;
+    fn as_create_nvme(&self) -> Arc<dyn CreateNvme>;
     fn as_create_net_shadow(&self) -> Arc<dyn CreateNetShadow>;
     fn as_create_benchnet(&self) -> Arc<dyn CreateBenchnet>;
     fn as_create_xv6fs(&self) -> Arc<dyn CreateXv6FS>;

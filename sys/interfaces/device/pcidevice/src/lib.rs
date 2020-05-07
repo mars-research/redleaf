@@ -81,6 +81,7 @@ impl PciDevice {
 
             match dev_type {
                 PciDrivers::IxgbeDriver => { return DeviceBarRegions::Ixgbe(*bar_addr); },
+                PciDrivers::NvmeDriver => { return DeviceBarRegions::Nvme(*bar_addr); },
                 PciDrivers::AhciDriver => { return DeviceBarRegions::Ahci(*bar_addr); },
                 _ => { return DeviceBarRegions::None; },
             }
