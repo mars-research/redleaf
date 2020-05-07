@@ -33,6 +33,10 @@ impl usr::dom_c::DomC for Shadow {
     fn one_arg(&self, x: usize) -> usize {
         self.dom_c.one_arg(x)
     }
+
+    fn one_rref(&self, x: RRef<usize>) -> RRef<usize> {
+        self.dom_c.one_rref(x)
+    }
 }
 
 #[no_mangle]

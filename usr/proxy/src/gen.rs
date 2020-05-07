@@ -337,4 +337,18 @@ impl usr::dom_c::DomC for DomCProxy {
 
         r
     }
+
+    fn one_rref(&self, x: RRef<usize>) -> RRef<usize> {
+        // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        x.move_to(self.domain_id);
+        let r = self.domain.one_rref(x);
+        r.move_to(caller_domain);
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
+    }
 }

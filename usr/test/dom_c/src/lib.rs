@@ -27,6 +27,11 @@ impl usr::dom_c::DomC for DomC {
     fn one_arg(&self, x: usize) -> usize {
         x + 1
     }
+
+    fn one_rref(&self, mut x: RRef<usize>) -> RRef<usize> {
+        *x += 1;
+        x
+    }
 }
 
 #[no_mangle]

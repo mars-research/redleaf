@@ -36,6 +36,15 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
     let elapse = libtime::get_rdtsc() - start;
     println!("dom_c.one_arg: avg: {}, total: {}, iter: {}", elapse as f64 / iter as f64, elapse, iter);
     assert!(dom_c.one_arg(12321) == 12321 + 1);
+
+    let start = libtime::get_rdtsc();
+    let mut x = RRef::new(0usize);
+    for _ in 0..iter {
+        x = dom_c.one_rref(x);
+    }
+    let elapse = libtime::get_rdtsc() - start;
+    println!("dom_c.one_rref: avg: {}, total: {}, iter: {}", elapse as f64 / iter as f64, elapse, iter);
+    assert!(*dom_c.one_rref(x) == iter + 1);
 }
 
 // This function is called on panic.
