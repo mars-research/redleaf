@@ -8,6 +8,8 @@ use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain
 use syscalls::{Heap, Domain, PCI, PciBar, PciResource, Net, Interrupt};
 use usr::{vfs::VFS, xv6::Xv6, dom_a::DomA, dom_c::DomC};
 use usr::bdev::{BDev, BSIZE};
+// TODO: remove once ixgbe on rrefdeque
+use alloc::{vec::Vec, collections::VecDeque};
 
 #[derive(Clone)]
 pub struct Proxy {
@@ -126,8 +128,9 @@ impl create::CreateMemBDev for Proxy {
 
 impl create::CreateIxgbe for Proxy {
     fn create_domain_ixgbe(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net>) {
-        // TODO: write IxgbeProxy
-        self.create_ixgbe.create_domain_ixgbe(pci)
+        let (domain, ixgbe) = self.create_ixgbe.create_domain_ixgbe(pci);
+        let domain_id = domain.get_domain_id();
+        (domain, Box::new(IxgbeProxy::new(domain_id, ixgbe)))
     }
 }
 
@@ -231,6 +234,40 @@ impl BDev for BDevProxy {
         // data.move_to(callee_domain);
         let r = self.domain.write(block, data);
         // data.move_to(caller_domain);
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
+    }
+}
+
+struct IxgbeProxy {
+    domain: Box<dyn Net>,
+    domain_id: u64,
+}
+
+unsafe impl Sync for IxgbeProxy {}
+unsafe impl Send for IxgbeProxy {}
+
+impl IxgbeProxy {
+    fn new(domain_id: u64, domain: Box<dyn Net>) -> Self {
+        Self {
+            domain,
+            domain_id,
+        }
+    }
+}
+
+impl Net for IxgbeProxy {
+    fn submit_and_poll(&mut self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
+
+        // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        // packets.move_to(self.domain_id);
+        // reap_queue.move_to(self.domain_id);
+        let r = self.domain.submit_and_poll(packets, reap_queue, tx);
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };
