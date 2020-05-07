@@ -1,3 +1,4 @@
 pub trait DomC {
-    fn foo(&mut self, x: usize) -> usize;
+    fn no_arg(&self);
+    fn one_arg(&self, x: usize) -> usize;
 }

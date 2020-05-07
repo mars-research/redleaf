@@ -26,8 +26,12 @@ impl Shadow {
 }
 
 impl usr::dom_c::DomC for Shadow {
-    fn foo(&mut self, x: usize) -> usize {
-        self.dom_c.foo(x)
+    fn no_arg(&self) {
+        self.dom_c.no_arg()
+    }
+
+    fn one_arg(&self, x: usize) -> usize {
+        self.dom_c.one_arg(x)
     }
 }
 

@@ -19,6 +19,23 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
     rref::init(heap);
 
     println!("Init domain D");
+
+    let iter = 10_000_000;
+
+    let start = libtime::get_rdtsc();
+    for _ in 0..iter {
+        dom_c.no_arg();
+    }
+    let elapse = libtime::get_rdtsc() - start;
+    println!("dom_c.no_arg: avg: {}, total: {}, iter: {}", elapse as f64 / iter as f64, elapse, iter);
+
+    let start = libtime::get_rdtsc();
+    for _ in 0..iter {
+        dom_c.one_arg(1);
+    }
+    let elapse = libtime::get_rdtsc() - start;
+    println!("dom_c.one_arg: avg: {}, total: {}, iter: {}", elapse as f64 / iter as f64, elapse, iter);
+    assert!(dom_c.one_arg(12321) == 12321 + 1);
 }
 
 // This function is called on panic.

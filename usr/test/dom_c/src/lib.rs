@@ -13,22 +13,19 @@ use usr;
 use rref::{RRef, RRefDeque};
 use alloc::vec::Vec;
 
-struct DomC {
-    x: usize,
-}
+struct DomC {}
 
 impl DomC {
     fn new() -> Self {
-        Self {
-            x: 0,
-        }
+        Self {}
     }
 }
 
 impl usr::dom_c::DomC for DomC {
-    fn foo(&mut self, x: usize) -> usize {
-        self.x += x;
-        self.x
+    fn no_arg(&self) {}
+
+    fn one_arg(&self, x: usize) -> usize {
+        x + 1
     }
 }
 
