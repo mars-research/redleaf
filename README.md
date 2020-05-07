@@ -1,7 +1,7 @@
 ![](https://github.com/mars-research/redleaf/workflows/build/badge.svg)
 
-### Setup
-```
+### Development Setup
+```bash
 curl https://sh.rustup.rs -sSf | sh
 rustup override add nightly
 rustup component add llvm-tools-preview
@@ -9,6 +9,14 @@ cargo install cargo-xbuild
 cargo +nightly install stack-sizes
 rustup component add rust-src
 ```
+
+### Benchmark Setup
+First, ask @zhaofangli for a deb file and install it.
+Then, disable Hyper Threading and fix CPU frequency to a constant by running
+```bash
+./disable_hyperthreading.sh && ./constant_freq.sh
+```
+
 
 ### Prerequisites
 * Install Qemu
