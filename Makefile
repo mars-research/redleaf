@@ -38,6 +38,9 @@ domain_list := sys/init/build/init \
 	usr/proxy/build/dom_proxy \
 	usr/test/dom_a/build/dom_a \
 	usr/test/dom_b/build/dom_b \
+	usr/test/dom_c/build/dom_c \
+	usr/test/dom_d/build/dom_d \
+	usr/test/shadow/build/shadow \
 	usr/xv6/kernel/core/build/xv6kernel \
 	usr/xv6/kernel/fs/build/xv6fs \
 	sys/driver/pci/build/pci \

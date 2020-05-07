@@ -4,7 +4,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use syscalls::{Heap, Domain, PCI, PciBar, PciResource, Net, Interrupt};
-use usr::{bdev::BDev, vfs::VFS, xv6::Xv6, dom_a::DomA};
+use usr::{bdev::BDev, vfs::VFS, xv6::Xv6, dom_a::DomA, dom_c::DomC};
 
 pub trait CreatePCI {
     fn create_domain_pci(&self) -> (Box<dyn Domain>, Box<dyn PCI>);
@@ -45,4 +45,16 @@ pub trait CreateDomA {
 
 pub trait CreateDomB {
     fn create_domain_dom_b(&self, dom_a: Box<dyn DomA>) -> Box<dyn Domain>;
+}
+
+pub trait CreateDomC {
+    fn create_domain_dom_c(&self) -> (Box<dyn Domain>, Box<dyn DomC>);
+}
+
+pub trait CreateDomD {
+    fn create_domain_dom_d(&self, dom_c: Box<dyn DomC>) -> Box<dyn Domain>;
+}
+
+pub trait CreateShadow {
+    fn create_domain_shadow(&self, dom_c: Box<dyn DomC>) -> (Box<dyn Domain>, Box<dyn DomC>);
 }

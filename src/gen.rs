@@ -102,6 +102,33 @@ impl create::CreateDomB for PDomain {
     }
 }
 
+impl create::CreateDomC for PDomain {
+    fn create_domain_dom_c(&self) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
+        disable_irq();
+        let r = create_domain_dom_c();
+        enable_irq();
+        r
+    }
+}
+
+impl create::CreateDomD for PDomain {
+    fn create_domain_dom_d(&self, dom_c: Box<dyn usr::dom_c::DomC>) -> Box<dyn syscalls::Domain> {
+        disable_irq();
+        let r = create_domain_dom_d(dom_c);
+        enable_irq();
+        r
+    }
+}
+
+impl create::CreateShadow for PDomain {
+    fn create_domain_shadow(&self, dom_c: Box<dyn usr::dom_c::DomC>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
+        disable_irq();
+        let r = create_domain_shadow(dom_c);
+        enable_irq();
+        r
+    }
+}
+
 impl proxy::CreateProxy for PDomain {
     fn create_domain_proxy(
         &self,
@@ -113,7 +140,10 @@ impl proxy::CreateProxy for PDomain {
         create_xv6usr: Arc<dyn create::CreateXv6Usr>,
         create_xv6: Arc<dyn create::CreateXv6>,
         create_dom_a: Arc<dyn create::CreateDomA>,
-        create_dom_b: Arc<dyn create::CreateDomB>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
+        create_dom_b: Arc<dyn create::CreateDomB>,
+        create_dom_c: Arc<dyn create::CreateDomC>,
+        create_dom_d: Arc<dyn create::CreateDomD>,
+        create_shadow: Arc<dyn create::CreateShadow>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
         disable_irq();
         let r = create_domain_proxy(
             create_pci,
@@ -124,7 +154,10 @@ impl proxy::CreateProxy for PDomain {
             create_xv6usr,
             create_xv6,
             create_dom_a,
-            create_dom_b);
+            create_dom_b,
+            create_dom_c,
+            create_dom_d,
+            create_shadow);
         enable_irq();
         r
     }
@@ -276,6 +309,48 @@ pub fn create_domain_dom_b(dom_a: Box<dyn usr::dom_a::DomA>) -> Box<dyn syscalls
     build_domain_dom_b("dom_b", binary_range, dom_a)
 }
 
+pub fn create_domain_dom_c() -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
+    extern "C" {
+        fn _binary_usr_test_dom_c_build_dom_c_start();
+        fn _binary_usr_test_dom_c_build_dom_c_end();
+    }
+
+    let binary_range = (
+        _binary_usr_test_dom_c_build_dom_c_start as *const u8,
+        _binary_usr_test_dom_c_build_dom_c_end as *const u8
+    );
+
+    build_domain_dom_c("dom_c", binary_range)
+}
+
+pub fn create_domain_dom_d(dom_c: Box<dyn usr::dom_c::DomC>) -> Box<dyn syscalls::Domain> {
+    extern "C" {
+        fn _binary_usr_test_dom_d_build_dom_d_start();
+        fn _binary_usr_test_dom_d_build_dom_d_end();
+    }
+
+    let binary_range = (
+        _binary_usr_test_dom_d_build_dom_d_start as *const u8,
+        _binary_usr_test_dom_d_build_dom_d_end as *const u8
+    );
+
+    build_domain_dom_d("dom_d", binary_range, dom_c)
+}
+
+pub fn create_domain_shadow(dom_c: Box<dyn usr::dom_c::DomC>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
+    extern "C" {
+        fn _binary_usr_test_shadow_build_shadow_start();
+        fn _binary_usr_test_shadow_build_shadow_end();
+    }
+
+    let binary_range = (
+        _binary_usr_test_shadow_build_shadow_start as *const u8,
+        _binary_usr_test_shadow_build_shadow_end as *const u8
+    );
+
+    build_domain_shadow("shadow", binary_range, dom_c)
+}
+
 pub fn create_domain_proxy(
     create_pci: Arc<dyn create::CreatePCI>,
     create_ahci: Arc<dyn create::CreateAHCI>,
@@ -285,7 +360,10 @@ pub fn create_domain_proxy(
     create_xv6usr: Arc<dyn create::CreateXv6Usr>,
     create_xv6: Arc<dyn create::CreateXv6>,
     create_dom_a: Arc<dyn create::CreateDomA>,
-    create_dom_b: Arc<dyn create::CreateDomB>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
+    create_dom_b: Arc<dyn create::CreateDomB>,
+    create_dom_c: Arc<dyn create::CreateDomC>,
+    create_dom_d: Arc<dyn create::CreateDomD>,
+    create_shadow: Arc<dyn create::CreateShadow>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
     extern "C" {
         fn _binary_usr_proxy_build_dom_proxy_start();
         fn _binary_usr_proxy_build_dom_proxy_end();
@@ -307,7 +385,10 @@ pub fn create_domain_proxy(
         create_xv6usr,
         create_xv6,
         create_dom_a,
-        create_dom_b)
+        create_dom_b,
+        create_dom_c,
+        create_dom_d,
+        create_shadow)
 }
 
 pub fn create_domain_pci_bus(name: &str,
@@ -440,7 +521,10 @@ pub fn build_domain_init(name: &str,
                        Arc<dyn create::CreateAHCI>,
                        Arc<dyn create::CreateMemBDev>,
                        Arc<dyn create::CreateDomA>,
-                       Arc<dyn create::CreateDomB>);
+                       Arc<dyn create::CreateDomB>,
+                       Arc<dyn create::CreateDomC>,
+                       Arc<dyn create::CreateDomD>,
+                       Arc<dyn create::CreateShadow>);
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)
@@ -455,6 +539,9 @@ pub fn build_domain_init(name: &str,
     user_ep(Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(Interrupt::new()),
             Box::new(PDomain::new(Arc::clone(&dom))),
+            Arc::new(PDomain::new(Arc::clone(&dom))),
+            Arc::new(PDomain::new(Arc::clone(&dom))),
+            Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
@@ -508,7 +595,10 @@ pub fn build_domain_proxy(
     create_xv6usr: Arc<dyn create::CreateXv6Usr>,
     create_xv6: Arc<dyn create::CreateXv6>,
     create_dom_a: Arc<dyn create::CreateDomA>,
-    create_dom_b: Arc<dyn create::CreateDomB>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
+    create_dom_b: Arc<dyn create::CreateDomB>,
+    create_dom_c: Arc<dyn create::CreateDomC>,
+    create_dom_d: Arc<dyn create::CreateDomD>,
+    create_shadow: Arc<dyn create::CreateShadow>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
     type UserInit = fn(
         Box<dyn syscalls::Syscall>,
         Box<dyn syscalls::Heap>,
@@ -520,7 +610,10 @@ pub fn build_domain_proxy(
         create_xv6usr: Arc<dyn create::CreateXv6Usr>,
         create_xv6: Arc<dyn create::CreateXv6>,
         create_dom_a: Arc<dyn create::CreateDomA>,
-        create_dom_b: Arc<dyn create::CreateDomB>) -> Arc<dyn proxy::Proxy>;
+        create_dom_b: Arc<dyn create::CreateDomB>,
+        create_dom_c: Arc<dyn create::CreateDomC>,
+        create_dom_d: Arc<dyn create::CreateDomD>,
+        create_shadow: Arc<dyn create::CreateShadow>) -> Arc<dyn proxy::Proxy>;
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)
@@ -546,7 +639,10 @@ pub fn build_domain_proxy(
         create_xv6usr,
         create_xv6,
         create_dom_a,
-        create_dom_b);
+        create_dom_b,
+        create_dom_c,
+        create_dom_d,
+        create_shadow);
     disable_irq();
 
     println!("domain/{}: returned from entry point", name);
@@ -664,4 +760,79 @@ pub fn build_domain_dom_b(name: &str,
 
     println!("domain/{}: returned from entry point", name);
     Box::new(PDomain::new(Arc::clone(&dom)))
+}
+
+pub fn build_domain_dom_c(name: &str,
+                          binary_range: (*const u8, *const u8)) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
+    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>) -> Box<dyn usr::dom_c::DomC>;
+
+    let (dom, entry) = unsafe {
+        load_domain(name, binary_range)
+    };
+
+    let user_ep: UserInit = unsafe {
+        core::mem::transmute::<*const(), UserInit>(entry)
+    };
+
+    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pheap = Box::new(PHeap::new());
+
+    // Enable interrupts on exit to user so it can be preempted
+    enable_irq();
+    let dom_c = user_ep(pdom, pheap);
+    disable_irq();
+
+    println!("domain/{}: returned from entry point", name);
+    (Box::new(PDomain::new(Arc::clone(&dom))), dom_c)
+}
+
+pub fn build_domain_dom_d(name: &str,
+                          binary_range: (*const u8, *const u8),
+                          dom_c: Box<dyn usr::dom_c::DomC>) -> Box<dyn syscalls::Domain> {
+    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, Box<dyn usr::dom_c::DomC>);
+
+    let (dom, entry) = unsafe {
+        load_domain(name, binary_range)
+    };
+
+    let user_ep: UserInit = unsafe {
+        core::mem::transmute::<*const(), UserInit>(entry)
+    };
+
+    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pheap = Box::new(PHeap::new());
+
+    // Enable interrupts on exit to user so it can be preempted
+    enable_irq();
+    user_ep(pdom, pheap, dom_c);
+    disable_irq();
+
+    println!("domain/{}: returned from entry point", name);
+    Box::new(PDomain::new(Arc::clone(&dom)))
+}
+
+
+pub fn build_domain_shadow(name: &str,
+                          binary_range: (*const u8, *const u8),
+                          dom_c: Box<dyn usr::dom_c::DomC>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
+    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, Box<dyn usr::dom_c::DomC>) -> Box<dyn usr::dom_c::DomC>;
+
+    let (dom, entry) = unsafe {
+        load_domain(name, binary_range)
+    };
+
+    let user_ep: UserInit = unsafe {
+        core::mem::transmute::<*const(), UserInit>(entry)
+    };
+
+    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pheap = Box::new(PHeap::new());
+
+    // Enable interrupts on exit to user so it can be preempted
+    enable_irq();
+    let shadow = user_ep(pdom, pheap, dom_c);
+    disable_irq();
+
+    println!("domain/{}: returned from entry point", name);
+    (Box::new(PDomain::new(Arc::clone(&dom))), shadow)
 }

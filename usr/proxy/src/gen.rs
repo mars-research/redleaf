@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain_id};
 use syscalls::{Heap, Domain, PCI, PciBar, PciResource, Net, Interrupt};
-use usr::{vfs::VFS, xv6::Xv6, dom_a::DomA};
+use usr::{vfs::VFS, xv6::Xv6, dom_a::DomA, dom_c::DomC};
 use usr::bdev::{BDev, BSIZE};
 
 #[derive(Clone)]
@@ -20,6 +20,9 @@ pub struct Proxy {
     create_xv6: Arc<dyn create::CreateXv6>,
     create_dom_a: Arc<dyn create::CreateDomA>,
     create_dom_b: Arc<dyn create::CreateDomB>,
+    create_dom_c: Arc<dyn create::CreateDomC>,
+    create_dom_d: Arc<dyn create::CreateDomD>,
+    create_shadow: Arc<dyn create::CreateShadow>,
 }
 
 unsafe impl Send for Proxy {}
@@ -36,6 +39,9 @@ impl Proxy {
         create_xv6: Arc<dyn create::CreateXv6>,
         create_dom_a: Arc<dyn create::CreateDomA>,
         create_dom_b: Arc<dyn create::CreateDomB>,
+        create_dom_c: Arc<dyn create::CreateDomC>,
+        create_dom_d: Arc<dyn create::CreateDomD>,
+        create_shadow: Arc<dyn create::CreateShadow>,
     ) -> Proxy {
         Proxy {
             create_pci,
@@ -47,6 +53,9 @@ impl Proxy {
             create_xv6,
             create_dom_a,
             create_dom_b,
+            create_dom_c,
+            create_dom_d,
+            create_shadow,
         }
     }
 }
@@ -78,6 +87,15 @@ impl proxy::Proxy for Proxy {
         Arc::new(self.clone())
     }
     fn as_create_dom_b(&self) -> Arc<dyn create::CreateDomB> {
+        Arc::new(self.clone())
+    }
+    fn as_create_dom_c(&self) -> Arc<dyn create::CreateDomC> {
+        Arc::new(self.clone())
+    }
+    fn as_create_dom_d(&self) -> Arc<dyn create::CreateDomD> {
+        Arc::new(self.clone())
+    }
+    fn as_create_shadow(&self) -> Arc<dyn create::CreateShadow> {
         Arc::new(self.clone())
     }
 }
@@ -149,6 +167,24 @@ impl create::CreateDomA for Proxy {
 impl create::CreateDomB for Proxy {
     fn create_domain_dom_b(&self, dom_a: Box<dyn DomA>) ->(Box<dyn Domain>) {
         self.create_dom_b.create_domain_dom_b(dom_a)
+    }
+}
+
+impl create::CreateDomC for Proxy {
+    fn create_domain_dom_c(&self) -> (Box<dyn Domain>, Box<dyn DomC>) {
+        self.create_dom_c.create_domain_dom_c()
+    }
+}
+
+impl create::CreateDomD for Proxy {
+    fn create_domain_dom_d(&self, dom_c: Box<dyn DomC>) ->(Box<dyn Domain>) {
+        self.create_dom_d.create_domain_dom_d(dom_c)
+    }
+}
+
+impl create::CreateShadow for Proxy {
+    fn create_domain_shadow(&self, dom_c: Box<dyn DomC>) ->(Box<dyn Domain>, Box<dyn DomC>) {
+        self.create_shadow.create_domain_shadow(dom_c)
     }
 }
 

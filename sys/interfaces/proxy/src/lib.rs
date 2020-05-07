@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use syscalls::{Domain};
 use usr::{bdev};
-use create::{CreatePCI, CreateAHCI, CreateMemBDev, CreateIxgbe, CreateXv6FS, CreateXv6Usr, CreateXv6, CreateDomA, CreateDomB};
+use create::{CreatePCI, CreateAHCI, CreateMemBDev, CreateIxgbe, CreateXv6FS, CreateXv6Usr, CreateXv6, CreateDomA, CreateDomB, CreateDomC, CreateDomD, CreateShadow};
 
 pub trait CreateProxy {
     fn create_domain_proxy(
@@ -17,10 +17,13 @@ pub trait CreateProxy {
         create_xv6usr: Arc<dyn CreateXv6Usr>,
         create_xv6: Arc<dyn CreateXv6>,
         create_dom_a: Arc<dyn CreateDomA>,
-        create_dom_b: Arc<dyn CreateDomB>) -> (Box<dyn Domain>, Arc<dyn Proxy>);
+        create_dom_b: Arc<dyn CreateDomB>,
+        create_dom_c: Arc<dyn CreateDomC>,
+        create_dom_d: Arc<dyn CreateDomD>,
+        create_shadow: Arc<dyn CreateShadow>) -> (Box<dyn Domain>, Arc<dyn Proxy>);
 }
 
-pub trait Proxy: CreatePCI + CreateAHCI + CreateIxgbe + CreateXv6FS + CreateXv6Usr + CreateXv6 + CreateDomA + CreateDomB {
+pub trait Proxy: CreatePCI + CreateAHCI + CreateIxgbe + CreateXv6FS + CreateXv6Usr + CreateXv6 + CreateDomA + CreateDomB + CreateDomC + CreateDomD + CreateShadow {
     // necessary because rust doesn't support trait object upcasting
     fn as_create_pci(&self) -> Arc<dyn CreatePCI>;
     fn as_create_ahci(&self) -> Arc<dyn CreateAHCI>;
@@ -31,4 +34,7 @@ pub trait Proxy: CreatePCI + CreateAHCI + CreateIxgbe + CreateXv6FS + CreateXv6U
     fn as_create_xv6(&self) -> Arc<dyn CreateXv6>;
     fn as_create_dom_a(&self) -> Arc<dyn CreateDomA>;
     fn as_create_dom_b(&self) -> Arc<dyn CreateDomB>;
+    fn as_create_dom_c(&self) -> Arc<dyn CreateDomC>;
+    fn as_create_dom_d(&self) -> Arc<dyn CreateDomD>;
+    fn as_create_shadow(&self) -> Arc<dyn CreateShadow>;
 }
