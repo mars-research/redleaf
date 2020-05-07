@@ -172,7 +172,9 @@ impl create::CreateDomB for Proxy {
 
 impl create::CreateDomC for Proxy {
     fn create_domain_dom_c(&self) -> (Box<dyn Domain>, Box<dyn DomC>) {
-        self.create_dom_c.create_domain_dom_c()
+        let (domain, dom_c) = self.create_dom_c.create_domain_dom_c();
+        let domain_id = domain.get_domain_id();
+        (domain, Box::new(DomCProxy::new(domain_id, dom_c)))
     }
 }
 
@@ -184,7 +186,9 @@ impl create::CreateDomD for Proxy {
 
 impl create::CreateShadow for Proxy {
     fn create_domain_shadow(&self, dom_c: Box<dyn DomC>) ->(Box<dyn Domain>, Box<dyn DomC>) {
-        self.create_shadow.create_domain_shadow(dom_c)
+        let (domain, shadow) = self.create_shadow.create_domain_shadow(dom_c);
+        let domain_id = domain.get_domain_id();
+        (domain, Box::new(DomCProxy::new(domain_id, shadow)))
     }
 }
 
@@ -284,6 +288,49 @@ impl usr::dom_a::DomA for DomAProxy {
         let r = self.domain.tx_submit_and_poll(packets, reap_queue);
         r.1.move_to(caller_domain);
         r.2.move_to(caller_domain);
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
+    }
+}
+
+struct DomCProxy {
+    domain: Box<dyn usr::dom_c::DomC>,
+    domain_id: u64,
+}
+
+unsafe impl Sync for DomCProxy {}
+unsafe impl Send for DomCProxy {}
+
+impl DomCProxy {
+    fn new(domain_id: u64, domain: Box<dyn usr::dom_c::DomC>) -> Self {
+        Self {
+            domain,
+            domain_id,
+        }
+    }
+}
+
+impl usr::dom_c::DomC for DomCProxy {
+    fn no_arg(&self) {
+        // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        let r = self.domain.no_arg();
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
+    }
+
+    fn one_arg(&self, x: usize) -> usize {
+        // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        let r = self.domain.one_arg(x);
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };
