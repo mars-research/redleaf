@@ -126,6 +126,7 @@ impl Buffer {
 pub struct BufferCacheInternal {
     buffers: Vec<Buffer>,
     head: usize,
+    #[cfg(feature = "hashmap")]
     map: HashMap<(u32, u32), usize>,
 }
 
@@ -140,6 +141,7 @@ impl BufferCacheInternal {
         Self {
             buffers,
             head: 0,
+            #[cfg(feature = "hashmap")]
             map: HashMap::new(),
         }
     }
@@ -148,13 +150,23 @@ impl BufferCacheInternal {
     // If the block does not exist, we preempt a not-in-use one
     // We let the caller to lock the buffer when they need to use it
     fn get(&mut self, dev: u32, block_number: u32) -> (bool, usize, Arc<Mutex<BufferBlockWrapper>>) {
-        match self.map.get(&(dev, block_number)) {
+        #[cfg(feature = "hashmap")] 
+        let index = self.map.get(&(dev, block_number)).map(|index| *index);
+        // TODO: change this to iter_mut
+        #[cfg(not(feature = "hashmap"))] 
+        let index = self.iter()
+                         .find(|buffer| buffer.dev == dev && buffer.block_number == block_number)
+                         .map(|buffer| (buffer as *const Buffer).wrapping_offset_from(self.buffers.as_ptr()) as usize);
+                
+        match index {
             Some(index) => {
-                let buffer = &mut self.buffers[*index];
-                assert!(buffer.dev == dev);
-                assert!(buffer.block_number == block_number);
+                let buffer = &mut self.buffers[index];
+                #[cfg(feature = "hashmap")]  {
+                    assert!(buffer.dev == dev);
+                    assert!(buffer.block_number == block_number);
+                }
                 buffer.reference_count += 1;
-                (true, *index, buffer.data.clone())
+                (true, index, buffer.data.clone())
             },
             None => {
                 // Not cached; recycle an unused buffer.
@@ -163,6 +175,7 @@ impl BufferCacheInternal {
                     let buffer = &mut self.buffers[curr as usize];
                     if buffer.reference_count == 0 {
                         // Move it out from the map
+                        #[cfg(feature = "hashmap")]
                         if buffer.block_number != 0 {
                             assert!(self.map.remove(&(buffer.dev, buffer.block_number)).is_some());
                         }
@@ -171,6 +184,7 @@ impl BufferCacheInternal {
                         buffer.dev = dev;
                         buffer.block_number = block_number;
                         buffer.reference_count = 1;
+                        #[cfg(feature = "hashmap")]
                         assert!(self.map.insert((dev, block_number), curr as usize).is_none());
                         return (false, curr as usize, buffer.data.clone())
                     }
@@ -209,6 +223,7 @@ impl BufferCacheInternal {
         Iter {
             bcache: self,
             curr: self.head,
+            size: self.buffers.len(),
         }
     }
 
@@ -216,6 +231,7 @@ impl BufferCacheInternal {
         RevIter {
             bcache: self,
             curr: self.buffers[self.head].prev as usize,
+            size: self.buffers.len(),
         }
     }
 }
@@ -223,12 +239,17 @@ impl BufferCacheInternal {
 struct Iter<'a> {
     bcache: &'a BufferCacheInternal,
     curr: usize,
+    size: usize,
 }
 
 impl<'a> Iterator for Iter<'a> {
     type Item = &'a Buffer;
     fn next(&mut self) -> Option<Self::Item> {
-        let buffer = self.bcache.buffers.get(self.curr)?;
+        if self.size == 0 {
+            return None;
+        }
+        self.size -= 1;
+        let buffer = &self.bcache.buffers[self.curr];
         self.curr = buffer.next as usize;
         Some(buffer)
     }
@@ -237,12 +258,17 @@ impl<'a> Iterator for Iter<'a> {
 struct RevIter<'a> {
     bcache: &'a BufferCacheInternal,
     curr: usize,
+    size: usize,
 }
 
 impl<'a> Iterator for RevIter<'a> {
     type Item = &'a Buffer;
     fn next(&mut self) -> Option<Self::Item> {
-        let buffer = self.bcache.buffers.get(self.curr)?;
+        if self.size == 0 {
+            return None;
+        }
+        self.size -= 1;
+        let buffer = &self.bcache.buffers[self.curr];
         self.curr = buffer.prev as usize;
         Some(buffer)
     }
