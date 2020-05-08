@@ -36,7 +36,7 @@ build/fs.img: mkfs $(FILES) $(BINS) Makefile
 	./mkfs build/fs.img $(FILES) $(BINS)
 
 large: Makefile
-	fallocate -l 1Mb $@
+	fallocate -x -l 1Mb $@
  	# wget https://ocw.mit.edu/ans7870/6/6.006/s08/lecturenotes/files/t8.shakespeare.txt -O $@
 	# fallocate -l 128M $@
 
