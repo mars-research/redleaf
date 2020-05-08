@@ -21,33 +21,11 @@ const ONE_MS_IN_NS: u64 = 100_0000;
 const NVME_CC_ENABLE: u32                   = 0x1;
 const NVME_CSTS_RDY: u32                   = 0x1;
 
-pub struct NvmeStats {
-    completed: u64,
-    submitted: u64,
-}
-
-impl NvmeStats {
-    pub fn get_stats(&self) -> (u64, u64) {
-        (self.submitted, self.completed)
-    }
-    pub fn reset_stats(&mut self) {
-        self.submitted = 0;
-        self.completed = 0;
-    }
-}
-
-impl fmt::Display for NvmeStats {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "submitted {} completed {}", self.submitted, self.completed)
-    }
-}
-
 pub struct NvmeDev {
     pub device: NvmeDevice,
 }
 
 impl NvmeDev {
-
     /// Returns an initialized `Intel8259x` on success.
     pub fn new(bar: PciBarAddr) -> Result<Self> {
         #[rustfmt::skip]
@@ -178,5 +156,23 @@ impl NvmeDev {
         self.identify_ns(1);
 
         self.create_io_queues();
+    }
+
+    pub fn submit(&mut self, breq: BlockReq, write: bool) {
+        self.device.submit(breq, write);
+    }
+
+    pub fn poll(&mut self, num_reqs: u64, reap: &mut VecDeque<BlockReq>, reap_all: bool) {
+        self.device.poll(num_reqs, reap, reap_all);
+    }
+
+    pub fn submit_io(&mut self, submit_queue: &mut VecDeque<BlockReq>, write: bool) -> usize {
+        self.device.submit_io(submit_queue, write)
+    }
+
+    pub fn get_stats(&mut self) -> (u64, u64) {
+        let (s, c) = self.device.stats.get_stats();
+        self.device.stats.reset_stats();
+        (s, c)
     }
 }
