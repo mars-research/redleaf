@@ -20,7 +20,7 @@ mod parser;
 use crate::parser::{PCI_DEVICES};
 
 use core::panic::PanicInfo;
-use syscalls::{Syscall, Heap, PciResource, PciBar};
+use syscalls::{Syscall, Heap};
 use libsyscalls::syscalls::{sys_println, sys_backtrace, init_mmap};
 use alloc::boxed::Box;
 use console::println;
@@ -39,7 +39,7 @@ impl PCI {
     }
 }
 
-impl syscalls::PCI for PCI {
+impl usr::pci::PCI for PCI {
     fn pci_register_driver(&self, pci_driver: &mut dyn PciDriver, bar_index: usize, class: Option<(PciClass, u8)>) -> Result<(), ()> {
         println!("Register driver called");
         let vendor_id = pci_driver.get_vid();
@@ -74,7 +74,7 @@ impl syscalls::PCI for PCI {
         Ok(())
     }
 
-    fn pci_clone(&self) -> Box<dyn syscalls::PCI> {
+    fn pci_clone(&self) -> Box<dyn usr::pci::PCI> {
         Box::new((*self).clone())
     }
 }
@@ -82,7 +82,7 @@ impl syscalls::PCI for PCI {
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>,
             m: Box<dyn syscalls::Mmap + Send + Sync>,
-            heap: Box<dyn Heap + Send + Sync>) -> Box<dyn syscalls::PCI> {
+            heap: Box<dyn Heap + Send + Sync>) -> Box<dyn usr::pci::PCI> {
 
     libsyscalls::syscalls::init(s);
 

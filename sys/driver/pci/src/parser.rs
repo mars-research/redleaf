@@ -1,4 +1,4 @@
-use syscalls::PciResource;
+use usr::pci::PciResource;
 use console::println;
 use alloc::format;
 

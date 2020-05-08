@@ -13,3 +13,4 @@ num-traits = { version = "0.2", default-features = false }
 num-derive = { version = "0.3", default-features = false }
 syscalls = { path = "../syscalls/", version = "0.1.0" }
 rref = { path = "../../lib/rref/", version = "0.1.0" }
+pci_driver = { path = "../dev/pci/pci_driver/", version = "0.1.0" }

@@ -30,7 +30,8 @@ use alloc::collections::VecDeque;
 #[macro_use]
 use alloc::vec::Vec;
 use core::panic::PanicInfo;
-use syscalls::{Syscall, PCI, Heap};
+use syscalls::{Syscall, Heap};
+use usr;
 use console::{println, print};
 use pci_driver::DeviceBarRegions;
 use libsyscalls::syscalls::sys_backtrace;
@@ -84,7 +85,7 @@ fn calc_ipv4_checksum(ipv4_header: &[u8]) -> u16 {
     !(checksum as u16)
 }
 
-impl syscalls::Net for Ixgbe {
+impl usr::net::Net for Ixgbe {
     fn submit_and_poll(&mut self, mut packets: &mut VecDeque<Vec<u8>>, mut collect: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
         let mut ret: usize = 0;
         if !self.device_initialized {
@@ -419,7 +420,7 @@ const ONE_MS_IN_NS: u64 = 1_000_000 * 1;
 #[no_mangle]
 pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
                  heap: Box<dyn Heap + Send + Sync>,
-                 pci: Box<dyn syscalls::PCI>) -> Box<dyn syscalls::Net> {
+                 pci: Box<dyn usr::pci::PCI>) -> Box<dyn usr::net::Net> {
     libsyscalls::syscalls::init(s);
 
     println!("ixgbe_init: =>  starting ixgbe driver domain");

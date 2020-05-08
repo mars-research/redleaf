@@ -3,8 +3,8 @@
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-use syscalls::{Heap, Domain, PCI, PciBar, PciResource, Net, Interrupt};
-use usr::{bdev::BDev, vfs::VFS, xv6::Xv6, dom_a::DomA, dom_c::DomC};
+use syscalls::{Heap, Domain, Interrupt};
+use usr::{bdev::BDev, vfs::VFS, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}};
 
 pub trait CreatePCI {
     fn create_domain_pci(&self) -> (Box<dyn Domain>, Box<dyn PCI>);

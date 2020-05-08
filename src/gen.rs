@@ -14,7 +14,7 @@ use alloc::boxed::Box;
 
 impl create::CreatePCI for PDomain {
     fn create_domain_pci(&self)
-                         -> (Box<dyn syscalls::Domain>, Box<dyn syscalls::PCI>) {
+                         -> (Box<dyn syscalls::Domain>, Box<dyn usr::pci::PCI>) {
         disable_irq();
         let r = create_domain_pci();
         enable_irq();
@@ -24,7 +24,7 @@ impl create::CreatePCI for PDomain {
 
 impl create::CreateAHCI for PDomain {
     fn create_domain_ahci(&self,
-                          pci: Box<dyn syscalls::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev + Send + Sync>) {
+                          pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev + Send + Sync>) {
         disable_irq();
         let r = create_domain_ahci(pci);
         enable_irq();
@@ -42,7 +42,7 @@ impl create::CreateMemBDev for PDomain {
 }
 
 impl create::CreateIxgbe for PDomain {
-    fn create_domain_ixgbe(&self, pci: Box<dyn syscalls::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn syscalls::Net>) {
+    fn create_domain_ixgbe(&self, pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::net::Net>) {
         disable_irq();
         let r = create_domain_ixgbe(pci);
         enable_irq();
@@ -178,7 +178,7 @@ pub fn create_domain_init() -> Box<dyn syscalls::Domain> {
 }
 
 pub fn create_domain_pci() -> (Box<dyn syscalls::Domain>,
-                               Box<dyn syscalls::PCI>) {
+                               Box<dyn usr::pci::PCI>) {
 
     extern "C" {
         fn _binary_sys_driver_pci_build_pci_start();
@@ -193,7 +193,7 @@ pub fn create_domain_pci() -> (Box<dyn syscalls::Domain>,
     create_domain_pci_bus("pci", binary_range)
 }
 
-pub fn create_domain_ahci(pci: Box<dyn syscalls::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev + Send + Sync>) {
+pub fn create_domain_ahci(pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev + Send + Sync>) {
 
     // extern "C" {
     //     fn _binary_sys_dev_ahci_driver_build_ahci_driver_start();
@@ -209,7 +209,7 @@ pub fn create_domain_ahci(pci: Box<dyn syscalls::PCI>) -> (Box<dyn syscalls::Dom
     unimplemented!()
 }
 
-pub fn create_domain_ixgbe(pci: Box<dyn syscalls::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn syscalls::Net>) {
+pub fn create_domain_ixgbe(pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::net::Net>) {
 
     extern "C" {
         fn _binary_sys_driver_ixgbe_build_ixgbe_start();
@@ -393,12 +393,12 @@ pub fn create_domain_proxy(
 
 pub fn create_domain_pci_bus(name: &str,
                              binary_range: (*const u8, *const u8))
-                             -> (Box<dyn syscalls::Domain>, Box<dyn syscalls::PCI>)
+                             -> (Box<dyn syscalls::Domain>, Box<dyn usr::pci::PCI>)
 {
     type UserInit = fn(Box<dyn syscalls::Syscall>,
                        Box<dyn syscalls::Mmap>,
                        Box<dyn syscalls::Heap>,
-    ) -> Box<dyn syscalls::PCI>;
+    ) -> Box<dyn usr::pci::PCI>;
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)
@@ -424,8 +424,8 @@ pub fn create_domain_pci_bus(name: &str,
 
 pub fn create_domain_bdev(name: &str,
                           binary_range: (*const u8, *const u8),
-                          pci: Box<dyn syscalls::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev + Send + Sync>) {
-    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, Box<dyn syscalls::PCI>) -> Box<dyn usr::bdev::BDev + Send + Sync>;
+                          pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev + Send + Sync>) {
+    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, Box<dyn usr::pci::PCI>) -> Box<dyn usr::bdev::BDev + Send + Sync>;
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)
@@ -473,8 +473,8 @@ pub fn create_domain_bdev_mem(name: &str,
 
 pub fn create_domain_net(name: &str,
                          binary_range: (*const u8, *const u8),
-                         pci: Box<dyn syscalls::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn syscalls::Net>) {
-    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, Box<dyn syscalls::PCI>) -> Box<dyn syscalls::Net>;
+                         pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::net::Net>) {
+    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, Box<dyn usr::pci::PCI>) -> Box<dyn usr::net::Net>;
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)

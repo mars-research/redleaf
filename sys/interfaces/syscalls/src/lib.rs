@@ -10,7 +10,6 @@ use spin::{MutexGuard};
 use core::alloc::Layout;
 extern crate platform;
 use platform::PciBarAddr;
-use pci_driver::PciClass;
 use pc_keyboard::{DecodedKey};
 
 pub mod errors;
@@ -51,19 +50,6 @@ pub trait Thread : Send {
     fn sleep(&self, guard: MutexGuard<()>);
 }
 
-/// RedLeaf PCI bus driver interface
-pub trait PCI {
-    fn pci_register_driver(&self, pci_driver: &mut dyn pci_driver::PciDriver, bar_index: usize, class: Option<(PciClass, u8)>) -> Result<(), ()>;
-    /// Boxed trait objects cannot be cloned trivially!
-    /// https://users.rust-lang.org/t/solved-is-it-possible-to-clone-a-boxed-trait-object/1714/6
-    fn pci_clone(&self) -> Box<dyn PCI>;
-}
-
-/// RedLeaf network interface
-pub trait Net {
-    fn submit_and_poll(&mut self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> usize;
-}
-
 /// RedLeaf Domain interface
 pub trait Domain {
     fn get_domain_id(&self) -> u64;
@@ -87,17 +73,6 @@ pub trait Interrupt {
 pub trait Mmap {
     // Map bar region
     fn sys_mmap(&self, bar_addr: &PciBarAddr);
-}
-
-pub trait PciResource {
-    fn read(&self, bus: u8, dev: u8, func: u8, offset: u8) -> u32;
-    fn write(&self, bus: u8, dev: u8, func: u8, offset: u8, value: u32);
-}
-
-pub trait PciBar {
-    fn get_bar_region(&self, base: u64, size: usize,
-                      pci_driver: pci_driver::PciDrivers) ->  pci_driver::BarRegions;
-
 }
 
 pub trait CondVar {

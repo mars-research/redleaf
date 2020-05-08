@@ -173,7 +173,7 @@ impl usr::bdev::BDev for Ahci {}
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>,
             heap: Box<dyn syscalls::Heap + Send + Sync>,
-            pci: Box<dyn syscalls::PCI>) -> Box<dyn usr::bdev::BDev> {
+            pci: Box<dyn usr::pci::PCI>) -> Box<dyn usr::bdev::BDev> {
     libsyscalls::syscalls::init(s);
     rref::init(heap);
 

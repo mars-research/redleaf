@@ -10,5 +10,7 @@ extern crate bitflags;
 pub mod bdev;
 pub mod dom_a;
 pub mod dom_c;
+pub mod net;
+pub mod pci;
 pub mod vfs;
 pub mod xv6;
