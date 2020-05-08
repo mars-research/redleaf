@@ -205,6 +205,47 @@ impl BufferCacheInternal {
         }
     }
 
+    fn iter(&self) -> Iter {
+        Iter {
+            bcache: self,
+            curr: self.head,
+        }
+    }
+
+    fn rev_iter(&self) -> RevIter {
+        RevIter {
+            bcache: self,
+            curr: self.buffers[self.head].prev as usize,
+        }
+    }
+}
+
+struct Iter<'a> {
+    bcache: &'a BufferCacheInternal,
+    curr: usize,
+}
+
+impl<'a> Iterator for Iter<'a> {
+    type Item = &'a Buffer;
+    fn next(&mut self) -> Option<Self::Item> {
+        let buffer = self.bcache.buffers.get(self.curr)?;
+        self.curr = buffer.next as usize;
+        Some(buffer)
+    }
+}
+
+struct RevIter<'a> {
+    bcache: &'a BufferCacheInternal,
+    curr: usize,
+}
+
+impl<'a> Iterator for RevIter<'a> {
+    type Item = &'a Buffer;
+    fn next(&mut self) -> Option<Self::Item> {
+        let buffer = self.bcache.buffers.get(self.curr)?;
+        self.curr = buffer.prev as usize;
+        Some(buffer)
+    }
 }
 
 pub struct BufferCache {
