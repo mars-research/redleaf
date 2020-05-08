@@ -15,6 +15,8 @@
 
 mod device;
 mod ixgbe_desc;
+mod maglev;
+mod flowhash;
 
 extern crate malloc;
 extern crate alloc;
@@ -45,12 +47,15 @@ use core::ptr;
 
 use libtime::get_rdtsc as rdtsc;
 
+use maglev::Maglev;
+
 struct Ixgbe {
     vendor_id: u16,
     device_id: u16,
     driver: pci_driver::PciDrivers,
     device_initialized: bool,
-    device: RefCell<Option<Intel8259x>>
+    device: RefCell<Option<Intel8259x>>,
+    maglev: Maglev<usize>,
 }
 
 impl Ixgbe {
@@ -60,7 +65,8 @@ impl Ixgbe {
             device_id: 0x10fb,
             driver: pci_driver::PciDrivers::IxgbeDriver,
             device_initialized: false,
-            device: RefCell::new(None)
+            device: RefCell::new(None),
+            maglev: Maglev::new(0..3),
         }
     }
 
@@ -319,6 +325,110 @@ fn dump_packet(pkt: &Vec<u8>) {
         }
     }
     print!("\n");
+}
+
+fn run_fwd_maglevtest(dev: &Ixgbe, pkt_size: u16) {
+    let batch_sz = BATCH_SIZE;
+    let mut rx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
+    let mut tx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
+    let mut submit_rx_hist = Base2Histogram::new();
+    let mut submit_tx_hist = Base2Histogram::new();
+    
+    let mut sender_mac = alloc::vec![ 0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81];
+    let mut our_mac = alloc::vec![0x90, 0xe2, 0xba, 0xb5, 0x14, 0xcd];
+
+
+    for i in 0..batch_sz {
+        rx_packets.push_front(Vec::with_capacity(2048));
+    }
+
+    if let Some(device) = dev.device.borrow_mut().as_mut() {
+        let idev: &mut Intel8259x = device;
+        let mut sum: usize = 0;
+        let mut fwd_sum: usize = 0;
+
+        let start = rdtsc();
+        let end = start + 30 * 2_600_000_000;
+
+        let mut tx_elapsed = 0;
+        let mut rx_elapsed = 0;
+
+        let mut submit_rx: usize = 0;
+        let mut submit_tx: usize = 0;
+        let mut loop_count: usize = 0;
+
+        loop {
+            loop_count = loop_count.wrapping_add(1);
+
+            submit_rx += rx_packets.len();
+            submit_rx_hist.record(rx_packets.len() as u64);
+            //println!("call rx_submit_poll packet {}", packets.len());
+            let rx_start = rdtsc();
+            let ret = idev.device.submit_and_poll(&mut rx_packets, &mut tx_packets, false, false);
+            rx_elapsed += rdtsc() - rx_start;
+            sum += ret;
+
+            //println!("rx: submitted {} collect {}", ret, tx_packets.len());
+
+            for pkt in tx_packets.iter_mut() {
+                let backend = {
+                    if let Some(hash) = flowhash::get_flowhash(&pkt) {
+                        Some(dev.maglev.get_index(&hash))
+                    } else {
+                        None
+                    }
+                };
+
+                if let Some(_) = backend {
+                    unsafe {
+                        ptr::copy(our_mac.as_ptr(), pkt.as_mut_ptr().offset(6), our_mac.capacity());
+                        ptr::copy(sender_mac.as_ptr(), pkt.as_mut_ptr().offset(0), sender_mac.capacity());
+                    }
+                }
+            }
+
+            submit_tx += tx_packets.len();
+            submit_tx_hist.record(tx_packets.len() as u64);
+            let tx_start = rdtsc();
+            let ret = idev.device.submit_and_poll(&mut tx_packets, &mut rx_packets, true, false);
+            tx_elapsed += rdtsc() - tx_start;
+            fwd_sum += ret;
+
+            //print!("tx: submitted {} collect {}\n", ret, rx_packets.len());
+
+            if rx_packets.len() == 0 && tx_packets.len() < batch_sz * 4 {
+                //println!("-> Allocating new rx_ptx batch");
+                for i in 0..batch_sz {
+                    rx_packets.push_front(Vec::with_capacity(2048));
+                }
+            }
+
+            if rdtsc() > end {
+                break;
+            }
+        }
+
+        let elapsed = rdtsc() - start;
+        for hist in alloc::vec![submit_rx_hist, submit_tx_hist] {
+            println!("hist:");
+            // Iterate buckets that have observations
+            for bucket in hist.iter().filter(|b| b.count > 0) {
+                print!("({:5}, {:5}): {}", bucket.start, bucket.end, bucket.count);
+                print!("\n");
+            }
+        }
+
+        println!("Received {} forwarded {}", sum, fwd_sum);
+        println!(" ==> submit_rx {} (avg {}) submit_tx {} (avg {}) loop_count {}",
+                            submit_rx, submit_rx / loop_count, submit_tx, submit_tx / loop_count, loop_count);
+        println!(" ==> rx batching {}B: {} packets took {} cycles (avg = {})",
+                            pkt_size, sum, rx_elapsed, rx_elapsed  / sum as u64);
+        println!(" ==> tx batching {}B: {} packets took {} cycles (avg = {})",
+                            pkt_size, fwd_sum, tx_elapsed, tx_elapsed  / fwd_sum as u64);
+        println!("==> fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_size, fwd_sum, elapsed, elapsed / fwd_sum as u64);
+        idev.dump_stats();
+        //dev.dump_tx_descs();
+    }
 }
 
 fn run_fwd_udptest(dev: &Ixgbe, pkt_size: u16) {
