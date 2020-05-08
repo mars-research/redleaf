@@ -91,9 +91,14 @@ pub unsafe extern fn memmove(dest: *mut u8, src: *const u8,
 ///
 /// This faster implementation works by setting bytes not one-by-one, but in
 /// groups of 8 bytes (or 4 bytes in the case of 32-bit architectures).
+#[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
 #[no_mangle]
 pub unsafe extern fn memset(dest: *mut u8, c: i32, n: usize) -> *mut u8 {
-    let c: usize = mem::transmute([c as u8; WORD_SIZE]);
+    let c = c as usize;
+    let c = c << 8 | c;
+    let c = c << 16 | c;
+    #[cfg(target_pointer_width = "64")]
+    let c = c << 32 | c;
     let n_usize: usize = n/WORD_SIZE;
     let mut i: usize = 0;
 
