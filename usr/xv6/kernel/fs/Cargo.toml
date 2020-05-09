@@ -40,3 +40,10 @@ features = ["spin_no_std"]
 
 [package.metadata.cargo-xbuild]
 memcpy = false
+
+[features]
+default = [
+    # "hashmap",
+]
+
+hashmap = []

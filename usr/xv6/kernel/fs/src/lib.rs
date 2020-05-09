@@ -11,7 +11,8 @@
     const_raw_ptr_to_usize_cast,
     thread_local,
     untagged_unions,
-    panic_info_message
+    panic_info_message,
+    ptr_wrapping_offset_from,
 )]
 
 #[macro_use]
