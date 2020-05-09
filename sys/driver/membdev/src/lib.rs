@@ -11,7 +11,6 @@
     maybe_uninit_extra
 )]
 
-mod mem;
 mod membdev;
 
 use alloc::boxed::Box;
@@ -19,6 +18,7 @@ use core::panic::PanicInfo;
 
 use syscalls::{Syscall, Heap};
 use usr::bdev::BDev;
+use memcpy;
 
 extern crate alloc;
 extern crate malloc;
