@@ -18,7 +18,7 @@ use core::panic::PanicInfo;
 use alloc::boxed::Box;
 
 use usrlib::{dbg, println};
-use usrlib::syscalls::{sys_load_domain};
+use usrlib::syscalls::{sys_spawn_domain};
 use syscalls::{Syscall, Heap};
 use usr_interface::xv6::Xv6;
 use usr_interface::vfs::FileMode;
@@ -50,7 +50,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
     assert_eq!(rv6.sys_dup(0).unwrap(), 2);
 
     dbg!("Init finished");
-    sys_load_domain("/sh", "", &[Some(0), Some(1), Some(2)]).unwrap();
+    sys_spawn_domain("/sh", "", &[Some(0), Some(1), Some(2)]).unwrap();
 }
 
 // This function is called on panic.

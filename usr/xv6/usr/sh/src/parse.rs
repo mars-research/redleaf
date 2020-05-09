@@ -3,7 +3,7 @@ use alloc::collections::LinkedList;
 use alloc::string::{String, ToString};
 use core::cell::RefCell;
 
-use usrlib::syscalls::{sys_close, sys_load_domain, sys_open};
+use usrlib::syscalls::{sys_close, sys_spawn_domain, sys_open};
 use usr_interfaces::xv6::Thread;
 use usr_interfaces::vfs::FileMode;
 
@@ -80,7 +80,7 @@ impl ExecCommand {
 
 impl Command for ExecCommand {
     fn run(&self, redir: Redir) -> LinkedList<Box<dyn Thread>> {
-        let result = sys_load_domain(&self.cmd, &self.args, &[Some(redir.stdin), Some(redir.stdout), Some(redir.stderr)]);
+        let result = sys_spawn_domain(&self.cmd, &self.args, &[Some(redir.stdin), Some(redir.stdout), Some(redir.stderr)]);
         let mut ll = LinkedList::new();
         ll.push_back(result.unwrap());
         ll
@@ -132,7 +132,7 @@ impl Command for PipeCommand {
 
         // Cleanup
         // We are safe to close these fds here because the fdtable is already saved
-        // when sys_load_domain returns
+        // when sys_spawn_domain returns
         sys_close(rfd).unwrap();
         sys_close(wfd).unwrap();
         result
@@ -215,7 +215,7 @@ impl Command for RedirCommand {
 
         // // Cleanup
         // // We are safe to close these fds here because the fdtable is already saved
-        // // when sys_load_domain returns
+        // // when sys_spawn_domain returns
         sys_close(fd1).unwrap();
         result
     }

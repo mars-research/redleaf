@@ -53,7 +53,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
     // Init kernel
     let rv6 = box rv6_syscalls::Rv6Syscalls::new(create_xv6usr, fs.clone()); 
 
-    rv6.sys_load_domain("/init", "/init", array_init::array_init(|_| None)).unwrap();
+    rv6.sys_spawn_domain("/init", "/init", array_init::array_init(|_| None)).unwrap();
 }
 
 // This function is called on panic.

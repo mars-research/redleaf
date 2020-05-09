@@ -22,7 +22,7 @@ use alloc::string::String;
 
 use syscalls::{Syscall, Heap};
 use usrlib::{print, println};
-use usrlib::syscalls::{sys_read, sys_load_domain};
+use usrlib::syscalls::{sys_read, sys_spawn_domain};
 use usr_interfaces::xv6::Xv6Ptr;
 use usr_interfaces::vfs::VFSPtr;
 
@@ -37,7 +37,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
     rref::init(heap);
     println!("Starting rv6 shell with args: {}", args);
 
-    // sys_load_domain("benchfs", "benchfs", &[Some(0), Some(1), Some(2)]).unwrap();
+    // sys_spawn_domain("benchfs", "benchfs", &[Some(0), Some(1), Some(2)]).unwrap();
 
     const prompt: &'static str = "rv6> ";
     loop {

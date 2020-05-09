@@ -10,13 +10,13 @@ pub fn init(s: Box<dyn Xv6 + Send + Sync>) {
     SYSCALL.call_once(|| s);
 }
 
-pub fn sys_load_domain(path: &str, args: &str, fds: &[Option<usize>]) -> Result<Box<dyn Thread>, &'static str> {
+pub fn sys_spawn_domain(path: &str, args: &str, fds: &[Option<usize>]) -> Result<Box<dyn Thread>, &'static str> {
     if fds.len() > NFILE {
         return Err("fds too long");
     }
     let mut arr: [Option<usize>; NFILE] = array_init::array_init(|_| None);
     arr[..fds.len()].clone_from_slice(&fds);
-    SYSCALL.r#try().unwrap().sys_load_domain(path, args, arr)
+    SYSCALL.r#try().unwrap().sys_spawn_domain(path, args, arr)
 }
 
 
