@@ -12,7 +12,9 @@
     untagged_unions,
     naked_functions,
     panic_info_message,
-    param_attrs
+    param_attrs,
+    llvm_asm, 
+    global_asm
 )]
 
 extern crate x86;
@@ -39,6 +41,7 @@ mod heap;
 mod buildinfo;
 mod kbd;
 mod cb;
+mod unwind;
 pub mod gdt;
 
 
@@ -303,6 +306,8 @@ pub extern "C" fn rust_main_ap() -> ! {
         // kick the scheduler
         start_init_thread(); 
     }
+
+    unwind::unwind_test();
 
     println!("cpu{}: Initialized", cpu_id);
     println!("cpu{}: Ready to enable interrupts", cpu_id);
