@@ -42,6 +42,30 @@ pub extern "C" fn register_cont(cont: &Continuation)  {
     }
 }
 
+extern {
+    fn __unwind(cont: &Continuation);
+}
+
+pub fn unwind() {
+    unsafe {
+        println!("Continuation: {:#x?}", CONT);
+        __unwind(&CONT);
+    }
+}
+
+/* Restore register and stack state right before the invocation
+ * make sure that all registers are restored (specifically, caller 
+ * registers may be used for passing arguments). Hence we save the 
+ * function pointer right below the stack (esp - 8) and jump to 
+ * it from there.
+ *
+ * Note: interrupts are disabled in the kernel, NMIs are handled on a
+ * separate IST stack, so nothing should overwrite memory below the 
+ * stack (esp - 8).
+ *
+ * %rdi -- pointer to Continuation
+ */
+
 global_asm!("  
     .text 
     .align  16              
@@ -73,32 +97,52 @@ __unwind:
     movq 32(%rdi), %rdi
 
     jmpq *-8(%rsp) ");
-    //jmp foo_err ");
 
-
-extern {
-    fn __unwind(cont: &Continuation);
-}
-
-pub fn unwind() {
-    unsafe {
-        println!("Continuation: {:#x?}", CONT);
-        __unwind(&CONT);
+/* Macro to create a continuation trampoline for the function. 
+ *
+ * Save all the registers on the stack, then pass the stack frame as 
+ * an argument to the Rust register_continuation() function (extern "C" 
+ * guarantees the ABI compatibility).
+ *
+ */
+macro_rules! trampoline {
+    ($func: ident) => {
+    global_asm!(
+        core::concat!(r#"
+            .text
+            .align  16
+            "#,
+            core::concat!(core::stringify!($func), "_tramp:"),
+            r#"
+            push %rsp
+            push %rbp
+            push %rbx
+            push %r11
+            push %r12
+            push %r13
+            push %r14
+            push %r15
+            pushfq
+            push %r10
+            push %r9
+            push %r8
+            push %rdi
+            push %rsi
+            push %rdx
+            push %rcx
+            push %rax
+            push $"#, core::concat!(core::stringify!($func), "_err"),
+            r#"
+            mov %rsp, %rdi
+            call register_cont
+            subq $144, %rsp
+            jmp "#, core::stringify!($func)
+        );
+    );
     }
 }
 
-#[no_mangle]
-pub fn foo(x: u64, y: u64) {
-    unwind();
-    println!("you shouldn't see this"); 
-}
-
-#[no_mangle]
-pub fn foo_err(x: u64, y: u64) {
-    println!("foo was aborted, x:{}, y:{}", x, y); 
-}
-
-global_asm!("  
+/* global_asm!("  
     .text 
     .align  16              
 foo_tramp:         
@@ -128,10 +172,24 @@ foo_tramp:
     call register_cont                       
     subq $144, %rsp                   
     jmp foo ");
+*/
+
+#[no_mangle]
+pub fn foo(x: u64, y: u64) {
+    unwind();
+    println!("you shouldn't see this"); 
+}
+
+#[no_mangle]
+pub fn foo_err(x: u64, y: u64) {
+    println!("foo was aborted, x:{}, y:{}", x, y); 
+}
 
 extern {
     fn foo_tramp(x: u64, y: u64);
 }
+
+trampoline!(foo);
 
 pub fn unwind_test() {
     unsafe {
@@ -139,20 +197,4 @@ pub fn unwind_test() {
     }
 }
 
-/*
-pub fn unwind_test() {
 
-    let rbp: u64;
-    let rsp: u64;
-
-    unsafe {
-        asm!("mov %rbp, $0" : "=r"(rbp));
-    }
-    unwind_set_cont(rbp, foo_err as u64);
-    foo(); 
-
-    rsp = rbp + core::mem::size_of::<usize>() as u64;
-    println!("rbp: {:x}, rsp: {:x}", rbp, rsp); 
-}
-
-*/
