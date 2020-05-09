@@ -26,16 +26,50 @@ impl<T> Drop for SharedHeapObject<T> {
     }
 }
 
+pub struct RRefArray<T, const N: usize> where T: 'static {
+    arr: RRef<[Option<RRef<T>>; N]>
+}
+
+impl<T, const N: usize> RRefArray<T, N> {
+    fn new(arr: [Option<RRef<T>>; N]) -> Self {
+        Self {
+            arr: RRef::new(arr)
+        }
+    }
+
+    fn has(&self, index: usize) -> bool {
+        self.arr[index].is_some()
+    }
+
+    fn get(&mut self, index: usize) -> Option<RRef<T>> {
+        let value = self.arr[index].take();
+        if let Some(rref) = value.as_ref() {
+            let domain_id = libsyscalls::syscalls::sys_get_current_domain_id();
+            rref.move_to(domain_id);
+        }
+        return value;
+    }
+
+    fn set(&mut self, index: usize, value: RRef<T>) {
+        value.move_to(0); // mark as owned
+        self.arr[index].replace(value);
+    }
+
+    fn move_to(&self, new_domain_id: u64) {
+        self.arr.move_to(new_domain_id);
+    }
+}
+
 pub struct RRefDeque<T, const N: usize> where T: 'static {
-    arr: RRef<[Option<T>; N]>,
+    arr: RRefArray<T, N>,
     head: usize, // index of the next element that can be written
     tail: usize, // index of the first element that can be read
 }
 
 impl<T, const N: usize> RRefDeque<T, N> {
-    pub fn new(empty_arr: [Option<T>; N]) -> Self {
+    pub fn new(empty_arr: [Option<RRef<T>>; N]) -> Self {
         Self {
-            arr: RRef::new(empty_arr),
+            arr: RRefArray::new(empty_arr),
             head: 0,
             tail: 0
         }
@@ -46,21 +80,17 @@ impl<T, const N: usize> RRefDeque<T, N> {
         self.arr.move_to(new_domain_id);
     }
 
-    pub fn push_back(&mut self, value: T) -> Option<T> {
-        if self.arr[self.head].is_some() {
+    pub fn push_back(&mut self, value: RRef<T>) -> Option<RRef<T>> {
+        if self.arr.has(self.head) {
             return Some(value);
         }
-        if self.head == self.tail && self.arr[self.head].is_some() {
-            // if overwriting tail, push tail back
-            self.tail = (self.tail + 1) % N;
-        }
-        self.arr[self.head] = Some(value);
+        self.arr.set(self.head, value);
         self.head = (self.head + 1) % N;
         return None;
     }
 
-    pub fn pop_front(&mut self) -> Option<T> {
-        let value = self.arr[self.tail].take();
+    pub fn pop_front(&mut self) -> Option<RRef<T>> {
+        let value = self.arr.get(self.tail);
         if value.is_some() {
             self.tail = (self.tail + 1) % N;
         }
@@ -75,6 +105,7 @@ mod tests {
     use alloc::vec::Vec;
     use core::mem;
     use syscalls::{Syscall, Thread};
+    extern crate pc_keyboard;
 
     pub struct TestHeap();
 
@@ -116,6 +147,8 @@ mod tests {
         fn sys_free_huge(&self, p: *mut u8) {}
         fn sys_backtrace(&self) {}
         fn sys_dummy(&self) {}
+        fn sys_readch_kbd(&self) -> core::result::Result<Option<pc_keyboard::DecodedKey>, &'static str> { todo!() }
+        fn sys_make_condvar(&self) -> Box<(dyn syscalls::CondVar + Send + Sync + 'static)> { todo!() }
     }
 
     fn init_heap() {
@@ -130,7 +163,7 @@ mod tests {
         init_heap();
         init_syscall();
         let mut deque = RRefDeque::<usize, 3>::new(Default::default());
-        assert_eq!(deque.pop_front(), None);
+        assert!(deque.pop_front().is_none());
     }
 
     #[test]
@@ -138,10 +171,10 @@ mod tests {
         init_heap();
         init_syscall();
         let mut deque = RRefDeque::<usize, 3>::new(Default::default());
-        deque.push_back(1);
-        deque.push_back(2);
-        assert_eq!(deque.pop_front(), Some(1));
-        assert_eq!(deque.pop_front(), Some(2));
+        deque.push_back(RRef::new(1));
+        deque.push_back(RRef::new(2));
+        assert_eq!(deque.pop_front().map(|r| *r), Some(1));
+        assert_eq!(deque.pop_front().map(|r| *r), Some(2));
     }
 
     #[test]
@@ -149,16 +182,16 @@ mod tests {
         init_heap();
         init_syscall();
         let mut deque = RRefDeque::<usize, 3>::new(Default::default());
-        assert_eq!(deque.push_back(1), None);
-        assert_eq!(deque.push_back(2), None);
-        assert_eq!(deque.push_back(3), None);
-        assert_eq!(deque.push_back(4), Some(4));
-        assert_eq!(deque.pop_front(), Some(1));
-        assert_eq!(deque.push_back(5), None);
-        assert_eq!(deque.pop_front(), Some(2));
-        assert_eq!(deque.pop_front(), Some(3));
-        assert_eq!(deque.pop_front(), Some(5));
-        assert_eq!(deque.pop_front(), None);
+        assert!(deque.push_back(RRef::new(1)).is_none());
+        assert!(deque.push_back(RRef::new(2)).is_none());
+        assert!(deque.push_back(RRef::new(3)).is_none());
+        assert_eq!(deque.push_back(RRef::new(4)).map(|r| *r), Some(4));
+        assert_eq!(deque.pop_front().map(|r| *r), Some(1));
+        assert!(deque.push_back(RRef::new(5)).is_none());
+        assert_eq!(deque.pop_front().map(|r| *r), Some(2));
+        assert_eq!(deque.pop_front().map(|r| *r), Some(3));
+        assert_eq!(deque.pop_front().map(|r| *r), Some(5));
+        assert!(deque.pop_front().is_none());
     }
 }
 

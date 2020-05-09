@@ -14,19 +14,26 @@ use usr::dom_a::DomA;
 use libtime::get_rdtsc as rdtsc;
 
 fn test_submit_and_poll(dom_a: &mut Box<dyn DomA>) {
-    let mut packets = RRefDeque::<RRef<[u8; 100]>, 32>::new(Default::default());
-    let mut reap_queue = RRefDeque::<RRef<[u8; 100]>, 32>::new(Default::default());
+    let mut packets = RRefDeque::<[u8; 100], 32>::new(Default::default());
+    let mut reap_queue = RRefDeque::<[u8; 100], 32>::new(Default::default());
     for i in 0..20 {
         packets.push_back(RRef::<[u8;100]>::new([i;100]));
     }
 
-    let start = rdtsc();
+    let ops = 1_000_000;
+
+    let mut delta = 0u64;
     let mut packets = Some(packets);
     let mut reap_queue = Some(reap_queue);
-    for i in 0..10_000_000 {
+    for i in 0..ops {
+
+        let start = rdtsc();
+
         // need options as a workaround to destructured assignment
         // https://github.com/rust-lang/rfcs/issues/372
         let (num, mut packets_, mut reap_queue_) = dom_a.tx_submit_and_poll(packets.take().unwrap(), reap_queue.take().unwrap());
+
+        delta += rdtsc() - start;
 
         // move some packets back to packets queue
         for i in 0..num {
@@ -43,7 +50,7 @@ fn test_submit_and_poll(dom_a: &mut Box<dyn DomA>) {
         reap_queue.replace(reap_queue_);
     }
     let end = rdtsc();
-    println!("start: {} end: {} delta: {}", start, end, end - start);
+    println!("ops: {}, delta: {}, delta/ops: {}", ops, delta, delta / ops);
 }
 
 #[no_mangle]

@@ -309,12 +309,12 @@ impl usr::dom_a::DomA for DomAProxy {
 
     fn tx_submit_and_poll(
         &mut self,
-        packets: RRefDeque<RRef<[u8; 100]>, 32>,
-        reap_queue: RRefDeque<RRef<[u8; 100]>, 32>)
+        packets: RRefDeque<[u8; 100], 32>,
+        reap_queue: RRefDeque<[u8; 100], 32>)
     -> (
         usize,
-        RRefDeque<RRef<[u8; 100]>, 32>,
-        RRefDeque<RRef<[u8; 100]>, 32>
+        RRefDeque<[u8; 100], 32>,
+        RRefDeque<[u8; 100], 32>
     ) {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };

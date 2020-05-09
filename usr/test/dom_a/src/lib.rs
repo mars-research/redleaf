@@ -40,11 +40,11 @@ impl usr::dom_a::DomA for DomA {
 
     fn tx_submit_and_poll(
         &mut self,
-        mut packets: RRefDeque<RRef<[u8; 100]>, 32>,
-        mut reap_queue: RRefDeque<RRef<[u8; 100]>, 32>) -> (
+        mut packets: RRefDeque<[u8; 100], 32>,
+        mut reap_queue: RRefDeque<[u8; 100], 32>) -> (
             usize,
-            RRefDeque<RRef<[u8; 100]>, 32>,
-            RRefDeque<RRef<[u8; 100]>, 32>
+            RRefDeque<[u8; 100], 32>,
+            RRefDeque<[u8; 100], 32>
         ) {
 
         let mut read = 0;
