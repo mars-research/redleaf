@@ -72,8 +72,8 @@ global_asm!("
 __unwind:
     movq 16(%rdi), %rcx
     movq 24(%rdi), %rdx
+    movq 32(%rdi), %rsi
 
-    movq 40(%rdi), %rsi
     movq 48(%rdi), %r8
     movq 56(%rdi), %r9
     movq 64(%rdi), %r10
@@ -94,7 +94,7 @@ __unwind:
     movq %rax, -8(%rsp)
     movq 8(%rdi), %rax
 
-    movq 32(%rdi), %rdi
+    movq 40(%rdi), %rdi
 
     jmpq *-8(%rsp) ");
 
@@ -135,7 +135,17 @@ macro_rules! trampoline {
             r#"
             mov %rsp, %rdi
             call register_cont
-            subq $144, %rsp
+            add $8, %rsp
+            pop %rax
+            pop %rcx
+            pop %rdx
+            pop %rsi
+            pop %rdi
+            pop %r8
+            pop %r9
+            pop %r10
+            popfq
+            add $64, %rsp
             jmp "#, core::stringify!($func)
         );
     );
@@ -174,9 +184,13 @@ foo_tramp:
     jmp foo ");
 */
 
+
+/* 
+ * Unwind test with simple functions 
+ */
 #[no_mangle]
 pub fn foo(x: u64, y: u64) {
-    unwind();
+    //unwind();
     println!("you shouldn't see this"); 
 }
 
@@ -191,9 +205,57 @@ extern {
 
 trampoline!(foo);
 
+/*
+ * Unwind test with traits
+ */
+
+pub trait FooTrait {
+    fn simple_result(&self, x: u64) -> Result<u64, i64>;
+}
+
+pub struct Foo {
+    id: u64,
+}
+
+impl FooTrait for Foo {
+    fn simple_result(&self, x: u64) -> Result<u64, i64> {
+        let r = self.id; 
+        unwind();
+        Ok(r)
+    }
+}
+
+static FOO: Foo = Foo {id: 55};
+
+#[no_mangle]
+pub extern fn simple_result(s: &Foo, x: u64) -> Result<u64, i64> {
+    println!("simple_result: s.id:{}, x:{}", s.id, x);
+    let r = s.simple_result(x);
+    println!("simple_result: you shouldn't see this");
+    r
+}
+
+#[no_mangle]
+pub extern fn simple_result_err(s: &Foo, x: u64) -> Result<u64, i64> {
+    println!("simple_result was aborted, s.id:{}, x:{}", s.id, x);
+    Err(-1)
+}
+
+extern {
+    fn simple_result_tramp(s:&Foo, x: u64) -> Result<u64, i64>;
+}
+
+trampoline!(simple_result);
+
 pub fn unwind_test() {
     unsafe {
         foo_tramp(1, 2);
+        let r = simple_result_tramp(&FOO, 3); 
+        match r {
+            Ok(n)  => println!("simple_result (ok):{}", n),
+            Err(e) => println!("simple_result, err: {}", e),
+        }
+
     }
 }
 
