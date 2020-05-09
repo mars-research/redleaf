@@ -70,11 +70,11 @@ impl LogInternal {
             let mut dbuf = BCACHE.force_get().read(self.dev, self.logheader.block_nums[tail as usize]);
             {
                 let mut locked_dbuf = dbuf.lock();
-                locked_dbuf = lbuf.lock();
+                ***locked_dbuf = ***lbuf.lock();
                 BCACHE.force_get().write(dbuf.block_number(), &mut locked_dbuf);  // write dst to disk
             }
             dbuf.unpin();
-                                }
+        }
     }
 
     // Read the log header from disk into the in-memory log header
@@ -94,7 +94,7 @@ impl LogInternal {
             self.logheader.to_buffer_block(&mut locked_buf);
             BCACHE.force_get().write(buf.block_number(), &mut locked_buf);
         }
-            }
+    }
 
     fn recover_from_log(&mut self) {
         self.read_head();
@@ -150,10 +150,10 @@ impl LogInternal {
             let mut from = BCACHE.force_get().read(self.dev, self.logheader.block_nums[tail as usize]); // cache block
             {
                 let mut locked_to = to.lock();
-                locked_to = from.lock();
+                ***locked_to = ***from.lock();
                 BCACHE.force_get().write(to.block_number(), &mut locked_to);  // write the log
             }
-                                }
+        }
     }
 
     fn commit(&mut self) {
