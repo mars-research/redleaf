@@ -130,7 +130,7 @@ fn perf_test(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
         let tsc_start = rdtsc();
         let tsc_end = tsc_start + runtime * 2_600_000_000;
 
-        loop {
+        /*loop {
             count += 1;
             submit_start = rdtsc();
             ret = dev.submit_io(&mut submit, is_write);
@@ -139,7 +139,7 @@ fn perf_test(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
             submit_hist.record(ret as u64);
 
             poll_start = rdtsc();
-            dev.poll(16, &mut collect, true);
+            dev.poll(16, &mut collect, false);
             poll_elapsed += rdtsc() - poll_start;
 
             poll_hist.record(collect.len() as u64);
@@ -149,10 +149,24 @@ fn perf_test(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
             if rdtsc() > tsc_end {
                 break;
             }
+        }*/
+
+        dev.submit_io(&mut submit, is_write);
+
+        loop {
+
+            //println!("checking");
+            dev.check_io(batch_sz, is_write);
+
+            let cur_tsc = rdtsc();
+
+            if cur_tsc > tsc_end {
+                break;
+            }
         }
 
         let (sub, comp) = dev.get_stats();
-        println!("submitted {} IOPS completed {} IOPS", sub as f64 / runtime as f64 / 1 as f64,
+        println!("runtime {} submitted {} IOPS completed {} IOPS", runtime, sub as f64 / runtime as f64 / 1 as f64,
                       comp as f64 / runtime as f64 / 1 as f64);
         println!("loop {} submit took {} cycles (avg {} cycles), poll took {} cycles (avg {} cycles)",
                                 count, submit_elapsed, submit_elapsed / count, poll_elapsed, poll_elapsed / count);
@@ -181,8 +195,8 @@ pub fn nvme_init(s: Box<dyn Syscall + Send + Sync>,
         println!("WARNING: failed to register IXGBE driver");
     }
 
-    perf_test(&nvme, 10, 32, true);
-    //perf_test(&nvme, 10, 32, false);
+    perf_test(&nvme, 30, 128, false);
+    //perf_test(&nvme, 30, 32, false);
     Box::new(nvme);
 }
 

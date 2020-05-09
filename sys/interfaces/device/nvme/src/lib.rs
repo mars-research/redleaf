@@ -32,6 +32,7 @@ pub struct BlockReq {
     pub block: u64,
     num_blocks: u16,
     data: Vec<u8>,
+    cid: u16,
 }
 
 impl BlockReq {
@@ -40,6 +41,7 @@ impl BlockReq {
             block,
             num_blocks,
             data,
+            cid: 0,
         }
     }
     fn from(&mut self) -> Self {
@@ -49,6 +51,7 @@ impl BlockReq {
             data: unsafe {
                 Vec::from_raw_parts(self.data.as_mut_ptr(), self.data.len(), self.data.capacity())
             },
+            cid: self.cid,
         }
     }
 }
@@ -69,6 +72,7 @@ impl Clone for BlockReq {
             block: self.block,
             num_blocks: self.num_blocks,
             data: self.data.clone(),
+            cid: self.cid,
        }
     }
 }
@@ -436,9 +440,10 @@ impl NvmeDevice {
                     );
         }
 
-        if let Some(tail) = queue.submit_brequest(entry, breq) {
+        if let Some(tail) = queue.submit_brequest_cid(entry, breq) {
             self.submission_queue_tail(qid as u16, tail as u16);
         }
+        self.stats.submitted += 1;
     }
 
     pub fn poll(&mut self, num_reqs: u64, reap: &mut VecDeque<BlockReq>, reap_all: bool) {
@@ -514,5 +519,142 @@ impl NvmeDevice {
             self.submission_queue_tail(qid as u16, cur_tail as u16);
         }
         count
+    }
+
+    fn submit_from_slot(&mut self, cid: u16,
+                                block: u64,
+                                num_blocks: u64,
+                                data_ptr: u64, is_write: bool) {
+        let qid = 1;
+
+        let (ptr0, ptr1) = (data_ptr, 0);
+        let queue = &mut self.submission_queues[qid];
+
+        if is_write {
+            let entry = nvme_cmd::io_write(qid as u16,
+                                 1, // nsid
+                                 block, // block to read
+                                 num_blocks as u16,
+                                 ptr0,
+                                 ptr1,
+                                 );
+
+            if let Some(tail) = queue.submit_from_slot(entry, cid as usize) {
+                self.submission_queue_tail(qid as u16, tail as u16);
+            }
+        } else {
+            let entry = nvme_cmd::io_read(qid as u16,
+                                1, // nsid
+                                block, // block to read
+                                num_blocks as u16,
+                                ptr0,
+                                ptr1,
+                                );
+
+            if let Some(tail) = queue.submit_from_slot(entry, cid as usize) {
+                self.submission_queue_tail(qid as u16, tail as u16);
+            }
+        }
+
+        self.stats.submitted += 1;
+    }
+
+    pub fn check_io(&mut self, batch_sz: u64, is_write: bool) {
+        let mut next_is_valid = false;
+        let qid = 1;
+        let mut next_phase: bool;
+        let mut num_completions = 0;
+        let mut cq_head: Option<usize> = None;
+
+        loop {
+            let mut cq_valid:bool = false;
+            let mut cid: u16 = 0;
+            {
+                let cq = &mut self.completion_queues[qid];
+                if !next_is_valid {
+                    match cq.is_valid() {
+                        Some(_) => (),
+                        None => break,
+                    }
+                }
+
+                let mut next_cq_head: usize;
+                if let Some(entry) = cq.is_valid() {
+                    /*unsafe {
+                        core::intrinsics::prefetch_read_data(
+                            &self.submission_queues[1].requests[entry.cid as usize]
+                            as *const _ as *const u64, 2);
+                    };*/
+
+                    next_cq_head = (cq.i + 1) % cq.data.len();
+                    if next_cq_head == 0 {
+                        next_phase = !cq.phase;
+                    } else {
+                        next_phase = cq.phase;
+                    }
+
+                    let next_cpl = unsafe {
+                        core::ptr::read_volatile(cq.data.as_ptr().add(next_cq_head))
+                    };
+
+                    next_is_valid = ((next_cpl.status & 1) == next_phase as u16);
+                    /*if next_is_valid {
+                        unsafe {
+                            core::intrinsics::prefetch_read_data(
+                                &self.submission_queues[1].requests[next_cpl.cid as usize]
+                                as *const _ as *const u64, 2);
+                        };
+                    }*/
+                    //println!("cq {}", cq.i);
+                    cq.advance();
+                    cq_valid = true;
+                    cid = entry.cid;
+                    self.stats.completed += 1;
+                    cq_head = Some(cq.i);
+                }
+            }
+
+            if cq_valid == true {
+                let mut slot_valid : bool = false;
+                let mut block = 0u64;
+                let mut num_blocks = 0u64;
+                let mut data = 0u64;
+                {
+                    let sq = &mut self.submission_queues[qid];
+                    //println!("checking cid {}", cid);
+                    if sq.req_slot[cid as usize] == true {
+                        if let Some(req) = &mut sq.brequests[cid as usize] {
+                            let breq = req.from();
+                            sq.req_slot[cid as usize] = false;
+                            slot_valid = true;
+                            //println!("trying to submit cide {} breq.cid {}", cid,
+                            //        breq.cid);
+                            self.submit(breq, is_write);
+                            //block = req.block + 32;
+                            //block = get_rand_block();
+                           // num_blocks = req.num_blocks as u64;
+                           // data = req.data;
+                        }
+                    } else {
+                        println!("slot {} is not submitted", cid);
+                    }
+                }
+                /*if slot_valid {
+                    //self.submit_from_slot(cid, block, num_blocks,
+                    //                      data, is_write);
+                }*/
+                num_completions += 1;
+            }
+            if num_completions > batch_sz {
+                break;
+            }
+        }
+
+        if num_completions > 0 {
+            if let Some(head) = cq_head {
+                //println!("writing head {}", head);
+                self.completion_queue_head(qid as u16, head as u16);
+            }
+        }
     }
 }

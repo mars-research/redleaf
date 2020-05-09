@@ -170,6 +170,10 @@ impl NvmeDev {
         self.device.submit_io(submit_queue, write)
     }
 
+    pub fn check_io(&mut self, num_reqs: u64, write: bool) {
+        self.device.check_io(num_reqs, write)
+    }
+
     pub fn get_stats(&mut self) -> (u64, u64) {
         let (s, c) = self.device.stats.get_stats();
         self.device.stats.reset_stats();

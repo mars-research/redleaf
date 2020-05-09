@@ -128,7 +128,7 @@ pub fn io_read(cid: u16, nsid: u32, lba: u64, blocks_1: u16, ptr0: u64, ptr1: u6
 pub fn io_write(cid: u16, nsid: u32, lba: u64, blocks_1: u16, ptr0: u64, ptr1: u64) -> NvmeCommand {
     NvmeCommand {
         opcode: IoCommandSet::WRITE as u8,
-        flags:  0 << 6,
+        flags:  1 << 6,
         cid: cid,
         nsid: nsid,
         _rsvd: 0,
