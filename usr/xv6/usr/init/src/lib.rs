@@ -33,11 +33,11 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
     console::println!("Rv6 init");
 
     // Create console device if it not there yet
-    match rv6.sys_open("/console", filemode::READWRITE) {
+    match rv6.sys_open("/console", FileMode::READWRITE) {
         Err(_) => {
             console::println!("/console doesnt exist; creating a new one.");
             rv6.sys_mknod("/console", 1, 1).unwrap();
-            assert_eq!(rv6.sys_open("/console", filemode::READWRITE).unwrap(), 0);
+            assert_eq!(rv6.sys_open("/console", FileMode::READWRITE).unwrap(), 0);
         },
         Ok(fd) => {
             console::println!("/console already exists; reusing the old one.");
