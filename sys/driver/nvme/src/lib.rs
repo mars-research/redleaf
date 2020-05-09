@@ -101,7 +101,9 @@ fn perf_test(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
 
     let block_size = buffer.len();
     let mut breq: BlockReq = BlockReq::new(0, 8, buffer);
+    let mut req: Vec<u8> = alloc::vec![0u8; 4096];
     let mut submit: VecDeque<BlockReq> = VecDeque::with_capacity(batch_sz as usize);
+    let mut submit_vec: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz as usize);
     let mut collect: VecDeque<BlockReq> = VecDeque::new();
     let mut batch_size = batch_sz;
 
@@ -112,6 +114,7 @@ fn perf_test(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
         breq.block = block_num;
         block_num = block_num.wrapping_add(1);
         submit.push_back(breq.clone());
+        submit_vec.push_back(req.clone());
     }
 
     if let Some(device) = dev.device.borrow_mut().as_mut() {
@@ -128,7 +131,7 @@ fn perf_test(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
         let mut ret = 0;
 
         let tsc_start = rdtsc();
-        let tsc_end = tsc_start + runtime * 2_600_000_000;
+        let tsc_end = tsc_start + runtime * 2_400_000_000;
 
         /*loop {
             count += 1;
@@ -151,12 +154,12 @@ fn perf_test(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
             }
         }*/
 
-        dev.submit_io(&mut submit, is_write);
+        dev.submit_iov(&mut submit_vec, is_write);
 
         loop {
 
             //println!("checking");
-            dev.check_io(batch_sz, is_write);
+            dev.check_iov(batch_sz, is_write);
 
             let cur_tsc = rdtsc();
 
