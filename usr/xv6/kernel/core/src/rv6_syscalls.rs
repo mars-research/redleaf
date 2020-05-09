@@ -37,7 +37,7 @@ impl Xv6 for Rv6Syscalls {
     fn sys_spawn_domain(&self, path: &str, args: &str, fds: [Option<usize>; NFILE]) -> Result<Box<dyn Thread>, &'static str> {
         // Load bin into memory
         println!("sys_spawn_domain {} {}", path, args);
-        let fd = self.fs.sys_open(path, FileMode::Read)?;
+        let fd = self.fs.sys_open(path, FileMode::READ)?;
         let size = self.fs.sys_fstat(fd)?.size; // fstat will filter out non INode files
         let mut blob = alloc::vec![0; size as usize];
         assert_eq!(self.fs.sys_read(fd, blob.as_mut_slice())?, size as usize);

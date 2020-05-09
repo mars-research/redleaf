@@ -43,7 +43,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
         let mut buffer = alloc::vec![123u8; *bsize];
 
         if options.contains('w') {
-            let fd = sys_open(file, FileMode::Write | FileMode::Create).unwrap();
+            let fd = sys_open(file, FileMode::WRITE | FileMode::CREATE).unwrap();
 
             // warm up
             sys_write(fd, buffer.as_slice()).unwrap();
@@ -61,7 +61,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
         }
 
         if options.contains('r') {
-            let fd = sys_open(file, FileMode::Read).unwrap();
+            let fd = sys_open(file, FileMode::READ).unwrap();
 
             let start = rv6.sys_rdtsc();
             let mut total_size = 0;

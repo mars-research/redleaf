@@ -96,7 +96,7 @@ pub fn sys_mknod(path: &str, major: i16, minor: i16) -> Result<(), &'static str>
 pub fn sys_open(path: &str, mode: FileMode) -> Result<usize, &'static str> {
     console::println!("sys_open {} {:?}", path, mode);
     let mut trans = LOG.r#try().unwrap().begin_transaction();
-    let inode: Arc<INode> = match mode.contains(FileMode::Create) {
+    let inode: Arc<INode> = match mode.contains(FileMode::CREATE) {
         true => {
             if let Some(inode) = ICache::create(&mut trans, path, INodeFileType::File, 0, 0) {
                 Ok(inode)
@@ -107,7 +107,7 @@ pub fn sys_open(path: &str, mode: FileMode) -> Result<usize, &'static str> {
         false => {
             if let Some(inode) = ICache::namei(&mut trans, path) {
                 let is_directory = inode.lock().data.file_type == INodeFileType::Directory;
-                if is_directory && (mode != FileMode::Read) {
+                if is_directory && (mode != FileMode::READ) {
                     ICache::put(&mut trans, inode);
                     Err("Permission denied")
                 } else {
@@ -129,10 +129,10 @@ pub fn sys_open(path: &str, mode: FileMode) -> Result<usize, &'static str> {
 
     let file = match iguard.data.file_type {
         INodeFileType::Device => {
-            OpenedFile::new(FileType::Device { inode: inode.clone(), major: AtomicUsize::new(iguard.data.major as usize) }, mode.contains(FileMode::Read), mode.contains(FileMode::Write))
+            OpenedFile::new(FileType::Device { inode: inode.clone(), major: AtomicUsize::new(iguard.data.major as usize) }, mode.contains(FileMode::READ), mode.contains(FileMode::WRITE))
         },
         _ => {
-            OpenedFile::new(FileType::INode { inode: inode.clone(), offset: AtomicUsize::new(0) }, mode.contains(FileMode::Read), mode.contains(FileMode::Write))
+            OpenedFile::new(FileType::INode { inode: inode.clone(), offset: AtomicUsize::new(0) }, mode.contains(FileMode::READ), mode.contains(FileMode::WRITE))
         }
     };
 

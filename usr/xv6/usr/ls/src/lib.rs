@@ -42,7 +42,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
 
 fn ls(path: &str) -> Result<(), String> {
     println!("ls <{}>", path);
-    let fd = sys_open(path, FileMode::Read)
+    let fd = sys_open(path, FileMode::READ)
         .map_err(|e| alloc::format!("ls: cannot open {}. {}", path, e))?;
     let stat = sys_fstat(fd)
         .map_err(|e| alloc::format!("ls: cannot stat {}. {}", path, e))?;
@@ -64,7 +64,7 @@ fn ls(path: &str) -> Result<(), String> {
                 let filename = utils::cstr::to_string(de.name)
                                 .map_err(|_| String::from("ls: cannot convert filename to utf8 string"))?;
                 let file_path = alloc::format!("{}/{}", path, filename);
-                let file_fd = sys_open(&file_path, FileMode::Read)
+                let file_fd = sys_open(&file_path, FileMode::READ)
                                 .map_err(|e| alloc::format!("ls: cannot open {} {}", file_path, e))?;
                 let file_stat = sys_fstat(file_fd)
                                 .map_err(|e| alloc::format!("ls: cannot stat {} {}", file_path, e))?;

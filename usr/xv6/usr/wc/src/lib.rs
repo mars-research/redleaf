@@ -41,7 +41,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
     }
 
     for arg in args {
-        let fd = sys_open(arg, FileMode::Read).unwrap();
+        let fd = sys_open(arg, FileMode::READ).unwrap();
         wc(fd, arg).unwrap();
         sys_close(fd);
     }

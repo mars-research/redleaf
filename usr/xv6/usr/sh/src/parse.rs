@@ -182,8 +182,8 @@ impl RedirCommand {
     
             // Generate a redir_cmd
             let redir_cmd = match redir_token {
-                "<" => box Self::new(subcmd, redir_file, FileMode::Read, 0),
-                ">" => box Self::new(subcmd, redir_file, FileMode::Write|FileMode::Create, 1),
+                "<" => box Self::new(subcmd, redir_file, FileMode::READ, 0),
+                ">" => box Self::new(subcmd, redir_file, FileMode::WRITE|FileMode::CREATE, 1),
                 c => panic!("unknown redir token: {}", c),
             };
 

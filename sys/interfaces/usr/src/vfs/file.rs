@@ -1,10 +1,10 @@
 
 bitflags! {
     pub struct FileMode: u32 {
-        const Read = 0b001;
-        const Write = 0b010;
-        const Create = 0b100;
-        const ReadWrite = Self::Read.bits | Self::Write.bits;
+        const READ = 0b001;
+        const WRITE = 0b010;
+        const CREATE = 0b100;
+        const READWRITE = Self::READ.bits | Self::WRITE.bits;
     }
 }
 

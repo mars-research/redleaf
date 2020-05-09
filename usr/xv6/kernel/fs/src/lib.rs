@@ -129,7 +129,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
 
 fn fs_benchmark(buf_size: usize, path: &str) {
     let start = get_rdtsc();
-    let fd = sysfile::sys_open(path, FileMode::Read).unwrap();
+    let fd = sysfile::sys_open(path, FileMode::READ).unwrap();
     let mut buff = Vec::new();
     buff.resize(buf_size, 0 as u8);
     let mut bytes_read = 0;
