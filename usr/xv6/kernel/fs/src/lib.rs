@@ -1,5 +1,6 @@
 #![no_std]
-// #![forbid(unsafe_code)]
+// #![no_builtins]
+#![forbid(unsafe_code)]
 #![feature(abi_x86_interrupt)]
 #![feature(
     asm,
@@ -39,6 +40,7 @@ use sysfile::{FileMode, FileStat};
 use syscalls::{Syscall, Heap};
 use usr_interface::vfs::{UsrVFS, KernelVFS, VFS, VFSPtr, NFILE};
 use usr_interface::bdev::BDev;
+use memcpy;
 
 mod bcache;
 mod block;
@@ -48,7 +50,6 @@ mod cwd;
 mod fs;
 mod icache;
 mod log;
-mod mem;
 mod opened_file;
 mod params;
 mod pipe;

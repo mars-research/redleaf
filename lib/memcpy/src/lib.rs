@@ -1,4 +1,8 @@
 // https://doc.redox-os.org/kernel/src/kernel/externs.rs.html
+#![no_std]
+// #![no_builtins]
+
+extern crate core;
 
 use core::mem;
 
@@ -11,7 +15,7 @@ const WORD_SIZE: usize = mem::size_of::<usize>();
 /// This faster implementation works by copying bytes not one-by-one, but in
 /// groups of 8 bytes (or 4 bytes in the case of 32-bit architectures).
 #[no_mangle]
-pub unsafe extern fn memcpy(dest: *mut u8, src: *const u8,
+pub unsafe extern "C" fn memcpy(dest: *mut u8, src: *const u8,
                             n: usize) -> *mut u8 {
 
     let n_usize: usize = n/WORD_SIZE; // Number of word sized groups
@@ -41,7 +45,7 @@ pub unsafe extern fn memcpy(dest: *mut u8, src: *const u8,
 /// This faster implementation works by copying bytes not one-by-one, but in
 /// groups of 8 bytes (or 4 bytes in the case of 32-bit architectures).
 #[no_mangle]
-pub unsafe extern fn memmove(dest: *mut u8, src: *const u8,
+pub unsafe extern "C" fn memmove(dest: *mut u8, src: *const u8,
                              n: usize) -> *mut u8 {
     if src < dest as *const u8 {
         let n_usize: usize = n/WORD_SIZE; // Number of word sized groups
@@ -93,7 +97,7 @@ pub unsafe extern fn memmove(dest: *mut u8, src: *const u8,
 /// groups of 8 bytes (or 4 bytes in the case of 32-bit architectures).
 #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
 #[no_mangle]
-pub unsafe extern fn memset(dest: *mut u8, c: i32, n: usize) -> *mut u8 {
+pub unsafe extern "C" fn memset(dest: *mut u8, c: i32, n: usize) -> *mut u8 {
     let c = c as usize;
     let c = c << 8 | c;
     let c = c << 16 | c;
@@ -127,7 +131,7 @@ pub unsafe extern fn memset(dest: *mut u8, c: i32, n: usize) -> *mut u8 {
 /// This faster implementation works by comparing bytes not one-by-one, but in
 /// groups of 8 bytes (or 4 bytes in the case of 32-bit architectures).
 #[no_mangle]
-pub unsafe extern fn memcmp(s1: *const u8, s2: *const u8, n: usize) -> i32 {
+pub unsafe extern "C" fn memcmp(s1: *const u8, s2: *const u8, n: usize) -> i32 {
     let n_usize: usize = n/WORD_SIZE;
     let mut i: usize = 0;
 
