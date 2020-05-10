@@ -30,7 +30,7 @@ impl usr::dom_c::DomC for Shadow {
         self.dom_c.no_arg()
     }
 
-    fn one_arg(&self, x: usize) -> usize {
+    fn one_arg(&self, x: usize) -> Result<usize, i64> {
         self.dom_c.one_arg(x)
     }
 

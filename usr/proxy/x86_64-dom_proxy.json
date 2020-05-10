@@ -7,6 +7,7 @@
   "target-c-int-width": "32",
   "os": "none",
   "executables": true,
+  "position-independent-executables": true,
   "linker-flavor": "ld.lld",
   "linker": "rust-lld",
   "panic-strategy": "abort",

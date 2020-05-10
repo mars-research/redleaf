@@ -25,7 +25,7 @@ impl usr::dom_c::DomC for DomC {
     fn no_arg(&self) {}
 
     fn one_arg(&self, x: usize) -> Result<usize, i64> {
-        x + 1
+        Ok(x + 1)
     }
 
     fn one_rref(&self, mut x: RRef<usize>) -> RRef<usize> {
