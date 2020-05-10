@@ -360,7 +360,12 @@ impl DomCProxy {
 pub extern fn one_arg(s: & Box<dyn usr::dom_c::DomC>, x: usize) -> Result<usize, i64> {
     println!("one_arg: x:{}", x);
     let r = s.one_arg(x);
-    println!("one_arg: you shouldn't see this: r:{}", r.unwrap());
+
+    match r {
+        Ok(n) => println!("one_arg:{}", n),
+        Err(e) => println!("one_arg: error:{}", e),
+    }
+
     r
 }
 
