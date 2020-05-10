@@ -70,7 +70,7 @@ impl OpenedFile {
     pub fn seek(&self, new_offset: usize) -> Result<()> {
         match &self.file_type {
             FileType::INode { inode, offset } => {
-                let mut iguard = inode.lock();
+                let _iguard = inode.lock();
                 offset.store(new_offset, Ordering::SeqCst);
                 Ok(())
             },
@@ -103,7 +103,7 @@ impl OpenedFile {
                 offset.fetch_add(bytes, Ordering::SeqCst);
                 Ok(bytes)
             },
-            FileType::Device { inode, major } => {
+            FileType::Device { inode: _, major } => {
                 DEVICES
                     .get(major.load(Ordering::SeqCst))
                     .ok_or(ErrorKind::InvalidMajor)?
@@ -142,7 +142,7 @@ impl OpenedFile {
                 assert!(i == user_buffer.len());
                 Ok(i)
             },
-            FileType::Device { inode, major } => {
+            FileType::Device { inode: _, major } => {
                 DEVICES
                     .get(major.load(Ordering::SeqCst))
                     .ok_or(ErrorKind::InvalidMajor)?

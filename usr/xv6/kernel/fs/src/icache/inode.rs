@@ -167,12 +167,11 @@ impl INodeDataGuard<'_> {
 
             let mut chunks_iter = buffer.chunks_exact(core::mem::size_of::<u32>());
             for _ in 0..params::NINDIRECT {
-                if let chunk = chunks_iter.next().unwrap() {
-                    let block = u32::from_ne_bytes(chunk.try_into().unwrap());
-                    if block != 0 {
-                        block::free(trans, self.node.meta.device, block);
-                    }
-                }
+                let chunk = chunks_iter.next().unwrap();
+                let block = u32::from_ne_bytes(chunk.try_into().unwrap());
+                if block != 0 {
+                    block::free(trans, self.node.meta.device, block);
+                } 
             }
             drop(buffer);
             

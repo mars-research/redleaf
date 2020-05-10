@@ -3,15 +3,11 @@
 // Arguments are checked
 //
 
-use alloc::boxed::Box;
 use alloc::sync::Arc;
-use alloc::vec::Vec;
-use alloc::vec;
 use core::sync::atomic::AtomicUsize;
 
 pub use usr_interface::vfs::{FileMode, FileStat, NFILE, Result, ErrorKind};
 
-use crate::console_device::DEVICES;
 use crate::cross_thread_temp_store::CrossThreadTempStorage;
 use crate::icache::{ICache, INode, INodeFileType};
 use crate::log::LOG;
@@ -23,7 +19,7 @@ use crate::pipe::Pipe;
 pub fn sys_dup(fd: usize) -> Result<usize> {
     // console::println!("sys_dup {}", fd);
     FD_TABLE.with(|fdtable| {
-        let mut f = fdtable
+        let f = fdtable
             .get_mut(fd)
             .ok_or(ErrorKind::InvalidFileDescriptor)?
             .as_mut()
@@ -165,7 +161,7 @@ pub fn sys_pipe() -> Result<(usize, usize)> {
     let fd0 = FD_TABLE.with(|fdtable| {
         let fd = match fdtable.iter().position(|f| f.is_none()) {
             Some(fd) => fd,
-            None => return Err((ErrorKind::TooManyOpenedFiles, rf)),
+            None => return Err(ErrorKind::TooManyOpenedFiles),
         };
         fdtable[fd].replace(rf);
         Ok(fd)
@@ -173,7 +169,7 @@ pub fn sys_pipe() -> Result<(usize, usize)> {
 
     let fd0 = match fd0 {
         Ok(fd) => fd,
-        Err((e, rf)) => return Err(e),
+        Err(e) => return Err(e),
     };
 
     let fd1 = match fdalloc(wf) {

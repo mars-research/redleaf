@@ -28,7 +28,7 @@ impl Transaction {
     }
 
     pub fn write(&mut self, buffer: &BufferGuard) {
-        let (log_internal, cv) = &*self.log;
+        let (log_internal, _cv) = &*self.log;
         log_internal.lock().log_write(buffer);
     }
 }
