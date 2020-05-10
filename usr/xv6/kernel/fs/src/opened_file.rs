@@ -2,6 +2,7 @@ use alloc::sync::Arc;
 use core::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
 
 use tls::ThreadLocal;
+use usr_interface::vfs::{ErrorKind, Result};
 
 use crate::icache::{ICache, INode};
 use crate::params;
@@ -66,38 +67,35 @@ impl OpenedFile {
         }
     }
 
-    pub fn stat(&self) -> Result<FileStat, &'static str> {
+    pub fn stat(&self) -> Result<FileStat> {
         match &self.file_type {
             FileType::INode { inode, .. } | FileType::Device { inode, .. } => Ok(inode.lock().stat()),
-            _ => Err("Invalid file type")
+            _ => Err(ErrorKind::InvalidFileType)
         }
     }
 
     // Reads bytes from file into user_buffer.
     // Returns number of bytes read, or None if lacking read permissions or upon overflow.
     // xv6 equivalent: fileread
-    pub fn read(&self, user_buffer: &mut [u8]) -> Result<usize, &'static str> {
+    pub fn read(&self, user_buffer: &mut [u8]) -> Result<usize> {
         if !self.readable.load(Ordering::SeqCst) {
-            return Err("Permission denied");
+            return Err(ErrorKind::PermissionDenied);
         }
 
         match &self.file_type {
             FileType::INode { inode, offset } => {
                 let mut iguard = inode.lock();
                 let mut trans = LOG.r#try().unwrap().begin_transaction();
-                if let Some(bytes) = iguard.read(&mut trans, user_buffer, offset.load(Ordering::SeqCst)) {
-                    offset.fetch_add(bytes, Ordering::SeqCst);
-                    Ok(bytes)
-                } else {
-                    Err("Invalid inode")
-                }
+                let bytes = iguard.read(&mut trans, user_buffer, offset.load(Ordering::SeqCst))?;
+                offset.fetch_add(bytes, Ordering::SeqCst);
+                Ok(bytes)
             },
             FileType::Device { inode, major } => {
                 DEVICES
                     .get(major.load(Ordering::SeqCst))
-                    .ok_or("Invalid major")?
+                    .ok_or(ErrorKind::InvalidMajor)?
                     .as_ref()
-                    .ok_or("Invalid major")?
+                    .ok_or(ErrorKind::InvalidMajor)?
                     .read(user_buffer);
                 Ok((user_buffer.len()))
             },
@@ -108,9 +106,9 @@ impl OpenedFile {
     // Write bytes to file.
     // Returns number of bytes written, or None if lacking write permissions or upon overflow.
     // xv6 equivalent: filewrite
-    pub fn write(&self, user_buffer: &[u8]) -> Result<usize, &'static str> {
+    pub fn write(&self, user_buffer: &[u8]) -> Result<usize> {
         if !self.writable.load(Ordering::SeqCst) {
-            return Err("Permission denied");
+            return Err(ErrorKind::PermissionDenied);
         }
 
         match &self.file_type {
@@ -123,23 +121,20 @@ impl OpenedFile {
                     {
                         let mut trans = LOG.r#try().unwrap().begin_transaction();
                         let mut iguard = inode.lock();
-                        let bytes = iguard.write(&mut trans, &user_buffer[i..i+bytes_to_write], offset.load(Ordering::SeqCst)).ok_or("iwrite failed")?;
+                        let bytes = iguard.write(&mut trans, &user_buffer[i..i+bytes_to_write], offset.load(Ordering::SeqCst))?;
                         offset.fetch_add(bytes, Ordering::SeqCst);
                         i += bytes;
                     }
                 }
-                if i == user_buffer.len() {
-                    Ok(i)
-                } else {
-                    Err("File::write")
-                }
+                assert!(i == user_buffer.len());
+                Ok(i)
             },
             FileType::Device { inode, major } => {
                 DEVICES
                     .get(major.load(Ordering::SeqCst))
-                    .ok_or("Invalid major")?
+                    .ok_or(ErrorKind::InvalidMajor)?
                     .as_ref()
-                    .ok_or("Invalid major")?
+                    .ok_or(ErrorKind::InvalidMajor)?
                     .write(user_buffer);
                 Ok((user_buffer.len()))
             },

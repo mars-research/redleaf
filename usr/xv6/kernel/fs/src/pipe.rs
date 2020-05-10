@@ -2,6 +2,7 @@ use alloc::sync::Arc;
 use spin::Mutex;
 
 use libsyscalls::sync::CondVar;
+use usr_interface::vfs::{ErrorKind, Result};
 
 use crate::opened_file::{OpenedFile, FileType};
 
@@ -80,7 +81,7 @@ impl Pipe{
     }
 
     // TODO: handle myproc()->killed
-    pub fn write(&self, data: &[u8]) -> Result<usize, &'static str>  {
+    pub fn write(&self, data: &[u8]) -> Result<usize>  {
         let pred = |pipe: &mut PipeInternal| -> bool {
             // Stop waiting if pipe is closed for reading or the buffer is not full
             if !pipe.readopen ||  pipe.nwrite < pipe.nread + PIPESIZE {
@@ -94,7 +95,7 @@ impl Pipe{
     
         let mut pipe = self.can_write.sleep_until(&self.pipe, pred);
         if !pipe.readopen {
-            return Err("Pipe is full and closed for read");
+            return Err(ErrorKind::BrokenPipe);
         }
         for (i, c) in data.iter().enumerate() {
             // Wait while the buffer is full 
@@ -105,7 +106,7 @@ impl Pipe{
             
             // If the readend is close, no one will wake us up
             if !pipe.readopen && pipe.nwrite == pipe.nread + PIPESIZE {
-                return Err("Pipe is full and closed for read");
+                return Err(ErrorKind::BrokenPipe);
             }
 
             // Copy the data to the buffer
@@ -124,7 +125,7 @@ impl Pipe{
     }
 
     // TODO: handle myproc()->killed
-    pub fn read(&self, data: &mut [u8]) -> Result<usize, &'static str> {
+    pub fn read(&self, data: &mut [u8]) -> Result<usize> {
         let pred = |pipe: &mut PipeInternal| {
             // Stop waiting if pipe is closed for writing or the buffer is not empty
             return !pipe.writeopen || pipe.nread != pipe.nwrite;

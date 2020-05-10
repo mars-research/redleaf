@@ -7,6 +7,7 @@ use num_traits::FromPrimitive;
 use spin::{Mutex, MutexGuard};
 
 pub use usr_interface::vfs::{INodeFileType, DirectoryEntryRef, DirectoryEntry};
+use usr_interface::vfs::{ErrorKind, Result};
 
 use crate::bcache::BCACHE;
 use crate::block;
@@ -146,7 +147,7 @@ impl INodeDataGuard<'_> {
         trans.write(&bguard);
 
         drop(buffer);
-            }
+    }
 
     // Discard contents of node
     // Only called when node has no links and no other in-memory references to it
@@ -269,7 +270,7 @@ impl INodeDataGuard<'_> {
 
     // Look for a directory entry in a directory.
     // If found, set *poff to byte offset of entry(currently not supported).
-    pub fn dirlookup(&mut self, trans: &mut Transaction, name: &str) -> Option<Arc<INode>> {
+    pub fn dirlookup(&mut self, trans: &mut Transaction, name: &str) -> Result<Arc<INode>> {
         if self.data.file_type != INodeFileType::Directory {
             panic!("dirlookup not DIR");
         }
@@ -277,33 +278,26 @@ impl INodeDataGuard<'_> {
         const SIZE_OF_DIRENT: usize = core::mem::size_of::<DirectoryEntry>();
         for offset in (0usize..self.data.size as usize).step_by(SIZE_OF_DIRENT) {
             let mut buffer = [0; SIZE_OF_DIRENT];
-            if self.read(trans, &mut buffer[..], offset).is_none() {
-                panic!("dirlookup read");
-            }
+            self.read(trans, &mut buffer[..], offset).unwrap();
             let dirent = DirectoryEntryRef::from_bytes(&buffer[..]);
             if dirent.inum == 0 {
                 continue;
             }
-            let dirent_name = utils::cstr::to_string(dirent.name);
-            if dirent_name.is_err() {
-                console::println!("dirlookup: warning. invalid filename");
-                return None;
-            }
-            let dirent_name = dirent_name.unwrap();
+            let dirent_name = utils::cstr::to_string(dirent.name).unwrap();
             if dirent_name == name {
                 return ICACHE.lock().get(self.node.meta.device, dirent.inum);
             }
         }
 
-        None
+        Err(ErrorKind::FileNotFound)
     }
 
     // Write a new directory entry (name, inum) into the directory.
-    pub fn dirlink(&mut self, trans: &mut Transaction, name: &str, inum: u16) -> Result<(), &'static str> {
+    pub fn dirlink(&mut self, trans: &mut Transaction, name: &str, inum: u16) -> Result<()> {
         // check that the name is not present
-        if let Some(inode) = self.dirlookup(trans, name) {
+        if let Ok(inode) = self.dirlookup(trans, name) {
             ICache::put(trans, inode);
-            return Err("directory name already present");
+            return Err(ErrorKind::FileAlreadyExists);
         }
 
         // look for empty dirent
@@ -311,9 +305,7 @@ impl INodeDataGuard<'_> {
         let mut buffer = [0; SIZE_OF_DIRENT];
 
         for offset in (0usize..self.data.size as usize).step_by(SIZE_OF_DIRENT) {
-            if self.read(trans, &mut buffer[..], offset).is_none() {
-                return Err("dirlink read");
-            }
+            self.read(trans, &mut buffer[..], offset)?;
             let mut dirent = DirectoryEntryRef::from_bytes(&buffer[..]);
             if dirent.inum == 0 {
                 let mut cloned_name = name.as_bytes().clone().to_vec();
@@ -324,26 +316,21 @@ impl INodeDataGuard<'_> {
                 dirent.inum = inum;
 
                 buffer = dirent.as_bytes();
-                if self.write(trans, &mut buffer[..], offset).is_none() {
-                    return Err("dirlink write");
-                }
+                self.write(trans, &mut buffer[..], offset)?;
                 return Ok(());
             }
         }
 
-        Err("no empty directory entries")
+        Err(ErrorKind::DirectoryExhausted)
     }
 
     // Read data from inode
     // Returns number of bytes read, or None upon overflow
     // xv6 equivalent: readi
-    pub fn read(&mut self, trans: &mut Transaction, user_buffer: &mut [u8], mut offset: usize) -> Option<usize> {
+    pub fn read(&mut self, trans: &mut Transaction, user_buffer: &mut [u8], mut offset: usize) -> Result<usize> {
         let mut bytes_to_read = user_buffer.len();
 
-        if offset as u32 > self.data.size || offset.checked_add(bytes_to_read).is_none() {
-            return None;
-        }
-
+        // We ask Rust to always check overflow so we don't need to check it manually
         if offset + bytes_to_read > self.data.size as usize {
             bytes_to_read = self.data.size as usize - offset;
         }
@@ -370,23 +357,14 @@ impl INodeDataGuard<'_> {
             user_offset += bytes_read;
         }
 
-        Some(bytes_to_read)
+        Ok(bytes_to_read)
     }
 
     // Write data to inode
     // Returns number of bytes written, or None upon overflow
     // xv6 equivalent: writei
-    pub fn write(&mut self, trans: &mut Transaction, user_buffer: &[u8], mut offset: usize) -> Option<usize> {
+    pub fn write(&mut self, trans: &mut Transaction, user_buffer: &[u8], mut offset: usize) -> Result<usize> {
         let bytes_to_write = user_buffer.len();
-
-        if offset as u32 > self.data.size || offset.checked_add(bytes_to_write).is_none() {
-            return None;
-        }
-
-        if offset + bytes_to_write > params::MAXFILE * params::BSIZE {
-            return None;
-        }
-
         let mut total = 0usize;
         let mut user_offset = 0usize;
 
@@ -418,7 +396,7 @@ impl INodeDataGuard<'_> {
             self.update(trans)
         }
 
-        Some(bytes_to_write)
+        Ok(bytes_to_write)
     }
 
     pub fn print(&mut self, trans: &mut Transaction, ident: usize) {
@@ -463,9 +441,7 @@ impl INodeDataGuard<'_> {
         for offset in (0usize..self.data.size as usize).step_by(SIZE_OF_DIRENT) {
             let ident = ident + 2;
             let mut buffer = [0; SIZE_OF_DIRENT];
-            if self.read(trans, &mut buffer[..], offset).is_none() {
-                panic!("dirlookup read");
-            }
+            self.read(trans, &mut buffer[..], offset).unwrap();
             let dirent = DirectoryEntryRef::from_bytes(&buffer[..]);
             if dirent.inum == 0 {
                 continue;

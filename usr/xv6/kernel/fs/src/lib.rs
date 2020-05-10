@@ -38,7 +38,7 @@ use libtime::get_rdtsc;
 use rref;
 use sysfile::{FileMode, FileStat};
 use syscalls::{Syscall, Heap};
-use usr_interface::vfs::{UsrVFS, KernelVFS, VFS, VFSPtr, NFILE};
+use usr_interface::vfs::{UsrVFS, KernelVFS, VFS, VFSPtr, NFILE, Result};
 use usr_interface::bdev::BDev;
 use memcpy;
 
@@ -70,10 +70,10 @@ impl VFS for Rv6FS {
 }
 
 impl KernelVFS for Rv6FS {
-    fn sys_save_threadlocal(&self, fds: [Option<usize>; NFILE]) -> Result<usize, &'static str> {
+    fn sys_save_threadlocal(&self, fds: [Option<usize>; NFILE]) -> Result<usize> {
         sysfile::sys_save_threadlocal(fds)
     }
-    fn sys_set_threadlocal(&self, id: usize) -> Result<(), &'static str> {
+    fn sys_set_threadlocal(&self, id: usize) -> Result<()> {
         sysfile::sys_set_threadlocal(id)
     }
     fn sys_thread_exit(&self) {
@@ -82,28 +82,28 @@ impl KernelVFS for Rv6FS {
 }
 
 impl UsrVFS for Rv6FS {
-    fn sys_open(&self, path: &str, mode: FileMode) -> Result<usize, &'static str> {
+    fn sys_open(&self, path: &str, mode: FileMode) -> Result<usize> {
         sysfile::sys_open(path, mode)
     }
-    fn sys_close(&self, fd: usize) -> Result<(), &'static str> {
+    fn sys_close(&self, fd: usize) -> Result<()> {
         sysfile::sys_close(fd)
     }
-    fn sys_read(&self, fd: usize, buffer: &mut[u8]) -> Result<usize, &'static str> {
+    fn sys_read(&self, fd: usize, buffer: &mut[u8]) -> Result<usize> {
         sysfile::sys_read(fd, buffer)
     }
-    fn sys_write(&self, fd: usize, buffer: &[u8]) -> Result<usize, &'static str> {
+    fn sys_write(&self, fd: usize, buffer: &[u8]) -> Result<usize> {
         sysfile::sys_write(fd, buffer)
     }
-    fn sys_fstat(&self, fd: usize) -> Result<FileStat, &'static str> {
+    fn sys_fstat(&self, fd: usize) -> Result<FileStat> {
         sysfile::sys_fstat(fd)
     }
-    fn sys_mknod(&self, path: &str, major: i16, minor: i16) -> Result<(), &'static str> {
+    fn sys_mknod(&self, path: &str, major: i16, minor: i16) -> Result<()> {
         sysfile::sys_mknod(path, major, minor)
     }
-    fn sys_dup(&self, fd: usize) -> Result<usize, &'static str> {
+    fn sys_dup(&self, fd: usize) -> Result<usize> {
         sysfile::sys_dup(fd)
     }
-    fn sys_pipe(&self) -> Result<(usize, usize), &'static str> {
+    fn sys_pipe(&self) -> Result<(usize, usize)> {
         sysfile::sys_pipe()
     }
     fn sys_dump_inode(&self) {

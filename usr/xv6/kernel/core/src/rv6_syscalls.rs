@@ -8,7 +8,7 @@ use console::println;
 use create::CreateXv6Usr;
 
 use usr_interface::xv6::{Xv6, Xv6Ptr, Thread};
-use usr_interface::vfs::{VFS, FileMode, VFSPtr, UsrVFS, FileStat, NFILE};
+use usr_interface::vfs::{VFS, FileMode, VFSPtr, UsrVFS, FileStat, NFILE, Result};
 
 pub struct Rv6Syscalls {
     create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>,
@@ -34,7 +34,7 @@ impl Xv6 for Rv6Syscalls {
         crate::thread::spawn_thread(self.fs.clone(), name, func)
     }
     
-    fn sys_spawn_domain(&self, path: &str, args: &str, fds: [Option<usize>; NFILE]) -> Result<Box<dyn Thread>, &'static str> {
+    fn sys_spawn_domain(&self, path: &str, args: &str, fds: [Option<usize>; NFILE]) -> Result<Box<dyn Thread>> {
         // Load bin into memory
         println!("sys_spawn_domain {} {}", path, args);
         let fd = self.fs.sys_open(path, FileMode::READ)?;
@@ -62,28 +62,28 @@ impl Xv6 for Rv6Syscalls {
 }
 
 impl UsrVFS for Rv6Syscalls {
-    fn sys_open(&self, path: &str, mode: FileMode) -> Result<usize, &'static str> {
+    fn sys_open(&self, path: &str, mode: FileMode) -> Result<usize> {
         self.fs.sys_open(path, mode)
     }
-    fn sys_close(&self, fd: usize) -> Result<(), &'static str> {
+    fn sys_close(&self, fd: usize) -> Result<()> {
         self.fs.sys_close(fd)
     }
-    fn sys_read(&self, fd: usize, buffer: &mut[u8]) -> Result<usize, &'static str> {
+    fn sys_read(&self, fd: usize, buffer: &mut[u8]) -> Result<usize> {
         self.fs.sys_read(fd, buffer)
     }
-    fn sys_write(&self, fd: usize, buffer: &[u8]) -> Result<usize, &'static str> {
+    fn sys_write(&self, fd: usize, buffer: &[u8]) -> Result<usize> {
         self.fs.sys_write(fd, buffer)
     }
-    fn sys_fstat(&self, fd: usize) -> Result<FileStat, &'static str> {
+    fn sys_fstat(&self, fd: usize) -> Result<FileStat> {
         self.fs.sys_fstat(fd)
     }
-    fn sys_mknod(&self, path: &str, major: i16, minor: i16) -> Result<(), &'static str> {
+    fn sys_mknod(&self, path: &str, major: i16, minor: i16) -> Result<()> {
         self.fs.sys_mknod(path, major, minor)
     }
-    fn sys_dup(&self, fd: usize) -> Result<usize, &'static str> {
+    fn sys_dup(&self, fd: usize) -> Result<usize> {
         self.fs.sys_dup(fd)
     }
-    fn sys_pipe(&self) -> Result<(usize, usize), &'static str> {
+    fn sys_pipe(&self) -> Result<(usize, usize)> {
         self.fs.sys_pipe()
     }
     fn sys_dump_inode(&self) {

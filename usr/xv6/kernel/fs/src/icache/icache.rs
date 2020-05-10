@@ -6,6 +6,8 @@ use core::ops::Drop;
 use core::sync::atomic::Ordering;
 use spin::{Mutex, MutexGuard};
 
+use usr_interface::vfs::{ErrorKind, Result};
+
 use crate::cwd::CWD;
 use crate::bcache::{BCACHE};
 use crate::fs::{SUPER_BLOCK, block_num_for_node};
@@ -27,7 +29,7 @@ impl ICache {
 
     // Allocate a node on device.
     // Looks for a free inode on disk, marks it as used
-    pub fn alloc(&mut self, trans: &mut Transaction, device: u32, file_type: INodeFileType) -> Option<Arc<INode>> {
+    pub fn alloc(&mut self, trans: &mut Transaction, device: u32, file_type: INodeFileType) -> Result<Arc<INode>> {
         let super_block = SUPER_BLOCK.r#try().expect("fs not initialized");
         for inum in 1..super_block.ninodes as u16 {
             let mut bguard = BCACHE.force_get().read(device, block_num_for_node(inum, super_block));
@@ -49,39 +51,34 @@ impl ICache {
                 trans.write(&bguard);
 
                 drop(buffer);
-                                return self.get(device, inum);
+                return self.get(device, inum);
             }
             drop(buffer);
-                    }
-        None
+        }
+        Err(ErrorKind::OutOfINode)
     }
 
     // Get in-memory inode matching device and inum. Does not read from disk.
-    pub fn get(&mut self, device: u32, inum: u16) -> Option<Arc<INode>> {
-        let mut empty: Option<&mut Arc<INode>> = None;
+    pub fn get(&mut self, device: u32, inum: u16) -> Result<Arc<INode>> {
+        let mut free_node: Option<&mut Arc<INode>> = None;
         for inode in self.inodes.iter_mut() {
             if Arc::strong_count(inode) == 1
                 && inode.meta.device == device
-                && inode.meta.inum == inum
-            {
-                return Some(inode.clone());
+                && inode.meta.inum == inum {
+                return Ok(inode.clone());
             }
-            if empty.is_none() && Arc::strong_count(inode) == 1 {
-                empty = Some(inode);
+            if free_node.is_none() && Arc::strong_count(inode) == 1 {
+                free_node = Some(inode);
             }
         }
 
-        match empty {
-            None => None,
-            Some(node) => {
-                // we just checked that strong_count == 1, and self is locked, so this should never fail
-                let node_mut = Arc::get_mut(node).unwrap();
-                node_mut.meta.device = device;
-                node_mut.meta.inum = inum;
-                node_mut.meta.valid.store(false, Ordering::Relaxed);
-                Some(node.clone())
-            }
-        }
+        let node = free_node.ok_or(ErrorKind::ICacheExhausted)?;
+        // we just checked that strong_count == 1, and self is locked, so this should never fail
+        let node_mut = Arc::get_mut(node).unwrap();
+        node_mut.meta.device = device;
+        node_mut.meta.inum = inum;
+        node_mut.meta.valid.store(false, Ordering::Relaxed);
+        Ok(node.clone())
     }
 
     // Corresponds to iput
@@ -109,7 +106,7 @@ impl ICache {
     // Look up and return the inode for a path.
     // If parent is true, return the inode for the parent and the final path element.
     // Must be called inside a transaction since it calls iput().
-    fn namex<'a, 'b>(trans: &'a mut Transaction, path: &'b str, parent: bool) -> Option<(Arc<INode>, &'b str)> {
+    fn namex<'a, 'b>(trans: &'a mut Transaction, path: &'b str, parent: bool) -> Result<(Arc<INode>, &'b str)> {
         let mut inode = if path.starts_with('/') {
             ICACHE.lock().get(params::ROOTDEV, params::ROOTINO)?
         } else {
@@ -128,13 +125,13 @@ impl ICache {
             if iguard.data.file_type != INodeFileType::Directory {
                 drop(iguard);
                 Self::put(trans, inode);
-                return None;
+                return Err(ErrorKind::InvalidFileType);
             }
 
             // return the parent of the last path component
             if parent && components_iter.peek().is_none() {
                 drop(iguard);
-                return Some((inode, component));
+                return Ok((inode, component));
             }
 
             let next = iguard.dirlookup(trans, component);
@@ -142,42 +139,42 @@ impl ICache {
             Self::put(trans, inode);
 
             match next {
-                Some(next) => inode = next,
-                None => return None,
+                Ok(next) => inode = next,
+                Err(e) => return Err(e),
             }
         }
 
         if parent {
             Self::put(trans, inode);
-            return None;
+            return Err(ErrorKind::FileNotFound);
         }
 
         // if we have a last component, return it along with the last inode
-        Some((inode, components.last().unwrap_or(&"")))
+        Ok((inode, components.last().unwrap_or(&"")))
     }
 
-    pub fn namei(trans: &mut Transaction, path: &str) -> Option<Arc<INode>> {
+    pub fn namei(trans: &mut Transaction, path: &str) -> Result<Arc<INode>> {
         Self::namex(trans, path, false).map(|(inode, _)| inode)
     }
 
-    pub fn nameiparent<'a, 'b>(trans: &'a mut Transaction, path: &'b str) -> Option<(Arc<INode>, &'b str)> {
+    pub fn nameiparent<'a, 'b>(trans: &'a mut Transaction, path: &'b str) -> Result<(Arc<INode>, &'b str)> {
         Self::namex(trans, path, true)
     }
 
-    pub fn create(trans: &mut Transaction, path: &str, file_type: INodeFileType, major: i16, minor: i16) -> Option<Arc<INode>> {
+    pub fn create(trans: &mut Transaction, path: &str, file_type: INodeFileType, major: i16, minor: i16) -> Result<Arc<INode>> {
         let (dirnode, name) = ICache::nameiparent(trans, path)?;
         // found parent directory
         let mut dirguard = dirnode.lock();
 
-        if let Some(inode) = dirguard.dirlookup(trans, name) {
+        if let Ok(inode) = dirguard.dirlookup(trans, name) {
             // full path already exists
             drop(&mut dirguard);
 
             let iguard = inode.lock();
             if file_type == INodeFileType::File && iguard.data.file_type == INodeFileType::File {
-                return Some(inode.clone());
+                return Ok(inode.clone());
             }
-            return None
+            return Err(ErrorKind::InvalidFileType);
         }
 
         // create child
@@ -194,17 +191,14 @@ impl ICache {
             dirguard.data.nlink += 1; // ..
             dirguard.update(trans);
 
-            if iguard.dirlink(trans, ".", inode.meta.inum).is_err() ||
-                iguard.dirlink(trans, "..", dirnode.meta.inum).is_err() {
-                // failed to add dot entries
-                return None;
-            }
+            iguard.dirlink(trans, ".", inode.meta.inum)?;
+            iguard.dirlink(trans, "..", dirnode.meta.inum)?;
         }
 
-        dirguard.dirlink(trans, name, inode.meta.inum);
+        dirguard.dirlink(trans, name, inode.meta.inum)?;
         drop(&mut dirguard);
 
-        Some(inode.clone())
+        Ok(inode.clone())
     }
 }
 

@@ -56,7 +56,7 @@ fn wc(fd: usize, name: &str) -> Result<(), &'static str> {
 
     let mut buff = [0u8; 512];
     loop {
-        let bytes_read = sys_read(fd, &mut buff)?;
+        let bytes_read = sys_read(fd, &mut buff).unwrap();
         if bytes_read == 0 {
             break;
         }

@@ -5,11 +5,12 @@ use alloc::vec::Vec;
 
 use crate::vfs::{UsrVFS, NFILE};
 pub use crate::vfs::{FileMode, FileStat};
+pub use crate::error::{ErrorKind, Result};
 
 pub trait Xv6: UsrVFS {
     fn clone(&self) -> Xv6Ptr;
     fn sys_spawn_thread(&self, name: &str, func: alloc::boxed::Box<dyn FnOnce() + Send>) -> Box<dyn Thread>;
-    fn sys_spawn_domain(&self, path: &str, args: &str, fds: [Option<usize>; NFILE]) -> Result<Box<dyn Thread>, &'static str>;
+    fn sys_spawn_domain(&self, path: &str, args: &str, fds: [Option<usize>; NFILE]) -> Result<Box<dyn Thread>>;
     fn sys_rdtsc(&self) -> u64;
 }
 pub type Xv6Ptr = Box<dyn Xv6 + Send + Sync>;
