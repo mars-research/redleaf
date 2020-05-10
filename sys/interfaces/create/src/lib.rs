@@ -6,6 +6,7 @@ use alloc::sync::Arc;
 use syscalls::{Heap, Domain, Interrupt};
 use usr::{bdev::BDev, vfs::VFS, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}};
 
+/* AB: XXX: first thing: change all names to create_domain -- it's absurd */
 pub trait CreatePCI {
     fn create_domain_pci(&self) -> (Box<dyn Domain>, Box<dyn PCI>);
 }
@@ -49,6 +50,7 @@ pub trait CreateDomB {
 
 pub trait CreateDomC {
     fn create_domain_dom_c(&self) -> (Box<dyn Domain>, Box<dyn DomC>);
+    fn recreate_domain_dom_c(&self, dom: Box<dyn Domain>) -> (Box<dyn Domain>, Box<dyn DomC>);
 }
 
 pub trait CreateDomD {
@@ -56,5 +58,5 @@ pub trait CreateDomD {
 }
 
 pub trait CreateShadow {
-    fn create_domain_shadow(&self, dom_c: Box<dyn DomC>) -> (Box<dyn Domain>, Box<dyn DomC>);
+    fn create_domain_shadow(&self, create_dom_c: Arc<dyn CreateDomC>) -> (Box<dyn Domain>, Box<dyn DomC>);
 }

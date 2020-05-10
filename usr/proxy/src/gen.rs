@@ -181,6 +181,13 @@ impl create::CreateDomC for Proxy {
         let domain_id = domain.get_domain_id();
         (domain, Box::new(DomCProxy::new(domain_id, dom_c)))
     }
+
+    fn recreate_domain_dom_c(&self, dom: Box<dyn Domain>) -> (Box<dyn Domain>, Box<dyn DomC>) {
+        let (domain, dom_c) = self.create_dom_c.recreate_domain_dom_c(dom);
+        let domain_id = domain.get_domain_id();
+        (domain, Box::new(DomCProxy::new(domain_id, dom_c)))
+    }
+
 }
 
 impl create::CreateDomD for Proxy {
@@ -190,8 +197,8 @@ impl create::CreateDomD for Proxy {
 }
 
 impl create::CreateShadow for Proxy {
-    fn create_domain_shadow(&self, dom_c: Box<dyn DomC>) ->(Box<dyn Domain>, Box<dyn DomC>) {
-        let (domain, shadow) = self.create_shadow.create_domain_shadow(dom_c);
+    fn create_domain_shadow(&self, create_dom_c: Arc<dyn create::CreateDomC>) ->(Box<dyn Domain>, Box<dyn DomC>) {
+        let (domain, shadow) = self.create_shadow.create_domain_shadow(create_dom_c);
         let domain_id = domain.get_domain_id();
         (domain, Box::new(DomCProxy::new(domain_id, shadow)))
     }
@@ -357,7 +364,7 @@ impl DomCProxy {
  */
 
 #[no_mangle]
-pub extern fn one_arg(s: & Box<dyn usr::dom_c::DomC>, x: usize) -> Result<usize, i64> {
+pub extern fn one_arg(s: &Box<dyn usr::dom_c::DomC>, x: usize) -> Result<usize, i64> {
     //println!("one_arg: x:{}", x);
     let r = s.one_arg(x);
 
@@ -370,7 +377,7 @@ pub extern fn one_arg(s: & Box<dyn usr::dom_c::DomC>, x: usize) -> Result<usize,
 }
 
 #[no_mangle]
-pub extern fn one_arg_err(s: & Box<dyn usr::dom_c::DomC>, x: usize) -> Result<usize, i64> {
+pub extern fn one_arg_err(s: &Box<dyn usr::dom_c::DomC>, x: usize) -> Result<usize, i64> {
     println!("one_arg was aborted, x:{}", x);
     Err(-1)
 }
@@ -381,7 +388,7 @@ pub extern "C" fn one_arg_addr() -> u64 {
 }
 
 extern {
-    fn one_arg_tramp(s: & Box<dyn usr::dom_c::DomC>, x: usize) -> Result<usize, i64>;
+    fn one_arg_tramp(s: &Box<dyn usr::dom_c::DomC>, x: usize) -> Result<usize, i64>;
 }
 
 trampoline!(one_arg);

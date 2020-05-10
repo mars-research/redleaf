@@ -26,7 +26,15 @@ impl usr::dom_c::DomC for DomC {
 
     fn one_arg(&self, x: usize) -> Result<usize, i64> {
         #[cfg(feature = "unwind")]
-        libsyscalls::syscalls::sys_test_unwind();
+        {
+            let start = libtime::get_rdtsc();
+            if (start & 0x100) == 0x100 {
+                println!("triggering test panic, start:{}, bool:{}", start, (start & 0x100) == 0x100);
+                libsyscalls::syscalls::sys_test_unwind();
+            } else {
+                println!("no panic, continue as normal");
+            }
+        }
         Ok(x + 1)
     }
 

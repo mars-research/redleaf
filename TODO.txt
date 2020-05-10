@@ -1,5 +1,25 @@
+May 2020
+---------
 
+Domains
+--------
 
+- Domain create traits should be unified --- we don't need 20 identical traits, 
+  we only need one for each type -- the create has to take a blob as an argument
+
+- Domain destroy logic -- when? Explicit call? Reference count drops to 0 (most 
+  likely)?  -- that's a big one. 
+
+Recovery/shadows
+
+- Protect the RpcErr type with an unsafe constructor so the domain cannot itself 
+  return a failure Err(Unwind) and fake unwind
+
+-------------------------------------------------------------------------------
+--
+-- OLD (possibly irrelevant)
+--
+-------------------------------------------------------------------------------
 
 Domains
 -------

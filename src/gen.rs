@@ -109,6 +109,16 @@ impl create::CreateDomC for PDomain {
         enable_irq();
         r
     }
+
+    fn recreate_domain_dom_c(&self, dom: Box<dyn syscalls::Domain>) ->
+                            (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) 
+    {
+        disable_irq();
+        let r = recreate_domain_dom_c(dom);
+        enable_irq();
+        r
+    }
+
 }
 
 impl create::CreateDomD for PDomain {
@@ -121,9 +131,9 @@ impl create::CreateDomD for PDomain {
 }
 
 impl create::CreateShadow for PDomain {
-    fn create_domain_shadow(&self, dom_c: Box<dyn usr::dom_c::DomC>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
+    fn create_domain_shadow(&self, create_dom_c: Arc<dyn create::CreateDomC>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
         disable_irq();
-        let r = create_domain_shadow(dom_c);
+        let r = create_domain_shadow(create_dom_c);
         enable_irq();
         r
     }
@@ -323,6 +333,21 @@ pub fn create_domain_dom_c() -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::
     build_domain_dom_c("dom_c", binary_range)
 }
 
+pub fn recreate_domain_dom_c(dom: Box<dyn syscalls::Domain>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
+    extern "C" {
+        fn _binary_usr_test_dom_c_build_dom_c_start();
+        fn _binary_usr_test_dom_c_build_dom_c_end();
+    }
+
+    let binary_range = (
+        _binary_usr_test_dom_c_build_dom_c_start as *const u8,
+        _binary_usr_test_dom_c_build_dom_c_end as *const u8
+    );
+
+    build_domain_dom_c("dom_c", binary_range)
+}
+
+
 pub fn create_domain_dom_d(dom_c: Box<dyn usr::dom_c::DomC>) -> Box<dyn syscalls::Domain> {
     extern "C" {
         fn _binary_usr_test_dom_d_build_dom_d_start();
@@ -337,7 +362,7 @@ pub fn create_domain_dom_d(dom_c: Box<dyn usr::dom_c::DomC>) -> Box<dyn syscalls
     build_domain_dom_d("dom_d", binary_range, dom_c)
 }
 
-pub fn create_domain_shadow(dom_c: Box<dyn usr::dom_c::DomC>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
+pub fn create_domain_shadow(create_dom_c: Arc<dyn create::CreateDomC>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
     extern "C" {
         fn _binary_usr_test_shadow_build_shadow_start();
         fn _binary_usr_test_shadow_build_shadow_end();
@@ -348,7 +373,7 @@ pub fn create_domain_shadow(dom_c: Box<dyn usr::dom_c::DomC>) -> (Box<dyn syscal
         _binary_usr_test_shadow_build_shadow_end as *const u8
     );
 
-    build_domain_shadow("shadow", binary_range, dom_c)
+    build_domain_shadow("shadow", binary_range, create_dom_c)
 }
 
 pub fn create_domain_proxy(
@@ -814,8 +839,8 @@ pub fn build_domain_dom_d(name: &str,
 
 pub fn build_domain_shadow(name: &str,
                           binary_range: (*const u8, *const u8),
-                          dom_c: Box<dyn usr::dom_c::DomC>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
-    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, Box<dyn usr::dom_c::DomC>) -> Box<dyn usr::dom_c::DomC>;
+                          create_dom_c: Arc<dyn create::CreateDomC>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
+    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, create_dom_c: Arc<dyn create::CreateDomC>) -> Box<dyn usr::dom_c::DomC>;
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)
@@ -830,7 +855,7 @@ pub fn build_domain_shadow(name: &str,
 
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
-    let shadow = user_ep(pdom, pheap, dom_c);
+    let shadow = user_ep(pdom, pheap, create_dom_c);
     disable_irq();
 
     println!("domain/{}: returned from entry point", name);
