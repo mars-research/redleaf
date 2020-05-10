@@ -14,8 +14,10 @@ use crate::thread;
 use platform::PciBarAddr;
 use crate::kbd::{KBDCTRL};
 use pc_keyboard::{DecodedKey};
+use crate::unwind::{register_cont, unwind};
+use syscalls::Continuation; 
 
-extern crate syscalls; 
+//extern crate syscalls; 
 
 
 //pub static BOOT_SYSCALL: BootSyscall = BootSyscall {
@@ -163,8 +165,10 @@ impl syscalls::Syscall for PDomain {
         domain_id
     }
 
+    /* AB: XXX: move this syscall into a separate trait that is only 
+     * accessible to proxy domain */
     unsafe fn sys_update_current_domain_id(&self, new_domain_id: u64) -> u64 {
-//        disable_irq();
+        disable_irq();
         let mut old_domain_id = new_domain_id;
         {
             // swap domain id without locking the current thread
@@ -176,9 +180,27 @@ impl syscalls::Syscall for PDomain {
             let mut thread = thread_mutex.get_mut();
             core::mem::swap(&mut thread.current_domain_id, &mut old_domain_id);
         }
-//        enable_irq();
+        enable_irq();
         old_domain_id
     }
+
+
+    /* AB: XXX: move this syscall into a separate trait that is only 
+     * accessible to proxy domain */
+    unsafe fn sys_register_cont(&self, cont: &Continuation) {
+        disable_irq();
+        register_cont(cont);
+        enable_irq();
+    }
+
+    /* AB: XXX: Remove this system it's for testing only */
+    fn sys_test_unwind(&self) {
+        disable_irq();
+        unwind();
+        enable_irq();
+    }
+
+
 
     fn sys_backtrace(&self) {
         use crate::panic::backtrace;

@@ -24,8 +24,9 @@ impl DomC {
 impl usr::dom_c::DomC for DomC {
     fn no_arg(&self) {}
 
-    fn one_arg(&self, x: usize) -> usize {
-        x + 1
+    fn one_arg(&self, x: usize) -> Result<usize, i64> {
+        libsyscalls::syscalls::sys_test_unwind();
+        Ok(x + 1)
     }
 
     fn one_rref(&self, mut x: RRef<usize>) -> RRef<usize> {

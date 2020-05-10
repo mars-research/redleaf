@@ -28,6 +28,8 @@ extern crate alloc;
 extern crate backtracer;
 extern crate pcid;
 extern crate elfloader;
+extern crate unwind as libunwind;
+
 use crate::interrupt::{disable_irq, enable_irq};
 use core::sync::atomic::{AtomicU32, Ordering};
 
