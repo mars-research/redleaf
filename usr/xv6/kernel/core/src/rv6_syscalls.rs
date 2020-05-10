@@ -74,6 +74,9 @@ impl UsrVFS for Rv6Syscalls {
     fn sys_write(&self, fd: usize, buffer: &[u8]) -> Result<usize> {
         self.fs.sys_write(fd, buffer)
     }
+    fn sys_seek(&self, fd: usize, offset: usize) -> Result<()> {
+        self.fs.sys_seek(fd, offset)
+    }
     fn sys_fstat(&self, fd: usize) -> Result<FileStat> {
         self.fs.sys_fstat(fd)
     }

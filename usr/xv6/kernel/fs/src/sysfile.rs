@@ -69,6 +69,17 @@ pub fn sys_close(fd: usize) -> Result<()> {
     })
 }
 
+pub fn sys_seek(fd: usize, offset: usize) -> Result<()> {
+    FD_TABLE.with(|fdtable| {
+        fdtable
+            .get_mut(fd)
+            .ok_or(ErrorKind::InvalidFileDescriptor)?
+            .as_mut()
+            .ok_or(ErrorKind::InvalidFileDescriptor)?
+            .seek(offset)
+    })
+}
+
 pub fn sys_fstat(fd: usize) -> Result<FileStat> {
     // console::println!("sys_fstat {}", fd);
     FD_TABLE.with(|fdtable| {

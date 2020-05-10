@@ -94,6 +94,9 @@ impl UsrVFS for Rv6FS {
     fn sys_write(&self, fd: usize, buffer: &[u8]) -> Result<usize> {
         sysfile::sys_write(fd, buffer)
     }
+    fn sys_seek(&self, fd: usize, offset: usize) -> Result<()> {
+        sysfile::sys_seek(fd, offset)
+    }
     fn sys_fstat(&self, fd: usize) -> Result<FileStat> {
         sysfile::sys_fstat(fd)
     }

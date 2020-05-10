@@ -30,7 +30,7 @@ pub enum FileType {
     },
     Device {
         inode: Arc<INode>,
-        // Set once
+        // Set once then read-only
         major: AtomicUsize,
     },
 }
@@ -64,6 +64,19 @@ impl OpenedFile {
             file_type,
             readable: AtomicBool::new(readable),
             writable: AtomicBool::new(writable),
+        }
+    }
+
+    pub fn seek(&self, new_offset: usize) -> Result<()> {
+        match &self.file_type {
+            FileType::INode { inode, offset } => {
+                let mut iguard = inode.lock();
+                offset.store(new_offset, Ordering::SeqCst);
+                Ok(())
+            },
+            _ => {
+                Err(ErrorKind::UnsupportedOperation)
+            },
         }
     }
 
