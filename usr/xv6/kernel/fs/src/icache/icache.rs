@@ -32,7 +32,7 @@ impl ICache {
     pub fn alloc(&mut self, trans: &mut Transaction, device: u32, file_type: INodeFileType) -> Result<Arc<INode>> {
         let super_block = SUPER_BLOCK.r#try().expect("fs not initialized");
         for inum in 1..super_block.ninodes as u16 {
-            let mut bguard = BCACHE.force_get().read(device, block_num_for_node(inum, super_block));
+            let mut bguard = BCACHE.r#try().unwrap().read(device, block_num_for_node(inum, super_block));
             let mut buffer = bguard.lock();
 
             // Okay, there're a lot of copying happening here but we don't have time to make it nice.

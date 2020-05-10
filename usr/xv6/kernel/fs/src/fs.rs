@@ -44,7 +44,7 @@ impl SuperBlock {
 
 // TODO: load super block from disk
 fn read_superblock(dev: u32) -> SuperBlock {
-    let mut buffer = BCACHE.force_get().read(dev, 1);
+    let mut buffer = BCACHE.r#try().unwrap().read(dev, 1);
     let superblock = SuperBlock::from_bytes(&***buffer.lock());
         console::println!("Superblock read from disk: {:?}", superblock);
     superblock

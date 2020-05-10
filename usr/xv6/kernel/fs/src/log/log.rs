@@ -66,12 +66,12 @@ impl LogInternal {
     fn install_trans(&mut self) {
         for tail in 0..self.logheader.n {
             // console::println!("committing {} to {}", self.start + tail + 1, self.logheader.block_nums[tail as usize]);
-            let mut lbuf = BCACHE.force_get().read(self.dev, self.start + tail + 1);
-            let mut dbuf = BCACHE.force_get().read(self.dev, self.logheader.block_nums[tail as usize]);
+            let mut lbuf = BCACHE.r#try().unwrap().read(self.dev, self.start + tail + 1);
+            let mut dbuf = BCACHE.r#try().unwrap().read(self.dev, self.logheader.block_nums[tail as usize]);
             {
                 let mut locked_dbuf = dbuf.lock();
                 ***locked_dbuf = ***lbuf.lock();
-                BCACHE.force_get().write(dbuf.block_number(), &mut locked_dbuf);  // write dst to disk
+                BCACHE.r#try().unwrap().write(dbuf.block_number(), &mut locked_dbuf);  // write dst to disk
             }
             dbuf.unpin();
         }
@@ -79,7 +79,7 @@ impl LogInternal {
 
     // Read the log header from disk into the in-memory log header
     fn read_head(&mut self) {
-        let mut buf = BCACHE.force_get().read(self.dev, self.start);
+        let mut buf = BCACHE.r#try().unwrap().read(self.dev, self.start);
         self.logheader.from_buffer_block(&buf.lock());
                 console::println!("Log::read_head: {:?}", self);
     }
@@ -88,11 +88,11 @@ impl LogInternal {
     // This is the true point at which the
     // current transaction commits.
     fn write_head(&self) {
-        let mut buf = BCACHE.force_get().read(self.dev, self.start);
+        let mut buf = BCACHE.r#try().unwrap().read(self.dev, self.start);
         {
             let mut locked_buf = buf.lock();
             self.logheader.to_buffer_block(&mut locked_buf);
-            BCACHE.force_get().write(buf.block_number(), &mut locked_buf);
+            BCACHE.r#try().unwrap().write(buf.block_number(), &mut locked_buf);
         }
     }
 
@@ -146,12 +146,12 @@ impl LogInternal {
     fn write_log(&mut self) {
         for tail in 0..self.logheader.n {
             // console::println!("logging {} to {}", self.logheader.block_nums[tail as usize], self.start + tail + 1);
-            let mut to = BCACHE.force_get().read(self.dev, self.start + tail + 1); // log block
-            let mut from = BCACHE.force_get().read(self.dev, self.logheader.block_nums[tail as usize]); // cache block
+            let mut to = BCACHE.r#try().unwrap().read(self.dev, self.start + tail + 1); // log block
+            let mut from = BCACHE.r#try().unwrap().read(self.dev, self.logheader.block_nums[tail as usize]); // cache block
             {
                 let mut locked_to = to.lock();
                 ***locked_to = ***from.lock();
-                BCACHE.force_get().write(to.block_number(), &mut locked_to);  // write the log
+                BCACHE.r#try().unwrap().write(to.block_number(), &mut locked_to);  // write the log
             }
         }
     }
