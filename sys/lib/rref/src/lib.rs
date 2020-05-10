@@ -223,7 +223,7 @@ impl<T> RRef<T> {
             let ptr = core::mem::transmute::<*mut u8, *mut SharedHeapObject<T>>(memory);
             // initialize the memory
             (*ptr).domain_id = domain_id;
-            (*ptr).value = value;
+            core::ptr::write(&mut (*ptr).value, value);
             ptr
         };
 
