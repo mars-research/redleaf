@@ -96,8 +96,8 @@ pub trait Domain {
 /// Shared heap interface
 pub trait Heap {
     unsafe fn alloc(&self, domain_id: u64, layout: Layout) -> *mut u8;
-    unsafe fn dealloc(&self, domain_id: u64, ptr: *mut u8, layout: Layout);
-    unsafe fn change_domain(&self, from_domain_id: u64, to_domain_id: u64, ptr: *mut u8, layout: Layout);
+    unsafe fn dealloc(&self, ptr: *mut u8);
+    unsafe fn change_domain(&self, ptr: *mut u8, new_domain_id: u64);
 }
 
 pub static IRQ_TIMER: u8 = 32;
