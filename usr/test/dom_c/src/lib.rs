@@ -25,6 +25,7 @@ impl usr::dom_c::DomC for DomC {
     fn no_arg(&self) {}
 
     fn one_arg(&self, x: usize) -> Result<usize, i64> {
+        #[cfg(feature = "unwind")]
         libsyscalls::syscalls::sys_test_unwind();
         Ok(x + 1)
     }

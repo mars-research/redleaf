@@ -358,11 +358,11 @@ impl DomCProxy {
 
 #[no_mangle]
 pub extern fn one_arg(s: & Box<dyn usr::dom_c::DomC>, x: usize) -> Result<usize, i64> {
-    println!("one_arg: x:{}", x);
+    //println!("one_arg: x:{}", x);
     let r = s.one_arg(x);
 
     match r {
-        Ok(n) => println!("one_arg:{}", n),
+        Ok(n) => {/*println!("one_arg:{}", n)*/},
         Err(e) => println!("one_arg: error:{}", e),
     }
 
@@ -403,8 +403,10 @@ impl usr::dom_c::DomC for DomCProxy {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
-        //let r = self.domain.one_arg(x);
+        #[cfg(not(feature = "unwind_dom_c"))]
+        let r = self.domain.one_arg(x);
 
+        #[cfg(feature = "unwind_dom_c")]
         let r = unsafe { one_arg_tramp(&self.domain, x) };
 
         // move thread back

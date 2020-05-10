@@ -15,6 +15,15 @@ use syscalls::Continuation;
  * an argument to the Rust register_continuation() function (extern "C" 
  * guarantees the ABI compatibility).
  *
+ * Note: we save caller saved registers too as they might be clobbered by 
+ * register_cont() function
+ *
+ * XXX: we cannot simply do "push $foo_err" -- Rust generates a static
+ * relocation symbol in this case and the linker complains that it's not 
+ * PIE executable. To hack around it we had to call a helper foo_addr 
+ * function that returns the address of "foo_err". This makes the linker 
+ * happy as somehow it can insert proper PLT relocation symbols for "call" 
+ * instructions. 
  */
 
 #[macro_export]

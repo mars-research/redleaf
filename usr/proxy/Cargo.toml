@@ -37,3 +37,11 @@ features = ["spin_no_std"]
 [dependencies.num-traits]
 version = "0.2.8"
 default-features = false
+
+[features]
+default = [
+    "unwind_dom_c",
+]
+
+unwind_dom_c = [ ]
+
