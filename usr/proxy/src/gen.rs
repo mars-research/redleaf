@@ -360,7 +360,7 @@ impl DomCProxy {
 pub extern fn one_arg(s: & Box<dyn usr::dom_c::DomC>, x: usize) -> Result<usize, i64> {
     println!("one_arg: x:{}", x);
     let r = s.one_arg(x);
-    println!("one_arg: you shouldn't see this");
+    println!("one_arg: you shouldn't see this: r:{}", r.unwrap());
     r
 }
 
@@ -368,6 +368,11 @@ pub extern fn one_arg(s: & Box<dyn usr::dom_c::DomC>, x: usize) -> Result<usize,
 pub extern fn one_arg_err(s: & Box<dyn usr::dom_c::DomC>, x: usize) -> Result<usize, i64> {
     println!("one_arg was aborted, x:{}", x);
     Err(-1)
+}
+
+#[no_mangle]
+pub extern "C" fn one_arg_addr() -> u64 {
+    one_arg_err as u64
 }
 
 extern {

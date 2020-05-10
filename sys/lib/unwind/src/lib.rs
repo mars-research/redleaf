@@ -44,8 +44,9 @@ macro_rules! trampoline {
             push %rdx
             push %rcx
             push %rax
-            push $"#, core::concat!(core::stringify!($func), "_err"),
+            call "#, core::concat!(core::stringify!($func), "_addr"),
             r#"
+            push %rax
             mov %rsp, %rdi
             call register_cont
             add $8, %rsp
