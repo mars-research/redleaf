@@ -66,7 +66,7 @@ impl<T> RRef<T> {
         unsafe {
             let from_domain = (*self.pointer).domain_id;
             let layout = Layout::new::<SharedHeapObject<T>>();
-            HEAP.force_get().change_domain(from_domain, new_domain_id, self.pointer as *mut u8, layout);
+            HEAP.force_get().change_domain(self.pointer as *mut u8, new_domain_id);
             (*self.pointer).domain_id = new_domain_id
         };
     }
@@ -79,7 +79,7 @@ impl<T> Drop for RRef<T> {
             //       but calling drop may be undefined behavior
             drop(&mut (*self.pointer).value);
             let layout = Layout::new::<SharedHeapObject<T>>();
-            HEAP.force_get().dealloc((*self.pointer).domain_id, self.pointer as *mut u8, layout);
+            HEAP.force_get().dealloc(self.pointer as *mut u8);
         };
     }
 }
