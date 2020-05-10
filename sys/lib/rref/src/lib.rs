@@ -4,7 +4,6 @@
 extern crate alloc;
 use core::ops::{Deref, DerefMut, Drop};
 use core::alloc::Layout;
-use core::array::IntoIter;
 use spin::Once;
 use alloc::boxed::Box;
 use libsyscalls;
@@ -149,6 +148,8 @@ mod tests {
         fn sys_dummy(&self) {}
         fn sys_readch_kbd(&self) -> core::result::Result<Option<pc_keyboard::DecodedKey>, &'static str> { todo!() }
         fn sys_make_condvar(&self) -> Box<(dyn syscalls::CondVar + Send + Sync + 'static)> { todo!() }
+        unsafe fn sys_register_cont(&self, _: &syscalls::Continuation) { todo!() }
+        fn sys_test_unwind(&self) { todo!() }
     }
 
     fn init_heap() {
