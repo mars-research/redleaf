@@ -12,6 +12,39 @@ extern crate platform;
 use platform::PciBarAddr;
 use pc_keyboard::{DecodedKey};
 
+/* AB: XXX: We should move this definition into a separate 
+ * crate that deals with proxy syscalls (it's here to avoid the 
+ * cyclic dependency unwind -> syscall (to call sys_register_cont), and 
+ * syscall -> unwind (to get Continuation type definition 
+ */
+#[repr(C)]
+#[derive(Copy,Clone, Debug)]
+pub struct Continuation {
+  pub func: u64,
+  /* Caller saved registers (we need them since 
+   * function arguments are passed in registers and 
+   * we loose them for the restart */
+  pub rax: u64,
+  pub rcx: u64, 
+  pub rdx: u64,
+  pub rsi: u64,
+  pub rdi: u64, 
+  pub r8: u64, 
+  pub r9: u64, 
+  pub r10: u64,
+
+  /* Callee saved registers */
+  pub rflags: u64,
+  pub r15: u64,
+  pub r14: u64,
+  pub r13: u64, 
+  pub r12: u64,
+  pub r11: u64, 
+  pub rbx: u64, 
+  pub rbp: u64,  
+  pub rsp: u64,
+}
+
 pub mod errors;
 
 pub trait Syscall {
@@ -23,6 +56,7 @@ pub trait Syscall {
     fn sys_current_thread(&self) -> Box<dyn Thread>;
     fn sys_get_current_domain_id(&self) -> u64;
     unsafe fn sys_update_current_domain_id(&self, new_domain_id: u64) -> u64;
+    unsafe fn sys_register_cont(&self, cont: &Continuation);
     fn sys_alloc(&self) -> *mut u8;
     fn sys_free(&self, p: *mut u8);
     fn sys_alloc_huge(&self, sz: u64) -> *mut u8;
@@ -32,6 +66,10 @@ pub trait Syscall {
     // call this one to read a character from keyboard
     fn sys_readch_kbd(&self) -> Result<Option<DecodedKey>, &'static str>; 
     fn sys_make_condvar(&self) -> CondVarPtr;
+
+    /* AB: XXX: Remove this system it's for testing only */
+    fn sys_test_unwind(&self);
+
 }
 
 #[derive(Clone,Copy,Debug)]

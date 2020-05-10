@@ -1,7 +1,7 @@
 extern crate alloc;
 use spin::Once;
 use alloc::boxed::Box;
-use syscalls::{Syscall, Thread, Interrupt, Mmap};
+use syscalls::{Syscall, Thread, Interrupt, Mmap, Continuation};
 use pc_keyboard::{DecodedKey};
 use platform::PciBarAddr;
 
@@ -71,6 +71,7 @@ pub unsafe fn sys_update_current_domain_id(new_domain_id: u64) -> u64 {
     return scalls.sys_update_current_domain_id(new_domain_id);
 }
 
+
 pub fn sys_alloc() -> *mut u8 {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
     scalls.sys_alloc()
@@ -110,3 +111,16 @@ pub fn sys_make_condvar() -> syscalls::CondVarPtr {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
     scalls.sys_make_condvar()
 }
+
+pub unsafe fn sys_register_cont(cont: &Continuation) {
+    let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
+    return scalls.sys_register_cont(cont);
+}
+
+/* AB: XXX: Remove this system it's for testing only */
+pub fn sys_test_unwind() {
+    let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
+    return scalls.sys_test_unwind();
+}
+
+

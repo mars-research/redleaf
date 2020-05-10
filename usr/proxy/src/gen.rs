@@ -7,6 +7,9 @@ use alloc::sync::Arc;
 use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain_id};
 use syscalls::{Heap, Domain, Interrupt};
 use usr::{bdev::{BDev, BSIZE}, vfs::VFS, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}};
+use console::{println, print};
+use unwind::trampoline;
+
 // TODO: remove once ixgbe on rrefdeque
 use alloc::{vec::Vec, collections::VecDeque};
 
@@ -349,6 +352,30 @@ impl DomCProxy {
     }
 }
 
+/* 
+ * Code to unwind one_arg
+ */
+
+#[no_mangle]
+pub extern fn one_arg(s: & Box<dyn usr::dom_c::DomC>, x: usize) -> Result<usize, i64> {
+    println!("one_arg: x:{}", x);
+    let r = s.one_arg(x);
+    println!("one_arg: you shouldn't see this");
+    r
+}
+
+#[no_mangle]
+pub extern fn one_arg_err(s: & Box<dyn usr::dom_c::DomC>, x: usize) -> Result<usize, i64> {
+    println!("one_arg was aborted, x:{}", x);
+    Err(-1)
+}
+
+extern {
+    fn one_arg_tramp(s: & Box<dyn usr::dom_c::DomC>, x: usize) -> Result<usize, i64>;
+}
+
+trampoline!(one_arg);
+
 impl usr::dom_c::DomC for DomCProxy {
     fn no_arg(&self) {
         // move thread to next domain
@@ -362,11 +389,13 @@ impl usr::dom_c::DomC for DomCProxy {
         r
     }
 
-    fn one_arg(&self, x: usize) -> usize {
+    fn one_arg(&self, x: usize) -> Result<usize, i64> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
-        let r = self.domain.one_arg(x);
+        //let r = self.domain.one_arg(x);
+
+        let r = unsafe { one_arg_tramp(&self.domain, x) };
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };
