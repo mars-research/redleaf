@@ -48,6 +48,15 @@ impl create::CreateMemBDev for PDomain {
     }
 }
 
+impl create::CreateBDevShadow for PDomain {
+    fn create_domain_bdev_shadow(&self, create: Arc<dyn create::CreateMemBDev>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev + Send + Sync>) {
+        disable_irq();
+        let r = create_domain_bdev_shadow(create);
+        enable_irq();
+        r
+    }
+}
+
 impl create::CreateIxgbe for PDomain {
     fn create_domain_ixgbe(&self, pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::net::Net>) {
         disable_irq();
@@ -152,6 +161,7 @@ impl proxy::CreateProxy for PDomain {
         create_pci: Arc<dyn create::CreatePCI>,
         create_ahci: Arc<dyn create::CreateAHCI>,
         create_membdev: Arc<dyn create::CreateMemBDev>,
+        create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
         create_ixgbe: Arc<dyn create::CreateIxgbe>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
         create_xv6usr: Arc<dyn create::CreateXv6Usr>,
@@ -166,6 +176,7 @@ impl proxy::CreateProxy for PDomain {
             create_pci,
             create_ahci,
             create_membdev,
+            create_bdev_shadow,
             create_ixgbe,
             create_xv6fs,
             create_xv6usr,
@@ -254,6 +265,21 @@ pub fn create_domain_membdev() -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev:
     );
 
     create_domain_bdev_mem("membdev", binary_range)
+}
+
+pub fn create_domain_bdev_shadow(create: Arc<dyn create::CreateMemBDev>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev + Send + Sync>) {
+
+    extern "C" {
+        fn _binary_usr_shadow_bdev_build_bdev_shadow_start();
+        fn _binary_usr_shadow_bdev_build_bdev_shadow_end();
+    }
+
+    let binary_range = (
+        _binary_usr_shadow_bdev_build_bdev_shadow_start as *const u8,
+        _binary_usr_shadow_bdev_build_bdev_shadow_end as *const u8
+    );
+
+    create_domain_bdev_shadow_helper("bdev_shadow", binary_range, create)
 }
 
 pub fn create_domain_xv6kernel(ints: Box<dyn syscalls::Interrupt>,
@@ -387,6 +413,7 @@ pub fn create_domain_proxy(
     create_pci: Arc<dyn create::CreatePCI>,
     create_ahci: Arc<dyn create::CreateAHCI>,
     create_membdev: Arc<dyn create::CreateMemBDev>,
+    create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
     create_ixgbe: Arc<dyn create::CreateIxgbe>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
     create_xv6usr: Arc<dyn create::CreateXv6Usr>,
@@ -412,6 +439,7 @@ pub fn create_domain_proxy(
         create_pci,
         create_ahci,
         create_membdev,
+        create_bdev_shadow,
         create_ixgbe,
         create_xv6fs,
         create_xv6usr,
@@ -503,6 +531,31 @@ pub fn create_domain_bdev_mem(name: &str,
     (Box::new(PDomain::new(Arc::clone(&dom))), bdev)
 }
 
+pub fn create_domain_bdev_shadow_helper(name: &str,
+                              binary_range: (*const u8, *const u8),
+                              create: Arc<dyn create::CreateMemBDev>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev + Send + Sync>) {
+    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, Arc<dyn create::CreateMemBDev>) -> Box<dyn usr::bdev::BDev + Send + Sync>;
+
+    let (dom, entry) = unsafe {
+        load_domain(name, binary_range)
+    };
+
+    let user_ep: UserInit = unsafe {
+        core::mem::transmute::<*const(), UserInit>(entry)
+    };
+
+    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pheap = Box::new(PHeap::new());
+
+    // Enable interrupts on exit to user so it can be preempted
+    enable_irq();
+    let bdev = user_ep(pdom, pheap, create);
+    disable_irq();
+
+    println!("domain/{}: returned from entry point", name);
+    (Box::new(PDomain::new(Arc::clone(&dom))), bdev)
+}
+
 pub fn create_domain_net(name: &str,
                          binary_range: (*const u8, *const u8),
                          pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::net::Net>) {
@@ -552,6 +605,7 @@ pub fn build_domain_init(name: &str,
                        Arc<dyn create::CreateIxgbe>,
                        Arc<dyn create::CreateAHCI>,
                        Arc<dyn create::CreateMemBDev>,
+                       Arc<dyn create::CreateBDevShadow>,
                        Arc<dyn create::CreateDomA>,
                        Arc<dyn create::CreateDomB>,
                        Arc<dyn create::CreateDomC>,
@@ -582,7 +636,9 @@ pub fn build_domain_init(name: &str,
             Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
-            Arc::new(PDomain::new(Arc::clone(&dom))));
+            Arc::new(PDomain::new(Arc::clone(&dom))),
+            Arc::new(PDomain::new(Arc::clone(&dom))),
+    );
     disable_irq();
 
     println!("domain/{}: returned from entry point", name);
@@ -622,6 +678,7 @@ pub fn build_domain_proxy(
     create_pci: Arc<dyn create::CreatePCI>,
     create_ahci: Arc<dyn create::CreateAHCI>,
     create_membdev: Arc<dyn create::CreateMemBDev>,
+    create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
     create_ixgbe: Arc<dyn create::CreateIxgbe>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
     create_xv6usr: Arc<dyn create::CreateXv6Usr>,
@@ -637,6 +694,7 @@ pub fn build_domain_proxy(
         create_pci: Arc<dyn create::CreatePCI>,
         create_ahci: Arc<dyn create::CreateAHCI>,
         create_membdev: Arc<dyn create::CreateMemBDev>,
+        create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
         create_ixgbe: Arc<dyn create::CreateIxgbe>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
         create_xv6usr: Arc<dyn create::CreateXv6Usr>,
@@ -666,6 +724,7 @@ pub fn build_domain_proxy(
         create_pci,
         create_ahci,
         create_membdev,
+        create_bdev_shadow,
         create_ixgbe,
         create_xv6fs,
         create_xv6usr,

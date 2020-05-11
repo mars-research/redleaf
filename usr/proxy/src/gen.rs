@@ -19,6 +19,7 @@ pub struct Proxy {
     create_pci: Arc<dyn create::CreatePCI>,
     create_ahci: Arc<dyn create::CreateAHCI>,
     create_membdev: Arc<dyn create::CreateMemBDev>,
+    create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
     create_ixgbe: Arc<dyn create::CreateIxgbe>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
     create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
@@ -38,6 +39,7 @@ impl Proxy {
         create_pci: Arc<dyn create::CreatePCI>,
         create_ahci: Arc<dyn create::CreateAHCI>,
         create_membdev: Arc<dyn create::CreateMemBDev>,
+        create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
         create_ixgbe: Arc<dyn create::CreateIxgbe>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
         create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
@@ -52,6 +54,7 @@ impl Proxy {
             create_pci,
             create_ahci,
             create_membdev,
+            create_bdev_shadow,
             create_ixgbe,
             create_xv6fs,
             create_xv6usr,
@@ -74,6 +77,9 @@ impl proxy::Proxy for Proxy {
         Arc::new(self.clone())
     }
     fn as_create_membdev(&self) -> Arc<dyn create::CreateMemBDev> {
+        Arc::new(self.clone())
+    }
+    fn as_create_bdev_shadow(&self) -> Arc<dyn create::CreateBDevShadow> {
         Arc::new(self.clone())
     }
     fn as_create_ixgbe(&self) -> Arc<dyn create::CreateIxgbe> {
@@ -134,6 +140,13 @@ impl create::CreateMemBDev for Proxy {
     }
 }
 
+impl create::CreateBDevShadow for Proxy {
+    fn create_domain_bdev_shadow(&self, create: Arc<dyn create::CreateMemBDev>) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>) {
+        let (domain, shadow) = self.create_bdev_shadow.create_domain_bdev_shadow(create);
+        let domain_id = domain.get_domain_id();
+        return (domain, Box::new(BDevProxy::new(domain_id, shadow)));
+    }
+}
 
 impl create::CreateIxgbe for Proxy {
     fn create_domain_ixgbe(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net>) {

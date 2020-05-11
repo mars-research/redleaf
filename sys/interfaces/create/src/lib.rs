@@ -20,6 +20,10 @@ pub trait CreateMemBDev {
     fn recreate_domain_membdev(&self, dom: Box<dyn syscalls::Domain>) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>);
 }
 
+pub trait CreateBDevShadow {
+    fn create_domain_bdev_shadow(&self, create: Arc<dyn CreateMemBDev>) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>);
+}
+
 pub trait CreateIxgbe {
     fn create_domain_ixgbe(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net>);
 }
