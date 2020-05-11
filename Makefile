@@ -51,6 +51,7 @@ ifeq ($(MEMBDEV),false)
 domain_list += sys/dev/ahci_driver/build/ahci_drive
 else
 domain_list += sys/driver/membdev/build/membdev
+domain_list += usr/shadow/bdev/build/bdev_shadow
 endif
 
 qemu_common := ${MEM} -vga std -s
@@ -94,6 +95,7 @@ clean:
 	-make -C usr/mkfs clean
 	-make -C usr/proxy clean
 	-make -C usr/test clean
+	-make -C usr/shadow clean
 
 .PHONY: clean-keys
 clean-keys:
@@ -175,6 +177,7 @@ init:
 	make -C usr/proxy
 	make -C usr/test
 	make -C usr/xv6
+	make -C usr/shadow
 	make -C sys
 
 .PHONY: signer

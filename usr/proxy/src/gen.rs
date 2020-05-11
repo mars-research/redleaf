@@ -7,6 +7,7 @@ use alloc::sync::Arc;
 use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain_id};
 use syscalls::{Heap, Domain, Interrupt};
 use usr::{bdev::{BDev, BSIZE}, vfs::VFS, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}};
+use usr::rpc::RpcResult;
 use console::{println, print};
 use unwind::trampoline;
 
@@ -125,6 +126,12 @@ impl create::CreateMemBDev for Proxy {
         let domain_id = domain.get_domain_id();
         return (domain, Box::new(BDevProxy::new(domain_id, membdev)));
     }
+
+    fn recreate_domain_membdev(&self, dom: Box<dyn syscalls::Domain>) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>) {
+        let (domain, membdev) = self.create_membdev.recreate_domain_membdev(dom);
+        let domain_id = domain.get_domain_id();
+        return (domain, Box::new(BDevProxy::new(domain_id, membdev)));
+    }
 }
 
 
@@ -222,7 +229,7 @@ impl BDevProxy {
 }
 
 impl BDev for BDevProxy {
-    fn read(&self, block: u32, data: RRef<[u8; BSIZE]>) -> RRef<[u8; BSIZE]> {
+    fn read(&self, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 

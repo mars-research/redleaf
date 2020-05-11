@@ -17,6 +17,7 @@ pub trait CreateAHCI {
 
 pub trait CreateMemBDev {
     fn create_domain_membdev(&self) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>);
+    fn recreate_domain_membdev(&self, dom: Box<dyn syscalls::Domain>) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>);
 }
 
 pub trait CreateIxgbe {

@@ -4,6 +4,7 @@ use spin::Mutex;
 use libsyscalls::errors::Result;
 use rref::RRef;
 use usr::bdev::{BDev, BSIZE};
+use usr::rpc::RpcResult;
 
 pub struct MemBDev {
     memdisk: Mutex<&'static mut [u8]>,
@@ -32,13 +33,13 @@ impl MemBDev {
 }
 
 impl BDev for MemBDev {
-    fn read(&self, block: u32, mut data: RRef<[u8; BSIZE]>) -> RRef<[u8; BSIZE]> {
+    fn read(&self, block: u32, mut data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>> {
         let start = block as usize * Self::SECTOR_SIZE;
         let size = data.len();
 
         data.copy_from_slice(&self.memdisk.lock()[start..start+size]);
 
-        data
+        Ok(data)
     }
     fn write(&self, block: u32, data: RRef<[u8; BSIZE]>) -> RRef<[u8; BSIZE]> {
         let start = block as usize * Self::SECTOR_SIZE;

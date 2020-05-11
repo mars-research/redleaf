@@ -39,6 +39,13 @@ impl create::CreateMemBDev for PDomain {
         enable_irq();
         r
     }
+
+    fn recreate_domain_membdev(&self, _dom: Box<dyn syscalls::Domain>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev + Send + Sync>) {
+        disable_irq();
+        let r = create_domain_membdev();
+        enable_irq();
+        r
+    }
 }
 
 impl create::CreateIxgbe for PDomain {
