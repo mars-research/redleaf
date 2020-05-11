@@ -12,6 +12,7 @@ static mut CONT: Continuation
 pub fn register_cont(cont: &Continuation)  {
     unsafe {
         //CONT = *cont;
+        /* memcpy is slower than field copy by 50 cycles */
         CONT.func = cont.func;
         CONT.rflags = cont.rflags;
         CONT.r15 = cont.r15;
