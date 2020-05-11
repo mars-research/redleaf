@@ -16,6 +16,7 @@ First, install a new linux kernel from Zhaofang by running
 wget https://github.com/mars-research/redleaf/releases/download/bcache_v2/linux-image-5.6.7-meow_5.6.7-meow-6_amd64.deb
 sudo dkpg -i linux-image-5.6.7-meow_5.6.7-meow-6_amd64.deb
 ```
+and use https://make-linux-fast-again.com/ to disable KPTI.
 
 <br/>
 
