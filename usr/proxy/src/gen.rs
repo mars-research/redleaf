@@ -127,14 +127,14 @@ impl create::CreateAHCI for Proxy {
 }
 
 impl create::CreateMemBDev for Proxy {
-    fn create_domain_membdev(&self) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>) {
-        let (domain, membdev) = self.create_membdev.create_domain_membdev();
+    fn create_domain_membdev(&self, memdisk: &'static mut [u8]) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>) {
+        let (domain, membdev) = self.create_membdev.create_domain_membdev(memdisk);
         let domain_id = domain.get_domain_id();
         return (domain, Box::new(BDevProxy::new(domain_id, membdev)));
     }
 
-    fn recreate_domain_membdev(&self, dom: Box<dyn syscalls::Domain>) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>) {
-        let (domain, membdev) = self.create_membdev.recreate_domain_membdev(dom);
+    fn recreate_domain_membdev(&self, dom: Box<dyn syscalls::Domain>, memdisk: &'static mut [u8]) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>) {
+        let (domain, membdev) = self.create_membdev.recreate_domain_membdev(dom, memdisk);
         let domain_id = domain.get_domain_id();
         return (domain, Box::new(BDevProxy::new(domain_id, membdev)));
     }

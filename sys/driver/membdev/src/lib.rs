@@ -27,11 +27,12 @@ extern crate malloc;
 
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>,
-            heap: Box<dyn Heap + Send + Sync>) -> Box<dyn BDev> {
+            heap: Box<dyn Heap + Send + Sync>,
+            memdisk: &'static mut [u8]) -> Box<dyn BDev> {
     libsyscalls::syscalls::init(s);
     rref::init(heap);
 
-    Box::new(membdev::MemBDev::new())
+    Box::new(membdev::MemBDev::new(memdisk))
 }
 
 // This function is called on panic.

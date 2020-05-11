@@ -33,16 +33,16 @@ impl create::CreateAHCI for PDomain {
 }
 
 impl create::CreateMemBDev for PDomain {
-    fn create_domain_membdev(&self) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev + Send + Sync>) {
+    fn create_domain_membdev(&self, memdisk: &'static mut [u8]) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev + Send + Sync>) {
         disable_irq();
-        let r = create_domain_membdev();
+        let r = create_domain_membdev(memdisk);
         enable_irq();
         r
     }
 
-    fn recreate_domain_membdev(&self, _dom: Box<dyn syscalls::Domain>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev + Send + Sync>) {
+    fn recreate_domain_membdev(&self, _dom: Box<dyn syscalls::Domain>, memdisk: &'static mut [u8]) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev + Send + Sync>) {
         disable_irq();
-        let r = create_domain_membdev();
+        let r = create_domain_membdev(memdisk);
         enable_irq();
         r
     }
@@ -252,7 +252,7 @@ pub fn create_domain_ixgbe(pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Do
     create_domain_net("ixgbe_driver", binary_range, pci)
 }
 
-pub fn create_domain_membdev() -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev + Send + Sync>) {
+pub fn create_domain_membdev(memdisk: &'static mut [u8]) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev + Send + Sync>) {
 
     extern "C" {
         fn _binary_sys_driver_membdev_build_membdev_start();
@@ -264,7 +264,7 @@ pub fn create_domain_membdev() -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev:
         _binary_sys_driver_membdev_build_membdev_end as *const u8
     );
 
-    create_domain_bdev_mem("membdev", binary_range)
+    create_domain_bdev_mem("membdev", binary_range, memdisk)
 }
 
 pub fn create_domain_bdev_shadow(create: Arc<dyn create::CreateMemBDev>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev + Send + Sync>) {
@@ -508,8 +508,9 @@ pub fn create_domain_bdev(name: &str,
 }
 
 pub fn create_domain_bdev_mem(name: &str,
-                              binary_range: (*const u8, *const u8)) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev + Send + Sync>) {
-    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>) -> Box<dyn usr::bdev::BDev + Send + Sync>;
+                              binary_range: (*const u8, *const u8),
+                              memdisk: &'static mut [u8]) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev + Send + Sync>) {
+    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, &'static mut [u8]) -> Box<dyn usr::bdev::BDev + Send + Sync>;
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)
@@ -524,7 +525,7 @@ pub fn create_domain_bdev_mem(name: &str,
 
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
-    let bdev = user_ep(pdom, pheap);
+    let bdev = user_ep(pdom, pheap, memdisk);
     disable_irq();
 
     println!("domain/{}: returned from entry point", name);

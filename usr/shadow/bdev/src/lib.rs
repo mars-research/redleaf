@@ -1,5 +1,5 @@
 #![no_std]
-#![forbid(unsafe_code)]
+// #![forbid(unsafe_code)]
 extern crate malloc;
 extern crate alloc;
 use libsyscalls;
@@ -18,6 +18,11 @@ use usr::rpc::RpcResult;
 use create::CreateMemBDev;
 use spin::Mutex;
 
+extern "C" {
+    fn _binary___________usr_mkfs_build_fs_img_start();
+    fn _binary___________usr_mkfs_build_fs_img_end(); 
+}
+
 struct ShadowInternal {
     create: Arc<dyn CreateMemBDev>,
     bdev: Box<dyn BDev>,
@@ -25,8 +30,13 @@ struct ShadowInternal {
 }
 
 impl ShadowInternal {
-    fn new(create: Arc<dyn CreateMemBDev>) -> Self {
-        let (dom, bdev) = create.create_domain_membdev();
+    unsafe fn new(create: Arc<dyn CreateMemBDev>) -> Self {
+        let start = _binary___________usr_mkfs_build_fs_img_start;
+        let end = _binary___________usr_mkfs_build_fs_img_end;
+        let size = end as usize - start as usize;
+        let memdisk = core::slice::from_raw_parts_mut(start as *mut u8, size);
+
+        let (dom, bdev) = create.create_domain_membdev(memdisk);
         Self {
             create,
             bdev,
@@ -34,15 +44,24 @@ impl ShadowInternal {
         }
     }
 
+    unsafe fn restart_bdev(&mut self) {
+        let start = _binary___________usr_mkfs_build_fs_img_start;
+        let end = _binary___________usr_mkfs_build_fs_img_end;
+        let size = end as usize - start as usize;
+        let memdisk = core::slice::from_raw_parts_mut(start as *mut u8, size);
+
+        let old_domain = self.dom.take().unwrap();
+        let (domain, bdev) = self.create.recreate_domain_membdev(old_domain, memdisk);
+        self.dom = Some(domain); 
+        self.bdev = bdev;
+    }
+
     fn read(&mut self, block: u32, mut data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>> {
         loop {
             let r = self.bdev.read(block, data);
             if let Err(e) = r {
                 println!("Encounter error: {:?}; restarting membdev", e);
-                let old_domain = self.dom.take().unwrap();
-                let (domain, bdev) = self.create.recreate_domain_membdev(old_domain);
-                self.dom = Some(domain); 
-                self.bdev = bdev;
+                unsafe{self.restart_bdev()};
 
                 /* restart invocation on the new domain */
                 println!("membdev restarted, retrying bdev.read");
@@ -61,7 +80,7 @@ struct Shadow {
 impl Shadow {
     fn new(create: Arc<dyn CreateMemBDev>) -> Self {
         Self {
-            shadow: Mutex::new(ShadowInternal::new(create)),
+            shadow: Mutex::new(unsafe{ShadowInternal::new(create)}),
         }
     }
 }
