@@ -97,7 +97,7 @@ impl Pipe{
         if !pipe.readopen {
             return Err(ErrorKind::BrokenPipe);
         }
-        for (i, c) in data.iter().enumerate() {
+        for c in data.iter() {
             // Wait while the buffer is full 
             if pipe.nwrite == pipe.nread + PIPESIZE {
                 drop(pipe);

@@ -21,6 +21,20 @@ impl<T, const N: usize> RRefDeque<T, N> {
         self.arr.move_to(new_domain_id);
     }
 
+    pub fn len(&self) -> usize {
+        if self.head > self.tail {
+            self.head - self.tail
+        } else if self.head == self.tail {
+            if self.arr.has(self.head) {
+                return N
+            } else {
+                return 0
+            }
+        } else {
+            N - (self.tail - self.head)
+        }
+    }
+
     pub fn push_back(&mut self, value: RRef<T>) -> Option<RRef<T>> {
         if self.arr.has(self.head) {
             return Some(value);

@@ -30,7 +30,7 @@ pub enum FileType {
     },
     Device {
         inode: Arc<INode>,
-        // Set once
+        // Set once then read-only
         major: AtomicUsize,
     },
 }
@@ -67,6 +67,19 @@ impl OpenedFile {
         }
     }
 
+    pub fn seek(&self, new_offset: usize) -> Result<()> {
+        match &self.file_type {
+            FileType::INode { inode, offset } => {
+                let _iguard = inode.lock();
+                offset.store(new_offset, Ordering::SeqCst);
+                Ok(())
+            },
+            _ => {
+                Err(ErrorKind::UnsupportedOperation)
+            },
+        }
+    }
+
     pub fn stat(&self) -> Result<FileStat> {
         match &self.file_type {
             FileType::INode { inode, .. } | FileType::Device { inode, .. } => Ok(inode.lock().stat()),
@@ -90,7 +103,7 @@ impl OpenedFile {
                 offset.fetch_add(bytes, Ordering::SeqCst);
                 Ok(bytes)
             },
-            FileType::Device { inode, major } => {
+            FileType::Device { inode: _, major } => {
                 DEVICES
                     .get(major.load(Ordering::SeqCst))
                     .ok_or(ErrorKind::InvalidMajor)?
@@ -129,7 +142,7 @@ impl OpenedFile {
                 assert!(i == user_buffer.len());
                 Ok(i)
             },
-            FileType::Device { inode, major } => {
+            FileType::Device { inode: _, major } => {
                 DEVICES
                     .get(major.load(Ordering::SeqCst))
                     .ok_or(ErrorKind::InvalidMajor)?

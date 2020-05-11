@@ -1,4 +1,4 @@
-// Modified https://github.com/rust-lang/rust/blob/master/src/libstd/io/error.rs\
+// Modified from https://github.com/rust-lang/rust/blob/master/src/libstd/io/error.rs
 
 use alloc::boxed::Box;
 use core::fmt;
@@ -137,39 +137,41 @@ pub enum ErrorKind {
     /// No more empty slot in the directory that we can allocate
     /// a file with
     DirectoryExhausted,
+    /// Operation not supported, like seeking a non-inode file.
+    UnsupportedOperation,
 }
 
-impl ErrorKind {
-    pub(crate) fn as_str(&self) -> &'static str {
-        match *self {
-            ErrorKind::FileNotFound => "file not found",
-            ErrorKind::PermissionDenied => "permission denied",
-            ErrorKind::ConnectionRefused => "connection refused",
-            ErrorKind::ConnectionReset => "connection reset",
-            ErrorKind::ConnectionAborted => "connection aborted",
-            ErrorKind::NotConnected => "not connected",
-            ErrorKind::AddrInUse => "address in use",
-            ErrorKind::AddrNotAvailable => "address not available",
-            ErrorKind::BrokenPipe => "broken pipe",
-            ErrorKind::FileAlreadyExists => "file already exists",
-            ErrorKind::WouldBlock => "operation would block",
-            ErrorKind::InvalidInput => "invalid input parameter",
-            ErrorKind::InvalidData => "invalid data",
-            ErrorKind::TimedOut => "timed out",
-            ErrorKind::WriteZero => "write zero",
-            ErrorKind::Interrupted => "operation interrupted",
-            ErrorKind::Other => "other os error",
-            ErrorKind::UnexpectedEof => "unexpected end of file",
-            ErrorKind::FormatError => "format error when doing write_fmt",
-            ErrorKind::TooManyOpenedFiles => "too many opened files",
-            ErrorKind::InvalidCTTSId => "invalid cross-thread-temp-storage id",
-            ErrorKind::InvalidFileDescriptor => "invalid file descriptor",
-            ErrorKind::InvalidMajor => "invalid device major number",
-            ErrorKind::ICacheExhausted => "inode cache ran out of nodes",
-            ErrorKind::OutOfINode => "no more free inode that we can allocate",
-            ErrorKind::InvalidFileType => "invalid file type",
-            ErrorKind::DirectoryExhausted => "directory exhausted",
-        }
-    }
-}
+// impl ErrorKind {
+//     pub(crate) fn as_str(&self) -> &'static str {
+//         match *self {
+//             ErrorKind::FileNotFound => "file not found",
+//             ErrorKind::PermissionDenied => "permission denied",
+//             ErrorKind::ConnectionRefused => "connection refused",
+//             ErrorKind::ConnectionReset => "connection reset",
+//             ErrorKind::ConnectionAborted => "connection aborted",
+//             ErrorKind::NotConnected => "not connected",
+//             ErrorKind::AddrInUse => "address in use",
+//             ErrorKind::AddrNotAvailable => "address not available",
+//             ErrorKind::BrokenPipe => "broken pipe",
+//             ErrorKind::FileAlreadyExists => "file already exists",
+//             ErrorKind::WouldBlock => "operation would block",
+//             ErrorKind::InvalidInput => "invalid input parameter",
+//             ErrorKind::InvalidData => "invalid data",
+//             ErrorKind::TimedOut => "timed out",
+//             ErrorKind::WriteZero => "write zero",
+//             ErrorKind::Interrupted => "operation interrupted",
+//             ErrorKind::Other => "other os error",
+//             ErrorKind::UnexpectedEof => "unexpected end of file",
+//             ErrorKind::FormatError => "format error when doing write_fmt",
+//             ErrorKind::TooManyOpenedFiles => "too many opened files",
+//             ErrorKind::InvalidCTTSId => "invalid cross-thread-temp-storage id",
+//             ErrorKind::InvalidFileDescriptor => "invalid file descriptor",
+//             ErrorKind::InvalidMajor => "invalid device major number",
+//             ErrorKind::ICacheExhausted => "inode cache ran out of nodes",
+//             ErrorKind::OutOfINode => "no more free inode that we can allocate",
+//             ErrorKind::InvalidFileType => "invalid file type",
+//             ErrorKind::DirectoryExhausted => "directory exhausted",
+//         }
+//     }
+// }
 

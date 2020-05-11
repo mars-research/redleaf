@@ -94,6 +94,9 @@ impl UsrVFS for Rv6FS {
     fn sys_write(&self, fd: usize, buffer: &[u8]) -> Result<usize> {
         sysfile::sys_write(fd, buffer)
     }
+    fn sys_seek(&self, fd: usize, offset: usize) -> Result<()> {
+        sysfile::sys_seek(fd, offset)
+    }
     fn sys_fstat(&self, fd: usize) -> Result<FileStat> {
         sysfile::sys_fstat(fd)
     }
@@ -127,22 +130,22 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
     Box::new(Rv6FS::new()) 
 }
 
-fn fs_benchmark(buf_size: usize, path: &str) {
-    let start = get_rdtsc();
-    let fd = sysfile::sys_open(path, FileMode::READ).unwrap();
-    let mut buff = Vec::new();
-    buff.resize(buf_size, 0 as u8);
-    let mut bytes_read = 0;
-    while let Ok(sz) = sysfile::sys_read(fd, buff.as_mut_slice()) {
-        bytes_read += sz;
-        if sz < 512 {
-            break;
-        }
-    }
-    sysfile::sys_close(fd);
-    let end = get_rdtsc();
-    println!("we read {} bytes at a time, in total {} bytes from {} using {} cycles", buf_size, bytes_read, path, end - start);
-}
+// fn fs_benchmark(buf_size: usize, path: &str) {
+//     let start = get_rdtsc();
+//     let fd = sysfile::sys_open(path, FileMode::READ).unwrap();
+//     let mut buff = Vec::new();
+//     buff.resize(buf_size, 0 as u8);
+//     let mut bytes_read = 0;
+//     while let Ok(sz) = sysfile::sys_read(fd, buff.as_mut_slice()) {
+//         bytes_read += sz;
+//         if sz < 512 {
+//             break;
+//         }
+//     }
+//     sysfile::sys_close(fd).unwrap();
+//     let end = get_rdtsc();
+//     println!("we read {} bytes at a time, in total {} bytes from {} using {} cycles", buf_size, bytes_read, path, end - start);
+// }
 
 // This function is called on panic.
 #[panic_handler]

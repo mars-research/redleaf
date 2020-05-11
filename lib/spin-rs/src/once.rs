@@ -59,12 +59,21 @@ impl<T> Once<T> {
     pub const fn new() -> Once<T> {
         Self::INIT
     }
-
-    pub fn force_get<'a>(&'a self) -> &'a T {
+ 
+    fn _force_get<'a>(&'a self) -> &'a T {
         match unsafe { &*self.data.get() }.as_ref() {
             None    => unsafe { unreachable() },
             Some(p) => p,
         }
+    }
+
+    /// `_force_get` but marked as unsafe and expose to the public.
+    /// If the data is not set, calling `force_get` is an undefined 
+    /// bahavior, such as triggering a invalid opcode exception.
+    /// Thus this function is not safe to be called from a
+    /// normal domain.
+    pub unsafe fn force_get<'a>(&'a self) -> &'a T {
+        self._force_get()
     }
 
     /// Performs an initialization routine once and only once. The given closure
@@ -114,7 +123,7 @@ impl<T> Once<T> {
                 self.state.store(status, Ordering::SeqCst);
 
                 // This next line is strictly an optimization
-                return self.force_get();
+                return self._force_get();
             }
         }
 
@@ -126,7 +135,7 @@ impl<T> Once<T> {
                     status = self.state.load(Ordering::SeqCst)
                 },
                 PANICKED => panic!("Once has panicked"),
-                COMPLETE => return self.force_get(),
+                COMPLETE => return self._force_get(),
                 _ => unsafe { unreachable() },
             }
         }
@@ -135,7 +144,7 @@ impl<T> Once<T> {
     /// Returns a pointer iff the `Once` was previously initialized
     pub fn try<'a>(&'a self) -> Option<&'a T> {
         match self.state.load(Ordering::SeqCst) {
-            COMPLETE => Some(self.force_get()),
+            COMPLETE => Some(self._force_get()),
             _        => None,
         }
     }
@@ -147,7 +156,7 @@ impl<T> Once<T> {
             match self.state.load(Ordering::SeqCst) {
                 INCOMPLETE => return None,
                 RUNNING    => cpu_relax(), // We spin
-                COMPLETE   => return Some(self.force_get()),
+                COMPLETE   => return Some(self._force_get()),
                 PANICKED   => panic!("Once has panicked"),
                 _ => unsafe { unreachable() },
             }

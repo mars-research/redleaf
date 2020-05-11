@@ -17,6 +17,7 @@ pub trait UsrVFS {
     fn sys_close(&self, fd: usize) -> Result<()>;
     fn sys_read(&self, fd: usize, buffer: &mut[u8]) -> Result<usize>;
     fn sys_write(&self, fd: usize, buffer: &[u8]) -> Result<usize>;
+    fn sys_seek(&self, fd: usize, offset: usize) -> Result<()>;
     fn sys_fstat(&self, fd: usize) -> Result<FileStat>;
     fn sys_mknod(&self, path: &str, major: i16, minor: i16) -> Result<()>;
     fn sys_dup(&self, fd: usize) -> Result<usize>;

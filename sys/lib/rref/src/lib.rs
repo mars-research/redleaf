@@ -38,9 +38,9 @@ mod tests {
             ptr
         }
 
-        unsafe fn dealloc(&self, _: u64, _: *mut u8, _: Layout) {}
+        unsafe fn dealloc(&self, _: *mut u8) {}
 
-        unsafe fn change_domain(&self, _: u64, _: u64, _: *mut u8, _: Layout) {}
+        unsafe fn change_domain(&self, _: *mut u8, _: u64) {}
     }
 
     pub struct TestSyscall();
@@ -110,5 +110,41 @@ mod tests {
         assert_eq!(deque.pop_front().map(|r| *r), Some(3));
         assert_eq!(deque.pop_front().map(|r| *r), Some(5));
         assert!(deque.pop_front().is_none());
+    }
+
+    #[test]
+    fn rref_deque_len() {
+        init_heap();
+        init_syscall();
+
+        let mut deque = RRefDeque::<usize, 3>::new(Default::default());
+        assert_eq!(deque.len(), 0); // h = 0, t = 0
+
+        assert!(deque.push_back(RRef::new(1)).is_none());
+        assert_eq!(deque.len(), 1); // h = 1, t = 0
+
+        assert!(deque.push_back(RRef::new(2)).is_none());
+        assert_eq!(deque.len(), 2); // h = 2, t = 0
+
+        assert!(deque.push_back(RRef::new(3)).is_none());
+        assert_eq!(deque.len(), 3); // h = 0, t = 0
+
+        assert!(deque.push_back(RRef::new(4)).is_some()); // rejected
+        assert_eq!(deque.len(), 3); // h = 0, t = 0
+
+        assert_eq!(deque.pop_front().map(|r| *r), Some(1));
+        assert_eq!(deque.len(), 2); // h = 0, t = 1
+
+        assert!(deque.push_back(RRef::new(4)).is_none());
+        assert_eq!(deque.len(), 3); // h = 1, t = 1
+
+        assert_eq!(deque.pop_front().map(|r| *r), Some(2));
+        assert_eq!(deque.len(), 2); // h = 1, t = 2
+
+        assert_eq!(deque.pop_front().map(|r| *r), Some(3));
+        assert_eq!(deque.len(), 1); // h = 1, t = 0
+
+        assert_eq!(deque.pop_front().map(|r| *r), Some(4));
+        assert_eq!(deque.len(), 0); // h = 1, t = 1
     }
 }

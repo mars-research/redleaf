@@ -34,7 +34,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
 
     let mut args = args.split_whitespace();
     args.next().unwrap();
-    let options = args.next().unwrap_or("w");
+    let options = args.next().unwrap_or("r");
     let file = args.next().unwrap_or("large");
 
     let sizes = [512, 1024, 4096, 8192, 16 * 1024, 256 * 1024, 1024 * 1024, 4 * 1024 * 1024, 16 * 1024 * 1024, 64 * 1024 * 1024];
