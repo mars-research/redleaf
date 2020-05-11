@@ -32,6 +32,7 @@ extern crate unwind as libunwind;
 
 use crate::interrupt::{disable_irq, enable_irq};
 use core::sync::atomic::{AtomicU32, Ordering};
+use memcpy;
 
 #[macro_use]
 mod console;
