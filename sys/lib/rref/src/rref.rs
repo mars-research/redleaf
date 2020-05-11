@@ -64,8 +64,6 @@ impl<T> RRef<T> {
     pub fn move_to(&self, new_domain_id: u64) {
         // TODO: race here
         unsafe {
-            let from_domain = (*self.pointer).domain_id;
-            let layout = Layout::new::<SharedHeapObject<T>>();
             HEAP.force_get().change_domain(self.pointer as *mut u8, new_domain_id);
             (*self.pointer).domain_id = new_domain_id
         };
@@ -78,7 +76,6 @@ impl<T> Drop for RRef<T> {
             // TODO: is this drop correct? dropping T should only be necessary for cleanup code,
             //       but calling drop may be undefined behavior
             drop(&mut (*self.pointer).value);
-            let layout = Layout::new::<SharedHeapObject<T>>();
             HEAP.force_get().dealloc(self.pointer as *mut u8);
         };
     }
