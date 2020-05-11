@@ -11,7 +11,25 @@ static mut CONT: Continuation
 
 pub fn register_cont(cont: &Continuation)  {
     unsafe {
-        CONT = *cont;
+        //CONT = *cont;
+        CONT.func = cont.func;
+        CONT.rflags = cont.rflags;
+        CONT.r15 = cont.r15;
+        CONT.r14 = cont.r14;
+        CONT.r13 = cont.r13;
+        CONT.r12 = cont.r12;
+        CONT.r11 = cont.r11;
+        CONT.rbx = cont.rbx;
+        CONT.rbp = cont.rbp;
+        CONT.rsp = cont.rsp; 
+        CONT.rax = cont.rax;
+        CONT.rcx = cont.rcx;
+        CONT.rdx = cont.rdx;
+        CONT.rsi = cont.rsi;
+        CONT.rdi = cont.rdi;
+        CONT.r8 = cont.r8;
+        CONT.r9 = cont.r9; 
+        CONT.r10 = cont.r10;
     }
 }
 
