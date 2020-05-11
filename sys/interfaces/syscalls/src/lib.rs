@@ -3,8 +3,6 @@
 
 extern crate alloc;
 use alloc::boxed::Box;
-use alloc::vec::Vec;
-use alloc::collections::VecDeque;
 
 use spin::{MutexGuard};
 use core::alloc::Layout;
