@@ -91,7 +91,7 @@ impl BDev for Shadow {
         
     }
 
-    fn write(&self, block: u32, data: RRef<[u8; BSIZE]>) -> RRef<[u8; BSIZE]> {
+    fn write(&self, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()> {
         self.shadow.lock().bdev.write(block, data)
     }
 }

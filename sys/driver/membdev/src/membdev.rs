@@ -37,12 +37,12 @@ impl BDev for MemBDev {
 
         Ok(data)
     }
-    fn write(&self, block: u32, data: RRef<[u8; BSIZE]>) -> RRef<[u8; BSIZE]> {
+    fn write(&self, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()> {
         let start = block as usize * Self::SECTOR_SIZE;
         let size = data.len();
 
-        self.memdisk.lock()[start..start+size].copy_from_slice(&*data);
+        self.memdisk.lock()[start..start+size].copy_from_slice(&**data);
         
-        data
+        Ok(())
     }
 }

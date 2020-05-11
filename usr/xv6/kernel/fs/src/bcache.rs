@@ -320,7 +320,7 @@ impl BufferCache {
     pub fn write(&self, block_number: u32, buffer_data: &mut BufferBlockWrapper) {
         // println!("bwrite block#{}", block_number);
         let sector = block_number * (BSIZE / SECTOR_SIZE) as u32;
-        *buffer_data = BufferBlockWrapper(Some(self.bdev.write(sector, buffer_data.take())));
+        self.bdev.write(sector, &*buffer_data).unwrap();
     }
 
     // This is confusing since it doesn't match xv6's brelse exactly so there could be a bug.

@@ -16,7 +16,7 @@ pub fn sys_read(block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZ
     bdev.read(block, data)
 }
 
-pub fn sys_write(block: u32, data: RRef<[u8; BSIZE]>) -> RRef<[u8; BSIZE]> {
+pub fn sys_write(block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()> {
     let bdev = BDEV.r#try().expect("BDev interface is not initialized.");
     bdev.write(block, data)
 }

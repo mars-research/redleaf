@@ -8,7 +8,7 @@ pub const BSIZE: usize =        4096;   // block size
 
 pub trait BDev {
     fn read(&self, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>>;
-    fn write(&self, block: u32, data: RRef<[u8; BSIZE]>) -> RRef<[u8; BSIZE]>;
+    fn write(&self, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()>;
 }
 
 // pub trait SyncBDev {

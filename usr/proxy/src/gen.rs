@@ -286,7 +286,7 @@ impl BDev for BDevProxy {
         r
     }
 
-    fn write(&self, block: u32, data: RRef<[u8; BSIZE]>) -> RRef<[u8; BSIZE]> {
+    fn write(&self, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
