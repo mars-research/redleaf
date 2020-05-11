@@ -60,12 +60,27 @@ impl ShadowInternal {
         loop {
             let r = self.bdev.read(block, data);
             if let Err(e) = r {
-                println!("Encounter error: {:?}; restarting membdev", e);
+                println!("bdev.read ncounter error: {:?}; restarting membdev", e);
                 unsafe{self.restart_bdev()};
 
                 /* restart invocation on the new domain */
                 println!("membdev restarted, retrying bdev.read");
                 data = RRef::new([0u8; BSIZE]);
+                continue;
+            }
+            break r;
+        }
+    }
+
+    fn write(&mut self, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()> {
+        loop {
+            let r = self.bdev.write(block, data);
+            if let Err(e) = r {
+                println!("bdev.write encounter error: {:?}; restarting membdev", e);
+                unsafe{self.restart_bdev()};
+
+                /* restart invocation on the new domain */
+                println!("membdev restarted, retrying bdev.write");
                 continue;
             }
             break r;
@@ -92,7 +107,7 @@ impl BDev for Shadow {
     }
 
     fn write(&self, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()> {
-        self.shadow.lock().bdev.write(block, data)
+        self.shadow.lock().write(block, data)
     }
 }
 

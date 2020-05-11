@@ -246,27 +246,54 @@ impl BDevProxy {
  */
 
 #[no_mangle]
-pub extern fn read(s: &Box<usr::bdev::BDev>, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>> {
+pub extern fn bdev_read(s: &Box<usr::bdev::BDev>, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>> {
     //println!("one_arg: x:{}", x);
     s.read(block, data)
 }
 
 #[no_mangle]
-pub extern fn read_err(s: &Box<usr::bdev::BDev>, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>> {
+pub extern fn bdev_read_err(s: &Box<usr::bdev::BDev>, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>> {
     println!("bdev.read was aborted, block:{}", block);
     Err(unsafe{RpcError::panic()})
 }
 
 #[no_mangle]
-pub extern "C" fn read_addr() -> u64 {
-    read_err as u64
+pub extern "C" fn bdev_read_addr() -> u64 {
+    bdev_read_err as u64
 }
 
 extern {
-    fn read_tramp(s: &Box<usr::bdev::BDev>, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>>;
+    fn bdev_read_tramp(s: &Box<usr::bdev::BDev>, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>>;
 }
 
-trampoline!(read);
+trampoline!(bdev_read);
+
+/* 
+ * Code to unwind bdev.write
+ */
+
+#[no_mangle]
+pub extern fn bdev_write(s: &Box<usr::bdev::BDev>, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()> {
+    //println!("one_arg: x:{}", x);
+    s.write(block, data)
+}
+
+#[no_mangle]
+pub extern fn bdev_write_err(s: &Box<usr::bdev::BDev>, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()> {
+    println!("bdev.read was aborted, block:{}", block);
+    Err(unsafe{RpcError::panic()})
+}
+
+#[no_mangle]
+pub extern "C" fn bdev_write_addr() -> u64 {
+    bdev_write_err as u64
+}
+
+extern {
+    fn bdev_write_tramp(s: &Box<usr::bdev::BDev>, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()>;
+}
+
+trampoline!(bdev_write);
 
 impl BDev for BDevProxy {
     fn read(&self, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>> {
@@ -275,7 +302,7 @@ impl BDev for BDevProxy {
 
         data.move_to(self.domain_id);
         // let r = self.domain.read(block, data);
-        let mut r = unsafe { read_tramp(&self.domain, block, data) };
+        let mut r = unsafe { bdev_read_tramp(&self.domain, block, data) };
         if r.is_ok() {
             r.as_mut().unwrap().move_to(caller_domain);
         }
@@ -290,9 +317,10 @@ impl BDev for BDevProxy {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
-        // data.move_to(callee_domain);
-        let r = self.domain.write(block, data);
-        // data.move_to(caller_domain);
+        data.move_to(self.domain_id);
+        // let r = self.domain.write(block, data);
+        let r = unsafe { bdev_write_tramp(&self.domain, block, data) };
+        data.move_to(caller_domain);
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };
