@@ -44,6 +44,7 @@ use crate::device::Intel8259x;
 use core::cell::RefCell;
 use protocol::UdpPacket;
 use core::ptr;
+use rref::{RRef, RRefDeque};
 
 use libtime::get_rdtsc as rdtsc;
 
@@ -105,6 +106,36 @@ impl usr::net::Net for Ixgbe {
         }
         ret
     }
+
+    fn submit_and_poll_rref(
+        &mut self,
+        mut packets: RRefDeque<[u8; 1512], 32>,
+        mut collect: RRefDeque<[u8; 1512], 32>,
+        tx: bool) -> (
+            usize,
+            RRefDeque<[u8; 1512], 32>,
+            RRefDeque<[u8; 1512], 32>
+        )
+    {
+
+        let mut ret: usize = 0;
+        if !self.device_initialized {
+            return (ret, packets, collect);
+        }
+
+        let mut packets = Some(packets);
+        let mut collect = Some(collect);
+
+        if let Some(device) = self.device.borrow_mut().as_mut() {
+            let dev: &mut Intel8259x = device;
+            let (num, mut packets_, mut collect_) = dev.device.submit_and_poll_rref(packets.take().unwrap(),
+                                                                    collect.take().unwrap(), tx, false);
+            packets.replace(packets_);
+            collect.replace(collect_);
+        }
+
+        (ret, packets.unwrap(), collect.unwrap())
+    }
 }
 
 impl pci_driver::PciDriver for Ixgbe {
@@ -137,6 +168,116 @@ impl pci_driver::PciDriver for Ixgbe {
 
 const BATCH_SIZE: usize = 32;
 
+fn run_tx_udp_test_rref(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
+    let batch_sz: usize = BATCH_SIZE;
+    let mut packets = RRefDeque::<[u8; 1512], 32>::new(Default::default());
+    let mut collect = RRefDeque::<[u8; 1512], 32>::new(Default::default());
+
+    let mac_data = alloc::vec![
+        0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81, // Dst mac
+        0x90, 0xe2, 0xba, 0xb5, 0x14, 0xcd, // Src mac
+        0x08, 0x00,                         // Protocol
+    ];
+    let mut ip_data = alloc::vec![
+        0x45, 0x00,
+        0x00,
+        0x2e,
+        0x00, 0x0, 0x0, 0x00,
+        0x40, 0x11, 0x00, 0x00,
+        0x0a, 0x0a, 0x03, 0x01,
+        0x0a, 0x0a, 0x03, 0x02,
+    ];
+
+    let udp_hdr = alloc::vec![
+        0xb2, 0x6f, 0x14, 0x51,
+        0x00,
+        0x1a,
+        0x9c, 0xaf,
+    ];
+
+    let mut payload = alloc::vec![0u8; payload_sz];
+
+    payload[0] = b'R';
+    payload[1] = b'e';
+    payload[2] = b'd';
+    payload[3] = b'l';
+    payload[4] = b'e';
+    payload[5] = b'a';
+    payload[6] = b'f';
+
+    let checksum = calc_ipv4_checksum(&ip_data);
+    // Calculated checksum is little-endian; checksum field is big-endian
+    ip_data[10] = (checksum >> 8) as u8;
+    ip_data[11] = (checksum & 0xff) as u8;
+
+    let mut pkt:Vec<u8> = Vec::new();
+    pkt.extend(mac_data.iter());
+    pkt.extend(ip_data.iter());
+    pkt.extend(udp_hdr.iter());
+    pkt.extend(payload.iter());
+
+    let len = pkt.len();
+    if len < 1512 {
+        let pad = alloc::vec![0u8; 1512 - len];
+        pkt.extend(pad.iter());
+    }
+
+    let mut pkt_arr = [0; 1512];
+
+    println!("pkt.len {} pkt_arr.len {}", pkt.len(), pkt_arr.len());
+
+    pkt_arr.copy_from_slice(pkt.as_slice());
+
+    for i in 0..batch_sz {
+        packets.push_back(RRef::<[u8; 1512]>::new(pkt_arr.clone()));
+    }
+
+    let mut append_rdtsc: u64 = 0;
+    let mut count: u64 = 0;
+    let mut alloc_count = 0;
+
+    let mut packets = Some(packets);
+    let mut collect = Some(collect);
+
+    if let Some(device) = dev.device.borrow_mut().as_mut() {
+        let dev: &mut Intel8259x = device;
+        let mut sum: usize = 0;
+        let start = rdtsc();
+        let end = rdtsc() + 15 * 2_600_000_000;
+
+        loop{
+            let (ret, mut packets_, mut collect_) = dev.device.submit_and_poll_rref(packets.take().unwrap(),
+                                    collect.take().unwrap(), true, debug);
+            sum += ret;
+    
+            while let Some(packet) = collect_.pop_front() {
+                packets_.push_back(packet);
+            }
+
+            if packets_.len() == 0 {
+                alloc_count += 1;
+                for i in 0..batch_sz {
+                    packets_.push_back(RRef::<[u8; 1512]>::new(pkt_arr.clone()));
+                }
+            }
+            if rdtsc() > end {
+                break;
+            }
+
+            packets.replace(packets_);
+            collect.replace(collect_);
+        }
+
+        let elapsed = rdtsc() - start;
+        if sum == 0 {
+            sum += 1;
+        }
+        println!("==> tx batch {} : {} iterations took {} cycles (avg = {})", payload_sz, sum, elapsed, elapsed / sum as u64);
+        dev.dump_stats();
+        println!(" alloc_count {}", alloc_count * 32);
+        //println!("Reaped {} packets", dev.device.tx_poll(&mut collect));
+    }
+}
 fn run_tx_udp_test(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
     let batch_sz: usize = BATCH_SIZE;
     let mut packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
@@ -532,6 +673,7 @@ pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
                  heap: Box<dyn Heap + Send + Sync>,
                  pci: Box<dyn usr::pci::PCI>) -> Box<dyn usr::net::Net> {
     libsyscalls::syscalls::init(s);
+    rref::init(heap);
 
     println!("ixgbe_init: =>  starting ixgbe driver domain");
     let mut ixgbe = Ixgbe::new();
@@ -543,7 +685,10 @@ pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
 
     let payload_sz = alloc::vec![64 - 42, 64, 128, 256, 512, 1470];
 
-    println!("=> Running tests...");
+
+    run_tx_udp_test_rref(&ixgbe, 22, false);
+
+    /*println!("=> Running tests...");
 
     for p in payload_sz.iter() {
         println!("running {}B payload test", p);
@@ -555,7 +700,7 @@ pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
 
         println!("Fwd test");
         run_fwd_udptest(&ixgbe, 64 - 42);
-    }
+    }*/
 
     Box::new(ixgbe)
 }

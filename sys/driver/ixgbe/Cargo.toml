@@ -21,6 +21,7 @@ libsyscalls = { path = "../../../sys/lib/libsyscalls", version = "0.1.0" }
 libtime = { path = "../../../sys/lib/libtime", version = "0.1.0" }
 console = { path = "../../../sys/lib/console", version = "0.1.0" }
 malloc = { path = "../../../sys/lib/malloc", version = "0.1.0" }
+rref = { path = "../../lib/rref", version = "0.1.0" }
 spin = { path = "../../../lib/spin-rs" }
 bitflags = "1.0.4"
 ixgbe_device = { path = "../../../sys/interfaces/device/ixgbe", version = "0.1.0" }

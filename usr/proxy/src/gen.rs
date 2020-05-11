@@ -361,6 +361,31 @@ impl Net for IxgbeProxy {
 
         r
     }
+
+    fn submit_and_poll_rref(
+        &mut self,
+        packets: RRefDeque<[u8; 1512], 32>,
+        collect: RRefDeque<[u8; 1512], 32>,
+        tx: bool) -> (
+            usize,
+            RRefDeque<[u8; 1512], 32>,
+            RRefDeque<[u8; 1512], 32>
+        )
+    {
+        // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        packets.move_to(self.domain_id);
+        collect.move_to(self.domain_id);
+        let r = self.domain.submit_and_poll_rref(packets, collect, tx);
+        r.1.move_to(caller_domain);
+        r.2.move_to(caller_domain);
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
+    }
 }
 
 struct DomAProxy {
