@@ -39,5 +39,6 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
 fn panic(info: &PanicInfo) -> ! {
     console::println!("membdev panicked: {:?}", info);
     libsyscalls::syscalls::sys_backtrace();
+    libsyscalls::syscalls::sys_test_unwind();
     loop {}
 }

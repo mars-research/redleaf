@@ -1,5 +1,6 @@
 use alloc::boxed::Box;
 use spin::Mutex;
+use core::sync::atomic::{AtomicBool, Ordering};
 
 use libsyscalls::errors::Result;
 use rref::RRef;
@@ -8,6 +9,7 @@ use usr::rpc::RpcResult;
 
 pub struct MemBDev {
     memdisk: Mutex<&'static mut [u8]>,
+    seen: AtomicBool,
 }
 
 impl MemBDev {
@@ -28,12 +30,18 @@ impl MemBDev {
 
         Self {
             memdisk: unsafe{ Mutex::new(core::slice::from_raw_parts_mut(start as *mut u8, size))},
+            seen: AtomicBool::new(false),
         }
     }
 }
 
 impl BDev for MemBDev {
     fn read(&self, block: u32, mut data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>> {
+        if block == 304 {
+            // Will panic the second time we see this block
+            assert!(!self.seen.swap(true, Ordering::SeqCst));
+        }
+        console::println!("bdev.read {}", block);
         let start = block as usize * Self::SECTOR_SIZE;
         let size = data.len();
 

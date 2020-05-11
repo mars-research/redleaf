@@ -7,7 +7,7 @@ use alloc::sync::Arc;
 use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain_id};
 use syscalls::{Heap, Domain, Interrupt};
 use usr::{bdev::{BDev, BSIZE}, vfs::VFS, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}};
-use usr::rpc::RpcResult;
+use usr::rpc::{RpcResult, RpcError};
 use console::{println, print};
 use unwind::trampoline;
 
@@ -241,14 +241,44 @@ impl BDevProxy {
     }
 }
 
+/* 
+ * Code to unwind bdev.read
+ */
+
+#[no_mangle]
+pub extern fn read(s: &Box<usr::bdev::BDev>, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>> {
+    //println!("one_arg: x:{}", x);
+    s.read(block, data)
+}
+
+#[no_mangle]
+pub extern fn read_err(s: &Box<usr::bdev::BDev>, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>> {
+    println!("bdev.read was aborted, block:{}", block);
+    Err(unsafe{RpcError::panic()})
+}
+
+#[no_mangle]
+pub extern "C" fn read_addr() -> u64 {
+    read_err as u64
+}
+
+extern {
+    fn read_tramp(s: &Box<usr::bdev::BDev>, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>>;
+}
+
+trampoline!(read);
+
 impl BDev for BDevProxy {
     fn read(&self, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
-        // data.move_to(self.domain_id);
-        let r = self.domain.read(block, data);
-        // data.move_to(caller_domain);
+        data.move_to(self.domain_id);
+        // let r = self.domain.read(block, data);
+        let mut r = unsafe { read_tramp(&self.domain, block, data) };
+        if r.is_ok() {
+            r.as_mut().unwrap().move_to(caller_domain);
+        }
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };
