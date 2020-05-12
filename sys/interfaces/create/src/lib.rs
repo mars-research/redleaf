@@ -42,7 +42,8 @@ pub trait CreateXv6 {
                                ints: Box<dyn Interrupt>,
                                create_xv6fs: Arc<dyn CreateXv6FS>,
                                create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>,
-                               bdev: Box<dyn BDev + Send + Sync>) -> Box<dyn Domain>;
+                               bdev: Box<dyn BDev + Send + Sync>,
+                               net: Box<dyn usr::net::Net>) -> Box<dyn Domain>;
 }
 
 pub trait CreateDomA {

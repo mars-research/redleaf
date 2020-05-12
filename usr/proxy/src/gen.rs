@@ -175,9 +175,10 @@ impl create::CreateXv6 for Proxy {
                                ints: Box<dyn Interrupt>,
                                create_xv6fs: Arc<dyn create::CreateXv6FS>,
                                create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
-                               bdev: Box<dyn BDev + Send + Sync>) -> Box<dyn Domain> {
+                               bdev: Box<dyn BDev + Send + Sync>,
+                               net: Box<dyn usr::net::Net>) -> Box<dyn Domain> {
         // TODO: write Xv6KernelProxy
-        self.create_xv6.create_domain_xv6kernel(ints, create_xv6fs, create_xv6usr, bdev)
+        self.create_xv6.create_domain_xv6kernel(ints, create_xv6fs, create_xv6usr, bdev, net)
     }
 }
 
@@ -372,6 +373,7 @@ impl Net for IxgbeProxy {
             RRefDeque<[u8; 1512], 32>
         )
     {
+        console::println!("hi");
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
