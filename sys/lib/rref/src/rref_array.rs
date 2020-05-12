@@ -19,8 +19,7 @@ impl<T, const N: usize> RRefArray<T, N> {
     pub fn get(&mut self, index: usize) -> Option<RRef<T>> {
         let value = self.arr[index].take();
         if let Some(rref) = value.as_ref() {
-            let domain_id = libsyscalls::syscalls::sys_get_current_domain_id();
-            rref.move_to(domain_id);
+            unsafe { rref.move_to_current() };
         }
         return value;
     }

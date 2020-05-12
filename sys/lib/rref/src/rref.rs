@@ -5,8 +5,11 @@ use core::alloc::Layout;
 use spin::Once;
 
 static HEAP: Once<Box<dyn syscalls::Heap + Send + Sync>> = Once::new();
-pub fn init(heap: Box<dyn syscalls::Heap + Send + Sync>) {
+static CRATE_DOMAIN_ID: Once<u64> = Once::new();
+
+pub fn init(heap: Box<dyn syscalls::Heap + Send + Sync>, domain_id: u64) {
     HEAP.call_once(|| heap);
+    CRATE_DOMAIN_ID.call_once(|| domain_id);
 }
 
 // Shared heap allocated value, something like Box<SharedHeapObject<T>>
@@ -42,7 +45,7 @@ impl<T> RRef<T> {
         //   2. The domain owning the RRef dies, and so the shared heap gets cleaned,
         //        and the memory under this RRef is wiped.
 
-        let domain_id = libsyscalls::syscalls::sys_get_current_domain_id();
+        let domain_id = unsafe { *CRATE_DOMAIN_ID.force_get() };
         let layout = Layout::new::<SharedHeapObject<T>>();
         let memory = unsafe { HEAP.force_get().alloc(domain_id, layout) };
 
@@ -67,6 +70,10 @@ impl<T> RRef<T> {
         unsafe {
             (*self.pointer).domain_id = new_domain_id
         };
+    }
+
+    pub unsafe fn move_to_current(&self) {
+        unsafe { self.move_to(*CRATE_DOMAIN_ID.force_get()) };
     }
 }
 

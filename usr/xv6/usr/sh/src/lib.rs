@@ -34,7 +34,7 @@ use crate::parse::{Command, Redir};
 pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, rv6: Xv6Ptr, args: &str) {
     libsyscalls::syscalls::init(s);
     usrlib::init(rv6.clone());
-    rref::init(heap);
+    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
     println!("Starting rv6 shell with args: {}", args);
 
     // sys_spawn_domain("benchfs", "benchfs", &[Some(0), Some(1), Some(2)]).unwrap();

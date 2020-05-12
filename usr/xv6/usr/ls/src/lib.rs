@@ -28,7 +28,7 @@ use usr::vfs::{VFSPtr, DirectoryEntry, DirectoryEntryRef, INodeFileType, FileMod
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, rv6: Box<dyn Xv6 + Send + Sync>, args: &str) {
     libsyscalls::syscalls::init(s);
-    rref::init(heap);
+    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
     usrlib::init(rv6.clone());
     println!("Starting rv6 ls with args: {}", args);
 

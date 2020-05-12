@@ -30,7 +30,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
             heap: Box<dyn Heap + Send + Sync>,
             memdisk: &'static mut [u8]) -> Box<dyn BDev> {
     libsyscalls::syscalls::init(s);
-    rref::init(heap);
+    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     Box::new(membdev::MemBDev::new(memdisk))
 }

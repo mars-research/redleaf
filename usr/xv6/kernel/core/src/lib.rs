@@ -44,7 +44,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
    
     libsyscalls::syscalls::init(s);
     libsyscalls::syscalls::init_interrupts(ints);
-    rref::init(heap);
+    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!("init xv6/core");
 

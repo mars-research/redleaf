@@ -34,7 +34,7 @@ pub fn init(
 ) -> Arc<dyn proxy::Proxy> {
 
     libsyscalls::syscalls::init(s);
-    rref::init(heap);
+    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     Arc::new(gen::Proxy::new(
         create_pci,

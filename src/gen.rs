@@ -7,6 +7,7 @@ use crate::domain::load_domain;
 use crate::syscalls::{PDomain, Interrupt, Mmap};
 use crate::heap::PHeap;
 use crate::interrupt::{disable_irq, enable_irq};
+use crate::thread;
 
 use spin::Mutex;
 use alloc::sync::Arc;
@@ -472,10 +473,24 @@ pub fn create_domain_pci_bus(name: &str,
     let mmap = Box::new(Mmap::new());
     let pheap = Box::new(PHeap::new());
 
+    // update current domain id
+    let thread = thread::get_current_ref();
+    let old_id = {
+        let mut thread = thread.lock();
+        let old_id = thread.current_domain_id;
+        thread.current_domain_id = dom.lock().id;
+        old_id
+    };
+
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     let pci = user_ep(pdom, mmap, pheap);
     disable_irq();
+
+    // change domain id back
+    {
+        thread.lock().current_domain_id = old_id;
+    }
 
     println!("domain/{}: returned from entry point", name);
     (Box::new(PDomain::new(Arc::clone(&dom))), pci)
@@ -498,10 +513,24 @@ pub fn create_domain_bdev(name: &str,
     let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
     let pheap = Box::new(PHeap::new());
 
+    // update current domain id
+    let thread = thread::get_current_ref();
+    let old_id = {
+        let mut thread = thread.lock();
+        let old_id = thread.current_domain_id;
+        thread.current_domain_id = dom.lock().id;
+        old_id
+    };
+
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     let bdev = user_ep(pdom, pheap, pci);
     disable_irq();
+
+    // change domain id back
+    {
+        thread.lock().current_domain_id = old_id;
+    }
 
     println!("domain/{}: returned from entry point", name);
     (Box::new(PDomain::new(Arc::clone(&dom))), bdev)
@@ -523,10 +552,24 @@ pub fn create_domain_bdev_mem(name: &str,
     let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
     let pheap = Box::new(PHeap::new());
 
+    // update current domain id
+    let thread = thread::get_current_ref();
+    let old_id = {
+        let mut thread = thread.lock();
+        let old_id = thread.current_domain_id;
+        thread.current_domain_id = dom.lock().id;
+        old_id
+    };
+
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     let bdev = user_ep(pdom, pheap, memdisk);
     disable_irq();
+
+    // change domain id back
+    {
+        thread.lock().current_domain_id = old_id;
+    }
 
     println!("domain/{}: returned from entry point", name);
     (Box::new(PDomain::new(Arc::clone(&dom))), bdev)
@@ -548,10 +591,24 @@ pub fn create_domain_bdev_shadow_helper(name: &str,
     let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
     let pheap = Box::new(PHeap::new());
 
+    // update current domain id
+    let thread = thread::get_current_ref();
+    let old_id = {
+        let mut thread = thread.lock();
+        let old_id = thread.current_domain_id;
+        thread.current_domain_id = dom.lock().id;
+        old_id
+    };
+
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     let bdev = user_ep(pdom, pheap, create);
     disable_irq();
+
+    // change domain id back
+    {
+        thread.lock().current_domain_id = old_id;
+    }
 
     println!("domain/{}: returned from entry point", name);
     (Box::new(PDomain::new(Arc::clone(&dom))), bdev)
@@ -573,10 +630,24 @@ pub fn create_domain_net(name: &str,
     let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
     let pheap = Box::new(PHeap::new());
 
+    // update current domain id
+    let thread = thread::get_current_ref();
+    let old_id = {
+        let mut thread = thread.lock();
+        let old_id = thread.current_domain_id;
+        thread.current_domain_id = dom.lock().id;
+        old_id
+    };
+
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     let net = user_ep(pdom, pheap, pci);
     disable_irq();
+
+    // change domain id back
+    {
+        thread.lock().current_domain_id = old_id;
+    }
 
     println!("domain/{}: returned from entry point", name);
     (Box::new(PDomain::new(Arc::clone(&dom))), net)
@@ -621,6 +692,15 @@ pub fn build_domain_init(name: &str,
         core::mem::transmute::<*const(), UserInit>(entry)
     };
 
+    // update current domain id
+    let thread = thread::get_current_ref();
+    let old_id = {
+        let mut thread = thread.lock();
+        let old_id = thread.current_domain_id;
+        thread.current_domain_id = dom.lock().id;
+        old_id
+    };
+
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     user_ep(Box::new(PDomain::new(Arc::clone(&dom))),
@@ -641,6 +721,11 @@ pub fn build_domain_init(name: &str,
             Arc::new(PDomain::new(Arc::clone(&dom))),
     );
     disable_irq();
+
+    // change domain id back
+    {
+        thread.lock().current_domain_id = old_id;
+    }
 
     println!("domain/{}: returned from entry point", name);
     Box::new(PDomain::new(Arc::clone(&dom)))
@@ -664,10 +749,24 @@ pub fn build_domain_fs(
     let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
     let pheap = Box::new(PHeap::new());
 
+    // update current domain id
+    let thread = thread::get_current_ref();
+    let old_id = {
+        let mut thread = thread.lock();
+        let old_id = thread.current_domain_id;
+        thread.current_domain_id = dom.lock().id;
+        old_id
+    };
+
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     let vfs = user_ep(pdom, pheap, bdev);
     disable_irq();
+
+    // change domain id back
+    {
+        thread.lock().current_domain_id = old_id;
+    }
 
     println!("domain/{}: returned from entry point", name);
     (Box::new(PDomain::new(Arc::clone(&dom))), vfs)
@@ -717,6 +816,15 @@ pub fn build_domain_proxy(
     let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
     let pheap = Box::new(PHeap::new());
 
+    // update current domain id
+    let thread = thread::get_current_ref();
+    let old_id = {
+        let mut thread = thread.lock();
+        let old_id = thread.current_domain_id;
+        thread.current_domain_id = dom.lock().id;
+        old_id
+    };
+
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     let proxy = user_ep(
@@ -736,6 +844,11 @@ pub fn build_domain_proxy(
         create_dom_d,
         create_shadow);
     disable_irq();
+
+    // change domain id back
+    {
+        thread.lock().current_domain_id = old_id;
+    }
 
     println!("domain/{}: returned from entry point", name);
     (Box::new(PDomain::new(Arc::clone(&dom))), proxy)
@@ -766,10 +879,24 @@ pub fn build_domain_xv6kernel(name: &str,
     let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
     let pheap = Box::new(PHeap::new());
 
+    // update current domain id
+    let thread = thread::get_current_ref();
+    let old_id = {
+        let mut thread = thread.lock();
+        let old_id = thread.current_domain_id;
+        thread.current_domain_id = dom.lock().id;
+        old_id
+    };
+
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     user_ep(pdom, pheap, ints, create_xv6fs, create_xv6usr, bdev);
     disable_irq();
+
+    // change domain id back
+    {
+        thread.lock().current_domain_id = old_id;
+    }
 
     println!("domain/{}: returned from entry point", name);
     Box::new(PDomain::new(Arc::clone(&dom)))
@@ -795,10 +922,24 @@ pub fn build_domain_xv6usr(name: &str,
     let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
     let pheap = Box::new(PHeap::new());
 
+    // update current domain id
+    let thread = thread::get_current_ref();
+    let old_id = {
+        let mut thread = thread.lock();
+        let old_id = thread.current_domain_id;
+        thread.current_domain_id = dom.lock().id;
+        old_id
+    };
+
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     user_ep(pdom, pheap, xv6, args);
     disable_irq();
+
+    // change domain id back
+    {
+        thread.lock().current_domain_id = old_id;
+    }
 
     println!("domain/{}: returned from entry point with return code", name);
     Box::new(PDomain::new(Arc::clone(&dom)))
@@ -820,10 +961,24 @@ pub fn build_domain_dom_a(name: &str,
     let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
     let pheap = Box::new(PHeap::new());
 
+    // update current domain id
+    let thread = thread::get_current_ref();
+    let old_id = {
+        let mut thread = thread.lock();
+        let old_id = thread.current_domain_id;
+        thread.current_domain_id = dom.lock().id;
+        old_id
+    };
+
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     let dom_a = user_ep(pdom, pheap);
     disable_irq();
+
+    // change domain id back
+    {
+        thread.lock().current_domain_id = old_id;
+    }
 
     println!("domain/{}: returned from entry point", name);
     (Box::new(PDomain::new(Arc::clone(&dom))), dom_a)
@@ -845,10 +1000,24 @@ pub fn build_domain_dom_b(name: &str,
     let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
     let pheap = Box::new(PHeap::new());
 
+    // update current domain id
+    let thread = thread::get_current_ref();
+    let old_id = {
+        let mut thread = thread.lock();
+        let old_id = thread.current_domain_id;
+        thread.current_domain_id = dom.lock().id;
+        old_id
+    };
+
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     user_ep(pdom, pheap, dom_a);
     disable_irq();
+
+    // change domain id back
+    {
+        thread.lock().current_domain_id = old_id;
+    }
 
     println!("domain/{}: returned from entry point", name);
     Box::new(PDomain::new(Arc::clone(&dom)))
@@ -869,10 +1038,24 @@ pub fn build_domain_dom_c(name: &str,
     let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
     let pheap = Box::new(PHeap::new());
 
+    // update current domain id
+    let thread = thread::get_current_ref();
+    let old_id = {
+        let mut thread = thread.lock();
+        let old_id = thread.current_domain_id;
+        thread.current_domain_id = dom.lock().id;
+        old_id
+    };
+
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     let dom_c = user_ep(pdom, pheap);
     disable_irq();
+
+    // change domain id back
+    {
+        thread.lock().current_domain_id = old_id;
+    }
 
     println!("domain/{}: returned from entry point", name);
     (Box::new(PDomain::new(Arc::clone(&dom))), dom_c)
@@ -894,10 +1077,24 @@ pub fn build_domain_dom_d(name: &str,
     let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
     let pheap = Box::new(PHeap::new());
 
+    // update current domain id
+    let thread = thread::get_current_ref();
+    let old_id = {
+        let mut thread = thread.lock();
+        let old_id = thread.current_domain_id;
+        thread.current_domain_id = dom.lock().id;
+        old_id
+    };
+
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     user_ep(pdom, pheap, dom_c);
     disable_irq();
+
+    // change domain id back
+    {
+        thread.lock().current_domain_id = old_id;
+    }
 
     println!("domain/{}: returned from entry point", name);
     Box::new(PDomain::new(Arc::clone(&dom)))
@@ -920,10 +1117,24 @@ pub fn build_domain_shadow(name: &str,
     let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
     let pheap = Box::new(PHeap::new());
 
+    // update current domain id
+    let thread = thread::get_current_ref();
+    let old_id = {
+        let mut thread = thread.lock();
+        let old_id = thread.current_domain_id;
+        thread.current_domain_id = dom.lock().id;
+        old_id
+    };
+
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     let shadow = user_ep(pdom, pheap, create_dom_c);
     disable_irq();
+
+    // change domain id back
+    {
+        thread.lock().current_domain_id = old_id;
+    }
 
     println!("domain/{}: returned from entry point", name);
     (Box::new(PDomain::new(Arc::clone(&dom))), shadow)

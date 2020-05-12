@@ -175,7 +175,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
             heap: Box<dyn syscalls::Heap + Send + Sync>,
             pci: Box<dyn usr::pci::PCI>) -> Box<dyn usr::bdev::BDev> {
     libsyscalls::syscalls::init(s);
-    rref::init(heap);
+    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     let mut ahci = Ahci::new();
     if let Err(_) = pci.pci_register_driver(&mut ahci, /*ABAR index*/5, Some((PciClass::Storage, /*SATA*/0x06))) {

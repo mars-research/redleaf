@@ -55,9 +55,9 @@ impl usr::dom_a::DomA for DomA {
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>) -> Box<dyn usr::dom_a::DomA> {
     libsyscalls::syscalls::init(s);
-    rref::init(heap);
+    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
-    println!("In domain A");
+    println!("In domain A, id: {}", libsyscalls::syscalls::sys_get_current_domain_id());
 
     Box::new(DomA::new())
 }

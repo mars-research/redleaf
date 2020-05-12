@@ -20,7 +20,7 @@ fn test_submit_and_poll(dom_a: &mut Box<dyn DomA>) {
         packets.push_back(RRef::<[u8;100]>::new([i;100]));
     }
 
-    let ops = 1_000_000;
+    let ops = 10_000_000;
 
     let start = rdtsc();
     let mut packets = Some(packets);
@@ -41,9 +41,9 @@ fn test_submit_and_poll(dom_a: &mut Box<dyn DomA>) {
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, dom_a: Box<dyn DomA>) {
     libsyscalls::syscalls::init(s);
-    rref::init(heap);
+    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
-    println!("In domain B");
+    println!("In domain B, id: {}", libsyscalls::syscalls::sys_get_current_domain_id());
 
     let mut dom_a = dom_a;
     test_submit_and_poll(&mut dom_a);

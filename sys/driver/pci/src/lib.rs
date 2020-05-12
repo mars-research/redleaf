@@ -88,7 +88,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
 
     libsyscalls::syscalls::init_mmap(m);
 
-    rref::init(heap);
+    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     sys_println("init: starting PCI domain");
 
