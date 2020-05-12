@@ -79,8 +79,7 @@ impl<T> RRef<T> {
 impl<T> Drop for RRef<T> {
     fn drop(&mut self) {
         unsafe {
-            // TODO: is this drop correct? dropping T should only be necessary for cleanup code,
-            //       but calling drop may be undefined behavior
+            // explicitly dropping T allows for dropping recursive RRefs
             drop(&mut (*self.pointer).value);
             HEAP.force_get().dealloc(self.pointer as *mut u8);
         };
