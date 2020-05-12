@@ -149,7 +149,7 @@ impl create::CreateBDevShadow for Proxy {
 }
 
 impl create::CreateIxgbe for Proxy {
-    fn create_domain_ixgbe(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net>) {
+    fn create_domain_ixgbe(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net + Send>) {
         let (domain, ixgbe) = self.create_ixgbe.create_domain_ixgbe(pci);
         let domain_id = domain.get_domain_id();
         (domain, Box::new(IxgbeProxy::new(domain_id, ixgbe)))

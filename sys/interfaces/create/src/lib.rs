@@ -25,7 +25,7 @@ pub trait CreateBDevShadow {
 }
 
 pub trait CreateIxgbe {
-    fn create_domain_ixgbe(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net>);
+    fn create_domain_ixgbe(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net + Send>);
 }
 
 pub trait CreateXv6FS {

@@ -799,7 +799,7 @@ const ONE_MS_IN_NS: u64 = 1_000_000 * 1;
 #[no_mangle]
 pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
                  heap: Box<dyn Heap + Send + Sync>,
-                 pci: Box<dyn usr::pci::PCI>) -> Box<dyn usr::net::Net> {
+                 pci: Box<dyn usr::pci::PCI>) -> Box<dyn usr::net::Net + Send> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 

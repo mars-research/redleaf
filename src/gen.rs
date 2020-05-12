@@ -59,7 +59,7 @@ impl create::CreateBDevShadow for PDomain {
 }
 
 impl create::CreateIxgbe for PDomain {
-    fn create_domain_ixgbe(&self, pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::net::Net>) {
+    fn create_domain_ixgbe(&self, pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::net::Net + Send>) {
         disable_irq();
         let r = create_domain_ixgbe(pci);
         enable_irq();
@@ -240,7 +240,7 @@ pub fn create_domain_ahci(pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Dom
     unimplemented!()
 }
 
-pub fn create_domain_ixgbe(pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::net::Net>) {
+pub fn create_domain_ixgbe(pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::net::Net + Send>) {
 
     extern "C" {
         fn _binary_sys_driver_ixgbe_build_ixgbe_start();
@@ -619,8 +619,8 @@ pub fn create_domain_bdev_shadow_helper(name: &str,
 
 pub fn create_domain_net(name: &str,
                          binary_range: (*const u8, *const u8),
-                         pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::net::Net>) {
-    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, Box<dyn usr::pci::PCI>) -> Box<dyn usr::net::Net>;
+                         pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::net::Net + Send>) {
+    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, Box<dyn usr::pci::PCI>) -> Box<dyn usr::net::Net + Send>;
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)

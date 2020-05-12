@@ -3,23 +3,26 @@ use alloc::borrow::ToOwned;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use spin::Mutex;
 
 use console::println;
 use create::CreateXv6Usr;
-
 use usr_interface::xv6::{Xv6, Xv6Ptr, Thread};
 use usr_interface::vfs::{VFS, FileMode, VFSPtr, UsrVFS, FileStat, NFILE, Result};
+use usr_interface::net::Net;
 
 pub struct Rv6Syscalls {
     create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>,
     fs: VFSPtr,
+    net: Arc<Mutex<Box<dyn Net + Send>>>,
 }
 
 impl Rv6Syscalls {
-    pub fn new(create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>, fs: VFSPtr) -> Self {
+    pub fn new(create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>, fs: VFSPtr, net: Box<dyn Net + Send>) -> Self {
         Self {
             create_xv6usr,
             fs,
+            net: Arc::new(Mutex::new(net)),
         }
     }
 }
@@ -27,7 +30,11 @@ impl Rv6Syscalls {
 
 impl Xv6 for Rv6Syscalls {
     fn clone(&self) -> Xv6Ptr {
-        Box::new(Self::new(self.create_xv6usr.clone(), self.fs.clone()))
+        box Self {
+            create_xv6usr: self.create_xv6usr.clone(),
+            fs: self.fs.clone(), 
+            net: self.net.clone(),
+        }
     }
     
     fn sys_spawn_thread(&self, name: &str, func: Box<dyn FnOnce() + Send>) -> Box<dyn Thread> {
