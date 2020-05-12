@@ -11,6 +11,7 @@ pub fn init(heap: Box<dyn syscalls::Heap + Send + Sync>) {
 
 // Shared heap allocated value, something like Box<SharedHeapObject<T>>
 // This is the struct allocated on the shared heap.
+#[repr(C)]
 struct SharedHeapObject<T> where T: 'static {
     domain_id: u64,
     value: T,
@@ -59,12 +60,11 @@ impl<T> RRef<T> {
         }
     }
 
-    // TODO: mark unsafe so user domain can't call it?
-    // TODO: use &mut self?
+    // TODO: move to kernel if possible
+    // TODO: mark unsafe
     pub fn move_to(&self, new_domain_id: u64) {
         // TODO: race here
         unsafe {
-            HEAP.force_get().change_domain(self.pointer as *mut u8, new_domain_id);
             (*self.pointer).domain_id = new_domain_id
         };
     }

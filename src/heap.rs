@@ -5,11 +5,8 @@ use spin::Mutex;
 use crate::interrupt::{disable_irq, enable_irq};
 use crate::memory::MEM_PROVIDER;
 
-// usize == *mut u8
 struct SharedHeapAllocation {
-    // TODO: we can *probably* get the domain_id via ptr
-    domain_id: u64,
-    ptr: usize,
+    ptr: usize, // *mut SharedHeapObject<T>
     layout: Layout,
 }
 
@@ -37,12 +34,6 @@ impl syscalls::Heap for PHeap {
         dealloc_heap(ptr);
         enable_irq();
     }
-
-    unsafe fn change_domain(&self, ptr: *mut u8, new_domain_id: u64) {
-        disable_irq();
-        change_domain(ptr, new_domain_id);
-        enable_irq();
-    }
 }
 
 unsafe fn alloc_heap(domain_id: u64, layout: Layout) -> *mut u8 {
@@ -51,7 +42,6 @@ unsafe fn alloc_heap(domain_id: u64, layout: Layout) -> *mut u8 {
         let lock = alloc_lock.lock();
 
         unsafe { &mut allocations }.push(SharedHeapAllocation {
-            domain_id,
             ptr: ptr as usize,
             layout
         });
@@ -77,22 +67,15 @@ unsafe fn dealloc_heap(ptr: *mut u8) {
     drop(lock);
 }
 
-fn change_domain(ptr: *mut u8, new_domain_id: u64) {
-    // TODO: this is lockless but probably not threadsafe
-    // TODO: currently does a linear scan, which is slow
-    for allocation in unsafe { &mut allocations }.iter_mut() {
-        if ptr == allocation.ptr as *mut u8 {
-            allocation.domain_id = new_domain_id;
-            break;
-        }
-    }
-}
-
-unsafe fn drop_domain(domain_id: u64) {
+pub unsafe fn drop_domain(domain_id: u64) {
     let lock = alloc_lock.lock();
     // remove all allocations from list that belong to the exited domain
     (&mut allocations).retain(|allocation| {
-        if domain_id == allocation.domain_id {
+        // NOTE: allocation.ptr is *mut SharedHeapObject<T>
+        //          because SharedHeapObject<T> is repr(C), and domain_id:u64 is the first field,
+        //          we can extract domain_id by casting to *const u64 and dereferencing.
+        let this_domain_id = *(allocation.ptr as *const u64);
+        if domain_id == this_domain_id {
             unsafe { MEM_PROVIDER.dealloc(allocation.ptr as *mut u8, allocation.layout) }
             false
         } else {
