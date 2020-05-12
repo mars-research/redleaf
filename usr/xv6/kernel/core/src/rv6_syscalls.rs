@@ -1,5 +1,6 @@
 use alloc::boxed::Box;
 use alloc::borrow::ToOwned;
+use alloc::collections::VecDeque;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
@@ -7,6 +8,7 @@ use spin::Mutex;
 
 use console::println;
 use create::CreateXv6Usr;
+use rref::RRefDeque;
 use usr_interface::xv6::{Xv6, Xv6Ptr, Thread};
 use usr_interface::vfs::{VFS, FileMode, VFSPtr, UsrVFS, FileStat, NFILE, Result};
 use usr_interface::net::Net;
@@ -98,6 +100,24 @@ impl UsrVFS for Rv6Syscalls {
     }
     fn sys_dump_inode(&self) {
         self.fs.sys_dump_inode()
+    }
+}
+
+impl Net for Rv6Syscalls {
+    fn submit_and_poll(&mut self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
+        self.net.lock().submit_and_poll(packets, reap_queue, tx)
+    }
+
+    fn submit_and_poll_rref(
+        &mut self,
+        packets: RRefDeque<[u8; 1512], 32>,
+        collect: RRefDeque<[u8; 1512], 32>,
+        tx: bool) -> (
+            usize,
+            RRefDeque<[u8; 1512], 32>,
+            RRefDeque<[u8; 1512], 32>
+        ) {
+        self.net.lock().submit_and_poll_rref(packets, collect, tx)
     }
 }
 
