@@ -25,6 +25,7 @@ extern crate spin;
 extern crate lazy_static;
 #[macro_use]
 extern crate byteorder;
+extern crate memcpy;
 extern crate syscalls;
 extern crate tls;
 
@@ -40,7 +41,6 @@ use sysfile::{FileMode, FileStat};
 use syscalls::{Syscall, Heap};
 use usr_interface::vfs::{UsrVFS, KernelVFS, VFS, VFSPtr, NFILE, Result};
 use usr_interface::bdev::BDev;
-use memcpy;
 
 mod bcache;
 mod block;
