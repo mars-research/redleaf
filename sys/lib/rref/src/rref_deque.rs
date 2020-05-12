@@ -52,3 +52,13 @@ impl<T, const N: usize> RRefDeque<T, N> {
         return value;
     }
 }
+
+impl<T, const N: usize> Default for RRefDeque<T, N> {
+    fn default() -> Self {
+        Self {
+            arr: Default::default(),
+            head: 0,
+            tail: 0,
+        }
+    }
+}

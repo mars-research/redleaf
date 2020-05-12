@@ -14,8 +14,8 @@ use usr::dom_a::DomA;
 use libtime::get_rdtsc as rdtsc;
 
 fn test_submit_and_poll(dom_a: &mut Box<dyn DomA>) {
-    let mut packets = RRefDeque::<[u8; 100], 32>::new(Default::default());
-    let mut reap_queue = RRefDeque::<[u8; 100], 32>::new(Default::default());
+    let mut packets = RRefDeque::<[u8; 100], 32>::default();
+    let mut reap_queue = RRefDeque::<[u8; 100], 32>::default();
     for i in 0..32 {
         packets.push_back(RRef::<[u8;100]>::new([i;100]));
     }
