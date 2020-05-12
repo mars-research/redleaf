@@ -168,10 +168,11 @@ impl pci_driver::PciDriver for Ixgbe {
 
 const BATCH_SIZE: usize = 32;
 
-fn run_tx_udp_test_rref(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
+fn run_tx_udptest_rref(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
     let batch_sz: usize = BATCH_SIZE;
     let mut packets = RRefDeque::<[u8; 1512], 32>::new(Default::default());
     let mut collect = RRefDeque::<[u8; 1512], 32>::new(Default::default());
+   // let mut poll =  RRefDeque::<[u8; 1512], 512>::new(Default::default());
 
     let mac_data = alloc::vec![
         0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81, // Dst mac
@@ -232,12 +233,20 @@ fn run_tx_udp_test_rref(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
         packets.push_back(RRef::<[u8; 1512]>::new(pkt_arr.clone()));
     }
 
+
+    //for i in 0..512 {
+        //poll.push_back(RRef::<[u8; 1512]>::new(pkt_arr.clone()));
+    //}
+
     let mut append_rdtsc: u64 = 0;
     let mut count: u64 = 0;
     let mut alloc_count = 0;
 
     let mut packets = Some(packets);
     let mut collect = Some(collect);
+
+    let mut collect_tx_hist = Base2Histogram::new();
+    //let mut poll = Some(poll);
 
     if let Some(device) = dev.device.borrow_mut().as_mut() {
         let dev: &mut Intel8259x = device;
@@ -250,6 +259,8 @@ fn run_tx_udp_test_rref(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
                                     collect.take().unwrap(), true, debug);
             sum += ret;
     
+            collect_tx_hist.record(collect_.len() as u64);
+
             while let Some(packet) = collect_.pop_front() {
                 packets_.push_back(packet);
             }
@@ -275,10 +286,21 @@ fn run_tx_udp_test_rref(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
         println!("==> tx batch {} : {} iterations took {} cycles (avg = {})", payload_sz, sum, elapsed, elapsed / sum as u64);
         dev.dump_stats();
         println!(" alloc_count {}", alloc_count * 32);
-        //println!("Reaped {} packets", dev.device.tx_poll(&mut collect));
+        //println!("packet.len {} collect.len {}", packets.unwrap().len(), collect.unwrap().len());
+        //println!("Reaped {} packets", dev.device.tx_poll_rref(poll.take().unwrap()).0);
+        for hist in alloc::vec![collect_tx_hist] {
+            println!("hist:");
+            // Iterate buckets that have observations
+            for bucket in hist.iter().filter(|b| b.count > 0) {
+                print!("({:5}, {:5}): {}", bucket.start, bucket.end, bucket.count);
+                print!("\n");
+            }
+        }
+
     }
 }
-fn run_tx_udp_test(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
+
+fn run_tx_udptest(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
     let batch_sz: usize = BATCH_SIZE;
     let mut packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
     let mut collect: VecDeque<Vec<u8>> = VecDeque::new();
@@ -368,6 +390,112 @@ fn run_tx_udp_test(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
         dev.dump_stats();
         println!(" alloc_count {}", alloc_count * 32);
         println!("Reaped {} packets", dev.device.tx_poll(&mut collect));
+    }
+}
+
+fn run_rx_udptest_rref(dev: &Ixgbe, pkt_size: usize, debug: bool) {
+    let pkt_size = 2048;
+    let batch_sz: usize = BATCH_SIZE;
+    let mut packets = RRefDeque::<[u8; 1512], 32>::new(Default::default());
+    let mut collect = RRefDeque::<[u8; 1512], 32>::new(Default::default());
+
+    let mut pkt_arr = [0; 1512];
+
+    for i in 0..batch_sz {
+        packets.push_back(RRef::<[u8; 1512]>::new(pkt_arr.clone()));
+    }
+
+    let mut packets = Some(packets);
+    let mut collect = Some(collect);
+
+
+    println!("run_rx_udptest_rref");
+
+    if let Some(device) = dev.device.borrow_mut().as_mut() {
+        let dev: &mut Intel8259x = device;
+        let mut sum: usize = 0;
+        let mut alloc_count = 0;
+
+        let mut submit_rx_hist = Base2Histogram::new();
+        let mut collect_rx_hist = Base2Histogram::new();
+
+        let mut collect_start = true;
+        let mut collect_end = false;
+        let mut seq_start: u64 = 0;
+        let mut seq_end: u64 = 0;
+
+        let start = rdtsc();
+        let end = start + 15 * 2_600_000_000;
+
+        loop {
+            //submit_rx_hist.record(packets.len() as u64);
+
+            let (ret, mut packets_, mut collect_) = dev.device.submit_and_poll_rref(packets.take().unwrap(),
+                                    collect.take().unwrap(), false, debug);
+
+            //if debug {
+                //println!("rx packets.len {} collect.len {} ret {}", packets.len(), collect.len(), ret);
+            //}
+            sum += collect_.len();
+            collect_rx_hist.record(collect_.len() as u64);
+
+            //if collect_start && !collect.is_empty() {
+                //let pkt = &collect[0];
+                //dump_packet(pkt);
+                //seq_start = BigEndian::read_u64(&pkt[42..42+8]);
+                //collect_start = false;
+                //collect_end = true;
+            //}
+
+            //packets.append(&mut collect);
+
+            while let Some(packet) = collect_.pop_front() {
+                packets_.push_back(packet);
+            }
+
+            if rdtsc() > end {
+                break;
+            }
+
+            //if packets_.len() < batch_sz / 4 {
+            if packets_.len() == 0 {
+                let alloc_sz = batch_sz - packets_.len();
+                //println!("allocating new batch");
+                alloc_count += 1;
+
+                for i in 0..alloc_sz {
+                    packets_.push_back(RRef::<[u8; 1512]>::new(pkt_arr.clone()));
+                }
+            }
+
+            packets.replace(packets_);
+            collect.replace(collect_);
+        }
+
+        let elapsed = rdtsc() - start;
+
+        //println!("rx packets.len {} collect.len {} ", packets.len(), collect.len());
+        //let ret = idev.device.submit_and_poll(&mut packets, &mut collect, false, false);
+        //if collect_end && !collect.is_empty() {
+            //let pkt = &collect[0];
+            //dump_packet(pkt);
+            //seq_end = BigEndian::read_u64(&pkt[42..42+8]);
+        //}
+
+        //println!("seq_start {} seq_end {} delta {}", seq_start, seq_end, seq_end - seq_start);
+        println!("sum {} batch alloc_count {}", sum, alloc_count);
+        println!("==> rx batch {}B: {} iterations took {} cycles (avg = {})", pkt_size, sum, elapsed, elapsed / sum as u64);
+        dev.dump_stats();
+        for hist in alloc::vec![submit_rx_hist, collect_rx_hist] {
+            println!("hist:");
+            // Iterate buckets that have observations
+            for bucket in hist.iter().filter(|b| b.count > 0) {
+                print!("({:5}, {:5}): {}", bucket.start, bucket.end, bucket.count);
+                print!("\n");
+            }
+        }
+
+        //println!("Reaped {} packets", dev.device.rx_poll(&mut collect));
     }
 }
 
@@ -685,18 +813,23 @@ pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
 
     let payload_sz = alloc::vec![64 - 42, 64, 128, 256, 512, 1470];
 
+    let start = rdtsc();
 
-    run_tx_udp_test_rref(&ixgbe, 22, false);
+    run_tx_udptest(&ixgbe, 22, false);
+
+    run_tx_udptest_rref(&ixgbe, 22, false);
+    
+    run_rx_udptest_rref(&ixgbe, 22, false);
 
     /*println!("=> Running tests...");
 
     for p in payload_sz.iter() {
         println!("running {}B payload test", p);
         println!("Tx test");
-        run_tx_udp_test(&ixgbe, *p, false);
+        run_tx_udptest(&ixgbe, *p, false);
 
         println!("Rx test");
-        run_tx_udp_test(&ixgbe, *p, false);
+        run_rx_udptest(&ixgbe, *p, false);
 
         println!("Fwd test");
         run_fwd_udptest(&ixgbe, 64 - 42);
