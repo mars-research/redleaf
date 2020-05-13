@@ -744,6 +744,9 @@ fn run_fwd_udptest_rref(dev: &Ixgbe, pkt_size: u16) {
         let mut tx_elapsed = 0;
         let mut rx_elapsed = 0;
 
+        let mut mswap_elapsed = 0;
+        let mut bswap_elapsed = 0;
+
         let mut submit_rx: usize = 0;
         let mut submit_tx: usize = 0;
         let mut loop_count: usize = 0;
@@ -760,12 +763,13 @@ fn run_fwd_udptest_rref(dev: &Ixgbe, pkt_size: u16) {
             let rx_start = rdtsc();
             let (ret, mut rx_submit_, mut rx_collect_) = dev.device.submit_and_poll_rref(rx_submit.take().unwrap(),
                                     rx_collect.take().unwrap(), false, false);
-            rx_elapsed += rdtsc() - rx_start;
             sum += ret;
+            rx_elapsed += rdtsc() - rx_start;
 
             //println!("rx: submitted {} collect {}", ret, rx_collect_.len());
 
 
+            let ms_start = rdtsc();
             // XXX: macswap, a bit hacky
             for _ in 0..rx_collect_.len() {
                 if let Some (mut pkt) = rx_collect_.pop_front() {
@@ -783,6 +787,7 @@ fn run_fwd_udptest_rref(dev: &Ixgbe, pkt_size: u16) {
                     }
                 }
             }
+            mswap_elapsed += rdtsc() - ms_start;
 
             /*while let Some(mut pkt) = rx_collect_.pop_front() {
                 /*unsafe {
@@ -824,12 +829,14 @@ fn run_fwd_udptest_rref(dev: &Ixgbe, pkt_size: u16) {
 
             //print!("tx: submitted {} collect {}\n", ret, tx_collect_.len());
 
+            let bswap_start = rdtsc();
             while let Some(pkt) = tx_collect_.pop_front() {
                 if rx_submit_.push_back(pkt).is_some() {
                     println!("Pushing to full tx_packets_1 queue");
                     break;
                 }
             }
+            bswap_elapsed += rdtsc() - bswap_start;
 
             if rx_submit_.len() == 0 && rx_collect_.len() < batch_sz * 4 {
                 //println!("-> Allocating new rx_ptx batch");
@@ -865,8 +872,14 @@ fn run_fwd_udptest_rref(dev: &Ixgbe, pkt_size: u16) {
                             submit_rx, submit_rx / loop_count, submit_tx, submit_tx / loop_count, loop_count);
         println!(" ==> rx batching {}B: {} packets took {} cycles (avg = {})",
                             pkt_size, sum, rx_elapsed, rx_elapsed  / sum as u64);
+        println!(" ==> mac_swap {}B: {} packets took {} cycles (avg = {})",
+                            pkt_size, sum, mswap_elapsed, mswap_elapsed / sum as u64);
+
         println!(" ==> tx batching {}B: {} packets took {} cycles (avg = {})",
                             pkt_size, fwd_sum, tx_elapsed, tx_elapsed  / fwd_sum as u64);
+        println!(" ==> buffer_swap {}B: {} packets took {} cycles (avg = {})",
+                            pkt_size, sum, bswap_elapsed, bswap_elapsed / sum as u64);
+
         println!("==> fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_size, fwd_sum, elapsed, elapsed / fwd_sum as u64);
         dev.dump_stats();
     }
@@ -898,6 +911,9 @@ fn run_fwd_udptest(dev: &Ixgbe, pkt_size: u16) {
         let mut tx_elapsed = 0;
         let mut rx_elapsed = 0;
 
+        let mut mswap_elapsed = 0;
+        let mut bswap_elapsed = 0;
+
         let mut submit_rx: usize = 0;
         let mut submit_tx: usize = 0;
         let mut loop_count: usize = 0;
@@ -915,12 +931,14 @@ fn run_fwd_udptest(dev: &Ixgbe, pkt_size: u16) {
 
             //println!("rx: submitted {} collect {}", ret, tx_packets.len());
 
+            let ms_start = rdtsc();
             for pkt in tx_packets.iter_mut() {
                 unsafe {
                     ptr::copy(our_mac.as_ptr(), pkt.as_mut_ptr().offset(6), our_mac.capacity());
                     ptr::copy(sender_mac.as_ptr(), pkt.as_mut_ptr().offset(0), sender_mac.capacity());
                 }
             }
+            mswap_elapsed += rdtsc() - ms_start;
 
             submit_tx += tx_packets.len();
             submit_tx_hist.record(tx_packets.len() as u64);
@@ -958,6 +976,8 @@ fn run_fwd_udptest(dev: &Ixgbe, pkt_size: u16) {
                             submit_rx, submit_rx / loop_count, submit_tx, submit_tx / loop_count, loop_count);
         println!(" ==> rx batching {}B: {} packets took {} cycles (avg = {})",
                             pkt_size, sum, rx_elapsed, rx_elapsed  / sum as u64);
+        println!(" ==> mac_swap {}B: {} packets took {} cycles (avg = {})",
+                            pkt_size, sum, mswap_elapsed, mswap_elapsed / sum as u64);
         println!(" ==> tx batching {}B: {} packets took {} cycles (avg = {})",
                             pkt_size, fwd_sum, tx_elapsed, tx_elapsed  / fwd_sum as u64);
         println!("==> fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_size, fwd_sum, elapsed, elapsed / fwd_sum as u64);
@@ -992,6 +1012,8 @@ pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
     run_tx_udptest_rref(&ixgbe, 22, false);
     
     run_rx_udptest_rref(&ixgbe, 22, false);
+
+    run_fwd_udptest(&ixgbe, 64 - 42);
 
     run_fwd_udptest_rref(&ixgbe, 64 - 42);
 
