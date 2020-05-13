@@ -26,10 +26,10 @@ impl MemBDev {
 impl BDev for MemBDev {
     fn read(&self, block: u32, mut data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>> {
         // console::println!("bdev.read {}", block);
-        if block == 304 {
-            // Will panic the second time we see this block
-            assert!(!self.seen.swap(true, Ordering::SeqCst));
-        }
+        // if block == 304 {
+        //     // Will panic the second time we see this block
+        //     assert!(!self.seen.swap(true, Ordering::SeqCst));
+        // }
         let start = block as usize * Self::SECTOR_SIZE;
         let size = data.len();
 
