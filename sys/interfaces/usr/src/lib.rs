@@ -13,5 +13,6 @@ pub mod dom_c;
 pub mod error;
 pub mod net;
 pub mod pci;
+pub mod rpc;
 pub mod vfs;
 pub mod xv6;

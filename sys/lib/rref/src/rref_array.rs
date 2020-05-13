@@ -1,5 +1,4 @@
 use crate::rref::RRef;
-use libsyscalls;
 
 pub struct RRefArray<T, const N: usize> where T: 'static {
     arr: RRef<[Option<RRef<T>>; N]>
@@ -19,8 +18,7 @@ impl<T, const N: usize> RRefArray<T, N> {
     pub fn get(&mut self, index: usize) -> Option<RRef<T>> {
         let value = self.arr[index].take();
         if let Some(rref) = value.as_ref() {
-            let domain_id = libsyscalls::syscalls::sys_get_current_domain_id();
-            rref.move_to(domain_id);
+            unsafe { rref.move_to_current() };
         }
         return value;
     }
@@ -32,5 +30,29 @@ impl<T, const N: usize> RRefArray<T, N> {
 
     pub fn move_to(&self, new_domain_id: u64) {
         self.arr.move_to(new_domain_id);
+    }
+
+    pub(crate) fn get_ref(&self, index: usize) -> Option<&T> {
+        self.arr[index].as_ref().map(|r| &**r)
+    }
+
+    pub(crate) fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+        self.arr[index].as_mut().map(|r| &mut **r)
+    }
+}
+
+impl<T, const N: usize> Default for RRefArray<T, N> {
+    fn default() -> Self {
+        // https://www.joshmcguigan.com/blog/array-initialization-rust/
+        let arr = unsafe {
+            let mut arr: [Option<RRef<T>>; N] = core::mem::uninitialized();
+            for item in &mut arr[..] {
+                core::ptr::write(item, None);
+            }
+            arr
+        };
+        Self {
+            arr: RRef::new(arr)
+        }
     }
 }

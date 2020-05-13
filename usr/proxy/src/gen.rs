@@ -7,6 +7,7 @@ use alloc::sync::Arc;
 use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain_id};
 use syscalls::{Heap, Domain, Interrupt};
 use usr::{bdev::{BDev, BSIZE}, vfs::VFS, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}};
+use usr::rpc::{RpcResult, RpcError};
 use console::{println, print};
 use unwind::trampoline;
 
@@ -18,6 +19,7 @@ pub struct Proxy {
     create_pci: Arc<dyn create::CreatePCI>,
     create_ahci: Arc<dyn create::CreateAHCI>,
     create_membdev: Arc<dyn create::CreateMemBDev>,
+    create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
     create_ixgbe: Arc<dyn create::CreateIxgbe>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
     create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
@@ -37,6 +39,7 @@ impl Proxy {
         create_pci: Arc<dyn create::CreatePCI>,
         create_ahci: Arc<dyn create::CreateAHCI>,
         create_membdev: Arc<dyn create::CreateMemBDev>,
+        create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
         create_ixgbe: Arc<dyn create::CreateIxgbe>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
         create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
@@ -51,6 +54,7 @@ impl Proxy {
             create_pci,
             create_ahci,
             create_membdev,
+            create_bdev_shadow,
             create_ixgbe,
             create_xv6fs,
             create_xv6usr,
@@ -73,6 +77,9 @@ impl proxy::Proxy for Proxy {
         Arc::new(self.clone())
     }
     fn as_create_membdev(&self) -> Arc<dyn create::CreateMemBDev> {
+        Arc::new(self.clone())
+    }
+    fn as_create_bdev_shadow(&self) -> Arc<dyn create::CreateBDevShadow> {
         Arc::new(self.clone())
     }
     fn as_create_ixgbe(&self) -> Arc<dyn create::CreateIxgbe> {
@@ -120,16 +127,29 @@ impl create::CreateAHCI for Proxy {
 }
 
 impl create::CreateMemBDev for Proxy {
-    fn create_domain_membdev(&self) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>) {
-        let (domain, membdev) = self.create_membdev.create_domain_membdev();
+    fn create_domain_membdev(&self, memdisk: &'static mut [u8]) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>) {
+        let (domain, membdev) = self.create_membdev.create_domain_membdev(memdisk);
+        let domain_id = domain.get_domain_id();
+        return (domain, Box::new(BDevProxy::new(domain_id, membdev)));
+    }
+
+    fn recreate_domain_membdev(&self, dom: Box<dyn syscalls::Domain>, memdisk: &'static mut [u8]) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>) {
+        let (domain, membdev) = self.create_membdev.recreate_domain_membdev(dom, memdisk);
         let domain_id = domain.get_domain_id();
         return (domain, Box::new(BDevProxy::new(domain_id, membdev)));
     }
 }
 
+impl create::CreateBDevShadow for Proxy {
+    fn create_domain_bdev_shadow(&self, create: Arc<dyn create::CreateMemBDev>) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>) {
+        let (domain, shadow) = self.create_bdev_shadow.create_domain_bdev_shadow(create);
+        let domain_id = domain.get_domain_id();
+        return (domain, Box::new(BDevProxy::new(domain_id, shadow)));
+    }
+}
 
 impl create::CreateIxgbe for Proxy {
-    fn create_domain_ixgbe(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net>) {
+    fn create_domain_ixgbe(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net + Send>) {
         let (domain, ixgbe) = self.create_ixgbe.create_domain_ixgbe(pci);
         let domain_id = domain.get_domain_id();
         (domain, Box::new(IxgbeProxy::new(domain_id, ixgbe)))
@@ -155,9 +175,10 @@ impl create::CreateXv6 for Proxy {
                                ints: Box<dyn Interrupt>,
                                create_xv6fs: Arc<dyn create::CreateXv6FS>,
                                create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
-                               bdev: Box<dyn BDev + Send + Sync>) -> Box<dyn Domain> {
+                               bdev: Box<dyn BDev + Send + Sync>,
+                               net: Box<dyn usr::net::Net>) -> Box<dyn Domain> {
         // TODO: write Xv6KernelProxy
-        self.create_xv6.create_domain_xv6kernel(ints, create_xv6fs, create_xv6usr, bdev)
+        self.create_xv6.create_domain_xv6kernel(ints, create_xv6fs, create_xv6usr, bdev, net)
     }
 }
 
@@ -221,14 +242,71 @@ impl BDevProxy {
     }
 }
 
+/* 
+ * Code to unwind bdev.read
+ */
+
+#[no_mangle]
+pub extern fn bdev_read(s: &Box<usr::bdev::BDev>, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>> {
+    //println!("one_arg: x:{}", x);
+    s.read(block, data)
+}
+
+#[no_mangle]
+pub extern fn bdev_read_err(s: &Box<usr::bdev::BDev>, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>> {
+    println!("bdev.read was aborted, block:{}", block);
+    Err(unsafe{RpcError::panic()})
+}
+
+#[no_mangle]
+pub extern "C" fn bdev_read_addr() -> u64 {
+    bdev_read_err as u64
+}
+
+extern {
+    fn bdev_read_tramp(s: &Box<usr::bdev::BDev>, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>>;
+}
+
+trampoline!(bdev_read);
+
+/* 
+ * Code to unwind bdev.write
+ */
+
+#[no_mangle]
+pub extern fn bdev_write(s: &Box<usr::bdev::BDev>, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()> {
+    //println!("one_arg: x:{}", x);
+    s.write(block, data)
+}
+
+#[no_mangle]
+pub extern fn bdev_write_err(s: &Box<usr::bdev::BDev>, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()> {
+    println!("bdev.read was aborted, block:{}", block);
+    Err(unsafe{RpcError::panic()})
+}
+
+#[no_mangle]
+pub extern "C" fn bdev_write_addr() -> u64 {
+    bdev_write_err as u64
+}
+
+extern {
+    fn bdev_write_tramp(s: &Box<usr::bdev::BDev>, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()>;
+}
+
+trampoline!(bdev_write);
+
 impl BDev for BDevProxy {
-    fn read(&self, block: u32, data: RRef<[u8; BSIZE]>) -> RRef<[u8; BSIZE]> {
+    fn read(&self, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
-        // data.move_to(self.domain_id);
-        let r = self.domain.read(block, data);
-        // data.move_to(caller_domain);
+        data.move_to(self.domain_id);
+        // let r = self.domain.read(block, data);
+        let mut r = unsafe { bdev_read_tramp(&self.domain, block, data) };
+        if r.is_ok() {
+            r.as_mut().unwrap().move_to(caller_domain);
+        }
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };
@@ -236,13 +314,14 @@ impl BDev for BDevProxy {
         r
     }
 
-    fn write(&self, block: u32, data: RRef<[u8; BSIZE]>) -> RRef<[u8; BSIZE]> {
+    fn write(&self, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
-        // data.move_to(callee_domain);
-        let r = self.domain.write(block, data);
-        // data.move_to(caller_domain);
+        data.move_to(self.domain_id);
+        // let r = self.domain.write(block, data);
+        let r = unsafe { bdev_write_tramp(&self.domain, block, data) };
+        data.move_to(caller_domain);
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };
@@ -277,6 +356,31 @@ impl Net for IxgbeProxy {
         // packets.move_to(self.domain_id);
         // reap_queue.move_to(self.domain_id);
         let r = self.domain.submit_and_poll(packets, reap_queue, tx);
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
+    }
+
+    fn submit_and_poll_rref(
+        &mut self,
+        packets: RRefDeque<[u8; 1512], 32>,
+        collect: RRefDeque<[u8; 1512], 32>,
+        tx: bool) -> (
+            usize,
+            RRefDeque<[u8; 1512], 32>,
+            RRefDeque<[u8; 1512], 32>
+        )
+    {
+        // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        packets.move_to(self.domain_id);
+        collect.move_to(self.domain_id);
+        let r = self.domain.submit_and_poll_rref(packets, collect, tx);
+        r.1.move_to(caller_domain);
+        r.2.move_to(caller_domain);
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };

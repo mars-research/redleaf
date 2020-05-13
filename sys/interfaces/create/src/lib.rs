@@ -16,11 +16,16 @@ pub trait CreateAHCI {
 }
 
 pub trait CreateMemBDev {
-    fn create_domain_membdev(&self) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>);
+    fn create_domain_membdev(&self, memdisk: &'static mut [u8]) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>);
+    fn recreate_domain_membdev(&self, dom: Box<dyn syscalls::Domain>, memdisk: &'static mut [u8]) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>);
+}
+
+pub trait CreateBDevShadow {
+    fn create_domain_bdev_shadow(&self, create: Arc<dyn CreateMemBDev>) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>);
 }
 
 pub trait CreateIxgbe {
-    fn create_domain_ixgbe(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net>);
+    fn create_domain_ixgbe(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net + Send>);
 }
 
 pub trait CreateXv6FS {
@@ -37,7 +42,8 @@ pub trait CreateXv6 {
                                ints: Box<dyn Interrupt>,
                                create_xv6fs: Arc<dyn CreateXv6FS>,
                                create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>,
-                               bdev: Box<dyn BDev + Send + Sync>) -> Box<dyn Domain>;
+                               bdev: Box<dyn BDev + Send + Sync>,
+                               net: Box<dyn usr::net::Net>) -> Box<dyn Domain>;
 }
 
 pub trait CreateDomA {

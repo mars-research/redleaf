@@ -105,6 +105,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
             create_ixgbe: Arc<dyn create::CreateIxgbe>,
             create_ahci: Arc<dyn create::CreateAHCI>,
             create_membdev: Arc<dyn create::CreateMemBDev>,
+            create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
             create_dom_a: Arc<dyn create::CreateDomA>,
             create_dom_b: Arc<dyn create::CreateDomB>,
             create_dom_c: Arc<dyn create::CreateDomC>,
@@ -177,6 +178,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
         create_pci,
         create_ahci,
         create_membdev,
+        create_bdev_shadow,
         create_ixgbe,
         create_xv6fs,
         create_xv6usr,
@@ -199,7 +201,8 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
     let (dom_ahci, bdev) = proxy.as_create_ahci().create_domain_ahci(pci);
 
     #[cfg(feature = "membdev")]
-    let (dom_ahci, bdev) = proxy.as_create_membdev().create_domain_membdev();
+    // let (dom_ahci, bdev) = proxy.as_create_membdev().create_domain_membdev();
+    let (dom_ahci, bdev) = proxy.as_create_bdev_shadow().create_domain_bdev_shadow(proxy.as_create_membdev());
 
     println!("Creating ixgbe");
     let (dom_ixgbe, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci2);
@@ -217,7 +220,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
         let dom_dom_d = proxy.as_create_dom_d().create_domain_dom_d(shadow);
     }
 
-    let dom_xv6 = proxy.as_create_xv6().create_domain_xv6kernel(ints_clone, proxy.as_create_xv6fs(), proxy.as_create_xv6usr(), bdev);
+    let dom_xv6 = proxy.as_create_xv6().create_domain_xv6kernel(ints_clone, proxy.as_create_xv6fs(), proxy.as_create_xv6usr(), bdev, net);
 }
 
 // This function is called on panic.

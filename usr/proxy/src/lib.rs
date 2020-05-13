@@ -21,6 +21,7 @@ pub fn init(
     create_pci: Arc<dyn create::CreatePCI>,
     create_ahci: Arc<dyn create::CreateAHCI>,
     create_membdev: Arc<dyn create::CreateMemBDev>,
+    create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
     create_ixgbe: Arc<dyn create::CreateIxgbe>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
     create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
@@ -33,12 +34,13 @@ pub fn init(
 ) -> Arc<dyn proxy::Proxy> {
 
     libsyscalls::syscalls::init(s);
-    rref::init(heap);
+    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     Arc::new(gen::Proxy::new(
         create_pci,
         create_ahci,
         create_membdev,
+        create_bdev_shadow,
         create_ixgbe,
         create_xv6fs,
         create_xv6usr,

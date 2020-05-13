@@ -18,20 +18,21 @@ use core::panic::PanicInfo;
 
 use syscalls::{Syscall, Heap};
 use usr::bdev::BDev;
-use memcpy;
 
 extern crate alloc;
 extern crate malloc;
+extern crate memcpy;
 
 
 
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>,
-            heap: Box<dyn Heap + Send + Sync>) -> Box<dyn BDev> {
+            heap: Box<dyn Heap + Send + Sync>,
+            memdisk: &'static mut [u8]) -> Box<dyn BDev> {
     libsyscalls::syscalls::init(s);
-    rref::init(heap);
+    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
-    Box::new(membdev::MemBDev::new())
+    Box::new(membdev::MemBDev::new(memdisk))
 }
 
 // This function is called on panic.
@@ -39,5 +40,6 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
 fn panic(info: &PanicInfo) -> ! {
     console::println!("membdev panicked: {:?}", info);
     libsyscalls::syscalls::sys_backtrace();
+    libsyscalls::syscalls::sys_test_unwind();
     loop {}
 }

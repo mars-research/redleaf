@@ -16,6 +16,7 @@ First, install a new linux kernel from Zhaofang by running
 wget https://github.com/mars-research/redleaf/releases/download/bcache_v2/linux-image-5.6.7-meow_5.6.7-meow-6_amd64.deb
 sudo dkpg -i linux-image-5.6.7-meow_5.6.7-meow-6_amd64.deb
 ```
+and use https://make-linux-fast-again.com/ to disable KPTI.
 
 <br/>
 
@@ -23,6 +24,8 @@ Then, disable Hyper Threading and fix CPU frequency to a constant by running
 ```bash
 ./disable_hyperthreading.sh && ./constant_freq.sh
 ```
+
+To use your eyeballs to confirm that we have a stable frequency, run `watch -n.1 "cat /proc/cpuinfo | grep \"^[c]pu MHz\""` and watch
 
 
 ### Prerequisites

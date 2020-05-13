@@ -1,7 +1,7 @@
-root := ../../../
+root := ../../../../
 include $(root)/common_flags.mk
 
-bin_name := membdev
+bin_name := benchnet
 arch ?= x86_64
 bin := build/$(bin_name)
 

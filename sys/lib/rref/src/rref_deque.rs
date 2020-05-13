@@ -51,4 +51,44 @@ impl<T, const N: usize> RRefDeque<T, N> {
         }
         return value;
     }
+
+    pub fn iter(&self) -> RRefDequeIter<'_, T, N> {
+        RRefDequeIter {
+            arr: &self.arr,
+            curr: self.tail,
+            remaining: self.len(),
+        }
+    }
+}
+
+impl<T, const N: usize> Default for RRefDeque<T, N> {
+    fn default() -> Self {
+        Self {
+            arr: Default::default(),
+            head: 0,
+            tail: 0,
+        }
+    }
+}
+
+pub struct RRefDequeIter<'a, T: 'a, const N: usize> where T: 'static {
+    arr: &'a RRefArray<T, N>,
+    curr: usize,
+    remaining: usize,
+}
+
+impl<'a, T, const N: usize> Iterator for RRefDequeIter<'a, T, N> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.remaining == 0 {
+            return None;
+        }
+        self.arr.get_ref(self.curr)
+            .map(|el| {
+                self.curr = (self.curr + 1) % N;
+                self.remaining -= 1;
+                el
+            })
+    }
 }

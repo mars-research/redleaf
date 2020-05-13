@@ -1,25 +1,30 @@
 use alloc::boxed::Box;
 use alloc::borrow::ToOwned;
+use alloc::collections::VecDeque;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use spin::Mutex;
 
 use console::println;
 use create::CreateXv6Usr;
-
+use rref::RRefDeque;
 use usr_interface::xv6::{Xv6, Xv6Ptr, Thread};
 use usr_interface::vfs::{VFS, FileMode, VFSPtr, UsrVFS, FileStat, NFILE, Result};
+use usr_interface::net::Net;
 
 pub struct Rv6Syscalls {
     create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>,
     fs: VFSPtr,
+    net: Arc<Mutex<Box<dyn Net + Send>>>,
 }
 
 impl Rv6Syscalls {
-    pub fn new(create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>, fs: VFSPtr) -> Self {
+    pub fn new(create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>, fs: VFSPtr, net: Box<dyn Net + Send>) -> Self {
         Self {
             create_xv6usr,
             fs,
+            net: Arc::new(Mutex::new(net)),
         }
     }
 }
@@ -27,7 +32,11 @@ impl Rv6Syscalls {
 
 impl Xv6 for Rv6Syscalls {
     fn clone(&self) -> Xv6Ptr {
-        Box::new(Self::new(self.create_xv6usr.clone(), self.fs.clone()))
+        box Self {
+            create_xv6usr: self.create_xv6usr.clone(),
+            fs: self.fs.clone(), 
+            net: self.net.clone(),
+        }
     }
     
     fn sys_spawn_thread(&self, name: &str, func: Box<dyn FnOnce() + Send>) -> Box<dyn Thread> {
@@ -91,6 +100,24 @@ impl UsrVFS for Rv6Syscalls {
     }
     fn sys_dump_inode(&self) {
         self.fs.sys_dump_inode()
+    }
+}
+
+impl Net for Rv6Syscalls {
+    fn submit_and_poll(&mut self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
+        self.net.lock().submit_and_poll(packets, reap_queue, tx)
+    }
+
+    fn submit_and_poll_rref(
+        &mut self,
+        packets: RRefDeque<[u8; 1512], 32>,
+        collect: RRefDeque<[u8; 1512], 32>,
+        tx: bool) -> (
+            usize,
+            RRefDeque<[u8; 1512], 32>,
+            RRefDeque<[u8; 1512], 32>
+        ) {
+        self.net.lock().submit_and_poll_rref(packets, collect, tx)
     }
 }
 

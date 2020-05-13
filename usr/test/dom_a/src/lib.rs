@@ -14,17 +14,11 @@ use rref::{RRef, RRefDeque};
 use alloc::vec::Vec;
 
 struct DomA {
-    transmit_buffers: [Option<RRef<[u8; 100]>>; 20],
-    transmit_index: usize,
-    pass_num: usize,
 }
 
 impl DomA {
     fn new() -> Self {
         Self {
-            transmit_buffers: Default::default(),
-            transmit_index: 0,
-            pass_num: 0,
         }
     }
 }
@@ -49,27 +43,10 @@ impl usr::dom_a::DomA for DomA {
 
         let mut read = 0;
 
-        if self.pass_num % 2 == 0 {
-            for i in 0..10 {
-                let front: RRef<[u8; 100]> = packets.pop_front().unwrap();
-                self.transmit_buffers[self.transmit_index] = Some(front);
-                self.transmit_index += 1;
-            }
-        } else {
-            for i in 0..self.transmit_index {
-                let buff = match self.transmit_buffers[i].take() {
-                    Some(buffer) => buffer,
-                    None => break,
-                };
-                if reap_queue.push_back(buff).is_some() {
-                    println!("pushing to full reap_queue");
-                }
-            }
-            self.transmit_index = 0;
-            read = 10;
+        while let Some(buf) = packets.pop_front() {
+            reap_queue.push_back(buf);
+            read += 1;
         }
-
-        self.pass_num = self.pass_num.wrapping_add(1);
 
         return (read, packets, reap_queue)
     }
@@ -78,9 +55,9 @@ impl usr::dom_a::DomA for DomA {
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>) -> Box<dyn usr::dom_a::DomA> {
     libsyscalls::syscalls::init(s);
-    rref::init(heap);
+    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
-    println!("In domain A");
+    println!("In domain A, id: {}", libsyscalls::syscalls::sys_get_current_domain_id());
 
     Box::new(DomA::new())
 }

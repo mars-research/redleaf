@@ -13,4 +13,5 @@ console = { path = "../../../lib/console", version = "0.1.0" }
 libdma = { path = "../../../lib/libdma", version = "0.1.0" }
 platform = { path = "../../../interfaces/platform", version = "0.1.0" }
 malloc = { path = "../../../lib/malloc", version = "0.1.0" }
+rref = { path = "../../../lib/rref", version = "0.1.0" }
 array-init = "0.1.1"

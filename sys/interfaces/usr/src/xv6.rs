@@ -1,13 +1,13 @@
 /// Xv6 system calls
 
 use alloc::boxed::Box;
-use alloc::vec::Vec;
 
 use crate::vfs::{UsrVFS, NFILE};
+use crate::net::Net;
 pub use crate::vfs::{FileMode, FileStat};
 pub use crate::error::{ErrorKind, Result};
 
-pub trait Xv6: UsrVFS {
+pub trait Xv6: UsrVFS + Net {
     fn clone(&self) -> Xv6Ptr;
     fn sys_spawn_thread(&self, name: &str, func: alloc::boxed::Box<dyn FnOnce() + Send>) -> Box<dyn Thread>;
     fn sys_spawn_domain(&self, path: &str, args: &str, fds: [Option<usize>; NFILE]) -> Result<Box<dyn Thread>>;
