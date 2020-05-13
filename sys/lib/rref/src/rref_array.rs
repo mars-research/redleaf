@@ -31,6 +31,14 @@ impl<T, const N: usize> RRefArray<T, N> {
     pub fn move_to(&self, new_domain_id: u64) {
         self.arr.move_to(new_domain_id);
     }
+
+    pub(crate) fn get_ref(&self, index: usize) -> Option<&T> {
+        self.arr[index].as_ref().map(|r| &**r)
+    }
+
+    pub(crate) fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+        self.arr[index].as_mut().map(|r| &mut **r)
+    }
 }
 
 impl<T, const N: usize> Default for RRefArray<T, N> {

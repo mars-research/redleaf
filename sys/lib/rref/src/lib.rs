@@ -39,8 +39,6 @@ mod tests {
         }
 
         unsafe fn dealloc(&self, _: *mut u8) {}
-
-        unsafe fn change_domain(&self, _: *mut u8, _: u64) {}
     }
 
     pub struct TestSyscall();
@@ -70,7 +68,7 @@ mod tests {
     }
 
     fn init_heap() {
-        init(Box::new(TestHeap::new()));
+        init(Box::new(TestHeap::new()), 55);
     }
     fn init_syscall() {
         libsyscalls::syscalls::init(Box::new(TestSyscall::new()));
@@ -146,5 +144,52 @@ mod tests {
 
         assert_eq!(deque.pop_front().map(|r| *r), Some(4));
         assert_eq!(deque.len(), 0); // h = 1, t = 1
+    }
+
+    #[test]
+    fn rref_deque_iter() {
+        init_heap();
+        init_syscall();
+
+        let mut deque = RRefDeque::<usize, 10>::default();
+
+        let mut iter = deque.iter();
+        assert_eq!(iter.next(), None);
+
+        for i in 1..=3 {
+            deque.push_back(RRef::new(i));
+        }
+
+        let mut iter = deque.iter();
+        assert_eq!(iter.next(), Some(&1));
+        assert_eq!(iter.next(), Some(&2));
+        assert_eq!(iter.next(), Some(&3));
+        assert_eq!(iter.next(), None);
+
+        assert_eq!(deque.len(), 3);
+
+        for i in 4..=15 { // 11..=15 dont get added
+            deque.push_back(RRef::new(i));
+        }
+
+        let mut iter = deque.iter();
+
+        assert_eq!(iter.next(), Some(&1));
+        assert_eq!(iter.next(), Some(&2));
+        assert_eq!(iter.next(), Some(&3));
+        assert_eq!(iter.next(), Some(&4));
+        assert_eq!(iter.next(), Some(&5));
+        assert_eq!(iter.next(), Some(&6));
+        assert_eq!(iter.next(), Some(&7));
+        assert_eq!(iter.next(), Some(&8));
+        assert_eq!(iter.next(), Some(&9));
+        assert_eq!(iter.next(), Some(&10));
+        assert_eq!(iter.next(), None);
+
+        let mut i = 1;
+        for n in deque.iter() {
+            assert_eq!(&i, n);
+            i += 1;
+        }
     }
 }
