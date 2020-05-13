@@ -624,9 +624,6 @@ fn run_sashstoretest(dev: &Ixgbe, pkt_size: u16) {
     let mut submit_rx_hist = Base2Histogram::new();
     let mut submit_tx_hist = Base2Histogram::new();
 
-    let mut sender_mac = alloc::vec![ 0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81];
-    let mut our_mac = alloc::vec![0x90, 0xe2, 0xba, 0xb5, 0x14, 0xcd];
-
     for i in 0..batch_sz {
         rx_packets.push_front(Vec::with_capacity(2048));
     }
@@ -679,16 +676,12 @@ fn run_sashstoretest(dev: &Ixgbe, pkt_size: u16) {
 
                         pkt.truncate(padding + responsevec.len());
                         packettool::swap_udp_ips(&mut pkt);
+                        packettool::swap_mac(pkt);
 
                         let checksum = calc_ipv4_checksum(&pkt[14..]);
                         // Calculated checksum is little-endian; checksum field is big-endian
                         pkt[14 + 10] = (checksum >> 8) as u8;
                         pkt[14 + 11] = (checksum & 0xff) as u8;
-
-                        unsafe {
-                            ptr::copy(our_mac.as_ptr(), pkt.as_mut_ptr().offset(6), our_mac.capacity());
-                            ptr::copy(sender_mac.as_ptr(), pkt.as_mut_ptr().offset(0), sender_mac.capacity());
-                        }
                     } else {
                         println!("No sashstore???");
                     }

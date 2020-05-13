@@ -10,6 +10,12 @@ const IPV4_PROTO_OFFSET: usize = 9;
 const IPV4_SRCDST_OFFSET: usize = 12;
 const IPV4_SRCDST_LEN: usize = 8;
 
+pub fn swap_mac(frame: &mut [u8]) {
+    for i in 0..6 {
+        frame.swap(i, 6 + i);
+    }
+}
+
 pub fn get_flowhash(frame: &[u8]) -> Option<usize> {
     // Ugly but fast (supposedly)
     let h1f: BuildHasherDefault<FnvHasher> = Default::default();
