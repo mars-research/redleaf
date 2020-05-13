@@ -174,13 +174,20 @@ impl NvmeDev {
         self.device.submit_iov(submit_queue, write)
     }
 
+    pub fn submit_io_raw(&mut self, submit_queue: &mut VecDeque<Vec<u8>>, write: bool) -> usize {
+        self.device.submit_io_raw(submit_queue, write)
+    }
 
     pub fn check_io(&mut self, num_reqs: u64, write: bool) {
         self.device.check_io(num_reqs, write)
     }
 
-    pub fn check_iov(&mut self, num_reqs: u64, write: bool) {
+    pub fn check_iov(&mut self, num_reqs: u64, write: bool) -> u64 {
         self.device.check_iov(num_reqs, write)
+    }
+
+    pub fn check_io_raw(&mut self, num_reqs: u64, write: bool) -> u64 {
+        self.device.check_io_raw(num_reqs, write)
     }
 
     pub fn get_stats(&mut self) -> (u64, u64) {

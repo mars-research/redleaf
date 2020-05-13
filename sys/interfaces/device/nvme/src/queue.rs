@@ -20,7 +20,26 @@ pub struct Request {
     pub data: u64,
 }
 
-pub const QUEUE_DEPTH: usize = 512;
+pub const QUEUE_DEPTH: usize = 16;
+
+unsafe fn rand() -> u64 {
+    let mut val:u64 = 0;
+    asm!("rdrand [$0]": "=r"(val):: "rbx");
+    return val;
+}
+
+use crate::NUM_LBAS;
+fn get_rand_block() -> u64 {
+    unsafe { rand()  % NUM_LBAS }
+}
+
+fn dump_cmd_entry(entry: &NvmeCommand) {
+    print!("opc {} fuse {} cid {} nsid {} mptr {:x?} prp1 {:x?} prp2 {} cdw10 \
+           {} cdw11 {} cdw12 {} cdw13 {} cdw14 {} cdw15 {}\n",
+           entry.opcode, entry.flags, entry.cid, entry.nsid, entry.mptr, entry.dptr[0],
+           entry.dptr[1], entry.cdw10, entry.cdw11, entry.cdw12, entry.cdw13, entry.cdw14, entry.cdw15);
+        
+}
 
 pub (crate) struct NvmeCommandQueue {
     pub data: Dma<[NvmeCommand; QUEUE_DEPTH]>,
@@ -28,6 +47,7 @@ pub (crate) struct NvmeCommandQueue {
     pub requests: [Option<Request>; QUEUE_DEPTH],
     pub brequests: [Option<BlockReq>; QUEUE_DEPTH],
     pub rrequests: [Option<Vec<u8>>; QUEUE_DEPTH],
+    pub raw_requests: [Option<u64>; QUEUE_DEPTH], 
     pub req_slot: [bool; QUEUE_DEPTH],
     block: u64,
 }
@@ -40,6 +60,7 @@ impl NvmeCommandQueue {
             requests: array_init::array_init(|_| None),
             brequests: array_init::array_init(|_| None),
             rrequests: array_init::array_init(|_| None),
+            raw_requests: array_init::array_init(|_| None),
             req_slot: [false; QUEUE_DEPTH],
             block: 0,
         };
@@ -85,7 +106,7 @@ impl NvmeCommandQueue {
             self.data[cur_idx] = entry;
             self.data[cur_idx].cid = cur_idx as u16;
 
-            //println!("Submitting block {} at slot {}", self.block, cur_idx);
+            println!("Submitting block {} at slot {}", self.block, cur_idx);
 
             self.data[cur_idx].cdw10 = self.block as u32;
 
@@ -99,6 +120,34 @@ impl NvmeCommandQueue {
                 self.block = (self.block + 1) % NUM_LBAS;
             }
             self.req_slot[cur_idx] = true;
+            self.i = (cur_idx + 1) % self.data.len();
+            Some(self.i)
+        } else {
+            //println!("No free slot");
+            None
+        }
+    }
+
+    #[inline(always)]
+    pub fn submit_raw_request_cid(&mut self, entry: NvmeCommand) -> Option<usize> {
+        let cur_idx = self.i;
+        let cid = entry.cid as usize;
+        if !self.req_slot[cid] {
+            self.data[cur_idx] = entry;
+
+            //self.block = get_rand_block();
+            self.block = (self.block + 8) % NUM_LBAS;
+
+            self.data[cur_idx].cdw10 = self.block as u32;
+            self.data[cur_idx].cdw11 = (self.block >> 32) as u32;
+
+            //println!("Submitting block[{}] {} at slot {}", cid, self.block, cur_idx);
+            //dump_cmd_entry(&self.data[cur_idx]);
+
+
+            //self.block = 0;
+
+            self.req_slot[cid] = true;
             self.i = (cur_idx + 1) % self.data.len();
             Some(self.i)
         } else {
@@ -148,6 +197,31 @@ impl NvmeCommandQueue {
             }
 
             self.req_slot[breq_cid] = true;
+            self.i = (cur_idx + 1) % self.data.len();
+            Some(self.i)
+        } else {
+            //println!("No free slot");
+            None
+        }
+    }
+
+    pub fn submit_request_raw(&mut self, entry: NvmeCommand, data: u64)
+                                        -> Option<usize> {
+        let cur_idx = self.i;
+        if self.req_slot[cur_idx] == false {
+            self.data[cur_idx] = entry;
+            self.data[cur_idx].cid = cur_idx as u16;
+            let cid = cur_idx  as u16;
+
+            //self.block = get_rand_block();
+            self.block = (self.block + 8) % NUM_LBAS;
+            self.raw_requests[cur_idx] = Some(data);
+            self.data[cur_idx].cdw10 = self.block as u32;
+            self.data[cur_idx].cdw11 = (self.block >> 32) as u32;
+
+            //println!("Submitting block[{}] {} at slot {}", cid, self.block, cur_idx);
+
+            self.req_slot[cur_idx] = true;
             self.i = (cur_idx + 1) % self.data.len();
             Some(self.i)
         } else {

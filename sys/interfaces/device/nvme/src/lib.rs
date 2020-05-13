@@ -450,6 +450,38 @@ impl NvmeDevice {
         self.stats.submitted += 1;
     }
 
+    pub fn submit_raw(&mut self, data: u64, cid: u16, write: bool) {
+        let (ptr0, ptr1) = (data, 0);
+        let qid = 1;
+        let queue = &mut self.submission_queues[qid];
+        //let block = breq.block;
+        //let num_blocks = (breq.data.len() + 511) / 512;
+        let num_blocks = 8;
+        let mut entry;
+
+        if write {
+            entry = nvme_cmd::io_write(cid as u16,
+                    1, // nsid
+                    0, // block to read
+                    (num_blocks - 1) as u16,
+                    ptr0,
+                    ptr1,
+                    );
+        } else {
+            entry = nvme_cmd::io_read(cid as u16,
+                    1, // nsid
+                    0, // block to read
+                    (num_blocks - 1) as u16,
+                    ptr0,
+                    ptr1,
+                    );
+        }
+
+        if let Some(tail) = queue.submit_raw_request_cid(entry) {
+            self.submission_queue_tail(qid as u16, tail as u16);
+        }
+        self.stats.submitted += 1;
+    }
 
     pub fn submit_v(&mut self, vec: Vec<u8>, cid: u16, write: bool) {
         let (ptr0, ptr1) = (vec.as_ptr() as u64, 0);
@@ -512,6 +544,54 @@ impl NvmeDevice {
         }
         //reap
     }
+
+    pub fn submit_io_raw(&mut self, submit_queue: &mut VecDeque<Vec<u8>>, write: bool) -> usize {
+        let mut count = 0;
+        let mut cur_tail = 0;
+        let qid = 1;
+
+        while let Some(mut req) = submit_queue.pop_front() {
+            let (ptr0, ptr1) = (req.as_ptr() as u64, 0);
+            let queue = &mut self.submission_queues[qid];
+            //let block = breq.block;
+
+            //let num_blocks = (breq.data.len() + 511) / 512;
+            let num_blocks = 8;
+            let mut entry;
+
+            if write {
+                entry = nvme_cmd::io_write(qid as u16,
+                        1, // nsid
+                        0, // block to read
+                        (num_blocks - 1) as u16,
+                        ptr0,
+                        ptr1,
+                        );
+
+            } else {
+                entry = nvme_cmd::io_read(qid as u16,
+                        1, // nsid
+                        0, // block to read
+                        (num_blocks - 1) as u16,
+                        ptr0,
+                        ptr1,
+                        );
+            }
+
+            if let Some(tail) = queue.submit_request_raw(entry, req.as_ptr() as u64) {
+                cur_tail = tail;
+                count += 1;
+            }
+
+            self.stats.submitted += 1;
+        }
+
+        if count > 0 {
+            self.submission_queue_tail(qid as u16, cur_tail as u16);
+        }
+        count
+    }
+
 
     pub fn submit_iov(&mut self, submit_queue: &mut VecDeque<Vec<u8>>, write: bool) -> usize {
         let mut count = 0;
@@ -743,7 +823,7 @@ impl NvmeDevice {
         }
     }
 
-    pub fn check_iov(&mut self, batch_sz: u64, is_write: bool) {
+    pub fn check_iov(&mut self, batch_sz: u64, is_write: bool) -> u64 {
         let mut next_is_valid = false;
         let qid = 1;
         let mut next_phase: bool;
@@ -844,5 +924,82 @@ impl NvmeDevice {
                 self.completion_queue_head(qid as u16, head as u16);
             }
         }
+        num_completions
+    }
+
+    pub fn check_io_raw(&mut self, batch_sz: u64, is_write: bool) -> u64 {
+        let mut next_is_valid = false;
+        let qid = 1;
+        let mut next_phase: bool;
+        let mut num_completions = 0;
+        let mut cq_head: Option<usize> = None;
+
+        loop {
+            let mut cq_valid:bool = false;
+            let mut cid: u16 = 0;
+            let cq = &mut self.completion_queues[qid];
+
+            let entry: Option<NvmeCompletion> = cq.is_valid();
+            let mut next_cq_head: usize;
+
+            if !next_is_valid && entry.is_none() {
+                break;
+            }
+
+            let entry = entry.unwrap();
+            let cpl_entry = cq.i;
+            let sq_head = entry.sq_head;
+
+            next_cq_head = (cq.i + 1) % cq.data.len();
+            if cq.i + 1 != cq.data.len() {
+                next_cq_head = cq.i + 1;
+                next_phase = cq.phase;
+            } else {
+                next_cq_head = 0;
+                next_phase = !cq.phase;
+            }
+
+            let next_cpl = unsafe {
+                core::ptr::read_volatile(cq.data.as_ptr().add(next_cq_head))
+            };
+
+            next_is_valid = ((next_cpl.status & 1) == next_phase as u16);
+
+            //println!("cq {}", cq.i);
+            cq.advance();
+            cid = entry.cid;
+            self.stats.completed += 1;
+            cq_head = Some(cq.i);
+
+            let mut slot_valid : bool = false;
+            let mut data = 0u64;
+            let sq = &mut self.submission_queues[qid];
+            //println!("checking cid {}", cid);
+            if sq.req_slot[cid as usize] {
+                if let Some(req) = &sq.raw_requests[cid as usize] {
+                    sq.req_slot[cid as usize] = false;
+                    slot_valid = true;
+                    //println!("cpl[{}] finished cid {} sq_head {}", cpl_entry, cid, sq_head); 
+                    data = *req;
+                }
+            }
+
+            if slot_valid {
+                self.submit_raw(data, cid, is_write);
+            }
+            num_completions += 1;
+
+            if num_completions == batch_sz {
+                break;
+            }
+        }
+
+        if num_completions > 0 {
+            if let Some(head) = cq_head {
+                //println!("writing head {}", head);
+                self.completion_queue_head(qid as u16, head as u16);
+            }
+        }
+        num_completions
     }
 }

@@ -7,7 +7,7 @@ use libsyscalls::errors::Result;
 pub struct NvmeCompletion {
     command_specific: u32,
     _rsvd: u32,
-    sq_head: u16,
+    pub sq_head: u16,
     sq_id: u16,
     pub cid: u16,
     pub status: u16,
@@ -55,6 +55,12 @@ zeroed_allocator!([NvmeCompletion; 1024]);
 
 zeroed_allocator!([NvmeCommand; 8]);
 zeroed_allocator!([NvmeCompletion; 8]);
+
+zeroed_allocator!([NvmeCommand; 32]);
+zeroed_allocator!([NvmeCompletion; 32]);
+
+zeroed_allocator!([NvmeCommand; 16]);
+zeroed_allocator!([NvmeCompletion; 16]);
 
 zeroed_allocator!([u8; 4096]);
 zeroed_allocator!([u32; 1024]);
