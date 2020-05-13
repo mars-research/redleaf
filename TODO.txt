@@ -15,6 +15,11 @@ Recovery/shadows
 - Protect the RpcErr type with an unsafe constructor so the domain cannot itself 
   return a failure Err(Unwind) and fake unwind
 
+- How do we shut down the DMA engine when device driver domain crashes? We need some 
+  notion of destructors, but for what? Who owns the BAR and runst the device? The owner of 
+  the BAR capability. So the BAR has to be on the shared heap and we should call its
+  destructor.  
+
 -------------------------------------------------------------------------------
 --
 -- OLD (possibly irrelevant)
