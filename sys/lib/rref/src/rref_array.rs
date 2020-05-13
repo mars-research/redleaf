@@ -36,8 +36,10 @@ impl<T, const N: usize> RRefArray<T, N> {
         self.arr[index].as_ref().map(|r| &**r)
     }
 
-    pub(crate) fn get_mut(&mut self, index: usize) -> Option<&mut T> {
-        self.arr[index].as_mut().map(|r| &mut **r)
+    pub(crate) fn get_mut(&self, index: usize) -> Option<&mut T> {
+        self.arr[index].as_ref().map(|r| {
+            unsafe { r.ptr_mut() }
+        })
     }
 }
 

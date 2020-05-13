@@ -192,4 +192,57 @@ mod tests {
             i += 1;
         }
     }
+
+    #[test]
+    fn rref_deque_iter_mut() {
+        init_heap();
+        init_syscall();
+
+        let mut deque = RRefDeque::<usize, 10>::default();
+
+        let mut iter = deque.iter_mut();
+        assert_eq!(iter.next(), None);
+
+        for i in 1..=3 {
+            deque.push_back(RRef::new(i));
+        }
+
+        let mut iter = deque.iter_mut();
+        assert_eq!(iter.next(), Some(&mut 1));
+        assert_eq!(iter.next(), Some(&mut 2));
+        assert_eq!(iter.next(), Some(&mut 3));
+        assert_eq!(iter.next(), None);
+
+        assert_eq!(deque.len(), 3);
+
+        for i in 4..=15 { // 11..=15 dont get added
+            deque.push_back(RRef::new(i));
+        }
+
+        let mut iter = deque.iter_mut();
+
+        assert_eq!(iter.next(), Some(&mut 1));
+        assert_eq!(iter.next(), Some(&mut 2));
+        assert_eq!(iter.next(), Some(&mut 3));
+        assert_eq!(iter.next(), Some(&mut 4));
+        assert_eq!(iter.next(), Some(&mut 5));
+        assert_eq!(iter.next(), Some(&mut 6));
+        assert_eq!(iter.next(), Some(&mut 7));
+        assert_eq!(iter.next(), Some(&mut 8));
+        assert_eq!(iter.next(), Some(&mut 9));
+        assert_eq!(iter.next(), Some(&mut 10));
+        assert_eq!(iter.next(), None);
+
+        let mut i = 1;
+        for n in deque.iter_mut() {
+            *n = i * 2; // double every element
+            i += 1;
+        }
+
+        let mut i = 1;
+        for n in deque.iter_mut() {
+            assert_eq!(&mut (i * 2), n); // check that every element was doubled
+            i += 1;
+        }
+    }
 }

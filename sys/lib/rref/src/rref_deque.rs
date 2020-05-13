@@ -59,6 +59,15 @@ impl<T, const N: usize> RRefDeque<T, N> {
             remaining: self.len(),
         }
     }
+
+    pub fn iter_mut(&mut self) -> RRefDequeIterMut<'_, T, N> {
+        let len = self.len();
+        RRefDequeIterMut {
+            arr: &self.arr,
+            curr: self.tail,
+            remaining: len,
+        }
+    }
 }
 
 impl<T, const N: usize> Default for RRefDeque<T, N> {
@@ -85,6 +94,28 @@ impl<'a, T, const N: usize> Iterator for RRefDequeIter<'a, T, N> {
             return None;
         }
         self.arr.get_ref(self.curr)
+            .map(|el| {
+                self.curr = (self.curr + 1) % N;
+                self.remaining -= 1;
+                el
+            })
+    }
+}
+
+pub struct RRefDequeIterMut<'a, T, const N: usize> where T: 'static {
+    arr: &'a RRefArray<T, N>,
+    curr: usize,
+    remaining: usize,
+}
+
+impl<'a, T, const N: usize> Iterator for RRefDequeIterMut<'a, T, N> {
+    type Item = &'a mut T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.remaining == 0 {
+            return None;
+        }
+        self.arr.get_mut(self.curr)
             .map(|el| {
                 self.curr = (self.curr + 1) % N;
                 self.remaining -= 1;

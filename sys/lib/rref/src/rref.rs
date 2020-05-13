@@ -14,7 +14,7 @@ pub fn init(heap: Box<dyn syscalls::Heap + Send + Sync>, domain_id: u64) {
 // Shared heap allocated value, something like Box<SharedHeapObject<T>>
 // This is the struct allocated on the shared heap.
 #[repr(C)]
-struct SharedHeapObject<T> where T: 'static {
+pub(crate) struct SharedHeapObject<T> where T: 'static {
     domain_id: u64,
     value: T,
 }
@@ -31,7 +31,7 @@ impl<T> Drop for SharedHeapObject<T> {
 //   its shared heap objects are dropped, which gives us the guarantee that RRef's
 //   owned reference will be safe to dereference as long as its domain is alive.
 pub struct RRef<T> where T: 'static {
-    pointer: *mut SharedHeapObject<T>
+    pub(crate) pointer: *mut SharedHeapObject<T>
 }
 
 unsafe impl<T> Send for RRef<T> where T: Send {}
@@ -73,6 +73,13 @@ impl<T> RRef<T> {
 
     pub unsafe fn move_to_current(&self) {
         unsafe { self.move_to(*CRATE_DOMAIN_ID.force_get()) };
+    }
+
+    // Super unsafe from an ownership perspective
+    pub(crate) unsafe fn ptr_mut(&self) -> &mut T {
+        unsafe {
+            &mut (*self.pointer).value
+        }
     }
 }
 
