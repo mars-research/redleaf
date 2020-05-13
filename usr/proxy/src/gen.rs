@@ -21,6 +21,7 @@ pub struct Proxy {
     create_membdev: Arc<dyn create::CreateMemBDev>,
     create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
     create_ixgbe: Arc<dyn create::CreateIxgbe>,
+    create_benchnet: Arc<dyn create::CreateBenchnet>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
     create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
     create_xv6: Arc<dyn create::CreateXv6>,
@@ -41,6 +42,7 @@ impl Proxy {
         create_membdev: Arc<dyn create::CreateMemBDev>,
         create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
         create_ixgbe: Arc<dyn create::CreateIxgbe>,
+        create_benchnet: Arc<dyn create::CreateBenchnet>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
         create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
         create_xv6: Arc<dyn create::CreateXv6>,
@@ -56,6 +58,7 @@ impl Proxy {
             create_membdev,
             create_bdev_shadow,
             create_ixgbe,
+            create_benchnet,
             create_xv6fs,
             create_xv6usr,
             create_xv6,
@@ -83,6 +86,9 @@ impl proxy::Proxy for Proxy {
         Arc::new(self.clone())
     }
     fn as_create_ixgbe(&self) -> Arc<dyn create::CreateIxgbe> {
+        Arc::new(self.clone())
+    }
+    fn as_create_benchnet(&self) -> Arc<dyn create::CreateBenchnet> {
         Arc::new(self.clone())
     }
     fn as_create_xv6fs(&self) -> Arc<dyn create::CreateXv6FS> {
@@ -222,6 +228,12 @@ impl create::CreateShadow for Proxy {
         let (domain, shadow) = self.create_shadow.create_domain_shadow(create_dom_c);
         let domain_id = domain.get_domain_id();
         (domain, Box::new(DomCProxy::new(domain_id, shadow)))
+    }
+}
+
+impl create::CreateBenchnet for Proxy {
+    fn create_domain_benchnet(&self, net: Box<dyn Net>) ->(Box<dyn Domain>) {
+        self.create_benchnet.create_domain_benchnet(net)
     }
 }
 

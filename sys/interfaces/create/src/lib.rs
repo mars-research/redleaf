@@ -66,3 +66,7 @@ pub trait CreateDomD {
 pub trait CreateShadow {
     fn create_domain_shadow(&self, create_dom_c: Arc<dyn CreateDomC>) -> (Box<dyn Domain>, Box<dyn DomC>);
 }
+
+pub trait CreateBenchnet {
+    fn create_domain_benchnet(&self, net: Box<dyn Net>) -> Box<dyn Domain>;
+}

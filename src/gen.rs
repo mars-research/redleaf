@@ -158,6 +158,15 @@ impl create::CreateShadow for PDomain {
     }
 }
 
+impl create::CreateBenchnet for PDomain {
+    fn create_domain_benchnet(&self, net: Box<dyn usr::net::Net>) -> Box<dyn syscalls::Domain> {
+        disable_irq();
+        let r = create_domain_benchnet(net);
+        enable_irq();
+        r
+    }
+}
+
 impl proxy::CreateProxy for PDomain {
     fn create_domain_proxy(
         &self,
@@ -166,6 +175,7 @@ impl proxy::CreateProxy for PDomain {
         create_membdev: Arc<dyn create::CreateMemBDev>,
         create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
         create_ixgbe: Arc<dyn create::CreateIxgbe>,
+        create_benchnet: Arc<dyn create::CreateBenchnet>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
         create_xv6usr: Arc<dyn create::CreateXv6Usr>,
         create_xv6: Arc<dyn create::CreateXv6>,
@@ -181,6 +191,7 @@ impl proxy::CreateProxy for PDomain {
             create_membdev,
             create_bdev_shadow,
             create_ixgbe,
+            create_benchnet,
             create_xv6fs,
             create_xv6usr,
             create_xv6,
@@ -413,12 +424,27 @@ pub fn create_domain_shadow(create_dom_c: Arc<dyn create::CreateDomC>) -> (Box<d
     build_domain_shadow("shadow", binary_range, create_dom_c)
 }
 
+pub fn create_domain_benchnet(net: Box<dyn usr::net::Net>) -> Box<dyn syscalls::Domain> {
+    extern "C" {
+        fn _binary_usr_test_benchnet_inside_build_benchnet_inside_start();
+        fn _binary_usr_test_benchnet_inside_build_benchnet_inside_end();
+    }
+
+    let binary_range = (
+        _binary_usr_test_benchnet_inside_build_benchnet_inside_start as *const u8,
+        _binary_usr_test_benchnet_inside_build_benchnet_inside_end as *const u8
+    );
+
+    build_domain_benchnet_helper("benchnet", binary_range, net)
+}
+
 pub fn create_domain_proxy(
     create_pci: Arc<dyn create::CreatePCI>,
     create_ahci: Arc<dyn create::CreateAHCI>,
     create_membdev: Arc<dyn create::CreateMemBDev>,
     create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
     create_ixgbe: Arc<dyn create::CreateIxgbe>,
+    create_benchnet: Arc<dyn create::CreateBenchnet>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
     create_xv6usr: Arc<dyn create::CreateXv6Usr>,
     create_xv6: Arc<dyn create::CreateXv6>,
@@ -445,6 +471,7 @@ pub fn create_domain_proxy(
         create_membdev,
         create_bdev_shadow,
         create_ixgbe,
+        create_benchnet,
         create_xv6fs,
         create_xv6usr,
         create_xv6,
@@ -678,6 +705,7 @@ pub fn build_domain_init(name: &str,
                        Arc<dyn create::CreateXv6Usr>,
                        Arc<dyn create::CreatePCI>,
                        Arc<dyn create::CreateIxgbe>,
+                       Arc<dyn create::CreateBenchnet>,
                        Arc<dyn create::CreateAHCI>,
                        Arc<dyn create::CreateMemBDev>,
                        Arc<dyn create::CreateBDevShadow>,
@@ -709,6 +737,7 @@ pub fn build_domain_init(name: &str,
     user_ep(Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(Interrupt::new()),
             Box::new(PDomain::new(Arc::clone(&dom))),
+            Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
@@ -783,6 +812,7 @@ pub fn build_domain_proxy(
     create_membdev: Arc<dyn create::CreateMemBDev>,
     create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
     create_ixgbe: Arc<dyn create::CreateIxgbe>,
+    create_benchnet: Arc<dyn create::CreateBenchnet>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
     create_xv6usr: Arc<dyn create::CreateXv6Usr>,
     create_xv6: Arc<dyn create::CreateXv6>,
@@ -799,6 +829,7 @@ pub fn build_domain_proxy(
         create_membdev: Arc<dyn create::CreateMemBDev>,
         create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
         create_ixgbe: Arc<dyn create::CreateIxgbe>,
+        create_benchnet: Arc<dyn create::CreateBenchnet>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
         create_xv6usr: Arc<dyn create::CreateXv6Usr>,
         create_xv6: Arc<dyn create::CreateXv6>,
@@ -838,6 +869,7 @@ pub fn build_domain_proxy(
         create_membdev,
         create_bdev_shadow,
         create_ixgbe,
+        create_benchnet,
         create_xv6fs,
         create_xv6usr,
         create_xv6,
@@ -1143,4 +1175,43 @@ pub fn build_domain_shadow(name: &str,
 
     println!("domain/{}: returned from entry point", name);
     (Box::new(PDomain::new(Arc::clone(&dom))), shadow)
+}
+
+pub fn build_domain_benchnet_helper(name: &str,
+                          binary_range: (*const u8, *const u8),
+                          net: Box<dyn usr::net::Net>) -> Box<dyn syscalls::Domain> {
+    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, net: Box<dyn usr::net::Net>) -> Box<dyn usr::dom_c::DomC>;
+
+    let (dom, entry) = unsafe {
+        load_domain(name, binary_range)
+    };
+
+    let user_ep: UserInit = unsafe {
+        core::mem::transmute::<*const(), UserInit>(entry)
+    };
+
+    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pheap = Box::new(PHeap::new());
+
+    // update current domain id
+    let thread = thread::get_current_ref();
+    let old_id = {
+        let mut thread = thread.lock();
+        let old_id = thread.current_domain_id;
+        thread.current_domain_id = dom.lock().id;
+        old_id
+    };
+
+    // Enable interrupts on exit to user so it can be preempted
+    enable_irq();
+    let shadow = user_ep(pdom, pheap, net);
+    disable_irq();
+
+    // change domain id back
+    {
+        thread.lock().current_domain_id = old_id;
+    }
+
+    println!("domain/{}: returned from entry point", name);
+    Box::new(PDomain::new(Arc::clone(&dom)))
 }
