@@ -406,8 +406,8 @@ impl IxgbeDevice {
     }
 
     pub fn rx_poll_rref(&mut self,
-                        mut reap_queue: RRefDeque<[u8; 1512], 32>) ->
-                        (usize, RRefDeque<[u8; 1512], 32>) {
+                        mut reap_queue: RRefDeque<[u8; 1512], 512>) ->
+                        (usize, RRefDeque<[u8; 1512], 512>) {
 
 
         let num_descriptors = self.receive_ring.len();
