@@ -38,8 +38,9 @@ default-features = false
 
 [features]
 default = [
-#    "test_ab",
+    # "test_ab",
     "test_shadow",
+    # "benchnet",
 ]
 
 test_sleep = [ ]
@@ -48,4 +49,5 @@ test_threads = [ ]
 test_guard_page = [ ]
 test_ab = []
 test_shadow = []
+benchnet =[]
 membdev = []

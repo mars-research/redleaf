@@ -1180,7 +1180,7 @@ pub fn build_domain_shadow(name: &str,
 pub fn build_domain_benchnet_helper(name: &str,
                           binary_range: (*const u8, *const u8),
                           net: Box<dyn usr::net::Net>) -> Box<dyn syscalls::Domain> {
-    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, net: Box<dyn usr::net::Net>) -> Box<dyn usr::dom_c::DomC>;
+    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, net: Box<dyn usr::net::Net>);
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)
