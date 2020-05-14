@@ -7,13 +7,44 @@ const UDP_HEADER_LEN: usize = 8;
 
 // https://en.wikipedia.org/wiki/IPv4
 const IPV4_PROTO_OFFSET: usize = 9;
+const IPV4_LENGTH_OFFSET: usize = 2;
+const IPV4_CHECKSUM_OFFSET: usize = 10;
 const IPV4_SRCDST_OFFSET: usize = 12;
 const IPV4_SRCDST_LEN: usize = 8;
+
+const UDP_LENGTH_OFFSET: usize = 4;
 
 pub fn swap_mac(frame: &mut [u8]) {
     for i in 0..6 {
         frame.swap(i, 6 + i);
     }
+}
+
+pub fn fix_ip_length(frame: &mut [u8]) {
+    let length = frame.len() - ETH_HEADER_LEN;
+    frame[ETH_HEADER_LEN + IPV4_LENGTH_OFFSET] = (length >> 8) as u8;
+    frame[ETH_HEADER_LEN + IPV4_LENGTH_OFFSET + 1] = length as u8;
+}
+
+pub fn fix_ip_checksum(frame: &mut [u8]) {
+    // Length of IPv4 header
+    let v4len = (frame[ETH_HEADER_LEN] & 0b1111) as usize * 4;
+
+    let checksum = calc_ipv4_checksum(&frame[ETH_HEADER_LEN..(ETH_HEADER_LEN + v4len)]);
+
+    // Calculated checksum is little-endian; checksum field is big-endian
+    frame[ETH_HEADER_LEN + IPV4_CHECKSUM_OFFSET] = (checksum >> 8) as u8;
+    frame[ETH_HEADER_LEN + IPV4_CHECKSUM_OFFSET + 1] = (checksum & 0xff) as u8;
+}
+
+pub fn fix_udp_length(frame: &mut [u8]) {
+    // Length of IPv4 header
+    let v4len = (frame[ETH_HEADER_LEN] & 0b1111) as usize * 4;
+
+    let length = frame.len() - ETH_HEADER_LEN - v4len;
+
+    frame[ETH_HEADER_LEN + v4len + UDP_LENGTH_OFFSET] = (length >> 8) as u8;
+    frame[ETH_HEADER_LEN + v4len + UDP_LENGTH_OFFSET + 1] = length as u8;
 }
 
 pub fn get_flowhash(frame: &[u8]) -> Option<usize> {
@@ -79,3 +110,20 @@ pub fn swap_udp_ips(frame: &mut [u8]) {
         frame.swap(ETH_HEADER_LEN + 12 + i, ETH_HEADER_LEN + 12 + 4 + i);
     }
 }
+
+fn calc_ipv4_checksum(ipv4_header: &[u8]) -> u16 {
+    assert!(ipv4_header.len() % 2 == 0);
+    let mut checksum = 0;
+    for i in 0..ipv4_header.len() / 2 {
+        if i == 5 {
+            // Assume checksum field is set to 0
+            continue;
+        }
+        checksum += (u32::from(ipv4_header[i * 2]) << 8) + u32::from(ipv4_header[i * 2 + 1]);
+        if checksum > 0xffff {
+            checksum = (checksum & 0xffff) + 1;
+        }
+    }
+    !(checksum as u16)
+}
+

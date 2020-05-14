@@ -675,13 +675,12 @@ fn run_sashstoretest(dev: &Ixgbe, pkt_size: u16) {
                         }
 
                         pkt.truncate(padding + responsevec.len());
-                        packettool::swap_udp_ips(&mut pkt);
+                        // println!("handled! padding={}, resposevec.len() = {}, truncated to {}", padding, responsevec.len(), pkt.len());
+                        packettool::swap_udp_ips(pkt);
                         packettool::swap_mac(pkt);
-
-                        let checksum = calc_ipv4_checksum(&pkt[14..]);
-                        // Calculated checksum is little-endian; checksum field is big-endian
-                        pkt[14 + 10] = (checksum >> 8) as u8;
-                        pkt[14 + 11] = (checksum & 0xff) as u8;
+                        packettool::fix_ip_length(pkt);
+                        packettool::fix_ip_checksum(pkt);
+                        packettool::fix_udp_length(pkt);
                     } else {
                         println!("No sashstore???");
                     }
