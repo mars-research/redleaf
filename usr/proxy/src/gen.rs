@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain_id};
 use syscalls::{Heap, Domain, Interrupt};
-use usr::{bdev::{BDev, BSIZE}, vfs::VFS, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}};
+use usr::{bdev::{BDev, BSIZE}, vfs::{UsrVFS, VFS}, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}};
 use usr::rpc::{RpcResult, RpcError};
 use console::{println, print};
 use unwind::trampoline;
@@ -480,22 +480,22 @@ impl DomCProxy {
  */
 
 #[no_mangle]
-pub extern fn one_arg(s: &Box<dyn usr::dom_c::DomC>, x: usize) -> Result<usize, i64> {
+pub extern fn one_arg(s: &Box<dyn usr::dom_c::DomC>, x: usize) -> RpcResult<usize> {
     //println!("one_arg: x:{}", x);
     let r = s.one_arg(x);
 
     match r {
         Ok(n) => {/*println!("one_arg:{}", n)*/},
-        Err(e) => println!("one_arg: error:{}", e),
+        Err(e) => println!("one_arg: error:{:?}", e),
     }
 
     r
 }
 
 #[no_mangle]
-pub extern fn one_arg_err(s: &Box<dyn usr::dom_c::DomC>, x: usize) -> Result<usize, i64> {
+pub extern fn one_arg_err(s: &Box<dyn usr::dom_c::DomC>, x: usize) -> RpcResult<usize> {
     println!("one_arg was aborted, x:{}", x);
-    Err(-1)
+    Err(unsafe{RpcError::panic()})
 }
 
 #[no_mangle]
@@ -504,7 +504,7 @@ pub extern "C" fn one_arg_addr() -> u64 {
 }
 
 extern {
-    fn one_arg_tramp(s: &Box<dyn usr::dom_c::DomC>, x: usize) -> Result<usize, i64>;
+    fn one_arg_tramp(s: &Box<dyn usr::dom_c::DomC>, x: usize) -> RpcResult<usize>;
 }
 
 trampoline!(one_arg);
@@ -522,7 +522,7 @@ impl usr::dom_c::DomC for DomCProxy {
         r
     }
 
-    fn one_arg(&self, x: usize) -> Result<usize, i64> {
+    fn one_arg(&self, x: usize) -> RpcResult<usize> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
@@ -552,3 +552,109 @@ impl usr::dom_c::DomC for DomCProxy {
         r
     }
 }
+
+
+// // Rv6 proxy
+// struct Rv6Proxy {
+//     domain: Box<dyn Xv6>,
+//     domain_id: u64,
+// }
+
+// unsafe impl Sync for Rv6Proxy {}
+// unsafe impl Send for Rv6Proxy {}
+
+// impl Rv6Proxy {
+//     fn new(domain_id: u64, domain: Box<dyn Xv6>) -> Self {
+//         Self {
+//             domain,
+//             domain_id,
+//         }
+//     }
+// }
+
+// impl Net for Rv6Proxy {
+//     fn submit_and_poll(&mut self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
+//         unimplemented!()
+//     }
+
+//     fn submit_and_poll_rref(
+//         &mut self,
+//         packets: RRefDeque<[u8; 1512], 32>,
+//         collect: RRefDeque<[u8; 1512], 32>,
+//         tx: bool) -> (
+//             usize,
+//             RRefDeque<[u8; 1512], 32>,
+//             RRefDeque<[u8; 1512], 32>
+//         )
+//     {
+//         // move thread to next domain
+//         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+//         packets.move_to(self.domain_id);
+//         collect.move_to(self.domain_id);
+//         let r = self.domain.submit_and_poll_rref(packets, collect, tx);
+//         r.1.move_to(caller_domain);
+//         r.2.move_to(caller_domain);
+
+//         // move thread back
+//         unsafe { sys_update_current_domain_id(caller_domain) };
+
+//         r
+//     }
+// }
+
+
+
+// use usr::error::Result;
+// use usr::vfs::{NFILE, FileStat, FileMode};
+
+// impl UsrVFS for Rv6Proxy {
+//     fn sys_open(&self, path: &str, mode: FileMode) -> Result<usize> {
+//         self.domain.sys_open(path, mode)
+//     }
+//     fn sys_close(&self, fd: usize) -> Result<()> {
+//         self.domain.sys_close(fd)
+//     }
+//     fn sys_read(&self, fd: usize, buffer: &mut[u8]) -> Result<usize> {
+//         self.domain.sys_read(fd, buffer)
+//     }
+//     fn sys_write(&self, fd: usize, buffer: &[u8]) -> Result<usize> {
+//         self.domain.sys_write(fd, buffer)
+//     }
+//     fn sys_seek(&self, fd: usize, offset: usize) -> Result<()> {
+//         self.domain.sys_seek(fd, offset)
+//     }
+//     fn sys_fstat(&self, fd: usize) -> Result<FileStat> {
+//         self.domain.sys_fstat(fd)
+//     }
+//     fn sys_mknod(&self, path: &str, major: i16, minor: i16) -> Result<()> {
+//         self.domain.sys_mknod(path, major, minor)
+//     }
+//     fn sys_dup(&self, fd: usize) -> Result<usize> {
+//         self.domain.sys_dup(fd)
+//     }
+//     fn sys_pipe(&self) -> Result<(usize, usize)> {
+//         self.domain.sys_pipe()
+//     }
+//     fn sys_dump_inode(&self) {
+//         self.domain.sys_dump_inode()
+//     }
+// }
+
+
+// use usr::xv6::{Thread, Xv6Ptr};
+
+// impl Xv6 for Rv6Proxy {
+//     fn clone(&self) -> Xv6Ptr {
+//         self.domain.clone()
+//     }
+//     fn sys_spawn_thread(&self, name: &str, func: alloc::boxed::Box<dyn FnOnce() + Send>) -> Box<dyn Thread> {
+//         self.domain.sys_spawn_thread(name, func)
+//     }
+//     fn sys_spawn_domain(&self, path: &str, args: &str, fds: [Option<usize>; NFILE]) -> Result<Box<dyn Thread>> {
+//         self.domain.sys_spawn_domain(path, args, fds)
+//     }
+//     fn sys_rdtsc(&self) -> u64 {
+//         self.domain.sys_rdtsc()
+//     }
+// } 

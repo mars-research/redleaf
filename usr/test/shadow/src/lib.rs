@@ -13,6 +13,7 @@ use usr;
 use rref::{RRef, RRefDeque};
 use alloc::vec::Vec;
 use spin::Mutex;
+use usr::rpc::RpcResult;
 
 struct ShadowDomain {
     dom: Option<Box<dyn syscalls::Domain>>,
@@ -55,7 +56,7 @@ impl usr::dom_c::DomC for Shadow {
         self.dom.lock().dom_c.no_arg()
     }
 
-    fn one_arg(&self, x: usize) -> Result<usize, i64> {
+    fn one_arg(&self, x: usize) -> RpcResult<usize> {
         let mut dom = self.dom.lock();
         loop {
             let r = dom.dom_c.one_arg(x);

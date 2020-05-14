@@ -12,6 +12,7 @@ use core::panic::PanicInfo;
 use usr;
 use rref::{RRef, RRefDeque};
 use alloc::vec::Vec;
+use usr::rpc::RpcResult;
 
 struct DomC {}
 
@@ -24,16 +25,11 @@ impl DomC {
 impl usr::dom_c::DomC for DomC {
     fn no_arg(&self) {}
 
-    fn one_arg(&self, x: usize) -> Result<usize, i64> {
+    fn one_arg(&self, x: usize) -> RpcResult<usize> {
         #[cfg(feature = "unwind")]
         {
             let start = libtime::get_rdtsc();
-            if (start & 0x100) == 0x100 {
-                println!("triggering test panic, start:{}, bool:{}", start, (start & 0x100) == 0x100);
-                libsyscalls::syscalls::sys_test_unwind();
-            } else {
-                println!("no panic, continue as normal");
-            }
+            assert!((start & 0x100) != 0x100);
         }
         Ok(x + 1)
     }
@@ -59,5 +55,6 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
 fn panic(info: &PanicInfo) -> ! {
     println!("domain C panic: {:?}", info);
     libsyscalls::syscalls::sys_backtrace();
+    libsyscalls::syscalls::sys_test_unwind();
     loop {}
 }
