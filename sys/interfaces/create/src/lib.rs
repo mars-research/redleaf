@@ -5,6 +5,7 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use syscalls::{Heap, Domain, Interrupt};
 use usr::{bdev::BDev, vfs::VFS, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}};
+use usr::error::Result;
 
 /* AB: XXX: first thing: change all names to create_domain -- it's absurd */
 pub trait CreatePCI {
@@ -33,7 +34,7 @@ pub trait CreateXv6FS {
 }
 
 pub trait CreateXv6Usr {
-    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn syscalls::Domain>, &'static str>;
+    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn syscalls::Domain>>;
 }
 pub type CreateXv6UsrPtr = Box<dyn CreateXv6Usr + Send + Sync>;
 

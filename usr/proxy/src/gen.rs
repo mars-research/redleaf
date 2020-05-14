@@ -8,6 +8,7 @@ use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain
 use syscalls::{Heap, Domain, Interrupt};
 use usr::{bdev::{BDev, BSIZE}, vfs::{UsrVFS, VFS}, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}};
 use usr::rpc::{RpcResult, RpcError};
+use usr::error::Result;
 use console::{println, print};
 use unwind::trampoline;
 
@@ -170,7 +171,7 @@ impl create::CreateXv6FS for Proxy {
 }
 
 impl create::CreateXv6Usr for Proxy {
-    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn Domain>, &'static str> {
+    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn Domain>> {
         // TODO: write Xv6UsrProxy
         self.create_xv6usr.create_domain_xv6usr(name, xv6, blob, args)
     }
@@ -604,8 +605,6 @@ impl usr::dom_c::DomC for DomCProxy {
 // }
 
 
-
-// use usr::error::Result;
 // use usr::vfs::{NFILE, FileStat, FileMode};
 
 // impl UsrVFS for Rv6Proxy {

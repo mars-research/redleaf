@@ -3,15 +3,17 @@ use create;
 use proxy;
 use usr;
 
+use spin::Mutex;
+use alloc::sync::Arc;
+use alloc::boxed::Box;
+
+use usr::error::Result;
+
 use crate::domain::load_domain;
 use crate::syscalls::{PDomain, Interrupt, Mmap};
 use crate::heap::PHeap;
 use crate::interrupt::{disable_irq, enable_irq};
 use crate::thread;
-
-use spin::Mutex;
-use alloc::sync::Arc;
-use alloc::boxed::Box;
 
 impl create::CreatePCI for PDomain {
     fn create_domain_pci(&self)
@@ -95,7 +97,7 @@ impl create::CreateXv6FS for PDomain {
 }
 
 impl create::CreateXv6Usr for PDomain {
-    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn syscalls::Domain>, &'static str> {
+    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn syscalls::Domain>> {
         disable_irq();
         let r = create_domain_xv6usr(name, xv6, blob, args);
         enable_irq();
@@ -332,7 +334,7 @@ pub fn create_domain_xv6fs(bdev: Box<dyn usr::bdev::BDev>) ->(Box<dyn syscalls::
 // AB: We have to split ukern syscalls into some that are
 // accessible to xv6 user, e.g., memory management, and the rest
 // which is hidden, e.g., create_thread, etc.
-pub fn create_domain_xv6usr(name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn syscalls::Domain>, &'static str> {
+pub fn create_domain_xv6usr(name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn syscalls::Domain>> {
     // TODO: verify that the blob is signed
     // if !signed(blob) return Err("Not signed")
 
