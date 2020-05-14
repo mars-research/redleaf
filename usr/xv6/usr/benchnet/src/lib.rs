@@ -190,7 +190,7 @@ fn calc_ipv4_checksum(ipv4_header: &[u8]) -> u16 {
     !(checksum as u16)
 }
 
-fn run_rx_udptest_rref(net: &mut Box<dyn Xv6 + Send + Sync>, pkt_size: usize, debug: bool) {
+fn run_rx_udptest_rref(rv6: &mut Box<dyn Xv6 + Send + Sync>, pkt_size: usize, debug: bool) {
     let pkt_size = 2048;
     let batch_sz: usize = BATCH_SIZE;
     let mut packets = RRefDeque::<[u8; 1512], 32>::default();
@@ -226,7 +226,7 @@ fn run_rx_udptest_rref(net: &mut Box<dyn Xv6 + Send + Sync>, pkt_size: usize, de
     loop {
         //submit_rx_hist.record(packets.len() as u64);
 
-        let (ret, mut packets_, mut collect_) = net.submit_and_poll_rref(packets.take().unwrap(),
+        let (ret, mut packets_, mut collect_) = rv6.submit_and_poll_rref(packets.take().unwrap(),
                                 collect.take().unwrap(), false);
 
         //if debug {
