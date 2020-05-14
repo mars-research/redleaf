@@ -130,6 +130,7 @@ impl usr::net::Net for Ixgbe {
             let dev: &mut Intel8259x = device;
             let (num, mut packets_, mut collect_) = dev.device.submit_and_poll_rref(packets.take().unwrap(),
                                                                     collect.take().unwrap(), tx, false);
+            ret = num;
             packets.replace(packets_);
             collect.replace(collect_);
 
