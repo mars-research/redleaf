@@ -38,12 +38,13 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
     usrlib::init(rv6.clone());
     println!("Starting rv6 benchnet with args: {}", args);
 
-    run_tx_udptest_rref(rv6, 22, false);
+    run_tx_udptest_rref(&mut rv6, 22, false);
+    run_rx_udptest_rref(&mut rv6, 22, false);
 }
 
 const BATCH_SIZE: usize = 32;
 
-fn run_tx_udptest_rref(mut rv6: Box<dyn Xv6 + Send + Sync>, payload_sz: usize, mut debug: bool) {
+fn run_tx_udptest_rref(rv6: &mut Box<dyn Xv6 + Send + Sync>, payload_sz: usize, mut debug: bool) {
     let batch_sz: usize = BATCH_SIZE;
     let mut packets = RRefDeque::<[u8; 1512], 32>::new(Default::default());
     let mut collect = RRefDeque::<[u8; 1512], 32>::new(Default::default());
@@ -187,6 +188,110 @@ fn calc_ipv4_checksum(ipv4_header: &[u8]) -> u16 {
         }
     }
     !(checksum as u16)
+}
+
+fn run_rx_udptest_rref(net: &mut Box<dyn Xv6 + Send + Sync>, pkt_size: usize, debug: bool) {
+    let pkt_size = 2048;
+    let batch_sz: usize = BATCH_SIZE;
+    let mut packets = RRefDeque::<[u8; 1512], 32>::default();
+    let mut collect = RRefDeque::<[u8; 1512], 32>::default();
+    let mut poll =  RRefDeque::<[u8; 1512], 512>::default();
+
+    let mut pkt_arr = [0; 1512];
+
+    for i in 0..batch_sz {
+        packets.push_back(RRef::<[u8; 1512]>::new(pkt_arr.clone()));
+    }
+
+    let mut packets = Some(packets);
+    let mut collect = Some(collect);
+    let mut poll = Some(poll);
+
+    println!("run_rx_udptest_rref");
+
+    let mut sum: usize = 0;
+    let mut alloc_count = 0;
+
+    let mut submit_rx_hist = Base2Histogram::new();
+    let mut collect_rx_hist = Base2Histogram::new();
+
+    let mut collect_start = true;
+    let mut collect_end = false;
+    let mut seq_start: u64 = 0;
+    let mut seq_end: u64 = 0;
+
+    let start = rv6.sys_rdtsc();
+    let end = start + 15 * 2_600_000_000;
+
+    loop {
+        //submit_rx_hist.record(packets.len() as u64);
+
+        let (ret, mut packets_, mut collect_) = net.submit_and_poll_rref(packets.take().unwrap(),
+                                collect.take().unwrap(), false);
+
+        //if debug {
+            //println!("rx packets.len {} collect.len {} ret {}", packets.len(), collect.len(), ret);
+        //}
+        sum += collect_.len();
+        collect_rx_hist.record(collect_.len() as u64);
+
+        //if collect_start && !collect.is_empty() {
+            //let pkt = &collect[0];
+            //dump_packet(pkt);
+            //seq_start = BigEndian::read_u64(&pkt[42..42+8]);
+            //collect_start = false;
+            //collect_end = true;
+        //}
+
+        //packets.append(&mut collect);
+
+        while let Some(packet) = collect_.pop_front() {
+            packets_.push_back(packet);
+        }
+
+        if rv6.sys_rdtsc() > end {
+            break;
+        }
+
+        //if packets_.len() < batch_sz / 4 {
+        if packets_.len() == 0 {
+            let alloc_sz = batch_sz - packets_.len();
+            //println!("allocating new batch");
+            alloc_count += 1;
+
+            for i in 0..alloc_sz {
+                packets_.push_back(RRef::<[u8; 1512]>::new(pkt_arr.clone()));
+            }
+        }
+
+        packets.replace(packets_);
+        collect.replace(collect_);
+    }
+
+    let elapsed = rv6.sys_rdtsc() - start;
+
+    //println!("rx packets.len {} collect.len {} ", packets.len(), collect.len());
+    //let ret = idev.device.submit_and_poll(&mut packets, &mut collect, false, false);
+    //if collect_end && !collect.is_empty() {
+        //let pkt = &collect[0];
+        //dump_packet(pkt);
+        //seq_end = BigEndian::read_u64(&pkt[42..42+8]);
+    //}
+
+    //println!("seq_start {} seq_end {} delta {}", seq_start, seq_end, seq_end - seq_start);
+    println!("sum {} batch alloc_count {}", sum, alloc_count);
+    println!("==> rx batch {}B: {} iterations took {} cycles (avg = {})", pkt_size, sum, elapsed, elapsed / sum as u64);
+    // dev.dump_stats();
+    for hist in alloc::vec![submit_rx_hist, collect_rx_hist] {
+        println!("hist:");
+        // Iterate buckets that have observations
+        for bucket in hist.iter().filter(|b| b.count > 0) {
+            print!("({:5}, {:5}): {}", bucket.start, bucket.end, bucket.count);
+            print!("\n");
+        }
+    }
+
+    // println!("Reaped {} packets", dev.device.rx_poll_rref(poll.take().unwrap()).0);
 }
 
 
