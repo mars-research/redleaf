@@ -666,26 +666,37 @@ fn run_sashstoretest(dev: &Ixgbe, pkt_size: u16) {
                             )
                         };
 
+                        // println!("Before handle: payloadvec.capacity() = {}, len() = {}", payloadvec.capacity(), payloadvec.len());
                         let responsevec = unsafe { sashstore.handle_network_request(payloadvec) };
 
+                        // assert!(responsevec.as_ptr() == payloadptr);
+                        // println!("Handled: {:x?} -> {:x?}", responsevec.as_ptr(), payloadptr);
+                        // println!("After handle: responsevec.capacity() = {}, len() = {}", responsevec.capacity(), responsevec.len());
                         if responsevec.as_ptr() != payloadptr {
                             unsafe {
                                 ptr::copy(responsevec.as_ptr(), payloadptr, responsevec.len());
                             }
                         }
 
-                        pkt.truncate(padding + responsevec.len());
-                        // println!("handled! padding={}, resposevec.len() = {}, truncated to {}", padding, responsevec.len(), pkt.len());
+                        // println!("Before set_len: {}", pkt.len());
+                        unsafe {
+                            pkt.set_len(padding + responsevec.len());
+                        }
+                        // println!("After set_len: padding={}, resposevec.len() = {}, set to {}", padding, responsevec.len(), pkt.len());
+
                         packettool::swap_udp_ips(pkt);
                         packettool::swap_mac(pkt);
                         packettool::fix_ip_length(pkt);
                         packettool::fix_ip_checksum(pkt);
                         packettool::fix_udp_length(pkt);
+                        packettool::fix_udp_checksum(pkt);
+
+                        // println!("To send: {:x?}", pkt);
                     } else {
                         println!("No sashstore???");
                     }
                 } else {
-                    println!("Not a UDP packet: {:x?}", &pkt);
+                    // println!("Not a UDP packet: {:x?}", &pkt);
                 }
             }
 

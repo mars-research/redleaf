@@ -13,6 +13,7 @@ const IPV4_SRCDST_OFFSET: usize = 12;
 const IPV4_SRCDST_LEN: usize = 8;
 
 const UDP_LENGTH_OFFSET: usize = 4;
+const UDP_CHECKSUM_OFFSET: usize = 6;
 
 pub fn swap_mac(frame: &mut [u8]) {
     for i in 0..6 {
@@ -45,6 +46,14 @@ pub fn fix_udp_length(frame: &mut [u8]) {
 
     frame[ETH_HEADER_LEN + v4len + UDP_LENGTH_OFFSET] = (length >> 8) as u8;
     frame[ETH_HEADER_LEN + v4len + UDP_LENGTH_OFFSET + 1] = length as u8;
+}
+
+pub fn fix_udp_checksum(frame: &mut [u8]) {
+    // Length of IPv4 header
+    let v4len = (frame[ETH_HEADER_LEN] & 0b1111) as usize * 4;
+
+    frame[ETH_HEADER_LEN + v4len + UDP_CHECKSUM_OFFSET] = 0;
+    frame[ETH_HEADER_LEN + v4len + UDP_CHECKSUM_OFFSET + 1] = 0;
 }
 
 pub fn get_flowhash(frame: &[u8]) -> Option<usize> {
