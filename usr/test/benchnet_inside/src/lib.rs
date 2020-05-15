@@ -23,13 +23,13 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
 
     println!("Init domain benchnet_inside");
 
-    run_tx_udptest_rref(&mut net, 22, false);
-    run_rx_udptest_rref(&mut net, 22, false);
+    run_tx_udptest_rref(&mut net, 64, false);
+    run_rx_udptest_rref(&mut net, 64, false);
 }
 
 const BATCH_SIZE: usize = 32;
 
-fn run_tx_udptest_rref(net: &mut Box<dyn Net + Send>, payload_sz: usize, mut debug: bool) {
+fn run_tx_udptest_rref(net: &mut Box<dyn Net + Send>, pkt_len: usize, mut debug: bool) {
     let batch_sz: usize = BATCH_SIZE;
     let mut packets = RRefDeque::<[u8; 1512], 32>::new(Default::default());
     let mut collect = RRefDeque::<[u8; 1512], 32>::new(Default::default());
@@ -57,7 +57,7 @@ fn run_tx_udptest_rref(net: &mut Box<dyn Net + Send>, payload_sz: usize, mut deb
         0x9c, 0xaf,
     ];
 
-    let mut payload = alloc::vec![0u8; payload_sz];
+    let mut payload = alloc::vec![0u8; pkt_len];
 
     payload[0] = b'R';
     payload[1] = b'e';
@@ -115,7 +115,7 @@ fn run_tx_udptest_rref(net: &mut Box<dyn Net + Send>, payload_sz: usize, mut deb
 
     loop{
         let (ret, mut packets_, mut collect_) = net.submit_and_poll_rref(packets.take().unwrap(),
-                                collect.take().unwrap(), true);
+                                collect.take().unwrap(), true, pkt_len);
         sum += ret;
 
         // println!("ret {}", ret);
@@ -144,7 +144,7 @@ fn run_tx_udptest_rref(net: &mut Box<dyn Net + Send>, payload_sz: usize, mut deb
     if sum == 0 {
         sum += 1;
     }
-    println!("==> tx batch {} : {} iterations took {} cycles (avg = {})", payload_sz, sum, elapsed, elapsed / sum as u64);
+    println!("==> tx batch {} : {} iterations took {} cycles (avg = {})", pkt_len, sum, elapsed, elapsed / sum as u64);
     // dev.dump_stats();
     println!(" alloc_count {}", alloc_count * 32);
     //println!("packet.len {} collect.len {}", packets.unwrap().len(), collect.unwrap().len());
@@ -212,7 +212,7 @@ fn run_rx_udptest_rref(net: &mut Box<dyn Net + Send>, pkt_size: usize, debug: bo
         //submit_rx_hist.record(packets.len() as u64);
 
         let (ret, mut packets_, mut collect_) = net.submit_and_poll_rref(packets.take().unwrap(),
-                                collect.take().unwrap(), false);
+                                collect.take().unwrap(), false, pkt_size);
 
         //if debug {
             //println!("rx packets.len {} collect.len {} ret {}", packets.len(), collect.len(), ret);

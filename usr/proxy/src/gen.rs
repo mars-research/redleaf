@@ -381,7 +381,8 @@ impl Net for IxgbeProxy {
         &mut self,
         packets: RRefDeque<[u8; 1512], 32>,
         collect: RRefDeque<[u8; 1512], 32>,
-        tx: bool) -> (
+        tx: bool,
+        pkt_len: usize) -> (
             usize,
             RRefDeque<[u8; 1512], 32>,
             RRefDeque<[u8; 1512], 32>
@@ -392,7 +393,7 @@ impl Net for IxgbeProxy {
 
         packets.move_to(self.domain_id);
         collect.move_to(self.domain_id);
-        let r = self.domain.submit_and_poll_rref(packets, collect, tx);
+        let r = self.domain.submit_and_poll_rref(packets, collect, tx, pkt_len);
         r.1.move_to(caller_domain);
         r.2.move_to(caller_domain);
 
@@ -583,7 +584,8 @@ impl Net for Rv6Proxy {
         &mut self,
         packets: RRefDeque<[u8; 1512], 32>,
         collect: RRefDeque<[u8; 1512], 32>,
-        tx: bool) -> (
+        tx: bool,
+        pkt_len: usize) -> (
             usize,
             RRefDeque<[u8; 1512], 32>,
             RRefDeque<[u8; 1512], 32>
@@ -594,7 +596,7 @@ impl Net for Rv6Proxy {
 
         packets.move_to(self.domain_id);
         collect.move_to(self.domain_id);
-        let r = self.domain.submit_and_poll_rref(packets, collect, tx);
+        let r = self.domain.submit_and_poll_rref(packets, collect, tx, pkt_len);
         r.1.move_to(caller_domain);
         r.2.move_to(caller_domain);
 

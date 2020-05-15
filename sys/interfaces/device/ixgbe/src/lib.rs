@@ -345,13 +345,13 @@ impl IxgbeDevice {
         sent
     }
 
-    pub fn submit_and_poll_rref(&mut self, mut packets: RRefDeque<[u8; 1512], 32>, mut collect: RRefDeque<[u8; 1512], 32>, tx: bool, debug: bool) ->
+    pub fn submit_and_poll_rref(&mut self, mut packets: RRefDeque<[u8; 1512], 32>, mut collect: RRefDeque<[u8; 1512], 32>, tx: bool, pkt_len: usize, debug: bool) ->
             (usize, RRefDeque<[u8; 1512], 32>, RRefDeque<[u8; 1512], 32>)
     {
         if tx {
-            self.tx_submit_and_poll_rref(packets, collect, debug)
+            self.tx_submit_and_poll_rref(packets, collect, pkt_len, debug)
         } else {
-            self.rx_submit_and_poll_rref(packets, collect, debug)
+            self.rx_submit_and_poll_rref(packets, collect, pkt_len, debug)
         }
     }
 
@@ -953,7 +953,7 @@ impl IxgbeDevice {
     }
 
     fn tx_submit_and_poll_rref(&mut self, mut packets: RRefDeque<[u8; 1512], 32>,
-                                mut reap_queue: RRefDeque<[u8; 1512], 32>, debug: bool) ->
+                                mut reap_queue: RRefDeque<[u8; 1512], 32>, pkt_len: usize, debug: bool) ->
             (usize, RRefDeque<[u8; 1512], 32>, RRefDeque<[u8; 1512], 32>)
     {
         let mut sent = 0;
@@ -996,7 +996,6 @@ impl IxgbeDevice {
                 break;
             }
 
-            let pkt_len = 64;
             if debug {
                 //println!("packet len {}", pkt_len);
             }
@@ -1107,7 +1106,7 @@ impl IxgbeDevice {
 
     #[inline(always)]
     fn rx_submit_and_poll_rref(&mut self, mut packets: RRefDeque<[u8; 1512], 32>,
-                                mut reap_queue: RRefDeque<[u8; 1512], 32>, debug: bool) ->
+                                mut reap_queue: RRefDeque<[u8; 1512], 32>, pkt_len: usize, debug: bool) ->
             (usize, RRefDeque<[u8; 1512], 32>, RRefDeque<[u8; 1512], 32>)
     {
         let mut rx_index = self.receive_index;

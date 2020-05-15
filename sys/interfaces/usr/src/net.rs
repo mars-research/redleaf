@@ -11,7 +11,8 @@ pub trait Net {
         &mut self,
         packets: RRefDeque<[u8; 1512], 32>,
         collect: RRefDeque<[u8; 1512], 32>,
-        tx: bool) -> (
+        tx: bool,
+        pkt_len: usize) -> (
             usize,
             RRefDeque<[u8; 1512], 32>,
             RRefDeque<[u8; 1512], 32>

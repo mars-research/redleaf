@@ -112,12 +112,13 @@ impl Net for Rv6Syscalls {
         &mut self,
         packets: RRefDeque<[u8; 1512], 32>,
         collect: RRefDeque<[u8; 1512], 32>,
-        tx: bool) -> (
+        tx: bool,
+        pkt_len: usize) -> (
             usize,
             RRefDeque<[u8; 1512], 32>,
             RRefDeque<[u8; 1512], 32>
         ) {
-        self.net.lock().submit_and_poll_rref(packets, collect, tx)
+        self.net.lock().submit_and_poll_rref(packets, collect, tx, pkt_len)
     }
 }
 

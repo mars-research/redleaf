@@ -111,7 +111,8 @@ impl usr::net::Net for Ixgbe {
         &mut self,
         mut packets: RRefDeque<[u8; 1512], 32>,
         mut collect: RRefDeque<[u8; 1512], 32>,
-        tx: bool) -> (
+        tx: bool,
+        pkt_len: usize) -> (
             usize,
             RRefDeque<[u8; 1512], 32>,
             RRefDeque<[u8; 1512], 32>
@@ -129,7 +130,7 @@ impl usr::net::Net for Ixgbe {
         if let Some(device) = self.device.borrow_mut().as_mut() {
             let dev: &mut Intel8259x = device;
             let (num, mut packets_, mut collect_) = dev.device.submit_and_poll_rref(packets.take().unwrap(),
-                                                                    collect.take().unwrap(), tx, false);
+                                                    collect.take().unwrap(), tx, pkt_len, false);
             ret = num;
             packets.replace(packets_);
             collect.replace(collect_);
@@ -171,7 +172,7 @@ impl pci_driver::PciDriver for Ixgbe {
 
 const BATCH_SIZE: usize = 32;
 
-fn run_tx_udptest_rref(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
+fn run_tx_udptest_rref(dev: &Ixgbe, pkt_len: usize, mut debug: bool) {
     let batch_sz: usize = BATCH_SIZE;
     let mut packets = RRefDeque::<[u8; 1512], 32>::default();
     let mut collect = RRefDeque::<[u8; 1512], 32>::default();
@@ -199,7 +200,7 @@ fn run_tx_udptest_rref(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
         0x9c, 0xaf,
     ];
 
-    let mut payload = alloc::vec![0u8; payload_sz];
+    let mut payload = alloc::vec![0u8; pkt_len];
 
     payload[0] = b'R';
     payload[1] = b'e';
@@ -254,7 +255,7 @@ fn run_tx_udptest_rref(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
 
         loop{
             let (ret, mut packets_, mut collect_) = dev.device.submit_and_poll_rref(packets.take().unwrap(),
-                                    collect.take().unwrap(), true, debug);
+                                    collect.take().unwrap(), true, pkt_len, debug);
             sum += ret;
     
             collect_tx_hist.record(collect_.len() as u64);
@@ -281,7 +282,7 @@ fn run_tx_udptest_rref(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
         if sum == 0 {
             sum += 1;
         }
-        println!("==> tx batch {} : {} iterations took {} cycles (avg = {})", payload_sz, sum, elapsed, elapsed / sum as u64);
+        println!("==> tx batch {} : {} iterations took {} cycles (avg = {})", pkt_len, sum, elapsed, elapsed / sum as u64);
         dev.dump_stats();
         println!(" alloc_count {}", alloc_count * 32);
         //println!("packet.len {} collect.len {}", packets.unwrap().len(), collect.unwrap().len());
@@ -430,7 +431,7 @@ fn run_rx_udptest_rref(dev: &Ixgbe, pkt_size: usize, debug: bool) {
             //submit_rx_hist.record(packets.len() as u64);
 
             let (ret, mut packets_, mut collect_) = dev.device.submit_and_poll_rref(packets.take().unwrap(),
-                                    collect.take().unwrap(), false, debug);
+                                    collect.take().unwrap(), false, pkt_size, debug);
 
             //if debug {
                 //println!("rx packets.len {} collect.len {} ret {}", packets.len(), collect.len(), ret);
@@ -713,7 +714,7 @@ fn run_fwd_maglevtest(dev: &Ixgbe, pkt_size: u16) {
     }
 }
 
-fn run_fwd_udptest_rref(dev: &Ixgbe, pkt_size: u16) {
+fn run_fwd_udptest_rref(dev: &Ixgbe, pkt_size: usize) {
     let batch_sz = BATCH_SIZE;
     let mut rx_submit = RRefDeque::<[u8; 1512], 32>::default();
     let mut rx_collect = RRefDeque::<[u8; 1512], 32>::default();
@@ -762,7 +763,7 @@ fn run_fwd_udptest_rref(dev: &Ixgbe, pkt_size: u16) {
             //println!("call rx_submit_poll packet {}", packets.len());
             let rx_start = rdtsc();
             let (ret, mut rx_submit_, mut rx_collect_) = dev.device.submit_and_poll_rref(rx_submit.take().unwrap(),
-                                    rx_collect.take().unwrap(), false, false);
+                                    rx_collect.take().unwrap(), false, pkt_size, false);
             sum += ret;
             rx_elapsed += rdtsc() - rx_start;
 
@@ -771,59 +772,19 @@ fn run_fwd_udptest_rref(dev: &Ixgbe, pkt_size: u16) {
 
             let ms_start = rdtsc();
             // XXX: macswap, a bit hacky
-            for _ in 0..rx_collect_.len() {
-                if let Some (mut pkt) = rx_collect_.pop_front() {
-                    let mut hdr = &mut *pkt;
-                    hdr[3] = 0xb3;
-                    hdr[4] = 0x74;
-                    hdr[5] = 0x81;
-                    hdr[9] = 0xb5;
-                    hdr[10] = 0x14;
-                    hdr[11] = 0xcd;
-                    //dump_packet_rref(&pkt, 64);
-                    if rx_collect_.push_back(pkt).is_some() {
-                        println!("Pushing to full tx_packets_1 queue");
-                        break;
-                    }
+            for pkt in rx_collect_.iter_mut() {
+                for i in 0..6 {
+                    (pkt).swap(i, 6 + i);
                 }
             }
             mswap_elapsed += rdtsc() - ms_start;
-
-            /*while let Some(mut pkt) = rx_collect_.pop_front() {
-                /*unsafe {
-                println!("pkt {:x?} off[6] {:x?}", &*pkt as *const [u8; 1512] as *const u64,
-                                (&mut (*pkt) as *mut [u8; 1512] as *mut u8).offset(6));
-                }*/
-
-
-                //let mut sender_mac = alloc::vec![ 0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81];
-                //let mut our_mac = alloc::vec![0x90, 0xe2, 0xba, 0xb5, 0x14, 0xcd];
-                let mut hdr = *pkt;
-                hdr[3] = 0xb3;
-                hdr[4] = 0x74;
-                hdr[5] = 0x81;
-                hdr[9] = 0xb5;
-                hdr[10] = 0x14;
-                hdr[11] = 0xcd;
-                /*unsafe {
-                    ptr::copy(our_mac.as_ptr(), (&mut (*pkt) as *mut [u8; 1512] as *mut u8).offset(6), our_mac.capacity());
-                    ptr::copy(sender_mac.as_ptr(), (&mut (*pkt) as *mut [u8; 1512] as *mut u8).offset(0), sender_mac.capacity());
-                }*/
-
-                if let Some(mut tx) = tx_submit.take() {
-                    if tx.push_back(pkt).is_some() {
-                        println!("Pushing to full tx_packets_1 queue");
-                        break;
-                    }
-                }
-            }*/
 
             submit_tx += rx_collect_.len();
             submit_tx_hist.record(rx_collect_.len() as u64);
 
             let tx_start = rdtsc();
             let (ret, mut rx_collect_, mut tx_collect_) = dev.device.submit_and_poll_rref(rx_collect_,
-                                    tx_collect.take().unwrap(), true, false);
+                                    tx_collect.take().unwrap(), true, pkt_size, false);
             tx_elapsed += rdtsc() - tx_start;
             fwd_sum += ret;
 
@@ -1007,15 +968,15 @@ pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
 
     let start = rdtsc();
 
-    run_tx_udptest(&ixgbe, 22, false);
+    //run_tx_udptest(&ixgbe, 22, false);
 
-    run_tx_udptest_rref(&ixgbe, 22, false);
+    //run_tx_udptest_rref(&ixgbe, 22, false);
     
-    run_rx_udptest_rref(&ixgbe, 22, false);
+    //run_rx_udptest_rref(&ixgbe, 22, false);
 
     run_fwd_udptest(&ixgbe, 64 - 42);
 
-    run_fwd_udptest_rref(&ixgbe, 64 - 42);
+    run_fwd_udptest_rref(&ixgbe, 64);
 
     /*println!("=> Running tests...");
 
