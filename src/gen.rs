@@ -75,7 +75,7 @@ impl create::CreateXv6 for PDomain {
                                create_xv6fs: Arc<dyn create::CreateXv6FS>,
                                create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
                                bdev: Box<dyn usr::bdev::BDev + Send + Sync>,
-                               net: Box<dyn usr::net::Net>) -> Box<dyn syscalls::Domain> {
+                               net: Box<dyn usr::net::Net>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::xv6::Xv6 + Send + Sync>) {
         disable_irq();
         let r = create_domain_xv6kernel(ints,
                                         create_xv6fs,
@@ -302,7 +302,7 @@ pub fn create_domain_xv6kernel(ints: Box<dyn syscalls::Interrupt>,
                                create_xv6fs: Arc<dyn create::CreateXv6FS>,
                                create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
                                bdev: Box<dyn usr::bdev::BDev + Send + Sync>,
-                               net: Box<dyn usr::net::Net>) -> Box<dyn syscalls::Domain> {
+                               net: Box<dyn usr::net::Net>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::xv6::Xv6 + Send + Sync>) {
     extern "C" {
         fn _binary_usr_xv6_kernel_core_build_xv6kernel_start();
         fn _binary_usr_xv6_kernel_core_build_xv6kernel_end();
@@ -897,7 +897,7 @@ pub fn build_domain_xv6kernel(name: &str,
                               create_xv6fs: Arc<dyn create::CreateXv6FS>,
                               create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
                               bdev: Box<dyn usr::bdev::BDev + Send + Sync>,
-                              net: Box<dyn usr::net::Net>) -> Box<dyn syscalls::Domain>
+                              net: Box<dyn usr::net::Net>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::xv6::Xv6 + Send + Sync>)
 {
     type UserInit = fn(Box<dyn syscalls::Syscall>,
                        Box<dyn syscalls::Heap>,
@@ -905,7 +905,7 @@ pub fn build_domain_xv6kernel(name: &str,
                        Arc<dyn create::CreateXv6FS>,
                        Arc<dyn create::CreateXv6Usr>,
                        Box<dyn usr::bdev::BDev + Send + Sync>,
-                       Box<dyn usr::net::Net>);
+                       Box<dyn usr::net::Net>) -> Box<dyn usr::xv6::Xv6 + Send + Sync>;
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)
@@ -929,7 +929,7 @@ pub fn build_domain_xv6kernel(name: &str,
 
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
-    user_ep(pdom, pheap, ints, create_xv6fs, create_xv6usr, bdev, net);
+    let rv6 = user_ep(pdom, pheap, ints, create_xv6fs, create_xv6usr, bdev, net);
     disable_irq();
 
     // change domain id back
@@ -938,7 +938,7 @@ pub fn build_domain_xv6kernel(name: &str,
     }
 
     println!("domain/{}: returned from entry point", name);
-    Box::new(PDomain::new(Arc::clone(&dom)))
+    (Box::new(PDomain::new(Arc::clone(&dom))), rv6)
 }
 
 pub fn build_domain_xv6usr(name: &str,

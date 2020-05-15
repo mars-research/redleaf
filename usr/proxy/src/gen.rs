@@ -183,9 +183,10 @@ impl create::CreateXv6 for Proxy {
                                create_xv6fs: Arc<dyn create::CreateXv6FS>,
                                create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
                                bdev: Box<dyn BDev + Send + Sync>,
-                               net: Box<dyn usr::net::Net>) -> Box<dyn Domain> {
-        // TODO: write Xv6KernelProxy
-        self.create_xv6.create_domain_xv6kernel(ints, create_xv6fs, create_xv6usr, bdev, net)
+                               net: Box<dyn usr::net::Net>) -> (Box<dyn Domain>, Box<dyn Xv6 + Send + Sync>) {
+        let (domain, rv6) = self.create_xv6.create_domain_xv6kernel(ints, create_xv6fs, create_xv6usr, bdev, net);
+        let domain_id = domain.get_domain_id();
+        (domain, Box::new(Rv6Proxy::new(domain_id, rv6)))
     }
 }
 

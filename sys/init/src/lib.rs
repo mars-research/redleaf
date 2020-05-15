@@ -226,7 +226,10 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
     }
 
     #[cfg(not(feature = "benchnet"))]
-    let dom_xv6 = proxy.as_create_xv6().create_domain_xv6kernel(ints_clone, proxy.as_create_xv6fs(), proxy.as_create_xv6usr(), bdev, net);
+    {
+        let (dom_xv6, rv6) = proxy.as_create_xv6().create_domain_xv6kernel(ints_clone, proxy.as_create_xv6fs(), proxy.as_create_xv6usr(), bdev, net);
+        rv6.sys_spawn_domain("/init", "/init", array_init::array_init(|_| None)).unwrap();
+    }
 }
 
 // This function is called on panic.
