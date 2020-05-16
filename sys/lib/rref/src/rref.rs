@@ -1,3 +1,6 @@
+// although unsafe function's don't need unsafe blocks, it helps readability
+#![allow(unused_unsafe)]
+
 use alloc::boxed::Box;
 use core::ops::{Deref, DerefMut, Drop};
 use core::alloc::Layout;
@@ -25,7 +28,7 @@ unsafe impl<T> Send for RRef<T> where T: Send {}
 unsafe impl<T> Sync for RRef<T> where T: Sync {}
 
 impl<T> RRef<T> {
-    pub fn new(value: T) -> RRef<T> {
+    fn new_with_layout(value: T, layout: Layout) -> RRef<T> {
         // We allocate the shared heap memory by hand. It will be deallocated in one of two cases:
         //   1. RRef<T> gets dropped, and so the memory under it should be freed.
         //   2. The domain owning the RRef dies, and so the shared heap gets cleaned,
@@ -35,7 +38,6 @@ impl<T> RRef<T> {
         // when we move the rref, we change the value of the domain id pointer
         // when we modify the rref, we dereference the value pointer
 
-        let layout = Layout::new::<T>();
         let (domain_id_pointer, value_memory) = unsafe { HEAP.force_get().alloc(layout) };
         // the memory we get back has size and alignment of T, so this cast is safe
         let value_pointer = value_memory as *mut T;
@@ -51,6 +53,17 @@ impl<T> RRef<T> {
             domain_id_pointer,
             value_pointer
         }
+    }
+
+    pub fn new(value: T) -> RRef<T> {
+        let layout = Layout::new::<T>();
+        Self::new_with_layout(value, layout)
+    }
+
+    pub fn new_aligned(value: T, align: usize) -> RRef<T> {
+        let size = core::mem::size_of::<T>();
+        let layout = unsafe { Layout::from_size_align_unchecked(size, align) };
+        Self::new_with_layout(value, layout)
     }
 
     // TODO: move to kernel if possible
