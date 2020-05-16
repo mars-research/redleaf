@@ -718,15 +718,10 @@ fn run_fwd_udptest_rref(dev: &Ixgbe, pkt_size: usize) {
     let batch_sz = BATCH_SIZE;
     let mut rx_submit = RRefDeque::<[u8; 1512], 32>::default();
     let mut rx_collect = RRefDeque::<[u8; 1512], 32>::default();
-    //let mut tx_submit = RRefDeque::<[u8; 1512], 32>::default();
-    let mut tx_collect = RRefDeque::<[u8; 1512], 32>::default();
 
     let mut submit_rx_hist = Base2Histogram::new();
     let mut submit_tx_hist = Base2Histogram::new();
     
-    let mut sender_mac = alloc::vec![ 0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81];
-    let mut our_mac = alloc::vec![0x90, 0xe2, 0xba, 0xb5, 0x14, 0xcd];
-
     let mut pkt_arr = [0; 1512];
 
     for i in 0..batch_sz {
@@ -746,7 +741,6 @@ fn run_fwd_udptest_rref(dev: &Ixgbe, pkt_size: usize) {
         let mut rx_elapsed = 0;
 
         let mut mswap_elapsed = 0;
-        let mut bswap_elapsed = 0;
 
         let mut submit_rx: usize = 0;
         let mut submit_tx: usize = 0;
@@ -754,8 +748,6 @@ fn run_fwd_udptest_rref(dev: &Ixgbe, pkt_size: usize) {
 
         let mut rx_submit = Some(rx_submit);
         let mut rx_collect = Some(rx_collect);
-        let mut tx_collect = Some(tx_collect);
-        //let mut tx_submit = Some(tx_submit);
 
         loop {
             loop_count = loop_count.wrapping_add(1);
@@ -771,7 +763,6 @@ fn run_fwd_udptest_rref(dev: &Ixgbe, pkt_size: usize) {
 
 
             let ms_start = rdtsc();
-            // XXX: macswap, a bit hacky
             for pkt in rx_collect_.iter_mut() {
                 for i in 0..6 {
                     (pkt).swap(i, 6 + i);
@@ -783,21 +774,13 @@ fn run_fwd_udptest_rref(dev: &Ixgbe, pkt_size: usize) {
             submit_tx_hist.record(rx_collect_.len() as u64);
 
             let tx_start = rdtsc();
-            let (ret, mut rx_collect_, mut tx_collect_) = dev.device.submit_and_poll_rref(rx_collect_,
-                                    tx_collect.take().unwrap(), true, pkt_size, false);
+            let (ret, mut rx_collect_, mut rx_submit_) = dev.device.submit_and_poll_rref(rx_collect_,
+                                    rx_submit_, true, pkt_size, false);
+
             tx_elapsed += rdtsc() - tx_start;
             fwd_sum += ret;
 
             //print!("tx: submitted {} collect {}\n", ret, tx_collect_.len());
-
-            let bswap_start = rdtsc();
-            while let Some(pkt) = tx_collect_.pop_front() {
-                if rx_submit_.push_back(pkt).is_some() {
-                    println!("Pushing to full tx_packets_1 queue");
-                    break;
-                }
-            }
-            bswap_elapsed += rdtsc() - bswap_start;
 
             if rx_submit_.len() == 0 && rx_collect_.len() < batch_sz * 4 {
                 //println!("-> Allocating new rx_ptx batch");
@@ -815,7 +798,6 @@ fn run_fwd_udptest_rref(dev: &Ixgbe, pkt_size: usize) {
             submit_rx_hist.record(rx_submit_.len() as u64);
             rx_submit.replace(rx_submit_);
             rx_collect.replace(rx_collect_);
-            tx_collect.replace(tx_collect_);
         }
 
         let elapsed = rdtsc() - start;
@@ -835,12 +817,8 @@ fn run_fwd_udptest_rref(dev: &Ixgbe, pkt_size: usize) {
                             pkt_size, sum, rx_elapsed, rx_elapsed  / sum as u64);
         println!(" ==> mac_swap {}B: {} packets took {} cycles (avg = {})",
                             pkt_size, sum, mswap_elapsed, mswap_elapsed / sum as u64);
-
         println!(" ==> tx batching {}B: {} packets took {} cycles (avg = {})",
                             pkt_size, fwd_sum, tx_elapsed, tx_elapsed  / fwd_sum as u64);
-        println!(" ==> buffer_swap {}B: {} packets took {} cycles (avg = {})",
-                            pkt_size, sum, bswap_elapsed, bswap_elapsed / sum as u64);
-
         println!("==> fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_size, fwd_sum, elapsed, elapsed / fwd_sum as u64);
         dev.dump_stats();
     }
@@ -965,8 +943,6 @@ pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
     println!("Starting tests");
 
     let payload_sz = alloc::vec![64 - 42, 64, 128, 256, 512, 1470];
-
-    let start = rdtsc();
 
     //run_tx_udptest(&ixgbe, 22, false);
 
