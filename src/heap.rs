@@ -6,7 +6,8 @@ use crate::interrupt::{disable_irq, enable_irq};
 use crate::memory::MEM_PROVIDER;
 
 struct SharedHeapAllocation {
-    ptr: usize, // *mut SharedHeapObject<T>
+    ptr: *mut u8, // *mut T
+    domain_id_ptr: *mut u64,
     layout: Layout,
 }
 
@@ -22,11 +23,11 @@ impl PHeap {
 }
 
 impl syscalls::Heap for PHeap {
-    unsafe fn alloc(&self, domain_id: u64, layout: Layout) -> *mut u8 {
+    unsafe fn alloc(&self, layout: Layout) -> (*mut u64, *mut u8) {
         disable_irq();
-        let ptr = alloc_heap(domain_id, layout);
+        let ptrs = alloc_heap(layout);
         enable_irq();
-        ptr
+        ptrs
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8) {
@@ -36,19 +37,21 @@ impl syscalls::Heap for PHeap {
     }
 }
 
-unsafe fn alloc_heap(domain_id: u64, layout: Layout) -> *mut u8 {
+unsafe fn alloc_heap(layout: Layout) -> (*mut u64, *mut u8) {
+    let domain_id_ptr = MEM_PROVIDER.alloc(Layout::new::<u64>()) as *mut u64;
     let ptr = MEM_PROVIDER.alloc(layout);
     {
         let lock = alloc_lock.lock();
 
         unsafe { &mut allocations }.push(SharedHeapAllocation {
-            ptr: ptr as usize,
+            ptr,
+            domain_id_ptr,
             layout
         });
 
         drop(lock);
     }
-    ptr
+    (domain_id_ptr, ptr)
 }
 
 unsafe fn dealloc_heap(ptr: *mut u8) {
@@ -71,12 +74,9 @@ pub unsafe fn drop_domain(domain_id: u64) {
     let lock = alloc_lock.lock();
     // remove all allocations from list that belong to the exited domain
     (&mut allocations).retain(|allocation| {
-        // NOTE: allocation.ptr is *mut SharedHeapObject<T>
-        //          because SharedHeapObject<T> is repr(C), and domain_id:u64 is the first field,
-        //          we can extract domain_id by casting to *const u64 and dereferencing.
-        let this_domain_id = *(allocation.ptr as *const u64);
+        let this_domain_id = *(allocation.domain_id_ptr);
         if domain_id == this_domain_id {
-            unsafe { MEM_PROVIDER.dealloc(allocation.ptr as *mut u8, allocation.layout) }
+            unsafe { MEM_PROVIDER.dealloc(allocation.ptr, allocation.layout) }
             false
         } else {
             true
