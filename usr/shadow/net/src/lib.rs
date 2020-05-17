@@ -61,13 +61,14 @@ impl Net for Shadow {
         &mut self,
         packets: RRefDeque<[u8; 1512], 32>,
         collect: RRefDeque<[u8; 1512], 32>,
-        tx: bool) -> (
+        tx: bool,
+        pkt_len: usize) -> (
             usize,
             RRefDeque<[u8; 1512], 32>,
             RRefDeque<[u8; 1512], 32>
         )
     {
-        self.shadow.lock().net.submit_and_poll_rref(packets, collect, tx)
+        self.shadow.lock().net.submit_and_poll_rref(packets, collect, tx, pkt_len)
     }
 }
 
