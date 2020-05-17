@@ -16,11 +16,12 @@
 mod device;
 mod ixgbe_desc;
 mod maglev;
-mod flowhash;
+mod packettool;
 
 extern crate malloc;
 extern crate alloc;
 extern crate b2histogram;
+extern crate sashstore_redleaf;
 
 #[macro_use]
 use b2histogram::Base2Histogram;
@@ -43,12 +44,15 @@ pub use libsyscalls::errors::Result;
 use crate::device::Intel8259x;
 use core::cell::RefCell;
 use protocol::UdpPacket;
-use core::ptr;
+use core::{mem, ptr};
 use rref::{RRef, RRefDeque};
 
 use libtime::get_rdtsc as rdtsc;
 
 use maglev::Maglev;
+use sashstore_redleaf::SashStore;
+
+static mut SASHSTORE: Option<SashStore> = None;
 
 struct Ixgbe {
     vendor_id: u16,
@@ -61,6 +65,10 @@ struct Ixgbe {
 
 impl Ixgbe {
     fn new() -> Ixgbe {
+        unsafe {
+            SASHSTORE = Some(SashStore::with_capacity(1));
+        }
+
         Ixgbe {
             vendor_id: 0x8086,
             device_id: 0x10fb,
@@ -93,7 +101,8 @@ fn calc_ipv4_checksum(ipv4_header: &[u8]) -> u16 {
 }
 
 impl usr::net::Net for Ixgbe {
-    fn submit_and_poll(&mut self, mut packets: &mut VecDeque<Vec<u8>>, mut collect: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
+    fn submit_and_poll(&mut self, mut packets: &mut VecDeque<Vec<u8>
+        >, mut collect: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
         let mut ret: usize = 0;
         if !self.device_initialized {
             return ret;
@@ -664,7 +673,134 @@ fn dump_packet_rref(pkt: &[u8; 1512], len: usize) {
     print!("\n");
 }
 
-fn run_fwd_maglevtest(dev: &Ixgbe, pkt_len: u16) {
+fn run_sashstoretest(dev: &Ixgbe, pkt_size: u16) {
+    let batch_sz = BATCH_SIZE;
+    let mut rx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
+    let mut tx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
+    let mut submit_rx_hist = Base2Histogram::new();
+    let mut submit_tx_hist = Base2Histogram::new();
+
+    for i in 0..batch_sz {
+        rx_packets.push_front(Vec::with_capacity(2048));
+    }
+
+    if let Some(device) = dev.device.borrow_mut().as_mut() {
+        let idev: &mut Intel8259x = device;
+        let mut sum: usize = 0;
+        let mut fwd_sum: usize = 0;
+
+        let start = rdtsc();
+        let end = start + 1200 * 2_600_000_000;
+
+        let mut tx_elapsed = 0;
+        let mut rx_elapsed = 0;
+
+        let mut submit_rx: usize = 0;
+        let mut submit_tx: usize = 0;
+        let mut loop_count: usize = 0;
+
+        loop {
+            loop_count = loop_count.wrapping_add(1);
+
+            submit_rx += rx_packets.len();
+            submit_rx_hist.record(rx_packets.len() as u64);
+            //println!("call rx_submit_poll packet {}", packets.len());
+            let rx_start = rdtsc();
+            let ret = idev.device.submit_and_poll(&mut rx_packets, &mut tx_packets, false, false);
+            rx_elapsed += rdtsc() - rx_start;
+            sum += ret;
+
+            for mut pkt in tx_packets.iter_mut() {
+                if let Some((padding, payload)) = packettool::get_mut_udp_payload(pkt) {
+                    if let Some(mut sashstore) = unsafe { SASHSTORE.as_mut() } {
+                        let payloadptr = payload as *mut _ as *mut u8;
+                        let mut payloadvec = unsafe {
+                            Vec::from_raw_parts(
+                                payloadptr,
+                                payload.len(),
+                                2048 - padding, // FIXME: Awful
+                            )
+                        };
+
+                        // println!("Before handle: payloadvec.capacity() = {}, len() = {}", payloadvec.capacity(), payloadvec.len());
+                        let responsevec = unsafe { sashstore.handle_network_request(payloadvec) };
+
+                        // assert!(responsevec.as_ptr() == payloadptr);
+                        // println!("Handled: {:x?} -> {:x?}", responsevec.as_ptr(), payloadptr);
+                        // println!("After handle: responsevec.capacity() = {}, len() = {}", responsevec.capacity(), responsevec.len());
+                        if responsevec.as_ptr() != payloadptr {
+                            unsafe {
+                                ptr::copy(responsevec.as_ptr(), payloadptr, responsevec.len());
+                            }
+                        }
+
+                        // println!("Before set_len: {}", pkt.len());
+                        unsafe {
+                            pkt.set_len(padding + responsevec.len());
+                        }
+                        // println!("After set_len: padding={}, resposevec.len() = {}, set to {}", padding, responsevec.len(), pkt.len());
+
+                        packettool::swap_udp_ips(pkt);
+                        packettool::swap_mac(pkt);
+                        packettool::fix_ip_length(pkt);
+                        packettool::fix_ip_checksum(pkt);
+                        packettool::fix_udp_length(pkt);
+                        packettool::fix_udp_checksum(pkt);
+
+                        // println!("To send: {:x?}", pkt);
+                    } else {
+                        println!("No sashstore???");
+                    }
+                } else {
+                    // println!("Not a UDP packet: {:x?}", &pkt);
+                }
+            }
+
+            submit_tx += tx_packets.len();
+            submit_tx_hist.record(tx_packets.len() as u64);
+            let tx_start = rdtsc();
+            let ret = idev.device.submit_and_poll(&mut tx_packets, &mut rx_packets, true, false);
+            tx_elapsed += rdtsc() - tx_start;
+            fwd_sum += ret;
+
+            //print!("tx: submitted {} collect {}\n", ret, rx_packets.len());
+
+            if rx_packets.len() == 0 && tx_packets.len() < batch_sz * 4 {
+                //println!("-> Allocating new rx_ptx batch");
+                for i in 0..batch_sz {
+                    rx_packets.push_front(Vec::with_capacity(2048));
+                }
+            }
+
+            if rdtsc() > end {
+                break;
+            }
+        }
+
+        let elapsed = rdtsc() - start;
+        for hist in alloc::vec![submit_rx_hist, submit_tx_hist] {
+            println!("hist:");
+            // Iterate buckets that have observations
+            for bucket in hist.iter().filter(|b| b.count > 0) {
+                print!("({:5}, {:5}): {}", bucket.start, bucket.end, bucket.count);
+                print!("\n");
+            }
+        }
+
+        println!("Received {} forwarded {}", sum, fwd_sum);
+        println!(" ==> submit_rx {} (avg {}) submit_tx {} (avg {}) loop_count {}",
+                            submit_rx, submit_rx / loop_count, submit_tx, submit_tx / loop_count, loop_count);
+        println!(" ==> rx batching {}B: {} packets took {} cycles (avg = {})",
+                            pkt_size, sum, rx_elapsed, rx_elapsed  / sum as u64);
+        println!(" ==> tx batching {}B: {} packets took {} cycles (avg = {})",
+                            pkt_size, fwd_sum, tx_elapsed, tx_elapsed  / fwd_sum as u64);
+        println!("==> fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_size, fwd_sum, elapsed, elapsed / fwd_sum as u64);
+        idev.dump_stats();
+        //dev.dump_tx_descs();
+    }
+}
+
+fn run_fwd_maglevtest(dev: &Ixgbe, pkt_size: u16) {
     let batch_sz = BATCH_SIZE;
     let mut rx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
     let mut tx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
@@ -709,7 +845,7 @@ fn run_fwd_maglevtest(dev: &Ixgbe, pkt_len: u16) {
 
             for pkt in tx_packets.iter_mut() {
                 let backend = {
-                    if let Some(hash) = flowhash::get_flowhash(&pkt) {
+                    if let Some(hash) = packettool::get_flowhash(&pkt) {
                         Some(dev.maglev.get_index(&hash))
                     } else {
                         None

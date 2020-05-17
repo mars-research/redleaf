@@ -1,0 +1,3 @@
+[submodule "sys/lib/sashstore"]
+	path = sys/lib/sashstore
+	url = git@github.com:mars-research/sashstore.git
