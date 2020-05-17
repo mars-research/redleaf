@@ -22,6 +22,7 @@ pub struct Proxy {
     create_membdev: Arc<dyn create::CreateMemBDev>,
     create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
     create_ixgbe: Arc<dyn create::CreateIxgbe>,
+    create_net_shadow: Arc<dyn create::CreateNetShadow>,
     create_benchnet: Arc<dyn create::CreateBenchnet>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
     create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
@@ -43,6 +44,7 @@ impl Proxy {
         create_membdev: Arc<dyn create::CreateMemBDev>,
         create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
         create_ixgbe: Arc<dyn create::CreateIxgbe>,
+        create_net_shadow: Arc<dyn create::CreateNetShadow>,
         create_benchnet: Arc<dyn create::CreateBenchnet>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
         create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
@@ -59,6 +61,7 @@ impl Proxy {
             create_membdev,
             create_bdev_shadow,
             create_ixgbe,
+            create_net_shadow,
             create_benchnet,
             create_xv6fs,
             create_xv6usr,
@@ -87,6 +90,9 @@ impl proxy::Proxy for Proxy {
         Arc::new(self.clone())
     }
     fn as_create_ixgbe(&self) -> Arc<dyn create::CreateIxgbe> {
+        Arc::new(self.clone())
+    }
+    fn as_create_net_shadow(&self) -> Arc<dyn create::CreateNetShadow> {
         Arc::new(self.clone())
     }
     fn as_create_benchnet(&self) -> Arc<dyn create::CreateBenchnet> {
@@ -160,6 +166,14 @@ impl create::CreateIxgbe for Proxy {
         let (domain, ixgbe) = self.create_ixgbe.create_domain_ixgbe(pci);
         let domain_id = domain.get_domain_id();
         (domain, Box::new(IxgbeProxy::new(domain_id, ixgbe)))
+    }
+}
+
+impl create::CreateNetShadow for Proxy {
+    fn create_domain_net_shadow(&self, create: Arc<dyn create::CreateIxgbe>, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net + Send>) {
+        let (domain, shadow) = self.create_net_shadow.create_domain_net_shadow(create, pci);
+        let domain_id = domain.get_domain_id();
+        return (domain, Box::new(IxgbeProxy::new(domain_id, shadow)));
     }
 }
 

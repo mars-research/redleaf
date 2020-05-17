@@ -29,6 +29,10 @@ pub trait CreateIxgbe {
     fn create_domain_ixgbe(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net + Send>);
 }
 
+pub trait CreateNetShadow {
+    fn create_domain_net_shadow(&self, create: Arc<dyn CreateIxgbe>, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net + Send>);
+}
+
 pub trait CreateXv6FS {
     fn create_domain_xv6fs(&self, bdev: Box<dyn BDev>) ->(Box<dyn Domain>, Box<dyn VFS + Send>);
 }

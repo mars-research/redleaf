@@ -46,7 +46,8 @@ domain_list := sys/init/build/init \
 	usr/xv6/kernel/fs/build/xv6fs \
 	sys/driver/pci/build/pci \
 	sys/driver/ixgbe/build/ixgbe \
-	usr/test/benchnet_inside/build/benchnet_inside
+	usr/shadow/net/build/net_shadow \
+	usr/test/benchnet_inside/build/benchnet_inside \
 
 ifeq ($(MEMBDEV),false)
 domain_list += sys/dev/ahci_driver/build/ahci_drive

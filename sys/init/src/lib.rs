@@ -103,6 +103,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
             create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
             create_pci: Arc<dyn create::CreatePCI>,
             create_ixgbe: Arc<dyn create::CreateIxgbe>,
+            create_net_shadow: Arc<dyn create::CreateNetShadow>,
             create_benchnet: Arc<dyn create::CreateBenchnet>,
             create_ahci: Arc<dyn create::CreateAHCI>,
             create_membdev: Arc<dyn create::CreateMemBDev>,
@@ -181,6 +182,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
         create_membdev,
         create_bdev_shadow,
         create_ixgbe,
+        create_net_shadow,
         create_benchnet,
         create_xv6fs,
         create_xv6usr,
@@ -208,10 +210,10 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
 
     println!("Creating ixgbe");
     let (dom_ixgbe, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci2);
-
+    
     #[cfg(feature = "benchnet")]
     let _ = proxy.as_create_benchnet().create_domain_benchnet(net);
-
+    
     #[cfg(feature = "test_ab")]
     {
         let (dom_dom_a, dom_a) = proxy.as_create_dom_a().create_domain_dom_a();
