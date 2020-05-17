@@ -93,7 +93,7 @@ pub trait Domain {
 
 /// Shared heap interface
 pub trait Heap {
-    unsafe fn alloc(&self, layout: Layout) -> (*mut u64, *mut u8);
+    unsafe fn alloc(&self, layout: Layout, drop_fn: extern fn(*mut u8) -> ()) -> (*mut u64, *mut u8);
     unsafe fn dealloc(&self, ptr: *mut u8);
 }
 

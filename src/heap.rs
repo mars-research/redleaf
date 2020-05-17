@@ -9,6 +9,7 @@ struct SharedHeapAllocation {
     ptr: *mut u8, // *mut T
     domain_id_ptr: *mut u64,
     layout: Layout,
+    drop_fn: extern fn(*mut u8) -> (), // semantically Drop::<T>::drop
 }
 
 static mut allocations: Vec<SharedHeapAllocation> = Vec::new();
@@ -23,9 +24,9 @@ impl PHeap {
 }
 
 impl syscalls::Heap for PHeap {
-    unsafe fn alloc(&self, layout: Layout) -> (*mut u64, *mut u8) {
+    unsafe fn alloc(&self, layout: Layout, drop_fn: extern fn(*mut u8) -> ()) -> (*mut u64, *mut u8) {
         disable_irq();
-        let ptrs = alloc_heap(layout);
+        let ptrs = alloc_heap(layout, drop_fn);
         enable_irq();
         ptrs
     }
@@ -37,7 +38,7 @@ impl syscalls::Heap for PHeap {
     }
 }
 
-unsafe fn alloc_heap(layout: Layout) -> (*mut u64, *mut u8) {
+unsafe fn alloc_heap(layout: Layout, drop_fn: extern fn(*mut u8) -> ()) -> (*mut u64, *mut u8) {
     let domain_id_ptr = MEM_PROVIDER.alloc(Layout::new::<u64>()) as *mut u64;
     let ptr = MEM_PROVIDER.alloc(layout);
     {
@@ -46,7 +47,8 @@ unsafe fn alloc_heap(layout: Layout) -> (*mut u64, *mut u8) {
         unsafe { &mut allocations }.push(SharedHeapAllocation {
             ptr,
             domain_id_ptr,
-            layout
+            layout,
+            drop_fn,
         });
 
         drop(lock);
@@ -59,7 +61,9 @@ unsafe fn dealloc_heap(ptr: *mut u8) {
 
     // TODO: drop one object, instead of looping through all of them via retain
     (&mut allocations).retain(|allocation | {
-        if ptr == allocation.ptr as *mut u8 {
+        if ptr == allocation.ptr {
+            (allocation.drop_fn)(allocation.ptr);
+            // TODO: drop domain_ptr
             unsafe { MEM_PROVIDER.dealloc(ptr, allocation.layout) }
             false
         } else {
@@ -76,6 +80,8 @@ pub unsafe fn drop_domain(domain_id: u64) {
     (&mut allocations).retain(|allocation| {
         let this_domain_id = *(allocation.domain_id_ptr);
         if domain_id == this_domain_id {
+            (allocation.drop_fn)(allocation.ptr);
+            // TODO: drop domain_ptr
             unsafe { MEM_PROVIDER.dealloc(allocation.ptr, allocation.layout) }
             false
         } else {
