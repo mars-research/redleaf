@@ -1,3 +1,6 @@
 [submodule "sys/lib/sashstore"]
 	path = sys/lib/sashstore
 	url = git@github.com:mars-research/sashstore.git
+[submodule "sys/lib/smoltcp"]
+	path = sys/lib/smoltcp
+	url = https://github.com/zhaofengli/smoltcp

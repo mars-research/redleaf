@@ -49,3 +49,8 @@ default-features = false
 [dependencies.twox-hash]
 version = "1.5.0"
 default-features = false
+
+[dependencies.smoltcp]
+path = "../../lib/smoltcp"
+default-features = false
+features = ["alloc", "proto-ipv4", "socket-tcp", "socket-icmp", "ethernet"]

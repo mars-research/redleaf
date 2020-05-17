@@ -17,6 +17,7 @@ mod device;
 mod ixgbe_desc;
 mod maglev;
 mod packettool;
+mod smoltcp_device;
 
 extern crate malloc;
 extern crate alloc;
