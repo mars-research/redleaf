@@ -23,5 +23,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: 'true'
     - name: Build
       run:  make DEBUG=${{ matrix.debug }} IXGBE=${{ matrix.ixgbe }} LARGE_MEM=${{ matrix.large_mem }}
