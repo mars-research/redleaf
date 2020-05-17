@@ -39,8 +39,8 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
             ints: Box<dyn syscalls::Interrupt + Send + Sync>,
             create_xv6fs: Arc<dyn create::CreateXv6FS>,
             create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
-            bdev: Box<dyn BDev + Send + Sync>,
-            net: Box<dyn usr_interface::net::Net + Send>) -> Box<dyn Xv6 + Send + Sync>
+            bdev: Box<dyn BDev>,
+            net: Box<dyn usr_interface::net::Net + Send>) -> Box<dyn Xv6>
 {
    
     libsyscalls::syscalls::init(s);

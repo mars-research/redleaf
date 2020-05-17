@@ -276,11 +276,11 @@ impl<'a> Iterator for RevIter<'a> {
 
 pub struct BufferCache {
     internal: Mutex<BufferCacheInternal>,
-    bdev: Box<dyn BDev + Send + Sync>,
+    bdev: Box<dyn BDev>,
 }
 
 impl BufferCache {
-    pub fn new(bdev: Box<dyn BDev + Send + Sync>) -> Self {
+    pub fn new(bdev: Box<dyn BDev>) -> Self {
         Self {
             internal: Mutex::new(BufferCacheInternal::new()),
             bdev,

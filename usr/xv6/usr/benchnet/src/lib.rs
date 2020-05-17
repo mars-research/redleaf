@@ -32,7 +32,7 @@ use usr::vfs::{VFSPtr, DirectoryEntry, DirectoryEntryRef, INodeFileType, FileMod
 
 #[no_mangle]
 // TODO: rv6 should be const not mut
-pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, mut rv6: Box<dyn Xv6 + Send + Sync>, args: &str) {
+pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, mut rv6: Box<dyn Xv6>, args: &str) {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
     usrlib::init(rv6.clone());
@@ -44,7 +44,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
 
 const BATCH_SIZE: usize = 32;
 
-fn run_tx_udptest_rref(rv6: &mut Box<dyn Xv6 + Send + Sync>, pkt_len: usize, mut debug: bool) {
+fn run_tx_udptest_rref(rv6: &mut Box<dyn Xv6>, pkt_len: usize, mut debug: bool) {
     let batch_sz: usize = BATCH_SIZE;
     let mut packets = RRefDeque::<[u8; 1512], 32>::new(Default::default());
     let mut collect = RRefDeque::<[u8; 1512], 32>::new(Default::default());
@@ -190,7 +190,7 @@ fn calc_ipv4_checksum(ipv4_header: &[u8]) -> u16 {
     !(checksum as u16)
 }
 
-fn run_rx_udptest_rref(rv6: &mut Box<dyn Xv6 + Send + Sync>, pkt_size: usize, debug: bool) {
+fn run_rx_udptest_rref(rv6: &mut Box<dyn Xv6>, pkt_size: usize, debug: bool) {
     let pkt_size = 2048;
     let batch_sz: usize = BATCH_SIZE;
     let mut packets = RRefDeque::<[u8; 1512], 32>::default();

@@ -6,7 +6,7 @@ use crate::rpc::RpcResult;
 
 pub const BSIZE: usize =        4096;   // block size
 
-pub trait BDev {
+pub trait BDev: Send + Sync {
     fn read(&self, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>>;
     fn write(&self, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()>;
 }

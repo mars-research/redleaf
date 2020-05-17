@@ -4,9 +4,9 @@ use alloc::vec::Vec;
 use usr_interface::xv6::{Thread, Xv6, FileMode, FileStat, Result};
 use usr_interface::vfs::NFILE;
 
-static SYSCALL: Once<Box<dyn Xv6 + Send + Sync>> = Once::new();
+static SYSCALL: Once<Box<dyn Xv6>> = Once::new();
 
-pub fn init(s: Box<dyn Xv6 + Send + Sync>) {
+pub fn init(s: Box<dyn Xv6>) {
     SYSCALL.call_once(|| s);
 }
 

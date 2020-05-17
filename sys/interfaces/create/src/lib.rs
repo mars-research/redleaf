@@ -13,16 +13,16 @@ pub trait CreatePCI: Send + Sync {
 }
 
 pub trait CreateAHCI: Send + Sync {
-    fn create_domain_ahci(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>);
+    fn create_domain_ahci(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn BDev>);
 }
 
 pub trait CreateMemBDev: Send + Sync {
-    fn create_domain_membdev(&self, memdisk: &'static mut [u8]) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>);
-    fn recreate_domain_membdev(&self, dom: Box<dyn syscalls::Domain>, memdisk: &'static mut [u8]) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>);
+    fn create_domain_membdev(&self, memdisk: &'static mut [u8]) -> (Box<dyn Domain>, Box<dyn BDev>);
+    fn recreate_domain_membdev(&self, dom: Box<dyn syscalls::Domain>, memdisk: &'static mut [u8]) -> (Box<dyn Domain>, Box<dyn BDev>);
 }
 
 pub trait CreateBDevShadow: Send + Sync {
-    fn create_domain_bdev_shadow(&self, create: Arc<dyn CreateMemBDev>) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>);
+    fn create_domain_bdev_shadow(&self, create: Arc<dyn CreateMemBDev>) -> (Box<dyn Domain>, Box<dyn BDev>);
 }
 
 pub trait CreateIxgbe: Send + Sync {
@@ -47,8 +47,8 @@ pub trait CreateXv6: Send + Sync {
                                ints: Box<dyn Interrupt>,
                                create_xv6fs: Arc<dyn CreateXv6FS>,
                                create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>,
-                               bdev: Box<dyn BDev + Send + Sync>,
-                               net: Box<dyn usr::net::Net>) -> (Box<dyn Domain>, Box<dyn Xv6 + Send + Sync>);
+                               bdev: Box<dyn BDev>,
+                               net: Box<dyn usr::net::Net>) -> (Box<dyn Domain>, Box<dyn Xv6>);
 }
 
 pub trait CreateDomA: Send + Sync {

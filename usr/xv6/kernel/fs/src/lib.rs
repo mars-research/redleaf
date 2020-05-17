@@ -119,7 +119,7 @@ impl UsrVFS for Rv6FS {
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>,
             heap: Box<dyn Heap + Send + Sync>,
-            bdev: Box<dyn BDev + Send + Sync>) -> Box<dyn VFS> {
+            bdev: Box<dyn BDev>) -> Box<dyn VFS> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
     // libusr::sysbdev::init(bdev);

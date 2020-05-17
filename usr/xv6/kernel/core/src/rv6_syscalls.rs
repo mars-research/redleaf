@@ -9,7 +9,7 @@ use spin::Mutex;
 use console::println;
 use create::CreateXv6Usr;
 use rref::RRefDeque;
-use usr_interface::xv6::{Xv6, Xv6Ptr, Thread};
+use usr_interface::xv6::{Xv6, Thread};
 use usr_interface::vfs::{VFS, FileMode, VFSPtr, UsrVFS, FileStat, NFILE, Result};
 use usr_interface::net::Net;
 
@@ -31,7 +31,7 @@ impl Rv6Syscalls {
 
 
 impl Xv6 for Rv6Syscalls {
-    fn clone(&self) -> Xv6Ptr {
+    fn clone(&self) -> Box<dyn Xv6> {
         box Self {
             create_xv6usr: self.create_xv6usr.clone(),
             fs: self.fs.clone(), 

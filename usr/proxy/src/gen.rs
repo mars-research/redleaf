@@ -132,7 +132,7 @@ impl create::CreatePCI for Proxy {
 }
 
 impl create::CreateAHCI for Proxy {
-    fn create_domain_ahci(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>) {
+    fn create_domain_ahci(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn BDev>) {
         let (domain, ahci) = self.create_ahci.create_domain_ahci(pci);
         let domain_id = domain.get_domain_id();
         return (domain, Box::new(BDevProxy::new(domain_id, ahci)));
@@ -140,13 +140,13 @@ impl create::CreateAHCI for Proxy {
 }
 
 impl create::CreateMemBDev for Proxy {
-    fn create_domain_membdev(&self, memdisk: &'static mut [u8]) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>) {
+    fn create_domain_membdev(&self, memdisk: &'static mut [u8]) -> (Box<dyn Domain>, Box<dyn BDev>) {
         let (domain, membdev) = self.create_membdev.create_domain_membdev(memdisk);
         let domain_id = domain.get_domain_id();
         return (domain, Box::new(BDevProxy::new(domain_id, membdev)));
     }
 
-    fn recreate_domain_membdev(&self, dom: Box<dyn syscalls::Domain>, memdisk: &'static mut [u8]) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>) {
+    fn recreate_domain_membdev(&self, dom: Box<dyn syscalls::Domain>, memdisk: &'static mut [u8]) -> (Box<dyn Domain>, Box<dyn BDev>) {
         let (domain, membdev) = self.create_membdev.recreate_domain_membdev(dom, memdisk);
         let domain_id = domain.get_domain_id();
         return (domain, Box::new(BDevProxy::new(domain_id, membdev)));
@@ -154,7 +154,7 @@ impl create::CreateMemBDev for Proxy {
 }
 
 impl create::CreateBDevShadow for Proxy {
-    fn create_domain_bdev_shadow(&self, create: Arc<dyn create::CreateMemBDev>) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>) {
+    fn create_domain_bdev_shadow(&self, create: Arc<dyn create::CreateMemBDev>) -> (Box<dyn Domain>, Box<dyn BDev>) {
         let (domain, shadow) = self.create_bdev_shadow.create_domain_bdev_shadow(create);
         let domain_id = domain.get_domain_id();
         return (domain, Box::new(BDevProxy::new(domain_id, shadow)));
@@ -196,8 +196,8 @@ impl create::CreateXv6 for Proxy {
                                ints: Box<dyn Interrupt>,
                                create_xv6fs: Arc<dyn create::CreateXv6FS>,
                                create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
-                               bdev: Box<dyn BDev + Send + Sync>,
-                               net: Box<dyn usr::net::Net>) -> (Box<dyn Domain>, Box<dyn Xv6 + Send + Sync>) {
+                               bdev: Box<dyn BDev>,
+                               net: Box<dyn usr::net::Net>) -> (Box<dyn Domain>, Box<dyn Xv6>) {
         let (domain, rv6) = self.create_xv6.create_domain_xv6kernel(ints, create_xv6fs, create_xv6usr, bdev, net);
         let domain_id = domain.get_domain_id();
         (domain, Box::new(Rv6Proxy::new(domain_id, rv6)))
@@ -658,10 +658,10 @@ impl UsrVFS for Rv6Proxy {
 }
 
 
-use usr::xv6::{Thread, Xv6Ptr};
+use usr::xv6::Thread;
 
 impl Xv6 for Rv6Proxy {
-    fn clone(&self) -> Xv6Ptr {
+    fn clone(&self) -> Box<dyn Xv6> {
         self.domain.clone()
     }
     fn sys_spawn_thread(&self, name: &str, func: alloc::boxed::Box<dyn FnOnce() + Send>) -> Box<dyn Thread> {

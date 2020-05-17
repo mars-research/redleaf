@@ -23,7 +23,7 @@ use alloc::string::String;
 use syscalls::{Syscall, Heap};
 use usrlib::{print, println};
 use usrlib::syscalls::{sys_read, sys_spawn_domain};
-use usr_interfaces::xv6::Xv6Ptr;
+use usr_interfaces::xv6::Xv6;
 use usr_interfaces::vfs::VFSPtr;
 
 mod parse;
@@ -31,7 +31,7 @@ mod parse;
 use crate::parse::{Command, Redir};
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, rv6: Xv6Ptr, args: &str) {
+pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, rv6: Box<dyn Xv6>, args: &str) {
     libsyscalls::syscalls::init(s);
     usrlib::init(rv6.clone());
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
