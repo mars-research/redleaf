@@ -4,7 +4,7 @@ use rref::{RRef, RRefDeque};
 // TODO: remove once Ixgbe transitions to RRefDeque
 use alloc::{vec::Vec, collections::VecDeque};
 
-pub trait Net {
+pub trait Net: Send {
     fn submit_and_poll(&mut self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> usize;
 
     fn submit_and_poll_rref(

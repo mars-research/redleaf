@@ -8,41 +8,41 @@ use usr::{bdev::BDev, vfs::VFS, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::Net, pc
 use usr::error::Result;
 
 /* AB: XXX: first thing: change all names to create_domain -- it's absurd */
-pub trait CreatePCI {
+pub trait CreatePCI: Send + Sync {
     fn create_domain_pci(&self) -> (Box<dyn Domain>, Box<dyn PCI>);
 }
 
-pub trait CreateAHCI {
+pub trait CreateAHCI: Send + Sync {
     fn create_domain_ahci(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>);
 }
 
-pub trait CreateMemBDev {
+pub trait CreateMemBDev: Send + Sync {
     fn create_domain_membdev(&self, memdisk: &'static mut [u8]) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>);
     fn recreate_domain_membdev(&self, dom: Box<dyn syscalls::Domain>, memdisk: &'static mut [u8]) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>);
 }
 
-pub trait CreateBDevShadow {
+pub trait CreateBDevShadow: Send + Sync {
     fn create_domain_bdev_shadow(&self, create: Arc<dyn CreateMemBDev>) -> (Box<dyn Domain>, Box<dyn BDev + Send + Sync>);
 }
 
-pub trait CreateIxgbe {
+pub trait CreateIxgbe: Send + Sync {
     fn create_domain_ixgbe(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net + Send>);
 }
 
-pub trait CreateNetShadow {
+pub trait CreateNetShadow: Send + Sync {
     fn create_domain_net_shadow(&self, create: Arc<dyn CreateIxgbe>, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net + Send>);
 }
 
-pub trait CreateXv6FS {
+pub trait CreateXv6FS: Send + Sync {
     fn create_domain_xv6fs(&self, bdev: Box<dyn BDev>) ->(Box<dyn Domain>, Box<dyn VFS + Send>);
 }
 
-pub trait CreateXv6Usr {
+pub trait CreateXv6Usr: Send + Sync {
     fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn syscalls::Domain>>;
 }
 pub type CreateXv6UsrPtr = Box<dyn CreateXv6Usr + Send + Sync>;
 
-pub trait CreateXv6 {
+pub trait CreateXv6: Send + Sync {
     fn create_domain_xv6kernel(&self,
                                ints: Box<dyn Interrupt>,
                                create_xv6fs: Arc<dyn CreateXv6FS>,
@@ -51,27 +51,27 @@ pub trait CreateXv6 {
                                net: Box<dyn usr::net::Net>) -> (Box<dyn Domain>, Box<dyn Xv6 + Send + Sync>);
 }
 
-pub trait CreateDomA {
+pub trait CreateDomA: Send + Sync {
     fn create_domain_dom_a(&self) -> (Box<dyn Domain>, Box<dyn DomA>);
 }
 
-pub trait CreateDomB {
+pub trait CreateDomB: Send + Sync {
     fn create_domain_dom_b(&self, dom_a: Box<dyn DomA>) -> Box<dyn Domain>;
 }
 
-pub trait CreateDomC {
+pub trait CreateDomC: Send + Sync {
     fn create_domain_dom_c(&self) -> (Box<dyn Domain>, Box<dyn DomC>);
     fn recreate_domain_dom_c(&self, dom: Box<dyn Domain>) -> (Box<dyn Domain>, Box<dyn DomC>);
 }
 
-pub trait CreateDomD {
+pub trait CreateDomD: Send + Sync {
     fn create_domain_dom_d(&self, dom_c: Box<dyn DomC>) -> Box<dyn Domain>;
 }
 
-pub trait CreateShadow {
+pub trait CreateShadow: Send + Sync {
     fn create_domain_shadow(&self, create_dom_c: Arc<dyn CreateDomC>) -> (Box<dyn Domain>, Box<dyn DomC>);
 }
 
-pub trait CreateBenchnet {
+pub trait CreateBenchnet: Send + Sync {
     fn create_domain_benchnet(&self, net: Box<dyn Net>) -> Box<dyn Domain>;
 }

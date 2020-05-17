@@ -87,7 +87,7 @@ pub trait Thread : Send {
 }
 
 /// RedLeaf Domain interface
-pub trait Domain {
+pub trait Domain: Send {
     fn get_domain_id(&self) -> u64;
 }
 

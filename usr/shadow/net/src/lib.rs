@@ -73,8 +73,7 @@ impl Net for Shadow {
 }
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, create: Arc<dyn CreateIxgbe>, pci: Box<dyn PCI>) -> Box<dyn Net> {
-    unimplemented!("need to be send");
+pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, create: Arc<dyn CreateIxgbe>, pci: Box<dyn PCI>) -> Box<dyn Net + Send> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
