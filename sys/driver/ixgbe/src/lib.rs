@@ -240,6 +240,7 @@ fn run_tx_udptest_rref(dev: &Ixgbe, pkt_len: usize, mut debug: bool) {
     let mut append_rdtsc: u64 = 0;
     let mut count: u64 = 0;
     let mut alloc_count = 0;
+    let mut alloc_elapsed = 0;
 
     let mut packets = Some(packets);
     let mut collect = Some(collect);
@@ -251,9 +252,9 @@ fn run_tx_udptest_rref(dev: &Ixgbe, pkt_len: usize, mut debug: bool) {
         let dev: &mut Intel8259x = device;
         let mut sum: usize = 0;
         let start = rdtsc();
-        let end = rdtsc() + 15 * 2_600_000_000;
+        let end = rdtsc() + 10 * 2_600_000_000;
 
-        loop{
+        loop {
             let (ret, mut packets_, mut collect_) = dev.device.submit_and_poll_rref(packets.take().unwrap(),
                                     collect.take().unwrap(), true, pkt_len, debug);
             sum += ret;
@@ -264,29 +265,39 @@ fn run_tx_udptest_rref(dev: &Ixgbe, pkt_len: usize, mut debug: bool) {
                 packets_.push_back(packet);
             }
 
+
             if packets_.len() == 0 {
                 alloc_count += 1;
+                let alloc_rdstc_start = rdtsc();
                 for i in 0..batch_sz {
                     packets_.push_back(RRef::<[u8; 1512]>::new(pkt_arr.clone()));
                 }
+                alloc_elapsed += rdtsc() - alloc_rdstc_start;
             }
-            if rdtsc() > end {
-                break;
-            }
+
+            //println!("packets_.len() {} collect_.len() {}", packets_.len(), collect_.len());
 
             packets.replace(packets_);
             collect.replace(collect_);
+
+            if rdtsc() > end {
+                break;
+            }
         }
 
         let elapsed = rdtsc() - start;
         if sum == 0 {
             sum += 1;
         }
-        println!("==> tx batch {} : {} iterations took {} cycles (avg = {})", pkt_len, sum, elapsed, elapsed / sum as u64);
+        println!("==> tx_rref batch {} : {} iterations took {} cycles (avg = {})", pkt_len, sum, elapsed, elapsed / sum as u64);
         dev.dump_stats();
-        println!(" alloc_count {}", alloc_count * 32);
+        println!(" alloc_count {} took {} cycles (avg = {})", alloc_count * 32, alloc_elapsed,
+                                                    alloc_elapsed as f64 / (alloc_count * 32) as f64);
         //println!("packet.len {} collect.len {}", packets.unwrap().len(), collect.unwrap().len());
-        println!("Reaped {} packets", dev.device.tx_poll_rref(poll.take().unwrap()).0);
+        let (done, mut poll_) = dev.device.tx_poll_rref(poll.take().unwrap());
+
+        println!("Reaped {} packets", done);
+
         for hist in alloc::vec![collect_tx_hist] {
             println!("hist:");
             // Iterate buckets that have observations
@@ -296,10 +307,29 @@ fn run_tx_udptest_rref(dev: &Ixgbe, pkt_len: usize, mut debug: bool) {
             }
         }
 
+        while let Some(rref) = poll_.pop_front() {
+            //println!("poll: dropping {:x?}", &*rref as *const [u8; 1512] as *const u64 as u64);
+            drop(rref);
+        }
+
+        if let Some(mut packets) = packets.take() {
+            while let Some(rref) = packets.pop_front() {
+                //println!("packets {:x?}", &*rref as *const _ as *const u64 as u64);
+                drop(rref);
+            }
+        }
+
+
+        if let Some(mut collect) = collect.take() {
+            while let Some(rref) = collect.pop_front() {
+                //println!("collect {:x?}", &*rref as *const _ as *const u64 as u64);
+                drop(rref);
+            }
+        }
     }
 }
 
-fn run_tx_udptest(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
+fn run_tx_udptest(dev: &Ixgbe, pkt_len: usize, mut debug: bool) {
     let batch_sz: usize = BATCH_SIZE;
     let mut packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
     let mut collect: VecDeque<Vec<u8>> = VecDeque::new();
@@ -326,7 +356,8 @@ fn run_tx_udptest(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
         0x9c, 0xaf,
     ];
 
-    let mut payload = alloc::vec![0u8; payload_sz];
+    // pkt_len - header_size
+    let mut payload = alloc::vec![0u8; pkt_len - 42];
 
     payload[0] = b'R';
     payload[1] = b'e';
@@ -360,7 +391,7 @@ fn run_tx_udptest(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
         let dev: &mut Intel8259x = device;
         let mut sum: usize = 0;
         let start = rdtsc();
-        let end = rdtsc() + 15 * 2_600_000_000;
+        let end = rdtsc() + 10 * 2_600_000_000;
 
         loop{
             let ret = dev.device.submit_and_poll(&mut packets, &mut collect, true, debug);
@@ -385,15 +416,15 @@ fn run_tx_udptest(dev: &Ixgbe, payload_sz: usize, mut debug: bool) {
         if sum == 0 {
             sum += 1;
         }
-        println!("==> tx batch {} : {} iterations took {} cycles (avg = {})", payload_sz, sum, elapsed, elapsed / sum as u64);
+        println!("==> tx batch {} : {} iterations took {} cycles (avg = {})", pkt_len, sum, elapsed, elapsed / sum as u64);
         dev.dump_stats();
         println!(" alloc_count {}", alloc_count * 32);
         println!("Reaped {} packets", dev.device.tx_poll(&mut collect));
     }
 }
 
-fn run_rx_udptest_rref(dev: &Ixgbe, pkt_size: usize, debug: bool) {
-    let pkt_size = 2048;
+fn run_rx_udptest_rref(dev: &Ixgbe, pkt_len: usize, debug: bool) {
+    let pkt_len = 2048;
     let batch_sz: usize = BATCH_SIZE;
     let mut packets = RRefDeque::<[u8; 1512], 32>::default();
     let mut collect = RRefDeque::<[u8; 1512], 32>::default();
@@ -425,13 +456,13 @@ fn run_rx_udptest_rref(dev: &Ixgbe, pkt_size: usize, debug: bool) {
         let mut seq_end: u64 = 0;
 
         let start = rdtsc();
-        let end = start + 15 * 2_600_000_000;
+        let end = start + 10 * 2_600_000_000;
 
         loop {
             //submit_rx_hist.record(packets.len() as u64);
 
             let (ret, mut packets_, mut collect_) = dev.device.submit_and_poll_rref(packets.take().unwrap(),
-                                    collect.take().unwrap(), false, pkt_size, debug);
+                                    collect.take().unwrap(), false, pkt_len, debug);
 
             //if debug {
                 //println!("rx packets.len {} collect.len {} ret {}", packets.len(), collect.len(), ret);
@@ -453,12 +484,8 @@ fn run_rx_udptest_rref(dev: &Ixgbe, pkt_size: usize, debug: bool) {
                 packets_.push_back(packet);
             }
 
-            if rdtsc() > end {
-                break;
-            }
-
-            //if packets_.len() < batch_sz / 4 {
-            if packets_.len() == 0 {
+            if packets_.len() < batch_sz / 4 {
+            //if packets_.len() == 0 {
                 let alloc_sz = batch_sz - packets_.len();
                 //println!("allocating new batch");
                 alloc_count += 1;
@@ -470,6 +497,10 @@ fn run_rx_udptest_rref(dev: &Ixgbe, pkt_size: usize, debug: bool) {
 
             packets.replace(packets_);
             collect.replace(collect_);
+
+            if rdtsc() > end {
+                break;
+            }
         }
 
         let elapsed = rdtsc() - start;
@@ -484,7 +515,7 @@ fn run_rx_udptest_rref(dev: &Ixgbe, pkt_size: usize, debug: bool) {
 
         //println!("seq_start {} seq_end {} delta {}", seq_start, seq_end, seq_end - seq_start);
         println!("sum {} batch alloc_count {}", sum, alloc_count);
-        println!("==> rx batch {}B: {} iterations took {} cycles (avg = {})", pkt_size, sum, elapsed, elapsed / sum as u64);
+        println!("==> rx batch {}B: {} iterations took {} cycles (avg = {})", pkt_len, sum, elapsed, elapsed / sum as u64);
         dev.dump_stats();
         for hist in alloc::vec![submit_rx_hist, collect_rx_hist] {
             println!("hist:");
@@ -495,18 +526,41 @@ fn run_rx_udptest_rref(dev: &Ixgbe, pkt_size: usize, debug: bool) {
             }
         }
 
-        println!("Reaped {} packets", dev.device.rx_poll_rref(poll.take().unwrap()).0);
+        let (done, mut poll_) = dev.device.rx_poll_rref(poll.take().unwrap());
+
+        println!("Reaped {} packets", done);
+
+        while let Some(rref) = poll_.pop_front() {
+            //println!("poll: dropping {:x?}", &*rref as *const [u8; 1512] as *const u64 as u64);
+            drop(rref);
+        }
+
+        if let Some(mut packets) = packets.take() {
+            while let Some(rref) = packets.pop_front() {
+                //println!("packets {:x?}", &*rref as *const _ as *const u64 as u64);
+                drop(rref);
+            }
+        }
+
+
+        if let Some(mut collect) = collect.take() {
+            while let Some(rref) = collect.pop_front() {
+                //println!("collect {:x?}", &*rref as *const _ as *const u64 as u64);
+                drop(rref);
+            }
+        }
+
     }
 }
 
-fn run_rx_udptest(dev: &Ixgbe, pkt_size: usize, debug: bool) {
-    let pkt_size = 2048;
+fn run_rx_udptest(dev: &Ixgbe, pkt_len: usize, debug: bool) {
+    let pkt_len = 2048;
     let batch_sz: usize = BATCH_SIZE;
     let mut packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
     let mut collect: VecDeque<Vec<u8>> = VecDeque::new();
 
     for i in 0..batch_sz {
-        packets.push_front(Vec::with_capacity(pkt_size));
+        packets.push_front(Vec::with_capacity(pkt_len));
     }
 
     if let Some(device) = dev.device.borrow_mut().as_mut() {
@@ -553,7 +607,7 @@ fn run_rx_udptest(dev: &Ixgbe, pkt_size: usize, debug: bool) {
                 alloc_count += 1;
 
                 for i in 0..batch_sz {
-                    packets.push_front(Vec::with_capacity(pkt_size));
+                    packets.push_front(Vec::with_capacity(pkt_len));
                 }
             }
         }
@@ -570,7 +624,7 @@ fn run_rx_udptest(dev: &Ixgbe, pkt_size: usize, debug: bool) {
 
         println!("seq_start {} seq_end {} delta {}", seq_start, seq_end, seq_end - seq_start);
         println!("sum {} batch alloc_count {}", sum, alloc_count);
-        println!("==> rx batch {}B: {} iterations took {} cycles (avg = {})", pkt_size, sum, elapsed, elapsed / sum as u64);
+        println!("==> rx batch {}B: {} iterations took {} cycles (avg = {})", pkt_len, sum, elapsed, elapsed / sum as u64);
         idev.dump_stats();
         for hist in alloc::vec![submit_rx_hist, collect_rx_hist] {
             println!("hist:");
@@ -610,7 +664,7 @@ fn dump_packet_rref(pkt: &[u8; 1512], len: usize) {
     print!("\n");
 }
 
-fn run_fwd_maglevtest(dev: &Ixgbe, pkt_size: u16) {
+fn run_fwd_maglevtest(dev: &Ixgbe, pkt_len: u16) {
     let batch_sz = BATCH_SIZE;
     let mut rx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
     let mut tx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
@@ -705,19 +759,21 @@ fn run_fwd_maglevtest(dev: &Ixgbe, pkt_size: u16) {
         println!(" ==> submit_rx {} (avg {}) submit_tx {} (avg {}) loop_count {}",
                             submit_rx, submit_rx / loop_count, submit_tx, submit_tx / loop_count, loop_count);
         println!(" ==> rx batching {}B: {} packets took {} cycles (avg = {})",
-                            pkt_size, sum, rx_elapsed, rx_elapsed  / sum as u64);
+                            pkt_len, sum, rx_elapsed, rx_elapsed  / sum as u64);
         println!(" ==> tx batching {}B: {} packets took {} cycles (avg = {})",
-                            pkt_size, fwd_sum, tx_elapsed, tx_elapsed  / fwd_sum as u64);
-        println!("==> fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_size, fwd_sum, elapsed, elapsed / fwd_sum as u64);
+                            pkt_len, fwd_sum, tx_elapsed, tx_elapsed  / fwd_sum as u64);
+        println!("==> fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_len, fwd_sum, elapsed, elapsed / fwd_sum as u64);
         idev.dump_stats();
         //dev.dump_tx_descs();
     }
 }
 
-fn run_fwd_udptest_rref(dev: &Ixgbe, pkt_size: usize) {
+fn run_fwd_udptest_rref(dev: &Ixgbe, pkt_len: usize) {
     let batch_sz = BATCH_SIZE;
     let mut rx_submit = RRefDeque::<[u8; 1512], 32>::default();
     let mut rx_collect = RRefDeque::<[u8; 1512], 32>::default();
+    let mut tx_poll =  RRefDeque::<[u8; 1512], 512>::default();
+    let mut rx_poll =  RRefDeque::<[u8; 1512], 512>::default();
 
     let mut submit_rx_hist = Base2Histogram::new();
     let mut submit_tx_hist = Base2Histogram::new();
@@ -735,7 +791,7 @@ fn run_fwd_udptest_rref(dev: &Ixgbe, pkt_size: usize) {
         let mut fwd_sum: usize = 0;
 
         let start = rdtsc();
-        let end = start + 30 * 2_600_000_000;
+        let end = start + 20 * 2_600_000_000;
 
         let mut tx_elapsed = 0;
         let mut rx_elapsed = 0;
@@ -749,13 +805,16 @@ fn run_fwd_udptest_rref(dev: &Ixgbe, pkt_size: usize) {
         let mut rx_submit = Some(rx_submit);
         let mut rx_collect = Some(rx_collect);
 
+        let mut tx_poll = Some(tx_poll);
+        let mut rx_poll = Some(rx_poll);
+
         loop {
             loop_count = loop_count.wrapping_add(1);
 
             //println!("call rx_submit_poll packet {}", packets.len());
             let rx_start = rdtsc();
             let (ret, mut rx_submit_, mut rx_collect_) = dev.device.submit_and_poll_rref(rx_submit.take().unwrap(),
-                                    rx_collect.take().unwrap(), false, pkt_size, false);
+                                    rx_collect.take().unwrap(), false, pkt_len, false);
             sum += ret;
             rx_elapsed += rdtsc() - rx_start;
 
@@ -775,7 +834,7 @@ fn run_fwd_udptest_rref(dev: &Ixgbe, pkt_size: usize) {
 
             let tx_start = rdtsc();
             let (ret, mut rx_collect_, mut rx_submit_) = dev.device.submit_and_poll_rref(rx_collect_,
-                                    rx_submit_, true, pkt_size, false);
+                                    rx_submit_, true, pkt_len, false);
 
             tx_elapsed += rdtsc() - tx_start;
             fwd_sum += ret;
@@ -790,14 +849,14 @@ fn run_fwd_udptest_rref(dev: &Ixgbe, pkt_size: usize) {
             }
 
 
-            if rdtsc() > end {
-                break;
-            }
-
             submit_rx += rx_submit_.len();
             submit_rx_hist.record(rx_submit_.len() as u64);
             rx_submit.replace(rx_submit_);
             rx_collect.replace(rx_collect_);
+
+            if rdtsc() > end {
+                break;
+            }
         }
 
         let elapsed = rdtsc() - start;
@@ -810,21 +869,55 @@ fn run_fwd_udptest_rref(dev: &Ixgbe, pkt_size: usize) {
             }
         }
 
+        let (done, mut tx_poll_) = dev.device.tx_poll_rref(tx_poll.take().unwrap());
+
+        println!("Reaped {} tx_packets", done);
+
+        let (done, mut rx_poll_) = dev.device.rx_poll_rref(rx_poll.take().unwrap());
+
+        println!("Reaped {} rx_packets", done);
+
+
+        while let Some(rref) = tx_poll_.pop_front() {
+            //println!("poll: dropping {:x?}", &*rref as *const [u8; 1512] as *const u64 as u64);
+            drop(rref);
+        }
+
+        while let Some(rref) = rx_poll_.pop_front() {
+            //println!("poll: dropping {:x?}", &*rref as *const [u8; 1512] as *const u64 as u64);
+            drop(rref);
+        }
+
+
+        if let Some(mut packets) = rx_submit.take() {
+            while let Some(rref) = packets.pop_front() {
+                //println!("packets {:x?}", &*rref as *const _ as *const u64 as u64);
+                drop(rref);
+            }
+        }
+
+        if let Some(mut packets) = rx_collect.take() {
+            while let Some(rref) = packets.pop_front() {
+                //println!("packets {:x?}", &*rref as *const _ as *const u64 as u64);
+                drop(rref);
+            }
+        }
+
         println!("Received {} forwarded {}", sum, fwd_sum);
         println!(" ==> submit_rx {} (avg {}) submit_tx {} (avg {}) loop_count {}",
                             submit_rx, submit_rx / loop_count, submit_tx, submit_tx / loop_count, loop_count);
         println!(" ==> rx batching {}B: {} packets took {} cycles (avg = {})",
-                            pkt_size, sum, rx_elapsed, rx_elapsed  / sum as u64);
+                            pkt_len, sum, rx_elapsed, rx_elapsed  / sum as u64);
         println!(" ==> mac_swap {}B: {} packets took {} cycles (avg = {})",
-                            pkt_size, sum, mswap_elapsed, mswap_elapsed / sum as u64);
+                            pkt_len, sum, mswap_elapsed, mswap_elapsed / sum as u64);
         println!(" ==> tx batching {}B: {} packets took {} cycles (avg = {})",
-                            pkt_size, fwd_sum, tx_elapsed, tx_elapsed  / fwd_sum as u64);
-        println!("==> fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_size, fwd_sum, elapsed, elapsed / fwd_sum as u64);
+                            pkt_len, fwd_sum, tx_elapsed, tx_elapsed  / fwd_sum as u64);
+        println!("==> fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_len, fwd_sum, elapsed, elapsed / fwd_sum as u64);
         dev.dump_stats();
     }
 }
 
-fn run_fwd_udptest(dev: &Ixgbe, pkt_size: u16) {
+fn run_fwd_udptest(dev: &Ixgbe, pkt_len: u16) {
     let batch_sz = BATCH_SIZE;
     let mut rx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
     let mut tx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
@@ -914,12 +1007,12 @@ fn run_fwd_udptest(dev: &Ixgbe, pkt_size: u16) {
         println!(" ==> submit_rx {} (avg {}) submit_tx {} (avg {}) loop_count {}",
                             submit_rx, submit_rx / loop_count, submit_tx, submit_tx / loop_count, loop_count);
         println!(" ==> rx batching {}B: {} packets took {} cycles (avg = {})",
-                            pkt_size, sum, rx_elapsed, rx_elapsed  / sum as u64);
+                            pkt_len, sum, rx_elapsed, rx_elapsed  / sum as u64);
         println!(" ==> mac_swap {}B: {} packets took {} cycles (avg = {})",
-                            pkt_size, sum, mswap_elapsed, mswap_elapsed / sum as u64);
+                            pkt_len, sum, mswap_elapsed, mswap_elapsed / sum as u64);
         println!(" ==> tx batching {}B: {} packets took {} cycles (avg = {})",
-                            pkt_size, fwd_sum, tx_elapsed, tx_elapsed  / fwd_sum as u64);
-        println!("==> fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_size, fwd_sum, elapsed, elapsed / fwd_sum as u64);
+                            pkt_len, fwd_sum, tx_elapsed, tx_elapsed  / fwd_sum as u64);
+        println!("==> fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_len, fwd_sum, elapsed, elapsed / fwd_sum as u64);
         dev.dump_stats();
         //dev.dump_tx_descs();
     }
@@ -944,13 +1037,15 @@ pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
 
     let payload_sz = alloc::vec![64 - 42, 64, 128, 256, 512, 1470];
 
-    //run_tx_udptest(&ixgbe, 22, false);
+    run_tx_udptest(&ixgbe, 64, false);
 
-    //run_tx_udptest_rref(&ixgbe, 22, false);
-    
-    //run_rx_udptest_rref(&ixgbe, 22, false);
+    run_tx_udptest_rref(&ixgbe, 64, false);
 
-    run_fwd_udptest(&ixgbe, 64 - 42);
+    run_rx_udptest(&ixgbe, 64, false);
+
+    run_rx_udptest_rref(&ixgbe, 64, false);
+
+    run_fwd_udptest(&ixgbe, 64);
 
     run_fwd_udptest_rref(&ixgbe, 64);
 
