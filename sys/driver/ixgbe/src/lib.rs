@@ -895,10 +895,10 @@ fn run_fwd_maglevtest(dev: &Ixgbe, pkt_size: u16) {
         println!(" ==> submit_rx {} (avg {}) submit_tx {} (avg {}) loop_count {}",
                             submit_rx, submit_rx / loop_count, submit_tx, submit_tx / loop_count, loop_count);
         println!(" ==> rx batching {}B: {} packets took {} cycles (avg = {})",
-                            pkt_len, sum, rx_elapsed, rx_elapsed  / sum as u64);
+                            pkt_size, sum, rx_elapsed, rx_elapsed  / sum as u64);
         println!(" ==> tx batching {}B: {} packets took {} cycles (avg = {})",
-                            pkt_len, fwd_sum, tx_elapsed, tx_elapsed  / fwd_sum as u64);
-        println!("==> fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_len, fwd_sum, elapsed, elapsed / fwd_sum as u64);
+                            pkt_size, fwd_sum, tx_elapsed, tx_elapsed  / fwd_sum as u64);
+        println!("==> fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_size, fwd_sum, elapsed, elapsed / fwd_sum as u64);
         idev.dump_stats();
         //dev.dump_tx_descs();
     }
