@@ -1,13 +1,15 @@
 use crate::rref_array::RRefArray;
-use crate::rref::RRef;
+use crate::rref::{RRef, RRefable};
 
-pub struct RRefDeque<T, const N: usize> where T: 'static {
+pub struct RRefDeque<T: RRefable, const N: usize> where T: 'static {
     arr: RRefArray<T, N>,
     head: usize, // index of the next element that can be written
     tail: usize, // index of the first element that can be read
 }
 
-impl<T, const N: usize> RRefDeque<T, N> {
+unsafe impl<T: RRefable, const N: usize> RRefable for RRefDeque<T, N> {}
+
+impl<T: RRefable, const N: usize> RRefDeque<T, N> {
     pub fn new(empty_arr: [Option<RRef<T>>; N]) -> Self {
         Self {
             arr: RRefArray::new(empty_arr),
@@ -70,7 +72,7 @@ impl<T, const N: usize> RRefDeque<T, N> {
     }
 }
 
-impl<T, const N: usize> Default for RRefDeque<T, N> {
+impl<T: RRefable, const N: usize> Default for RRefDeque<T, N> {
     fn default() -> Self {
         Self {
             arr: Default::default(),
@@ -80,13 +82,13 @@ impl<T, const N: usize> Default for RRefDeque<T, N> {
     }
 }
 
-pub struct RRefDequeIter<'a, T: 'a, const N: usize> where T: 'static {
+pub struct RRefDequeIter<'a, T: 'a + RRefable, const N: usize> where T: 'static {
     arr: &'a RRefArray<T, N>,
     curr: usize,
     remaining: usize,
 }
 
-impl<'a, T, const N: usize> Iterator for RRefDequeIter<'a, T, N> {
+impl<'a, T: RRefable, const N: usize> Iterator for RRefDequeIter<'a, T, N> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -102,13 +104,13 @@ impl<'a, T, const N: usize> Iterator for RRefDequeIter<'a, T, N> {
     }
 }
 
-pub struct RRefDequeIterMut<'a, T, const N: usize> where T: 'static {
+pub struct RRefDequeIterMut<'a, T: RRefable, const N: usize> where T: 'static {
     arr: &'a RRefArray<T, N>,
     curr: usize,
     remaining: usize,
 }
 
-impl<'a, T, const N: usize> Iterator for RRefDequeIterMut<'a, T, N> {
+impl<'a, T: RRefable, const N: usize> Iterator for RRefDequeIterMut<'a, T, N> {
     type Item = &'a mut T;
 
     fn next(&mut self) -> Option<Self::Item> {

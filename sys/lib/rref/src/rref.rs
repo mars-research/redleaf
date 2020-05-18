@@ -15,18 +15,25 @@ pub fn init(heap: Box<dyn syscalls::Heap + Send + Sync>, domain_id: u64) {
     CRATE_DOMAIN_ID.call_once(|| domain_id);
 }
 
+pub unsafe auto trait RRefable {}
+impl<T> !RRefable for *mut T {}
+impl<T> !RRefable for *const T {}
+impl<T> !RRefable for &T {}
+impl<T> !RRefable for &mut T {}
+
 // RRef (remote reference) is an owned reference to an object on shared heap.
 // Only one domain can hold an RRef at a single time, so therefore we can "safely" mutate it.
 // A global table retains all memory allocated on the shared heap. When a domain dies, all of
 //   its shared heap objects are dropped, which gives us the guarantee that RRef's
 //   owned reference will be safe to dereference as long as its domain is alive.
-pub struct RRef<T> where T: 'static {
+pub struct RRef<T> where T: 'static + RRefable {
     domain_id_pointer: *mut u64,
     pub(crate) value_pointer: *mut T
 }
 
-unsafe impl<T> Send for RRef<T> where T: Send {}
-unsafe impl<T> Sync for RRef<T> where T: Sync {}
+unsafe impl<T: RRefable> RRefable for RRef<T> {}
+unsafe impl<T: RRefable> Send for RRef<T> where T: Send {}
+unsafe impl<T: RRefable> Sync for RRef<T> where T: Sync {}
 
 // pass this function pointer to shared heap
 extern fn drop_t<T>(t: *mut T) {
@@ -37,7 +44,7 @@ extern fn drop_t<T>(t: *mut T) {
     }
 }
 
-impl<T> RRef<T> {
+impl<T: RRefable> RRef<T> {
     fn new_with_layout(value: T, layout: Layout) -> RRef<T> {
         // We allocate the shared heap memory by hand. It will be deallocated in one of two cases:
         //   1. RRef<T> gets dropped, and so the memory under it should be freed.
@@ -103,7 +110,7 @@ impl<T> RRef<T> {
     }
 }
 
-impl<T> Drop for RRef<T> {
+impl<T: RRefable> Drop for RRef<T> {
     fn drop(&mut self) {
         unsafe {
             println!("Drop::<RRef<{}>>::drop called, delegating to heap", core::any::type_name::<T>());
@@ -112,7 +119,7 @@ impl<T> Drop for RRef<T> {
     }
 }
 
-impl<T> Deref for RRef<T> {
+impl<T: RRefable> Deref for RRef<T> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -120,7 +127,7 @@ impl<T> Deref for RRef<T> {
     }
 }
 
-impl<T> DerefMut for RRef<T> {
+impl<T: RRefable> DerefMut for RRef<T> {
     fn deref_mut(&mut self) -> &mut T {
         unsafe { &mut *self.value_pointer }
     }

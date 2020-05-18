@@ -1,6 +1,8 @@
 #![no_std]
 #![allow(incomplete_features)]
 #![feature(const_generics)]
+#![feature(negative_impls)]
+#![feature(optin_builtin_traits)]
 extern crate alloc;
 
 mod rref;
