@@ -35,8 +35,8 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
     println!("Starting rv6 benchnet with args: {}", args);
 
     libbenchnet::run_tx_udptest_rref(rv6.as_net(), 64, false);
-    // libbenchnet::run_rx_udptest_rref(&mut rv6, 64, false);
-    // libbenchnet::run_fwd_udptest_rref(&mut rv6, 64);
+    libbenchnet::run_rx_udptest_rref(rv6.as_net(), 64, false);
+    libbenchnet::run_fwd_udptest_rref(rv6.as_net(), 64);
 }
 
 
