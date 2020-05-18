@@ -95,14 +95,14 @@ fn perf_test_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
 
     let mut buffer: Vec<u8>;
     if is_write {
-        buffer = alloc::vec![0xccu8; 4096];
+        buffer = alloc::vec![0xbau8; 4096];
     } else {
         buffer = alloc::vec![0u8; 4096];
     }
 
     let block_size = buffer.len();
     let mut breq: BlockReq = BlockReq::new(0, 8, buffer);
-    let mut req: Vec<u8> = alloc::vec![0u8; 4096];
+    let mut req: Vec<u8> = alloc::vec![0xeeu8; 4096];
     let mut submit: VecDeque<BlockReq> = VecDeque::with_capacity(batch_sz as usize);
     let mut submit_vec: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz as usize);
     let mut collect: VecDeque<BlockReq> = VecDeque::new();
@@ -161,7 +161,7 @@ fn perf_test_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
 
             count += 1;
             //println!("checking");
-            let ret = dev.check_io_raw(batch_sz, is_write);
+            let ret = dev.check_io_raw(128, is_write);
 
             poll_start = rdtsc();
             poll_hist.record(ret);
@@ -172,12 +172,12 @@ fn perf_test_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
             if cur_tsc > tsc_end {
                 break;
             }
-            sys_ns_loopsleep(20000);
+            sys_ns_loopsleep(200);
         }
 
         let (sub, comp) = dev.get_stats();
-        println!("runtime {} submitted {} IOPS completed {} IOPS", runtime, sub as f64 / runtime as f64 / 1 as f64,
-                      comp as f64 / runtime as f64 / 1 as f64);
+        println!("runtime {} submitted {:.2} K IOPS completed {:.2} K IOPS", runtime, sub as f64 / runtime as f64 / 1_000 as f64,
+                      comp as f64 / runtime as f64 / 1_000 as f64);
         println!("loop {} poll took {} cycles (avg {} cycles)", count, poll_elapsed, poll_elapsed / count);
 
         for hist in alloc::vec![poll_hist] {
@@ -274,8 +274,8 @@ fn perf_test_iov(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
         }
 
         let (sub, comp) = dev.get_stats();
-        println!("runtime {} submitted {} IOPS completed {} IOPS", runtime, sub as f64 / runtime as f64 / 1 as f64,
-                      comp as f64 / runtime as f64 / 1 as f64);
+        println!("runtime {} submitted {} IOPS completed {} IOPS", runtime, sub as f64 / runtime as f64 / 1_000 as f64,
+                      comp as f64 / runtime as f64 / 1_000 as f64);
         println!("loop {} submit took {} cycles (avg {} cycles), poll took {} cycles (avg {} cycles)",
                                 count, submit_elapsed, submit_elapsed / count, poll_elapsed, poll_elapsed / count);
 
@@ -291,6 +291,26 @@ fn perf_test_iov(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
     }
 }
 
+
+/*static mut seed: u64 = 123456789;
+
+fn get_rand_block() -> u64 {
+    unsafe {
+        seed = (110351245 * seed + 12345) % 2u64.pow(31);
+        seed % 781422768
+    }
+}
+
+fn rand_test(num_iter: usize) -> u64 {
+    let mut sum = 0u64;
+    for _ in 0..num_iter {
+        let rand = get_rand_block();
+        //println!("rand {}", rand);
+        sum += rand;
+    }
+    sum
+}*/
+
 #[no_mangle]
 pub fn nvme_init(s: Box<dyn Syscall + Send + Sync>,
                  heap: Box<dyn Heap + Send + Sync>,
@@ -303,13 +323,38 @@ pub fn nvme_init(s: Box<dyn Syscall + Send + Sync>,
         println!("WARNING: failed to register IXGBE driver");
     }
 
-    println!("starting tests!...");
+    /*println!("starting tests!...");
+    let num_iter = 10_000_000;
+    let rand_start = rdtsc();
+    let sum = rand_test(num_iter);
+    let rand_elapsed = rdtsc() - rand_start;
+    println!("Rand {} test {} iterations took {} cycles (avg {} cycles)", sum, num_iter, rand_elapsed, rand_elapsed as f64 / num_iter as f64);
+    */
+
     //perf_test_raw(&nvme, 60, 8, false);
    // for _ in 1..1024 {
     //    perf_test_iov(&nvme, 30, 8, false); 
     //}
-    perf_test_raw(&nvme, 30, 8, true);
-    perf_test_iov(&nvme, 30, 8, false);
+    perf_test_raw(&nvme, 10, 32, true);
+    perf_test_raw(&nvme, 10, 32, true);
+    perf_test_raw(&nvme, 10, 32, true);
+    perf_test_raw(&nvme, 10, 32, true);
+    perf_test_raw(&nvme, 10, 32, true);
+
+    perf_test_raw(&nvme, 10, 32, false);
+    perf_test_raw(&nvme, 10, 32, false);
+    perf_test_raw(&nvme, 10, 32, false);
+    perf_test_raw(&nvme, 10, 32, false);
+    perf_test_raw(&nvme, 10, 32, false);
+
+
+    /*perf_test_raw(&nvme, 10, 32, false);
+    perf_test_raw(&nvme, 10, 32, false);
+    perf_test_raw(&nvme, 10, 32, false);
+    perf_test_raw(&nvme, 10, 32, false);
+    perf_test_raw(&nvme, 10, 32, false);
+    */
+    //perf_test_iov(&nvme, 30, 8, true);
     //perf_test(&nvme, 30, 32, false);
     Box::new(nvme);
 }
