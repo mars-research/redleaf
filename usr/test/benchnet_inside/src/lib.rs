@@ -23,6 +23,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
     libbenchnet::run_tx_udptest_rref(&*net, 64, false);
     libbenchnet::run_rx_udptest_rref(&*net, 64, false);
     libbenchnet::run_fwd_udptest_rref(&*net, 64);
+    libbenchnet::run_maglev_fwd_udptest_rref(&*net, 64);
 }
 
 // This function is called on panic.
