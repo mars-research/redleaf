@@ -104,16 +104,16 @@ impl UsrVFS for Rv6Syscalls {
 }
 
 impl Net for Rv6Syscalls {
-    fn submit_and_poll(&mut self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
+    fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
         self.net.lock().submit_and_poll(packets, reap_queue, tx)
     }
 
-    fn poll(&mut self, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
+    fn poll(&self, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
         self.net.lock().poll(collect, tx)
     }
 
     fn submit_and_poll_rref(
-        &mut self,
+        &self,
         packets: RRefDeque<[u8; 1512], 32>,
         collect: RRefDeque<[u8; 1512], 32>,
         tx: bool,
@@ -125,7 +125,7 @@ impl Net for Rv6Syscalls {
         self.net.lock().submit_and_poll_rref(packets, collect, tx, pkt_len)
     }
 
-    fn poll_rref(&mut self, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> (usize, RRefDeque<[u8; 1512], 512>) {
+    fn poll_rref(&self, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> (usize, RRefDeque<[u8; 1512], 512>) {
         self.net.lock().poll_rref(collect, tx)
     }
 }

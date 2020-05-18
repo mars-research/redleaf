@@ -104,7 +104,7 @@ fn calc_ipv4_checksum(ipv4_header: &[u8]) -> u16 {
 }
 
 impl usr::net::Net for Ixgbe {
-    fn submit_and_poll(&mut self, mut packets: &mut VecDeque<Vec<u8>
+    fn submit_and_poll(&self, mut packets: &mut VecDeque<Vec<u8>
         >, mut collect: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
         let mut ret: usize = 0;
         if !self.device_initialized {
@@ -120,7 +120,7 @@ impl usr::net::Net for Ixgbe {
     }
 
     fn submit_and_poll_rref(
-        &mut self,
+        &self,
         mut packets: RRefDeque<[u8; 1512], 32>,
         mut collect: RRefDeque<[u8; 1512], 32>,
         tx: bool,
@@ -147,13 +147,13 @@ impl usr::net::Net for Ixgbe {
             packets.replace(packets_);
             collect.replace(collect_);
 
-            dev.dump_stats();
+            // dev.dump_stats();
         }
 
         (ret, packets.unwrap(), collect.unwrap())
     }
 
-    fn poll(&mut self, mut collect: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
+    fn poll(&self, mut collect: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
         let mut ret: usize = 0;
         if !self.device_initialized {
             return ret;
@@ -166,7 +166,7 @@ impl usr::net::Net for Ixgbe {
         ret
     }
 
-    fn poll_rref(&mut self, mut collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> (usize, RRefDeque<[u8; 1512], 512>) {
+    fn poll_rref(&self, mut collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> (usize, RRefDeque<[u8; 1512], 512>) {
         let mut ret: usize = 0;
         if !self.device_initialized {
             return (ret, collect);
@@ -1259,15 +1259,15 @@ pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
 
     let payload_sz = alloc::vec![64 - 42, 64, 128, 256, 512, 1470];
 
-    run_tx_udptest(&ixgbe, 64, false);
+    // run_tx_udptest(&ixgbe, 64, false);
 
     run_tx_udptest_rref(&ixgbe, 64, false);
 
-    run_rx_udptest(&ixgbe, 64, false);
+    // run_rx_udptest(&ixgbe, 64, false);
 
     run_rx_udptest_rref(&ixgbe, 64, false);
 
-    run_fwd_udptest(&ixgbe, 64);
+    // run_fwd_udptest(&ixgbe, 64);
 
     run_fwd_udptest_rref(&ixgbe, 64);
 
