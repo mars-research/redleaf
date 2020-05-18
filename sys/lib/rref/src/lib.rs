@@ -33,7 +33,7 @@ mod tests {
     }
 
     impl syscalls::Heap for TestHeap {
-        unsafe fn alloc(&self, layout: Layout) -> (*mut u64, *mut u8) {
+        unsafe fn alloc(&self, layout: Layout, _: extern fn(*mut u8) -> ()) -> (*mut u64, *mut u8) {
             let domain_id_ptr = Box::into_raw(Box::<u64>::new(0));
 
             let mut buf = Vec::with_capacity(layout.size());
