@@ -54,3 +54,11 @@ default-features = false
 path = "../../lib/smoltcp"
 default-features = false
 features = ["alloc", "proto-ipv4", "socket-tcp", "socket-icmp", "ethernet"]
+
+[dependencies.arrayvec]
+version = "0.5.1"
+default-features = false
+
+[dependencies.httparse]
+path = "../../lib/httparse"
+default-features = false

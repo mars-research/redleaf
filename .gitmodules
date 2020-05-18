@@ -4,3 +4,6 @@
 [submodule "sys/lib/smoltcp"]
 	path = sys/lib/smoltcp
 	url = https://github.com/zhaofengli/smoltcp
+[submodule "sys/lib/httparse"]
+	path = sys/lib/httparse
+	url = https://github.com/zhaofengli/httparse

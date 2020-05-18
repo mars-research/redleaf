@@ -18,6 +18,7 @@ mod ixgbe_desc;
 mod maglev;
 mod packettool;
 mod smoltcp_device;
+mod redhttpd;
 
 extern crate malloc;
 extern crate alloc;
@@ -33,6 +34,7 @@ use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 #[macro_use]
 use alloc::vec::Vec;
+use alloc::vec;
 use core::panic::PanicInfo;
 use syscalls::{Syscall, Heap};
 use usr;
@@ -704,6 +706,57 @@ fn dump_packet_rref(pkt: &[u8; 1512], len: usize) {
         }
     }
     print!("\n");
+}
+
+fn run_smoltcp(dev: &Ixgbe, pkt_size: u16) {
+    use smoltcp_device::SmolIxgbe;
+
+    use smoltcp::time::Instant;
+
+    use smoltcp::iface::{EthernetInterfaceBuilder, NeighborCache};
+    use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
+
+    use smoltcp::socket::SocketSet;
+
+    if let Some(device) = dev.device.borrow_mut().take() {
+        let mut idev: Intel8259x = device;
+
+        // smol boi is good boi
+        let mut smol = SmolIxgbe::new(idev);
+
+        let mut neighbor_cache_entries = [None; 8];
+        let mut neighbor_cache = NeighborCache::new(&mut neighbor_cache_entries[..]);
+
+        // FIXME: Change this
+        let mut ip_addrs = [IpCidr::new(IpAddress::v4(10, 0, 0, 2), 24)];
+        let mac_address = [0x90, 0xe2, 0xba, 0xb5, 0x15, 0x74];
+        let mut iface = EthernetInterfaceBuilder::new(smol)
+            .ethernet_addr(EthernetAddress::from_bytes(&mac_address))
+            .neighbor_cache(neighbor_cache)
+            .ip_addrs(ip_addrs)
+            .finalize();
+
+        let mut sockets = SocketSet::new(vec![]);
+        let mut dummy_clock: i64 = 0;
+
+        // redhttpd!
+        let mut httpd = redhttpd::Httpd::new();
+
+        loop {
+            iface.device_mut().do_rx();
+
+            // any smoltcp stuff here
+            let timestamp = Instant::from_millis(dummy_clock);
+            iface.poll(&mut sockets, timestamp);
+            httpd.handle(&mut sockets);
+            dummy_clock += 1;
+
+            iface.device_mut().do_tx();
+        }
+
+        idev.dump_stats();
+        //dev.dump_tx_descs();
+    }
 }
 
 fn run_sashstoretest(dev: &Ixgbe, pkt_size: u16) {
