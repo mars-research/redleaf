@@ -14,3 +14,4 @@ console = { path = "../console", version = "0.1.0" }
 [dev-dependencies]
 # for mocking syscalls in cargo-test
 pc-keyboard = "0.3.1"
+hashbrown = "0.6"

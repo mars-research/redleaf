@@ -62,8 +62,6 @@ impl<T: RRefable> RRef<T> {
             core::ptr::write(value_pointer, value);
         }
 
-        core::mem::forget(value_pointer);
-
         RRef {
             domain_id_pointer,
             value_pointer
