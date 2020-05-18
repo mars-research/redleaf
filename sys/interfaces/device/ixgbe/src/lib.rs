@@ -363,7 +363,25 @@ impl IxgbeDevice {
         }
     }
 
-    pub fn tx_poll_rref(&mut self,
+    pub fn poll(&mut self, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
+        if tx {
+            self.tx_poll(reap_queue)
+        } else {
+            self.rx_poll(reap_queue)
+        }
+    }
+
+
+    pub fn poll_rref(&mut self, mut reap_queue: RRefDeque<[u8; 1512], 512>, tx: bool) ->
+                        (usize, RRefDeque<[u8; 1512], 512>) {
+        if tx {
+            self.tx_poll_rref(reap_queue)
+        } else {
+            self.rx_poll_rref(reap_queue)
+        }
+    }
+
+    fn tx_poll_rref(&mut self,
                         mut reap_queue: RRefDeque<[u8; 1512], 512>) ->
                         (usize, RRefDeque<[u8; 1512], 512>) {
 
@@ -405,7 +423,7 @@ impl IxgbeDevice {
         (reaped, reap_queue)
     }
 
-    pub fn rx_poll_rref(&mut self,
+    fn rx_poll_rref(&mut self,
                         mut reap_queue: RRefDeque<[u8; 1512], 512>) ->
                         (usize, RRefDeque<[u8; 1512], 512>) {
 
@@ -463,7 +481,7 @@ impl IxgbeDevice {
         (reaped, reap_queue)
     }
 
-    pub fn tx_poll(&mut self,  reap_queue: &mut VecDeque<Vec<u8>>) -> usize {
+    fn tx_poll(&mut self,  reap_queue: &mut VecDeque<Vec<u8>>) -> usize {
         let num_descriptors = self.transmit_ring.len();
         let mut reaped: usize = 0;
         let mut count: usize = 0;
@@ -503,7 +521,7 @@ impl IxgbeDevice {
     }
 
 
-    pub fn rx_poll(&mut self,  reap_queue: &mut VecDeque<Vec<u8>>) -> usize {
+    fn rx_poll(&mut self,  reap_queue: &mut VecDeque<Vec<u8>>) -> usize {
         let num_descriptors = self.receive_ring.len();
         let mut reaped: usize = 0;
         let mut count: usize = 0;

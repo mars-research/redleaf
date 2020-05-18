@@ -108,6 +108,10 @@ impl Net for Rv6Syscalls {
         self.net.lock().submit_and_poll(packets, reap_queue, tx)
     }
 
+    fn poll(&mut self, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
+        self.net.lock().poll(collect, tx)
+    }
+
     fn submit_and_poll_rref(
         &mut self,
         packets: RRefDeque<[u8; 1512], 32>,
@@ -119,6 +123,10 @@ impl Net for Rv6Syscalls {
             RRefDeque<[u8; 1512], 32>
         ) {
         self.net.lock().submit_and_poll_rref(packets, collect, tx, pkt_len)
+    }
+
+    fn poll_rref(&mut self, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> (usize, RRefDeque<[u8; 1512], 512>) {
+        self.net.lock().poll_rref(collect, tx)
     }
 }
 

@@ -150,6 +150,38 @@ impl usr::net::Net for Ixgbe {
 
         (ret, packets.unwrap(), collect.unwrap())
     }
+
+    fn poll(&mut self, mut collect: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
+        let mut ret: usize = 0;
+        if !self.device_initialized {
+            return ret;
+        }
+
+        if let Some(device) = self.device.borrow_mut().as_mut() {
+            let dev: &mut Intel8259x = device;
+            ret = dev.device.poll(&mut collect, tx);
+        }
+        ret
+    }
+
+    fn poll_rref(&mut self, mut collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> (usize, RRefDeque<[u8; 1512], 512>) {
+        let mut ret: usize = 0;
+        if !self.device_initialized {
+            return (ret, collect);
+        }
+
+        let mut collect = Some(collect);
+
+        if let Some(device) = self.device.borrow_mut().as_mut() {
+            let dev: &mut Intel8259x = device;
+            let (num, mut collect_) = dev.device.poll_rref(collect.take().unwrap(), tx);
+            ret = num;
+            collect.replace(collect_);
+        }
+
+        (ret, collect.unwrap())
+    }
+
 }
 
 impl pci_driver::PciDriver for Ixgbe {
@@ -304,7 +336,7 @@ fn run_tx_udptest_rref(dev: &Ixgbe, pkt_len: usize, mut debug: bool) {
         println!(" alloc_count {} took {} cycles (avg = {})", alloc_count * 32, alloc_elapsed,
                                                     alloc_elapsed as f64 / (alloc_count * 32) as f64);
         //println!("packet.len {} collect.len {}", packets.unwrap().len(), collect.unwrap().len());
-        let (done, mut poll_) = dev.device.tx_poll_rref(poll.take().unwrap());
+        let (done, mut poll_) = dev.device.poll_rref(poll.take().unwrap(), true);
 
         println!("Reaped {} packets", done);
 
@@ -429,7 +461,7 @@ fn run_tx_udptest(dev: &Ixgbe, pkt_len: usize, mut debug: bool) {
         println!("==> tx batch {} : {} iterations took {} cycles (avg = {})", pkt_len, sum, elapsed, elapsed / sum as u64);
         dev.dump_stats();
         println!(" alloc_count {}", alloc_count * 32);
-        println!("Reaped {} packets", dev.device.tx_poll(&mut collect));
+        println!("Reaped {} packets", dev.device.poll(&mut collect, true));
     }
 }
 
@@ -536,7 +568,7 @@ fn run_rx_udptest_rref(dev: &Ixgbe, pkt_len: usize, debug: bool) {
             }
         }
 
-        let (done, mut poll_) = dev.device.rx_poll_rref(poll.take().unwrap());
+        let (done, mut poll_) = dev.device.poll_rref(poll.take().unwrap(), false);
 
         println!("Reaped {} packets", done);
 
@@ -645,7 +677,7 @@ fn run_rx_udptest(dev: &Ixgbe, pkt_len: usize, debug: bool) {
             }
         }
 
-        println!("Reaped {} packets", idev.device.rx_poll(&mut collect));
+        println!("Reaped {} packets", idev.device.poll(&mut collect, false));
     }
 }
 
@@ -1006,11 +1038,11 @@ fn run_fwd_udptest_rref(dev: &Ixgbe, pkt_len: usize) {
             }
         }
 
-        let (done, mut tx_poll_) = dev.device.tx_poll_rref(tx_poll.take().unwrap());
+        let (done, mut tx_poll_) = dev.device.poll_rref(tx_poll.take().unwrap(), true);
 
         println!("Reaped {} tx_packets", done);
 
-        let (done, mut rx_poll_) = dev.device.rx_poll_rref(rx_poll.take().unwrap());
+        let (done, mut rx_poll_) = dev.device.poll_rref(rx_poll.take().unwrap(), false);
 
         println!("Reaped {} rx_packets", done);
 
