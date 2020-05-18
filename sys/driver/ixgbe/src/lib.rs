@@ -36,6 +36,7 @@ use alloc::vec;
 use core::panic::PanicInfo;
 use syscalls::{Syscall, Heap};
 use usr;
+use usr::rpc::RpcResult;
 use console::{println, print};
 use pci_driver::DeviceBarRegions;
 use libsyscalls::syscalls::sys_backtrace;
@@ -101,10 +102,10 @@ fn calc_ipv4_checksum(ipv4_header: &[u8]) -> u16 {
 
 impl usr::net::Net for Ixgbe {
     fn submit_and_poll(&self, mut packets: &mut VecDeque<Vec<u8>
-        >, mut collect: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
+        >, mut collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
         let mut ret: usize = 0;
         if !self.device_initialized {
-            return ret;
+            return Ok(ret);
         }
 
         if let Some(device) = self.device.borrow_mut().as_mut() {
@@ -112,7 +113,7 @@ impl usr::net::Net for Ixgbe {
             ret = dev.device.submit_and_poll(&mut packets, &mut collect, tx, false);
             packets.append(&mut collect);
         }
-        ret
+        Ok(ret)
     }
 
     fn submit_and_poll_rref(
@@ -120,16 +121,16 @@ impl usr::net::Net for Ixgbe {
         mut packets: RRefDeque<[u8; 1512], 32>,
         mut collect: RRefDeque<[u8; 1512], 32>,
         tx: bool,
-        pkt_len: usize) -> (
+        pkt_len: usize) -> RpcResult<(
             usize,
             RRefDeque<[u8; 1512], 32>,
             RRefDeque<[u8; 1512], 32>
-        )
+        )>
     {
 
         let mut ret: usize = 0;
         if !self.device_initialized {
-            return (ret, packets, collect);
+            return Ok((ret, packets, collect));
         }
 
         let mut packets = Some(packets);
@@ -146,26 +147,26 @@ impl usr::net::Net for Ixgbe {
             // dev.dump_stats();
         }
 
-        (ret, packets.unwrap(), collect.unwrap())
+        Ok((ret, packets.unwrap(), collect.unwrap()))
     }
 
-    fn poll(&self, mut collect: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
+    fn poll(&self, mut collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
         let mut ret: usize = 0;
         if !self.device_initialized {
-            return ret;
+            return Ok(ret);
         }
 
         if let Some(device) = self.device.borrow_mut().as_mut() {
             let dev: &mut Intel8259x = device;
             ret = dev.device.poll(&mut collect, tx);
         }
-        ret
+        Ok(ret)
     }
 
-    fn poll_rref(&self, mut collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> (usize, RRefDeque<[u8; 1512], 512>) {
+    fn poll_rref(&self, mut collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<(usize, RRefDeque<[u8; 1512], 512>)> {
         let mut ret: usize = 0;
         if !self.device_initialized {
-            return (ret, collect);
+            return Ok((ret, collect));
         }
 
         let mut collect = Some(collect);
@@ -177,7 +178,7 @@ impl usr::net::Net for Ixgbe {
             collect.replace(collect_);
         }
 
-        (ret, collect.unwrap())
+        Ok((ret, collect.unwrap()))
     }
 
 }
@@ -1153,15 +1154,17 @@ pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
 
     // run_tx_udptest(&ixgbe, 64, false);
 
-    run_tx_udptest_rref(&ixgbe, 64, false);
+    libbenchnet::run_tx_udptest_rref(&ixgbe, 64, false);
 
     // run_rx_udptest(&ixgbe, 64, false);
 
-    run_rx_udptest_rref(&ixgbe, 64, false);
+    libbenchnet::run_rx_udptest_rref(&ixgbe, 64, false);
 
     // run_fwd_udptest(&ixgbe, 64);
 
-    run_fwd_udptest_rref(&ixgbe, 64);
+    libbenchnet::run_fwd_udptest_rref(&ixgbe, 64);
+
+    libbenchnet::run_maglev_fwd_udptest_rref(&ixgbe, 64);
 
     /*println!("=> Running tests...");
 

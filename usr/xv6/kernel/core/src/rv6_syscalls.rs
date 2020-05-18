@@ -9,9 +9,10 @@ use spin::Mutex;
 use console::println;
 use create::CreateXv6Usr;
 use rref::RRefDeque;
-use usr_interface::xv6::{Xv6, Thread};
-use usr_interface::vfs::{VFS, FileMode, VFSPtr, UsrVFS, FileStat, NFILE, Result};
 use usr_interface::net::Net;
+use usr_interface::rpc::RpcResult;
+use usr_interface::vfs::{VFS, FileMode, VFSPtr, UsrVFS, FileStat, NFILE, Result};
+use usr_interface::xv6::{Xv6, Thread};
 
 pub struct Rv6Syscalls {
     create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>,
@@ -108,11 +109,11 @@ impl UsrVFS for Rv6Syscalls {
 }
 
 impl Net for Rv6Syscalls {
-    fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
+    fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
         self.net.lock().submit_and_poll(packets, reap_queue, tx)
     }
 
-    fn poll(&self, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
+    fn poll(&self, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
         self.net.lock().poll(collect, tx)
     }
 
@@ -121,15 +122,15 @@ impl Net for Rv6Syscalls {
         packets: RRefDeque<[u8; 1512], 32>,
         collect: RRefDeque<[u8; 1512], 32>,
         tx: bool,
-        pkt_len: usize) -> (
+        pkt_len: usize) -> RpcResult<(
             usize,
             RRefDeque<[u8; 1512], 32>,
             RRefDeque<[u8; 1512], 32>
-        ) {
+        )> {
         self.net.lock().submit_and_poll_rref(packets, collect, tx, pkt_len)
     }
 
-    fn poll_rref(&self, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> (usize, RRefDeque<[u8; 1512], 512>) {
+    fn poll_rref(&self, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<(usize, RRefDeque<[u8; 1512], 512>)> {
         self.net.lock().poll_rref(collect, tx)
     }
 }

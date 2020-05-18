@@ -216,7 +216,7 @@ impl IxgbeDevice {
         sent
     }
 
-    pub fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
+    pub fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
         if tx {
             self.tx_submit_and_poll(packets, reap_queue)
         } else {

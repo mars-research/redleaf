@@ -209,7 +209,8 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
     let (dom_ahci, bdev) = proxy.as_create_bdev_shadow().create_domain_bdev_shadow(proxy.as_create_membdev());
 
     println!("Creating ixgbe");
-    let (dom_ixgbe, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci2);
+    // let (dom_ixgbe, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci2);
+    let (dom_ixgbe, net) = proxy.as_create_net_shadow().create_domain_net_shadow(proxy.as_create_ixgbe(), pci2);
     
     #[cfg(feature = "benchnet")]
     let _ = proxy.as_create_benchnet().create_domain_benchnet(net);

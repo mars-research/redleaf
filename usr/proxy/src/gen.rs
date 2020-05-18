@@ -376,7 +376,7 @@ impl IxgbeProxy {
 }
 
 impl Net for IxgbeProxy {
-    fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
+    fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
 
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
@@ -391,7 +391,7 @@ impl Net for IxgbeProxy {
         r
     }
 
-    fn poll(&self, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
+    fn poll(&self, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
@@ -409,11 +409,11 @@ impl Net for IxgbeProxy {
         packets: RRefDeque<[u8; 1512], 32>,
         collect: RRefDeque<[u8; 1512], 32>,
         tx: bool,
-        pkt_len: usize) -> (
+        pkt_len: usize) -> RpcResult<(
             usize,
             RRefDeque<[u8; 1512], 32>,
             RRefDeque<[u8; 1512], 32>
-        )
+        )>
     {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
@@ -421,8 +421,10 @@ impl Net for IxgbeProxy {
         packets.move_to(self.domain_id);
         collect.move_to(self.domain_id);
         let r = self.domain.submit_and_poll_rref(packets, collect, tx, pkt_len);
-        r.1.move_to(caller_domain);
-        r.2.move_to(caller_domain);
+        if let Ok(r) = r.as_ref() {
+            r.1.move_to(caller_domain);
+            r.2.move_to(caller_domain);
+        }
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };
@@ -430,14 +432,15 @@ impl Net for IxgbeProxy {
         r
     }
 
-    fn poll_rref(&self, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> (usize, RRefDeque<[u8; 1512], 512>) {
+    fn poll_rref(&self, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<(usize, RRefDeque<[u8; 1512], 512>)> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
         collect.move_to(self.domain_id);
         let r = self.domain.poll_rref(collect, tx);
-
-        r.1.move_to(caller_domain);
+        if let Ok(r) = r.as_ref() {
+            r.1.move_to(caller_domain);
+        }
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };
@@ -618,11 +621,11 @@ impl Rv6Proxy {
 }
 
 impl Net for Rv6Proxy {
-    fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
+    fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
         unimplemented!()
     }
 
-    fn poll(&self, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
+    fn poll(&self, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
         unimplemented!()
     }
 
@@ -631,11 +634,11 @@ impl Net for Rv6Proxy {
         packets: RRefDeque<[u8; 1512], 32>,
         collect: RRefDeque<[u8; 1512], 32>,
         tx: bool,
-        pkt_len: usize) -> (
+        pkt_len: usize) -> RpcResult<(
             usize,
             RRefDeque<[u8; 1512], 32>,
             RRefDeque<[u8; 1512], 32>
-        )
+        )>
     {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
@@ -643,8 +646,10 @@ impl Net for Rv6Proxy {
         packets.move_to(self.domain_id);
         collect.move_to(self.domain_id);
         let r = self.domain.submit_and_poll_rref(packets, collect, tx, pkt_len);
-        r.1.move_to(caller_domain);
-        r.2.move_to(caller_domain);
+        if let Ok(r) = r.as_ref() {
+            r.1.move_to(caller_domain);
+            r.2.move_to(caller_domain);
+        }
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };
@@ -652,15 +657,16 @@ impl Net for Rv6Proxy {
         r
     }
 
-    fn poll_rref(&self, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> (usize, RRefDeque<[u8; 1512], 512>)
+    fn poll_rref(&self, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<(usize, RRefDeque<[u8; 1512], 512>)>
     {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
         collect.move_to(self.domain_id);
         let r = self.domain.poll_rref(collect, tx);
-
-        r.1.move_to(caller_domain);
+        if let Ok(r) = r.as_ref() {
+            r.1.move_to(caller_domain);
+        }
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };

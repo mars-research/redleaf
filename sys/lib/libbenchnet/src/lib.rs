@@ -101,7 +101,7 @@ pub fn run_tx_udptest_rref(net: &dyn Net, pkt_len: usize, mut debug: bool) {
 
     loop {
         let (ret, mut packets_, mut collect_) = net.submit_and_poll_rref(packets.take().unwrap(),
-                                collect.take().unwrap(), true, pkt_len);
+                                collect.take().unwrap(), true, pkt_len).unwrap();
         sum += ret;
 
         collect_tx_hist.record(collect_.len() as u64);
@@ -139,7 +139,7 @@ pub fn run_tx_udptest_rref(net: &dyn Net, pkt_len: usize, mut debug: bool) {
     println!(" alloc_count {} took {} cycles (avg = {})", alloc_count * 32, alloc_elapsed,
                                                 alloc_elapsed as f64 / (alloc_count * 32) as f64);
     //println!("packet.len {} collect.len {}", packets.unwrap().len(), collect.unwrap().len());
-    let (done, mut poll_) = net.poll_rref(poll.take().unwrap(), true);
+    let (done, mut poll_) = net.poll_rref(poll.take().unwrap(), true).unwrap();
 
     println!("Reaped {} packets", done);
 
@@ -236,7 +236,7 @@ pub fn run_tx_udptest(net: &dyn Net, pkt_len: usize, mut debug: bool) {
     let end = rdtsc() + 10 * 2_600_000_000;
 
     loop{
-        let ret = net.submit_and_poll(&mut packets, &mut collect, true);
+        let ret = net.submit_and_poll(&mut packets, &mut collect, true).unwrap();
 
         sum += ret;
 
@@ -261,7 +261,7 @@ pub fn run_tx_udptest(net: &dyn Net, pkt_len: usize, mut debug: bool) {
     println!("==> tx batch {} : {} iterations took {} cycles (avg = {})", pkt_len, sum, elapsed, elapsed / sum as u64);
     // dev.dump_stats();
     println!(" alloc_count {}", alloc_count * 32);
-    println!("Reaped {} packets", net.poll(&mut collect, true));
+    println!("Reaped {} packets", net.poll(&mut collect, true).unwrap());
 }
 
 pub fn run_rx_udptest_rref(net: &dyn Net, pkt_len: usize, debug: bool) {
@@ -301,7 +301,7 @@ pub fn run_rx_udptest_rref(net: &dyn Net, pkt_len: usize, debug: bool) {
         //submit_rx_hist.record(packets.len() as u64);
 
         let (ret, mut packets_, mut collect_) = net.submit_and_poll_rref(packets.take().unwrap(),
-                                collect.take().unwrap(), false, pkt_len);
+                                collect.take().unwrap(), false, pkt_len).unwrap();
 
         //if debug {
             //println!("rx packets.len {} collect.len {} ret {}", packets.len(), collect.len(), ret);
@@ -365,7 +365,7 @@ pub fn run_rx_udptest_rref(net: &dyn Net, pkt_len: usize, debug: bool) {
         }
     }
 
-    let (done, mut poll_) = net.poll_rref(poll.take().unwrap(), false);
+    let (done, mut poll_) = net.poll_rref(poll.take().unwrap(), false).unwrap();
 
     println!("Reaped {} packets", done);
 
@@ -416,7 +416,7 @@ pub fn run_rx_udptest(net: &dyn Net, pkt_len: usize, debug: bool) {
 
     loop {
         submit_rx_hist.record(packets.len() as u64);
-        let ret = net.submit_and_poll(&mut packets, &mut collect, false);
+        let ret = net.submit_and_poll(&mut packets, &mut collect, false).unwrap();
         if debug {
             println!("rx packets.len {} collect.len {} ret {}", packets.len(), collect.len(), ret);
         }
@@ -470,7 +470,7 @@ pub fn run_rx_udptest(net: &dyn Net, pkt_len: usize, debug: bool) {
         }
     }
 
-    println!("Reaped {} packets", net.poll(&mut collect, false));
+    println!("Reaped {} packets", net.poll(&mut collect, false).unwrap());
 }
 
 pub fn dump_packet(pkt: &Vec<u8>) {
@@ -658,7 +658,7 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) {
         submit_rx_hist.record(rx_packets.len() as u64);
         //println!("call rx_submit_poll packet {}", packets.len());
         let rx_start = rdtsc();
-        let ret = net.submit_and_poll(&mut rx_packets, &mut tx_packets, false);
+        let ret = net.submit_and_poll(&mut rx_packets, &mut tx_packets, false).unwrap();
         rx_elapsed += rdtsc() - rx_start;
         sum += ret;
 
@@ -684,7 +684,7 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) {
         submit_tx += tx_packets.len();
         submit_tx_hist.record(tx_packets.len() as u64);
         let tx_start = rdtsc();
-        let ret = net.submit_and_poll(&mut tx_packets, &mut rx_packets, true);
+        let ret = net.submit_and_poll(&mut tx_packets, &mut rx_packets, true).unwrap();
         tx_elapsed += rdtsc() - tx_start;
         fwd_sum += ret;
 
@@ -768,7 +768,7 @@ pub fn run_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) {
         //println!("call rx_submit_poll packet {}", packets.len());
         let rx_start = rdtsc();
         let (ret, mut rx_submit_, mut rx_collect_) = net.submit_and_poll_rref(rx_submit.take().unwrap(),
-                                rx_collect.take().unwrap(), false, pkt_len);
+                                rx_collect.take().unwrap(), false, pkt_len).unwrap();
         sum += ret;
         rx_elapsed += rdtsc() - rx_start;
 
@@ -788,7 +788,7 @@ pub fn run_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) {
 
         let tx_start = rdtsc();
         let (ret, mut rx_collect_, mut rx_submit_) = net.submit_and_poll_rref(rx_collect_,
-                                rx_submit_, true, pkt_len);
+                                rx_submit_, true, pkt_len).unwrap();
 
         tx_elapsed += rdtsc() - tx_start;
         fwd_sum += ret;
@@ -823,11 +823,11 @@ pub fn run_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) {
         }
     }
 
-    let (done, mut tx_poll_) = net.poll_rref(tx_poll.take().unwrap(), true);
+    let (done, mut tx_poll_) = net.poll_rref(tx_poll.take().unwrap(), true).unwrap();
 
     println!("Reaped {} tx_packets", done);
 
-    let (done, mut rx_poll_) = net.poll_rref(rx_poll.take().unwrap(), false);
+    let (done, mut rx_poll_) = net.poll_rref(rx_poll.take().unwrap(), false).unwrap();
 
     println!("Reaped {} rx_packets", done);
 
@@ -915,7 +915,7 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) {
         //println!("call rx_submit_poll packet {}", packets.len());
         let rx_start = rdtsc();
         let (ret, mut rx_submit_, mut rx_collect_) = net.submit_and_poll_rref(rx_submit.take().unwrap(),
-                                rx_collect.take().unwrap(), false, pkt_len);
+                                rx_collect.take().unwrap(), false, pkt_len).unwrap();
         sum += ret;
         rx_elapsed += rdtsc() - rx_start;
 
@@ -945,7 +945,7 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) {
 
         let tx_start = rdtsc();
         let (ret, mut rx_collect_, mut rx_submit_) = net.submit_and_poll_rref(rx_collect_,
-                                rx_submit_, true, pkt_len);
+                                rx_submit_, true, pkt_len).unwrap();
 
         tx_elapsed += rdtsc() - tx_start;
         fwd_sum += ret;
@@ -980,11 +980,11 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) {
         }
     }
 
-    let (done, mut tx_poll_) = net.poll_rref(tx_poll.take().unwrap(), true);
+    let (done, mut tx_poll_) = net.poll_rref(tx_poll.take().unwrap(), true).unwrap();
 
     println!("Reaped {} tx_packets", done);
 
-    let (done, mut rx_poll_) = net.poll_rref(rx_poll.take().unwrap(), false);
+    let (done, mut rx_poll_) = net.poll_rref(rx_poll.take().unwrap(), false).unwrap();
 
     println!("Reaped {} rx_packets", done);
 
@@ -1065,7 +1065,7 @@ pub fn run_fwd_udptest(net: &dyn Net, pkt_len: u16) {
         submit_rx_hist.record(rx_packets.len() as u64);
         //println!("call rx_submit_poll packet {}", packets.len());
         let rx_start = rdtsc();
-        let ret = net.submit_and_poll(&mut rx_packets, &mut tx_packets, false);
+        let ret = net.submit_and_poll(&mut rx_packets, &mut tx_packets, false).unwrap();
         rx_elapsed += rdtsc() - rx_start;
         sum += ret;
 
@@ -1083,7 +1083,7 @@ pub fn run_fwd_udptest(net: &dyn Net, pkt_len: u16) {
         submit_tx += tx_packets.len();
         submit_tx_hist.record(tx_packets.len() as u64);
         let tx_start = rdtsc();
-        let ret = net.submit_and_poll(&mut tx_packets, &mut rx_packets, true);
+        let ret = net.submit_and_poll(&mut tx_packets, &mut rx_packets, true).unwrap();
         tx_elapsed += rdtsc() - tx_start;
         fwd_sum += ret;
 
