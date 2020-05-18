@@ -70,6 +70,14 @@ impl Net for Shadow {
     {
         self.shadow.lock().net.submit_and_poll_rref(packets, collect, tx, pkt_len)
     }
+
+    fn poll(&mut self, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
+        self.shadow.lock().net.poll(collect, tx)
+    }
+
+    fn poll_rref(&mut self, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> (usize, RRefDeque<[u8; 1512], 512>) {
+        self.shadow.lock().net.poll_rref(collect, tx)
+    }
 }
 
 #[no_mangle]
