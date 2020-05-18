@@ -461,7 +461,7 @@ impl Net for IxgbeProxy {
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
         // let r = self.domain.submit_and_poll(packets, reap_queue, tx);
-        let mut r = unsafe { net_submit_and_poll(&self.domain, packets, reap_queue, tx) };
+        let mut r = unsafe { net_submit_and_poll_tramp(&self.domain, packets, reap_queue, tx) };
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };
@@ -499,7 +499,7 @@ impl Net for IxgbeProxy {
         packets.move_to(self.domain_id);
         collect.move_to(self.domain_id);
         // let r = self.domain.submit_and_poll_rref(packets, collect, tx, pkt_len);
-        let r = unsafe{ net_submit_and_poll_rref(&self.domain, packets, collect, tx, pkt_len) };
+        let r = unsafe{ net_submit_and_poll_rref_tramp(&self.domain, packets, collect, tx, pkt_len) };
         if let Ok(r) = r.as_ref() {
             r.1.move_to(caller_domain);
             r.2.move_to(caller_domain);
