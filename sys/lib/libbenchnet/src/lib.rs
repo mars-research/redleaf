@@ -16,7 +16,7 @@ use console::{print, println};
 
 const BATCH_SIZE: usize = 32;
 
-fn run_tx_udptest_rref(net: &mut Box<dyn Net>, pkt_len: usize, mut debug: bool) {
+pub fn run_tx_udptest_rref(net: &mut Box<dyn Net>, pkt_len: usize, mut debug: bool) {
     let batch_sz: usize = BATCH_SIZE;
     let mut packets = RRefDeque::<[u8; 1512], 32>::default();
     let mut collect = RRefDeque::<[u8; 1512], 32>::default();
@@ -170,7 +170,7 @@ fn run_tx_udptest_rref(net: &mut Box<dyn Net>, pkt_len: usize, mut debug: bool) 
     }
 }
 
-fn run_tx_udptest(net: &mut Box<dyn Net>, pkt_len: usize, mut debug: bool) {
+pub fn run_tx_udptest(net: &mut Box<dyn Net>, pkt_len: usize, mut debug: bool) {
     let batch_sz: usize = BATCH_SIZE;
     let mut packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
     let mut collect: VecDeque<Vec<u8>> = VecDeque::new();
@@ -261,7 +261,7 @@ fn run_tx_udptest(net: &mut Box<dyn Net>, pkt_len: usize, mut debug: bool) {
     println!("Reaped {} packets", net.poll(&mut collect, true));
 }
 
-fn run_rx_udptest_rref(net: &mut Box<dyn Net>, pkt_len: usize, debug: bool) {
+pub fn run_rx_udptest_rref(net: &mut Box<dyn Net>, pkt_len: usize, debug: bool) {
     let pkt_len = 2048;
     let batch_sz: usize = BATCH_SIZE;
     let mut packets = RRefDeque::<[u8; 1512], 32>::default();
@@ -387,7 +387,7 @@ fn run_rx_udptest_rref(net: &mut Box<dyn Net>, pkt_len: usize, debug: bool) {
     }
 }
 
-fn run_rx_udptest(net: &mut Box<dyn Net>, pkt_len: usize, debug: bool) {
+pub fn run_rx_udptest(net: &mut Box<dyn Net>, pkt_len: usize, debug: bool) {
     let pkt_len = 2048;
     let batch_sz: usize = BATCH_SIZE;
     let mut packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
@@ -470,7 +470,7 @@ fn run_rx_udptest(net: &mut Box<dyn Net>, pkt_len: usize, debug: bool) {
     println!("Reaped {} packets", net.poll(&mut collect, false));
 }
 
-fn dump_packet(pkt: &Vec<u8>) {
+pub fn dump_packet(pkt: &Vec<u8>) {
     for (i, b) in pkt.iter().enumerate() {
         print!("{:02X} ", b); 
 
@@ -481,7 +481,7 @@ fn dump_packet(pkt: &Vec<u8>) {
     print!("\n");
 }
 
-fn dump_packet_rref(pkt: &[u8; 1512], len: usize) {
+pub fn dump_packet_rref(pkt: &[u8; 1512], len: usize) {
     for (i, b) in pkt.iter().enumerate() {
         print!("{:02X} ", b); 
 
@@ -495,7 +495,7 @@ fn dump_packet_rref(pkt: &[u8; 1512], len: usize) {
     print!("\n");
 }
 
-// fn run_sashstoretest(net: &mut Box<dyn Net>, pkt_size: u16) {
+// pub fn run_sashstoretest(net: &mut Box<dyn Net>, pkt_size: u16) {
 //     let batch_sz = BATCH_SIZE;
 //     let mut rx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
 //     let mut tx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
@@ -619,7 +619,7 @@ fn dump_packet_rref(pkt: &[u8; 1512], len: usize) {
 //     //dev.dump_tx_descs();
 // }
 
-// fn run_fwd_maglevtest(net: &mut Box<dyn Net>, pkt_size: u16) {
+// pub fn run_fwd_maglevtest(net: &mut Box<dyn Net>, pkt_size: u16) {
 //     let batch_sz = BATCH_SIZE;
 //     let mut rx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
 //     let mut tx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
@@ -720,7 +720,7 @@ fn dump_packet_rref(pkt: &[u8; 1512], len: usize) {
 //     //dev.dump_tx_descs();
 // }
 
-fn run_fwd_udptest_rref(net: &mut Box<dyn Net>, pkt_len: usize) {
+pub fn run_fwd_udptest_rref(net: &mut Box<dyn Net>, pkt_len: usize) {
     let batch_sz = BATCH_SIZE;
     let mut rx_submit = RRefDeque::<[u8; 1512], 32>::default();
     let mut rx_collect = RRefDeque::<[u8; 1512], 32>::default();
@@ -866,7 +866,7 @@ fn run_fwd_udptest_rref(net: &mut Box<dyn Net>, pkt_len: usize) {
     // dev.dump_stats();
 }
 
-fn run_fwd_udptest(net: &mut Box<dyn Net>, pkt_len: u16) {
+pub fn run_fwd_udptest(net: &mut Box<dyn Net>, pkt_len: u16) {
     let batch_sz = BATCH_SIZE;
     let mut rx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
     let mut tx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
