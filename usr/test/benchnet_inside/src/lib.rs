@@ -14,15 +14,15 @@ use alloc::vec::Vec;
 use usr::net::Net;
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, mut net: Box<dyn Net>) {
+pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, net: Box<dyn Net>) {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!("Init domain benchnet_inside");
 
-    libbenchnet::run_tx_udptest_rref(&mut net, 64, false);
-    libbenchnet::run_rx_udptest_rref(&mut net, 64, false);
-    libbenchnet::run_fwd_udptest_rref(&mut net, 64);
+    libbenchnet::run_tx_udptest_rref(&*net, 64, false);
+    libbenchnet::run_rx_udptest_rref(&*net, 64, false);
+    libbenchnet::run_fwd_udptest_rref(&*net, 64);
 }
 
 // This function is called on panic.

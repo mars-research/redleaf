@@ -38,6 +38,10 @@ impl Xv6 for Rv6Syscalls {
             net: self.net.clone(),
         }
     }
+
+    fn as_net(&self) -> &dyn Net {
+        self
+    }
     
     fn sys_spawn_thread(&self, name: &str, func: Box<dyn FnOnce() + Send>) -> Box<dyn Thread> {
         crate::thread::spawn_thread(self.fs.clone(), name, func)

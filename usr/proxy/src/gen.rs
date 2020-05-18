@@ -712,6 +712,9 @@ impl Xv6 for Rv6Proxy {
     fn clone(&self) -> Box<dyn Xv6> {
         self.domain.clone()
     }
+    fn as_net(&self) -> &dyn Net {
+        self.domain.as_net()
+    }
     fn sys_spawn_thread(&self, name: &str, func: alloc::boxed::Box<dyn FnOnce() + Send>) -> Box<dyn Thread> {
         self.domain.sys_spawn_thread(name, func)
     }
