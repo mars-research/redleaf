@@ -3,6 +3,9 @@
 extern crate alloc;
 extern crate core;
 
+mod maglev;
+pub mod packettool;
+
 use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
@@ -619,106 +622,107 @@ pub fn dump_packet_rref(pkt: &[u8; 1512], len: usize) {
 //     //dev.dump_tx_descs();
 // }
 
-// pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) {
-//     let batch_sz = BATCH_SIZE;
-//     let mut rx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
-//     let mut tx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
-//     let mut submit_rx_hist = Base2Histogram::new();
-//     let mut submit_tx_hist = Base2Histogram::new();
+pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) {
+    let batch_sz = BATCH_SIZE;
+    let mut maglev = maglev::Maglev::new(0..3);
+    let mut rx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
+    let mut tx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
+    let mut submit_rx_hist = Base2Histogram::new();
+    let mut submit_tx_hist = Base2Histogram::new();
     
-//     let mut sender_mac = alloc::vec![ 0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81];
-//     let mut our_mac = alloc::vec![0x90, 0xe2, 0xba, 0xb5, 0x14, 0xcd];
+    let mut sender_mac = alloc::vec![ 0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81];
+    let mut our_mac = alloc::vec![0x90, 0xe2, 0xba, 0xb5, 0x14, 0xcd];
 
 
-//     for i in 0..batch_sz {
-//         rx_packets.push_front(Vec::with_capacity(2048));
-//     }
+    for i in 0..batch_sz {
+        rx_packets.push_front(Vec::with_capacity(2048));
+    }
 
-//     let mut sum: usize = 0;
-//     let mut fwd_sum: usize = 0;
+    let mut sum: usize = 0;
+    let mut fwd_sum: usize = 0;
 
-//     let start = rdtsc();
-//     let end = start + 30 * 2_600_000_000;
+    let start = rdtsc();
+    let end = start + 30 * 2_600_000_000;
 
-//     let mut tx_elapsed = 0;
-//     let mut rx_elapsed = 0;
+    let mut tx_elapsed = 0;
+    let mut rx_elapsed = 0;
 
-//     let mut submit_rx: usize = 0;
-//     let mut submit_tx: usize = 0;
-//     let mut loop_count: usize = 0;
+    let mut submit_rx: usize = 0;
+    let mut submit_tx: usize = 0;
+    let mut loop_count: usize = 0;
 
-//     loop {
-//         loop_count = loop_count.wrapping_add(1);
+    loop {
+        loop_count = loop_count.wrapping_add(1);
 
-//         submit_rx += rx_packets.len();
-//         submit_rx_hist.record(rx_packets.len() as u64);
-//         //println!("call rx_submit_poll packet {}", packets.len());
-//         let rx_start = rdtsc();
-//         let ret = net.submit_and_poll(&mut rx_packets, &mut tx_packets, false);
-//         rx_elapsed += rdtsc() - rx_start;
-//         sum += ret;
+        submit_rx += rx_packets.len();
+        submit_rx_hist.record(rx_packets.len() as u64);
+        //println!("call rx_submit_poll packet {}", packets.len());
+        let rx_start = rdtsc();
+        let ret = net.submit_and_poll(&mut rx_packets, &mut tx_packets, false);
+        rx_elapsed += rdtsc() - rx_start;
+        sum += ret;
 
-//         //println!("rx: submitted {} collect {}", ret, tx_packets.len());
+        //println!("rx: submitted {} collect {}", ret, tx_packets.len());
 
-//         for pkt in tx_packets.iter_mut() {
-//             let backend = {
-//                 if let Some(hash) = packettool::get_flowhash(&pkt) {
-//                     Some(dev.maglev.get_index(&hash))
-//                 } else {
-//                     None
-//                 }
-//             };
+        for pkt in tx_packets.iter_mut() {
+            let backend = {
+                if let Some(hash) = packettool::get_flowhash(&pkt) {
+                    Some(maglev.get_index(&hash))
+                } else {
+                    None
+                }
+            };
 
-//             if let Some(_) = backend {
-//                 unsafe {
-//                     ptr::copy(our_mac.as_ptr(), pkt.as_mut_ptr().offset(6), our_mac.capacity());
-//                     ptr::copy(sender_mac.as_ptr(), pkt.as_mut_ptr().offset(0), sender_mac.capacity());
-//                 }
-//             }
-//         }
+            if let Some(_) = backend {
+                unsafe {
+                    ptr::copy(our_mac.as_ptr(), pkt.as_mut_ptr().offset(6), our_mac.capacity());
+                    ptr::copy(sender_mac.as_ptr(), pkt.as_mut_ptr().offset(0), sender_mac.capacity());
+                }
+            }
+        }
 
-//         submit_tx += tx_packets.len();
-//         submit_tx_hist.record(tx_packets.len() as u64);
-//         let tx_start = rdtsc();
-//         let ret = net.submit_and_poll(&mut tx_packets, &mut rx_packets, true);
-//         tx_elapsed += rdtsc() - tx_start;
-//         fwd_sum += ret;
+        submit_tx += tx_packets.len();
+        submit_tx_hist.record(tx_packets.len() as u64);
+        let tx_start = rdtsc();
+        let ret = net.submit_and_poll(&mut tx_packets, &mut rx_packets, true);
+        tx_elapsed += rdtsc() - tx_start;
+        fwd_sum += ret;
 
-//         //print!("tx: submitted {} collect {}\n", ret, rx_packets.len());
+        //print!("tx: submitted {} collect {}\n", ret, rx_packets.len());
 
-//         if rx_packets.len() == 0 && tx_packets.len() < batch_sz * 4 {
-//             //println!("-> Allocating new rx_ptx batch");
-//             for i in 0..batch_sz {
-//                 rx_packets.push_front(Vec::with_capacity(2048));
-//             }
-//         }
+        if rx_packets.len() == 0 && tx_packets.len() < batch_sz * 4 {
+            //println!("-> Allocating new rx_ptx batch");
+            for i in 0..batch_sz {
+                rx_packets.push_front(Vec::with_capacity(2048));
+            }
+        }
 
-//         if rdtsc() > end {
-//             break;
-//         }
-//     }
+        if rdtsc() > end {
+            break;
+        }
+    }
 
-//     let elapsed = rdtsc() - start;
-//     for hist in alloc::vec![submit_rx_hist, submit_tx_hist] {
-//         println!("hist:");
-//         // Iterate buckets that have observations
-//         for bucket in hist.iter().filter(|b| b.count > 0) {
-//             print!("({:5}, {:5}): {}", bucket.start, bucket.end, bucket.count);
-//             print!("\n");
-//         }
-//     }
+    let elapsed = rdtsc() - start;
+    for hist in alloc::vec![submit_rx_hist, submit_tx_hist] {
+        println!("hist:");
+        // Iterate buckets that have observations
+        for bucket in hist.iter().filter(|b| b.count > 0) {
+            print!("({:5}, {:5}): {}", bucket.start, bucket.end, bucket.count);
+            print!("\n");
+        }
+    }
 
-//     println!("Received {} forwarded {}", sum, fwd_sum);
-//     println!(" ==> submit_rx {} (avg {}) submit_tx {} (avg {}) loop_count {}",
-//                         submit_rx, submit_rx / loop_count, submit_tx, submit_tx / loop_count, loop_count);
-//     println!(" ==> rx batching {}B: {} packets took {} cycles (avg = {})",
-//                         pkt_size, sum, rx_elapsed, rx_elapsed  / sum as u64);
-//     println!(" ==> tx batching {}B: {} packets took {} cycles (avg = {})",
-//                         pkt_size, fwd_sum, tx_elapsed, tx_elapsed  / fwd_sum as u64);
-//     println!("==> fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_size, fwd_sum, elapsed, elapsed / fwd_sum as u64);
-//     // dev.dump_stats();
-//     //dev.dump_tx_descs();
-// }
+    println!("Received {} forwarded {}", sum, fwd_sum);
+    println!(" ==> submit_rx {} (avg {}) submit_tx {} (avg {}) loop_count {}",
+                        submit_rx, submit_rx / loop_count, submit_tx, submit_tx / loop_count, loop_count);
+    println!(" ==> rx batching {}B: {} packets took {} cycles (avg = {})",
+                        pkt_size, sum, rx_elapsed, rx_elapsed  / sum as u64);
+    println!(" ==> tx batching {}B: {} packets took {} cycles (avg = {})",
+                        pkt_size, fwd_sum, tx_elapsed, tx_elapsed  / fwd_sum as u64);
+    println!("==> maglev fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_size, fwd_sum, elapsed, elapsed / fwd_sum as u64);
+    // dev.dump_stats();
+    //dev.dump_tx_descs();
+}
 
 pub fn run_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) {
     let batch_sz = BATCH_SIZE;
@@ -863,6 +867,163 @@ pub fn run_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) {
     println!(" ==> tx batching {}B: {} packets took {} cycles (avg = {})",
                         pkt_len, fwd_sum, tx_elapsed, tx_elapsed  / fwd_sum as u64);
     println!("==> fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_len, fwd_sum, elapsed, elapsed / fwd_sum as u64);
+    // dev.dump_stats();
+}
+
+pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) {
+    let batch_sz = BATCH_SIZE;
+    let mut maglev = maglev::Maglev::new(0..3);
+    let mut rx_submit = RRefDeque::<[u8; 1512], 32>::default();
+    let mut rx_collect = RRefDeque::<[u8; 1512], 32>::default();
+    let mut tx_poll =  RRefDeque::<[u8; 1512], 512>::default();
+    let mut rx_poll =  RRefDeque::<[u8; 1512], 512>::default();
+
+    let mut submit_rx_hist = Base2Histogram::new();
+    let mut submit_tx_hist = Base2Histogram::new();
+    
+    let mut pkt_arr = [0; 1512];
+
+    for i in 0..batch_sz {
+        rx_submit.push_back(RRef::<[u8; 1512]>::new(pkt_arr.clone()));
+    }
+
+
+    let mut sum: usize = 0;
+    let mut fwd_sum: usize = 0;
+
+    let start = rdtsc();
+    let end = start + 20 * 2_600_000_000;
+
+    let mut tx_elapsed = 0;
+    let mut rx_elapsed = 0;
+
+    let mut mswap_elapsed = 0;
+
+    let mut submit_rx: usize = 0;
+    let mut submit_tx: usize = 0;
+    let mut loop_count: usize = 0;
+
+    let mut rx_submit = Some(rx_submit);
+    let mut rx_collect = Some(rx_collect);
+
+    let mut tx_poll = Some(tx_poll);
+    let mut rx_poll = Some(rx_poll);
+
+    loop {
+        loop_count = loop_count.wrapping_add(1);
+
+        //println!("call rx_submit_poll packet {}", packets.len());
+        let rx_start = rdtsc();
+        let (ret, mut rx_submit_, mut rx_collect_) = net.submit_and_poll_rref(rx_submit.take().unwrap(),
+                                rx_collect.take().unwrap(), false, pkt_len);
+        sum += ret;
+        rx_elapsed += rdtsc() - rx_start;
+
+        //println!("rx: submitted {} collect {}", ret, rx_collect_.len());
+
+        let ms_start = rdtsc();
+        for pkt in rx_collect_.iter_mut() {
+            let backend = {
+                if let Some(hash) = packettool::get_flowhash(pkt) {
+                    Some(maglev.get_index(&hash))
+                } else {
+                    None
+                }
+            };
+
+            if let Some(_) = backend {
+                for i in 0..6 {
+                    (pkt).swap(i, 6 + i);
+                }
+            }
+        }
+
+        mswap_elapsed += rdtsc() - ms_start;
+
+        submit_tx += rx_collect_.len();
+        submit_tx_hist.record(rx_collect_.len() as u64);
+
+        let tx_start = rdtsc();
+        let (ret, mut rx_collect_, mut rx_submit_) = net.submit_and_poll_rref(rx_collect_,
+                                rx_submit_, true, pkt_len);
+
+        tx_elapsed += rdtsc() - tx_start;
+        fwd_sum += ret;
+
+        //print!("tx: submitted {} collect {}\n", ret, tx_collect_.len());
+
+        if rx_submit_.len() == 0 && rx_collect_.len() < batch_sz * 4 {
+            //println!("-> Allocating new rx_ptx batch");
+            for i in 0..batch_sz {
+                rx_submit_.push_back(RRef::<[u8; 1512]>::new(pkt_arr.clone()));
+            }
+        }
+
+
+        submit_rx += rx_submit_.len();
+        submit_rx_hist.record(rx_submit_.len() as u64);
+        rx_submit.replace(rx_submit_);
+        rx_collect.replace(rx_collect_);
+
+        if rdtsc() > end {
+            break;
+        }
+    }
+
+    let elapsed = rdtsc() - start;
+    for hist in alloc::vec![submit_rx_hist, submit_tx_hist] {
+        println!("hist:");
+        // Iterate buckets that have observations
+        for bucket in hist.iter().filter(|b| b.count > 0) {
+            print!("({:5}, {:5}): {}", bucket.start, bucket.end, bucket.count);
+            print!("\n");
+        }
+    }
+
+    let (done, mut tx_poll_) = net.poll_rref(tx_poll.take().unwrap(), true);
+
+    println!("Reaped {} tx_packets", done);
+
+    let (done, mut rx_poll_) = net.poll_rref(rx_poll.take().unwrap(), false);
+
+    println!("Reaped {} rx_packets", done);
+
+
+    while let Some(rref) = tx_poll_.pop_front() {
+        //println!("poll: dropping {:x?}", &*rref as *const [u8; 1512] as *const u64 as u64);
+        drop(rref);
+    }
+
+    while let Some(rref) = rx_poll_.pop_front() {
+        //println!("poll: dropping {:x?}", &*rref as *const [u8; 1512] as *const u64 as u64);
+        drop(rref);
+    }
+
+
+    if let Some(mut packets) = rx_submit.take() {
+        while let Some(rref) = packets.pop_front() {
+            //println!("packets {:x?}", &*rref as *const _ as *const u64 as u64);
+            drop(rref);
+        }
+    }
+
+    if let Some(mut packets) = rx_collect.take() {
+        while let Some(rref) = packets.pop_front() {
+            //println!("packets {:x?}", &*rref as *const _ as *const u64 as u64);
+            drop(rref);
+        }
+    }
+
+    println!("Received {} forwarded {}", sum, fwd_sum);
+    println!(" ==> submit_rx {} (avg {}) submit_tx {} (avg {}) loop_count {}",
+                        submit_rx, submit_rx / loop_count, submit_tx, submit_tx / loop_count, loop_count);
+    println!(" ==> rx batching {}B: {} packets took {} cycles (avg = {})",
+                        pkt_len, sum, rx_elapsed, rx_elapsed  / sum as u64);
+    println!(" ==> mac_swap {}B: {} packets took {} cycles (avg = {})",
+                        pkt_len, sum, mswap_elapsed, mswap_elapsed / sum as u64);
+    println!(" ==> tx batching {}B: {} packets took {} cycles (avg = {})",
+                        pkt_len, fwd_sum, tx_elapsed, tx_elapsed  / fwd_sum as u64);
+    println!("==> maglev fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_len, fwd_sum, elapsed, elapsed / fwd_sum as u64);
     // dev.dump_stats();
 }
 
