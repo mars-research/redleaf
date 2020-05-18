@@ -402,6 +402,57 @@ extern {
 
 trampoline!(net_submit_and_poll);
 
+/* 
+ * Code to unwind net_submit_and_poll_rref
+ */
+
+#[no_mangle]
+pub extern fn net_submit_and_poll_rref(s: &Box<usr::net::Net>,
+        packets: RRefDeque<[u8; 1512], 32>,
+        collect: RRefDeque<[u8; 1512], 32>,
+        tx: bool,
+        pkt_len: usize) -> RpcResult<(
+            usize,
+            RRefDeque<[u8; 1512], 32>,
+            RRefDeque<[u8; 1512], 32>
+        )> {
+    //println!("one_arg: x:{}", x);
+    s.submit_and_poll_rref(packets, collect, tx, pkt_len)
+}
+
+#[no_mangle]
+pub extern fn net_submit_and_poll_rref_err(s: &Box<usr::net::Net>,
+        packets: RRefDeque<[u8; 1512], 32>,
+        collect: RRefDeque<[u8; 1512], 32>,
+        tx: bool,
+        pkt_len: usize) -> RpcResult<(
+            usize,
+            RRefDeque<[u8; 1512], 32>,
+            RRefDeque<[u8; 1512], 32>
+        )> {
+    println!("net_submit_and_poll_rref was aborted");
+    Err(unsafe{RpcError::panic()})
+}
+
+#[no_mangle]
+pub extern "C" fn net_submit_and_poll_rref_addr() -> u64 {
+    net_submit_and_poll_rref_err as u64
+}
+
+extern {
+    fn net_submit_and_poll_rref_tramp(s: &Box<usr::net::Net>,
+        packets: RRefDeque<[u8; 1512], 32>,
+        collect: RRefDeque<[u8; 1512], 32>,
+        tx: bool,
+        pkt_len: usize) -> RpcResult<(
+            usize,
+            RRefDeque<[u8; 1512], 32>,
+            RRefDeque<[u8; 1512], 32>
+        )>;
+}
+
+trampoline!(net_submit_and_poll_rref);
+
 
 impl Net for IxgbeProxy {
     fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
@@ -447,7 +498,8 @@ impl Net for IxgbeProxy {
 
         packets.move_to(self.domain_id);
         collect.move_to(self.domain_id);
-        let r = self.domain.submit_and_poll_rref(packets, collect, tx, pkt_len);
+        // let r = self.domain.submit_and_poll_rref(packets, collect, tx, pkt_len);
+        let r = unsafe{ net_submit_and_poll_rref(&self.domain, packets, collect, tx, pkt_len) };
         if let Ok(r) = r.as_ref() {
             r.1.move_to(caller_domain);
             r.2.move_to(caller_domain);
