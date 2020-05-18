@@ -1,10 +1,17 @@
-use crate::rref::{RRef, RRefable};
+use crate::rref::RRef;
+use crate::traits::{RRefable, CustomCleanup};
 
 pub struct RRefArray<T: RRefable, const N: usize> where T: 'static {
     arr: RRef<[Option<RRef<T>>; N]>
 }
 
 unsafe impl<T: RRefable, const N: usize> RRefable for RRefArray<T, N> {}
+
+impl<T: RRefable, const N: usize> CustomCleanup for RRefArray<T, N> {
+    fn cleanup(&mut self) {
+        self.arr.cleanup();
+    }
+}
 
 impl<T: RRefable, const N: usize> RRefArray<T, N> {
     pub fn new(arr: [Option<RRef<T>>; N]) -> Self {

@@ -62,7 +62,9 @@ unsafe fn dealloc_heap(ptr: *mut u8) {
     // TODO: drop one object, instead of looping through all of them via retain
     (&mut allocations).retain(|allocation | {
         if ptr == allocation.ptr {
+            disable_irq();
             (allocation.drop_fn)(allocation.ptr);
+            enable_irq();
             // TODO: drop domain_ptr
             unsafe { MEM_PROVIDER.dealloc(ptr, allocation.layout) }
             false
@@ -80,7 +82,9 @@ pub unsafe fn drop_domain(domain_id: u64) {
     (&mut allocations).retain(|allocation| {
         let this_domain_id = *(allocation.domain_id_ptr);
         if domain_id == this_domain_id {
+            disable_irq();
             (allocation.drop_fn)(allocation.ptr);
+            enable_irq();
             // TODO: drop domain_ptr
             unsafe { MEM_PROVIDER.dealloc(allocation.ptr, allocation.layout) }
             false

@@ -3,11 +3,14 @@
 #![feature(const_generics)]
 #![feature(negative_impls)]
 #![feature(optin_builtin_traits)]
+#![feature(specialization)]
+
 extern crate alloc;
 
 mod rref;
 mod rref_deque;
 mod rref_array;
+pub mod traits;
 
 pub use self::rref::init as init;
 pub use self::rref::RRef as RRef;

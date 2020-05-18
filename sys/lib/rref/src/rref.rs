@@ -1,11 +1,11 @@
 // although unsafe function's don't need unsafe blocks, it helps readability
 #![allow(unused_unsafe)]
+use crate::traits::{RRefable, CustomCleanup};
 
 use alloc::boxed::Box;
 use core::ops::{Deref, DerefMut, Drop};
 use core::alloc::Layout;
 use spin::Once;
-use console::println;
 
 static HEAP: Once<Box<dyn syscalls::Heap + Send + Sync>> = Once::new();
 static CRATE_DOMAIN_ID: Once<u64> = Once::new();
@@ -14,12 +14,6 @@ pub fn init(heap: Box<dyn syscalls::Heap + Send + Sync>, domain_id: u64) {
     HEAP.call_once(|| heap);
     CRATE_DOMAIN_ID.call_once(|| domain_id);
 }
-
-pub unsafe auto trait RRefable {}
-impl<T> !RRefable for *mut T {}
-impl<T> !RRefable for *const T {}
-impl<T> !RRefable for &T {}
-impl<T> !RRefable for &mut T {}
 
 // RRef (remote reference) is an owned reference to an object on shared heap.
 // Only one domain can hold an RRef at a single time, so therefore we can "safely" mutate it.
@@ -36,11 +30,9 @@ unsafe impl<T: RRefable> Send for RRef<T> where T: Send {}
 unsafe impl<T: RRefable> Sync for RRef<T> where T: Sync {}
 
 // pass this function pointer to shared heap
-extern fn drop_t<T>(t: *mut T) {
+extern fn drop_t<T: RRefable>(t: *mut T) {
     unsafe {
-        println!("drop_t::<{}> called, addr: {}, invoking core::ptr::drop_in_place", core::any::type_name::<T>(), t as usize);
-//        drop(&mut *t);
-//        core::ptr::drop_in_place(t);
+        (&mut *t).cleanup();
     }
 }
 
@@ -112,10 +104,17 @@ impl<T: RRefable> RRef<T> {
 
 impl<T: RRefable> Drop for RRef<T> {
     fn drop(&mut self) {
+        self.cleanup();
+    }
+}
+
+impl<T: 'static + RRefable> CustomCleanup for RRef<T> {
+    fn cleanup(&mut self) {
         unsafe {
-            println!("Drop::<RRef<{}>>::drop called, delegating to heap", core::any::type_name::<T>());
+            // "drop" the contents, only interesting for recursive cases
+            self.ptr_mut().cleanup();
             HEAP.force_get().dealloc(self.value_pointer as *mut u8);
-        };
+        }
     }
 }
 
