@@ -190,6 +190,12 @@ impl NvmeDev {
         self.device.check_io_raw(num_reqs, write)
     }
 
+    pub fn submit_and_poll(&mut self, submit_queue: &mut VecDeque<BlockReq>,
+                            collect: &mut VecDeque<BlockReq>, write: bool) -> usize {
+        self.device.submit_and_poll(submit_queue, collect, write)
+    }
+
+
     pub fn get_stats(&mut self) -> (u64, u64) {
         let (s, c) = self.device.stats.get_stats();
         self.device.stats.reset_stats();

@@ -46,7 +46,6 @@ fn dump_cmd_entry(entry: &NvmeCommand) {
            {} cdw11 {} cdw12 {} cdw13 {} cdw14 {} cdw15 {}\n",
            entry.opcode, entry.flags, entry.cid, entry.nsid, entry.mptr, entry.dptr[0],
            entry.dptr[1], entry.cdw10, entry.cdw11, entry.cdw12, entry.cdw13, entry.cdw14, entry.cdw15);
-        
 }
 
 pub (crate) struct NvmeCommandQueue {
@@ -56,7 +55,7 @@ pub (crate) struct NvmeCommandQueue {
     pub requests: [Option<Request>; QUEUE_DEPTH],
     pub brequests: [Option<BlockReq>; QUEUE_DEPTH],
     pub rrequests: [Option<Vec<u8>>; QUEUE_DEPTH],
-    pub raw_requests: [Option<u64>; QUEUE_DEPTH], 
+    pub raw_requests: [Option<u64>; QUEUE_DEPTH],
     pub req_slot: [bool; QUEUE_DEPTH],
     block: u64,
 }
@@ -82,6 +81,10 @@ impl NvmeCommandQueue {
         self.data[self.i].cid = self.i as u16;
         self.i = (self.i + 1) % self.data.len();
         self.i
+    }
+
+    pub fn is_submittable(&self) -> bool {
+        !self.req_slot[self.i]
     }
 
     pub fn submit_from_slot(&mut self, entry: NvmeCommand, slot: usize) -> Option<usize> {
@@ -262,22 +265,21 @@ impl NvmeCommandQueue {
         }
     }
 
-    pub fn submit_brequest(&mut self, entry: NvmeCommand, mut breq: BlockReq) -> Option<usize> {
+    pub fn submit_brequest(&mut self, mut entry: NvmeCommand, mut breq: BlockReq) -> Option<usize> {
         let cur_idx = self.i;
         if self.req_slot[cur_idx] == false {
-            //entry.cid = cur_idx as u16;
+            entry.cid = cur_idx as u16;
             self.data[cur_idx] = entry;
-            self.data[cur_idx].cid = cur_idx as u16;
             breq.cid = cur_idx as u16;
 
-            println!("Submitting block {} at slot {} cid {}", self.block, cur_idx, self.data[cur_idx].cid);
+            //println!("Submitting block {} at slot {} cid {}", entry.cdw10, cur_idx, self.data[cur_idx].cid);
 
             self.brequests[cur_idx] = Some(breq);
-            self.data[cur_idx].cdw10 = self.block as u32;
-            {
-                use crate::NUM_LBAS;
-                self.block = (self.block + 1) % NUM_LBAS;
-            }
+            //self.data[cur_idx].cdw10 = self.block as u32;
+            //{
+            //    use crate::NUM_LBAS;
+            //    self.block = (self.block + 1) % NUM_LBAS;
+            //}
 
             self.req_slot[cur_idx] = true;
             self.i = (cur_idx + 1) % self.data.len();

@@ -24,7 +24,8 @@ use alloc::boxed::Box;
 #[macro_use]
 use alloc::vec::Vec;
 use core::panic::PanicInfo;
-use syscalls::{Syscall, PCI, Heap};
+use usr::pci::PCI;
+use syscalls::{Syscall, Heap};
 use libsyscalls::syscalls::{sys_println, sys_alloc, sys_create_thread};
 use console::{println, print};
 use pci_driver::DeviceBarRegions;
@@ -291,6 +292,95 @@ fn perf_test_iov(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
     }
 }
 
+fn run_blocktest(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
+
+    let mut buffer: Vec<u8>;
+    if is_write {
+        buffer = alloc::vec![0xbau8; 4096];
+    } else {
+        buffer = alloc::vec![0u8; 4096];
+    }
+
+    let block_size = buffer.len();
+    let mut breq: BlockReq = BlockReq::new(0, 8, buffer);
+    let mut submit: VecDeque<BlockReq> = VecDeque::with_capacity(batch_sz as usize);
+    let mut collect: VecDeque<BlockReq> = VecDeque::new();
+
+    let mut block_num: u64 = 0;
+
+    for i in 0..batch_sz {
+        let mut breq = breq.clone();
+        breq.block = block_num;
+        block_num = block_num.wrapping_add(1);
+        submit.push_back(breq.clone());
+    }
+
+    if let Some(device) = dev.device.borrow_mut().as_mut() {
+        let dev: &mut NvmeDev = device;
+
+        let mut submit_start = 0;
+        let mut submit_elapsed = 0;
+        let mut poll_start = 0;
+        let mut poll_elapsed = 0;
+        let mut count = 0;
+
+        let mut submit_hist = Base2Histogram::new();
+        let mut poll_hist = Base2Histogram::new();
+        let mut ret = 0;
+
+        let tsc_start = rdtsc();
+        let tsc_end = tsc_start + runtime * 2_400_000_000;
+
+        loop {
+            count += 1;
+            submit_start = rdtsc();
+            ret = dev.submit_and_poll(&mut submit, &mut collect, is_write);
+            submit_elapsed += rdtsc() - submit_start;
+
+            submit_hist.record(ret as u64);
+
+            poll_hist.record(collect.len() as u64);
+
+            submit.append(&mut collect);
+
+            if submit.len() == 0 {
+                //println!("allocating new batch");
+                for i in 0..batch_sz {
+                    let mut breq = breq.clone();
+                    breq.block = block_num;
+                    block_num = block_num.wrapping_add(1);
+                    submit.push_back(breq.clone());
+                }
+            }
+
+            for b in submit.iter_mut() {
+                b.block = block_num;
+                block_num = block_num.wrapping_add(1);
+            }
+
+            if rdtsc() > tsc_end {
+                break;
+            }
+            sys_ns_loopsleep(2000);
+        }
+
+        let (sub, comp) = dev.get_stats();
+        println!("runtime {} submitted {:.2} K IOPS completed {:.2} K IOPS", runtime, sub as f64 / runtime as f64 / 1_000 as f64,
+                      comp as f64 / runtime as f64 / 1_000 as f64);
+        println!("run_blocktest loop {} submit_and_poll took {} cycles (avg {} cycles)", count,
+                                            submit_elapsed, submit_elapsed / count);
+
+        for hist in alloc::vec![poll_hist] {
+            println!("hist:");
+            // Iterate buckets that have observations
+            for bucket in hist.iter().filter(|b| b.count > 0) {
+                print!("({:5}, {:5}): {}", bucket.start, bucket.end, bucket.count);
+                print!("\n");
+            }
+        }
+
+    }
+}
 
 /*static mut seed: u64 = 123456789;
 
@@ -314,7 +404,7 @@ fn rand_test(num_iter: usize) -> u64 {
 #[no_mangle]
 pub fn nvme_init(s: Box<dyn Syscall + Send + Sync>,
                  heap: Box<dyn Heap + Send + Sync>,
-                 pci: Box<dyn syscalls::PCI>) {
+                 pci: Box<dyn usr::pci::PCI>) {
     libsyscalls::syscalls::init(s);
 
     println!("nvme_init: starting nvme driver domain");
@@ -333,9 +423,15 @@ pub fn nvme_init(s: Box<dyn Syscall + Send + Sync>,
 
     //perf_test_raw(&nvme, 60, 8, false);
    // for _ in 1..1024 {
-    //    perf_test_iov(&nvme, 30, 8, false); 
+    //    perf_test_iov(&nvme, 30, 8, false);
     //}
-    perf_test_raw(&nvme, 10, 32, true);
+    run_blocktest(&nvme, 10, 32, false);
+    run_blocktest(&nvme, 10, 32, false);
+    run_blocktest(&nvme, 10, 32, false);
+    run_blocktest(&nvme, 10, 32, false);
+    run_blocktest(&nvme, 10, 32, false);
+
+    /*perf_test_raw(&nvme, 10, 32, true);
     perf_test_raw(&nvme, 10, 32, true);
     perf_test_raw(&nvme, 10, 32, true);
     perf_test_raw(&nvme, 10, 32, true);
@@ -346,7 +442,7 @@ pub fn nvme_init(s: Box<dyn Syscall + Send + Sync>,
     perf_test_raw(&nvme, 10, 32, false);
     perf_test_raw(&nvme, 10, 32, false);
     perf_test_raw(&nvme, 10, 32, false);
-
+    */
 
     /*perf_test_raw(&nvme, 10, 32, false);
     perf_test_raw(&nvme, 10, 32, false);

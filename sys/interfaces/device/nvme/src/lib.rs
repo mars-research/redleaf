@@ -62,7 +62,7 @@ impl BlockReq {
         BlockReq {
             block: req.block,
             num_blocks: req.num_blocks,
-            data: Vec::from_raw_parts(req.data as *mut _ as *mut u8, 
+            data: Vec::from_raw_parts(req.data as *mut _ as *mut u8,
         }
     }
 }*/
@@ -198,7 +198,7 @@ impl NvmeDevice {
                 }
             },
         }
-    } 
+    }
 
     fn submission_queue_tail(&mut self, qid: u16, tail: u16) {
         self.write_reg_idx(NvmeArrayRegs::SQyTDBL, qid, tail as u32);
@@ -640,6 +640,85 @@ impl NvmeDevice {
         count
     }
 
+    pub fn submit_and_poll(&mut self, submit: &mut VecDeque<BlockReq>, collect: &mut VecDeque<BlockReq>, write: bool) -> usize {
+        let mut sub_count = 0;
+        let mut reap_count = 0;
+        let mut cur_tail = 0;
+        let mut cur_head = 0;
+        let batch_sz = 128;
+        let reap_all = false;
+        let qid = 1;
+
+        while let Some(breq) = submit.pop_front() {
+            let (ptr0, ptr1) = (breq.data.as_ptr() as u64, 0);
+            let queue = &mut self.submission_queues[qid];
+            let block = breq.block;
+
+            let num_blocks = ((breq.data.len() + 511) / 512) - 1;
+            let mut entry;
+
+            if write {
+                entry = nvme_cmd::io_write(qid as u16,
+                        1, // nsid
+                        block, // block to read
+                        (num_blocks - 1) as u16,
+                        ptr0,
+                        ptr1,
+                        );
+
+            } else {
+                entry = nvme_cmd::io_read(qid as u16,
+                        1, // nsid
+                        block, // block to read
+                        (num_blocks - 1) as u16,
+                        ptr0,
+                        ptr1,
+                        );
+            }
+
+            if queue.is_submittable() {
+                if let Some(tail) = queue.submit_brequest(entry, breq) {
+                    cur_tail = tail;
+                    sub_count += 1;
+                }
+            } else {
+                submit.push_front(breq);
+                break;
+            }
+
+            self.stats.submitted += 1;
+        }
+
+        if sub_count > 0 {
+            self.submission_queue_tail(qid as u16, cur_tail as u16);
+        }
+
+        {
+            for i in 0..batch_sz {
+                let queue = &mut self.completion_queues[qid];
+                if let Some((head, entry, cq_idx)) = if reap_all { Some(queue.complete_spin()) } else { queue.complete() } {
+                    //println!("Got head {} cq_idx {}", head, cq_idx);
+                    let sq = &mut self.submission_queues[qid];
+                    if sq.req_slot[cq_idx] == true {
+                        if let Some(req) = &mut sq.brequests[cq_idx] {
+                           collect.push_front(req.from());
+                        }
+                        sq.req_slot[cq_idx] = false;
+                        reap_count += 1;
+                    }
+                    cur_head = head;
+                    //TODO: Handle errors
+                    self.stats.completed += 1;
+                }
+            }
+            if reap_count > 0 {
+                self.completion_queue_head(qid as u16, cur_head as u16);
+            }
+        }
+
+        sub_count
+    }
+
     pub fn submit_io(&mut self, submit_queue: &mut VecDeque<BlockReq>, write: bool) -> usize {
         let mut count = 0;
         let mut cur_tail = 0;
@@ -979,7 +1058,7 @@ impl NvmeDevice {
                 if let Some(req) = &sq.raw_requests[cid as usize] {
                     sq.req_slot[cid as usize] = false;
                     slot_valid = true;
-                    //println!("cpl[{}] finished cid {} sq_head {}", cpl_entry, cid, sq_head); 
+                    //println!("cpl[{}] finished cid {} sq_head {}", cpl_entry, cid, sq_head);
                     data = *req;
                 }
             }

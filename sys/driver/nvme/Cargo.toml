@@ -25,6 +25,7 @@ byteorder = { version = "1.2", default-features = false }
 serde_derive = "1.0.101"
 nvme_device = { path = "../../../sys/interfaces/device/nvme", version = "0.1.0" }
 pci_driver = { path = "../../../sys/interfaces/dev/pci/pci_driver", version = "0.1.0" }
+usr = { path = "../../../sys/interfaces/usr", version = "0.1.0" }
 protocol = { path = "../../../sys/interfaces/protocol", version = "0.1.0" }
 platform = { path = "../../../sys/interfaces/platform", version = "0.1.0" }
 libdma = { path = "../../../sys/lib/libdma", version = "0.1.0" }
