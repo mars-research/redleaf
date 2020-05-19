@@ -15,8 +15,9 @@
 
 mod device;
 mod ixgbe_desc;
-mod smoltcp_device;
+mod nullnet;
 mod redhttpd;
+mod smoltcp_device;
 
 extern crate malloc;
 extern crate alloc;
@@ -203,10 +204,16 @@ pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!("ixgbe_init: =>  starting ixgbe driver domain");
-    let mut ixgbe = Ixgbe::new();
-    if let Err(_) = pci.pci_register_driver(&mut ixgbe, 0, None) {
-        println!("WARNING: failed to register IXGBE driver");
-    }
+    #[cfg(not(feature = "nullnet"))]
+    let mut ixgbe = {
+        let mut ixgbe = Ixgbe::new();
+        if let Err(_) = pci.pci_register_driver(&mut ixgbe, 0, None) {
+            println!("WARNING: failed to register IXGBE driver");
+        }
+        ixgbe
+    };
+    #[cfg(feature = "nullnet")]
+    let mut ixgbe = nullnet::NullNet::new();
 
     println!("Starting tests");
 

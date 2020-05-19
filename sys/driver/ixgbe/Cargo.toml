@@ -56,3 +56,10 @@ default-features = false
 [dependencies.httparse]
 path = "../../lib/httparse"
 default-features = false
+
+[features]
+default = [
+    # "nullnet",
+]
+
+nullnet = []
