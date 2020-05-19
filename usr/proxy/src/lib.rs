@@ -1,5 +1,8 @@
 #![no_std]
-#![feature(global_asm)]
+#![feature(
+    global_asm,
+    box_syntax,
+)]
 mod gen;
 
 extern crate malloc;

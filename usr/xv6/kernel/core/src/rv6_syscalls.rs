@@ -40,15 +40,19 @@ impl Xv6 for Rv6Syscalls {
         }
     }
 
-    fn as_net(&self) -> &dyn Net {
-        self
+    fn as_net(&self) -> Box<dyn Net> {
+        box Self {
+            create_xv6usr: self.create_xv6usr.clone(),
+            fs: self.fs.clone(), 
+            net: self.net.clone(),
+        }
     }
     
     fn sys_spawn_thread(&self, name: &str, func: Box<dyn FnOnce() + Send>) -> Box<dyn Thread> {
         crate::thread::spawn_thread(self.fs.clone(), name, func)
     }
     
-    fn sys_spawn_domain(&self, path: &str, args: &str, fds: [Option<usize>; NFILE]) -> Result<Box<dyn Thread>> {
+    fn sys_spawn_domain(&self, rv6: Box<dyn Xv6>, path: &str, args: &str, fds: [Option<usize>; NFILE]) -> Result<Box<dyn Thread>> {
         // Load bin into memory
         println!("sys_spawn_domain {} {}", path, args);
         let fd = self.fs.sys_open(path, FileMode::READ)?;
@@ -60,13 +64,12 @@ impl Xv6 for Rv6Syscalls {
         // and transfer the ownership over
         let fs_copy = self.fs.clone();
         let path_copy = path.to_owned();
-        let rv6_copy = self.clone();
         let create_copy = self.create_xv6usr.clone();
         let args_copy = args.to_owned();
         let tmp_storage_id = fs_copy.sys_save_threadlocal(fds)?;
         Ok(self.sys_spawn_thread(path, Box::new(move || {
             fs_copy.sys_set_threadlocal(tmp_storage_id).unwrap();
-            create_copy.create_domain_xv6usr(&path_copy, rv6_copy, blob.as_slice(), &args_copy);
+            create_copy.create_domain_xv6usr(&path_copy, rv6, blob.as_slice(), &args_copy);
         })))
     }
 

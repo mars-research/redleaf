@@ -795,16 +795,16 @@ use usr::xv6::Thread;
 
 impl Xv6 for Rv6Proxy {
     fn clone(&self) -> Box<dyn Xv6> {
-        self.domain.clone()
+        box Self::new(self.domain_id, self.domain.clone())
     }
-    fn as_net(&self) -> &dyn Net {
-        self.domain.as_net()
+    fn as_net(&self) -> Box<dyn Net> {
+        box IxgbeProxy::new(self.domain_id, self.domain.as_net())
     }
     fn sys_spawn_thread(&self, name: &str, func: alloc::boxed::Box<dyn FnOnce() + Send>) -> Box<dyn Thread> {
         self.domain.sys_spawn_thread(name, func)
     }
-    fn sys_spawn_domain(&self, path: &str, args: &str, fds: [Option<usize>; NFILE]) -> Result<Box<dyn Thread>> {
-        self.domain.sys_spawn_domain(path, args, fds)
+    fn sys_spawn_domain(&self, rv6: Box<dyn Xv6>, path: &str, args: &str, fds: [Option<usize>; NFILE]) -> Result<Box<dyn Thread>> {
+        self.domain.sys_spawn_domain(rv6, path, args, fds)
     }
     fn sys_rdtsc(&self) -> u64 {
         self.domain.sys_rdtsc()
