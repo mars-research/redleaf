@@ -1,5 +1,6 @@
 use crate::rref::RRef;
 use crate::traits::{RRefable, CustomCleanup};
+use console::println;
 
 pub struct RRefArray<T: RRefable, const N: usize> where T: 'static {
     arr: RRef<[Option<RRef<T>>; N]>
@@ -9,6 +10,7 @@ unsafe impl<T: RRefable, const N: usize> RRefable for RRefArray<T, N> {}
 
 impl<T: RRefable, const N: usize> CustomCleanup for RRefArray<T, N> {
     fn cleanup(&mut self) {
+        println!("CustomCleanup::{}::cleanup()", core::any::type_name_of_val(self));
         self.arr.cleanup();
     }
 }

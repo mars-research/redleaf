@@ -6,6 +6,7 @@ use alloc::boxed::Box;
 use core::ops::{Deref, DerefMut, Drop};
 use core::alloc::Layout;
 use spin::Once;
+use console::println;
 
 static HEAP: Once<Box<dyn syscalls::Heap + Send + Sync>> = Once::new();
 static CRATE_DOMAIN_ID: Once<u64> = Once::new();
@@ -109,6 +110,7 @@ impl<T: RRefable> Drop for RRef<T> {
 impl<T: 'static + RRefable> CustomCleanup for RRef<T> {
     fn cleanup(&mut self) {
         unsafe {
+            println!("CustomCleanup::{}::cleanup()", core::any::type_name_of_val(self));
             // "drop" the contents, only interesting for recursive cases
             self.ptr_mut().cleanup();
             HEAP.force_get().dealloc(self.value_pointer as *mut u8);

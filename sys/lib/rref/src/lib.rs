@@ -4,6 +4,7 @@
 #![feature(negative_impls)]
 #![feature(optin_builtin_traits)]
 #![feature(specialization)]
+#![feature(type_name_of_val)]
 
 extern crate alloc;
 
