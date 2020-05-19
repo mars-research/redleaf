@@ -36,6 +36,17 @@ fn test_submit_and_poll(dom_a: &mut Box<dyn DomA>) {
     }
     let end = rdtsc();
     println!("ops: {}, delta: {}, delta/ops: {}", ops, end - start, (end - start) / ops);
+
+//    let mut packets = packets.take().unwrap();
+//    let mut reap_queue = reap_queue.take().unwrap();
+//    for i in 0..32 {
+//        if let Some(rref) = packets.pop_front() {
+//            drop(rref);
+//        }
+//        if let Some(rref) = reap_queue.pop_front() {
+//            drop(rref);
+//        }
+//    }
 }
 
 #[no_mangle]
@@ -44,6 +55,14 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!("In domain B, id: {}", libsyscalls::syscalls::sys_get_current_domain_id());
+
+    {
+        println!("rref drop test");
+        let rref1 = RRef::new(10usize);
+        let rref2 = RRef::new(rref1); // RRef<RRef<usize>>
+        println!("dropping rref2, should print drop_t::RRef<RRef<usize>> then drop_t::RRef<usize>");
+        drop(rref2);
+    }
 
     let mut dom_a = dom_a;
     test_submit_and_poll(&mut dom_a);

@@ -1,11 +1,17 @@
 #![no_std]
 #![allow(incomplete_features)]
 #![feature(const_generics)]
+#![feature(negative_impls)]
+#![feature(optin_builtin_traits)]
+#![feature(specialization)]
+#![feature(type_name_of_val)]
+
 extern crate alloc;
 
 mod rref;
 mod rref_deque;
 mod rref_array;
+pub mod traits;
 
 pub use self::rref::init as init;
 pub use self::rref::RRef as RRef;
@@ -15,33 +21,46 @@ pub use self::rref_deque::RRefDeque as RRefDeque;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use traits::{RRefable, CustomCleanup};
     use alloc::boxed::Box;
     use core::alloc::Layout;
     use alloc::vec::Vec;
     use core::mem;
     use syscalls::{Syscall, Thread};
     extern crate pc_keyboard;
+    use hashbrown::HashMap;
+    use spin::Mutex;
 
-    pub struct TestHeap();
+    struct TestHeap {
+        map: Mutex<HashMap<usize, extern fn(*mut u8)>>,
+    }
 
     impl TestHeap {
         pub fn new() -> TestHeap {
-            TestHeap {}
+            TestHeap {
+                map: Mutex::new(Default::default())
+            }
         }
     }
 
     impl syscalls::Heap for TestHeap {
-        unsafe fn alloc(&self, layout: Layout) -> (*mut u64, *mut u8) {
+        unsafe fn alloc(&self, layout: Layout, drop_fn: extern fn(*mut u8) -> ()) -> (*mut u64, *mut u8) {
             let domain_id_ptr = Box::into_raw(Box::<u64>::new(0));
 
             let mut buf = Vec::with_capacity(layout.size());
             let ptr = buf.as_mut_ptr();
             mem::forget(buf);
 
+            self.map.lock().insert(ptr as usize, drop_fn);
+
             (domain_id_ptr, ptr)
         }
 
-        unsafe fn dealloc(&self, _: *mut u8) {}
+        unsafe fn dealloc(&self, ptr: *mut u8) {
+            let mut map = self.map.lock();
+            let drop_fn = map.get(&(ptr as usize)).unwrap();
+            (drop_fn)(ptr);
+        }
     }
 
     pub struct TestSyscall();
@@ -75,6 +94,35 @@ mod tests {
     }
     fn init_syscall() {
         libsyscalls::syscalls::init(Box::new(TestSyscall::new()));
+    }
+
+    #[test]
+    fn rref_drop() {
+        init_heap();
+        init_syscall();
+
+        static mut counter: usize = 0usize;
+
+        struct Container<T: 'static + RRefable> {
+            inner: RRef<T>,
+        }
+
+        impl<T: 'static + RRefable> CustomCleanup for Container<T> {
+            fn cleanup(&mut self) {
+                unsafe { counter += 1 };
+            }
+        }
+
+        let rref = RRef::new(55usize);
+        let inner = Container { inner: rref };
+        let innerRRef = RRef::new(inner);
+        // Container<RRef<Container<RRef<usize>>>>
+        let outer = Container { inner: innerRRef };
+
+        unsafe { assert_eq!(counter, 0) };
+        drop(outer);
+        // should call cleanup on inner and outer
+        unsafe { assert_eq!(counter, 2) };
     }
 
     #[test]
