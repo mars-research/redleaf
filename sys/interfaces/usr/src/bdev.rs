@@ -23,3 +23,27 @@ pub trait BDev: Send + Sync {
 
 // pub trait BDev: SyncBDev + AsyncBDev {}
 
+pub struct BlkReq {
+   pub data: [u8; 4096],
+   pub data_len: usize,
+   pub block: u64,
+}
+
+impl BlkReq {
+    pub fn new() -> Self {
+        Self {
+            data: [0u8; 4096],
+            data_len: 4096,
+            block: 0,
+        }
+    }
+
+    pub fn from_data(data: [u8; 4096]) -> Self {
+        Self {
+            data,
+            data_len: 4096,
+            block: 0,
+        }
+    }
+
+}

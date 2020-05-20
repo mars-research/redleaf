@@ -12,7 +12,8 @@
     maybe_uninit_extra,
     core_intrinsics,
 )]
-#![forbid(unsafe_code)]
+#![feature(const_int_pow)]
+//#![forbid(unsafe_code)]
 
 extern crate malloc;
 extern crate alloc;
@@ -37,6 +38,8 @@ use libtime::get_rdtsc as rdtsc;
 use libtime::sys_ns_loopsleep;
 use crate::device::NvmeDev;
 pub use nvme_device::BlockReq;
+use rref::{RRef, RRefDeque};
+use usr::bdev::BlkReq;
 
 #[macro_use]
 use b2histogram::Base2Histogram;
@@ -64,6 +67,37 @@ impl Nvme {
         self.device_initialized
     }
 }
+
+/*impl usr::bdev::BDev for Nvme {
+    fn submit_and_poll_rref(
+        &self,
+        mut submit: RRefDeque<BlkReq, 32>,
+        mut collect: RRefDeque<BlkReq, 32>,
+        write: bool,
+        ) -> (
+            usize,
+            RRefDeque<BlkReq, 32>,
+            RRefDeque<BlkReq, 32>,
+        )
+    {
+
+   let mut submit = Some(submit);
+        let mut collect = Some(collect);
+
+
+        if let Some(device) = self.device.borrow_mut().as_mut() {
+            let dev: &mut NvmeDev = device;
+            let (num, mut submit_, mut collect_) = dev.device.submit_and_poll_rref(submit.take().unwrap(),
+                                                    collect.take().unwrap(), write);
+            ret = num;
+
+            submit.replace(submit_);
+            collect.replace(collect_);
+        }
+
+        (ret, submit.unwrap(), collect.unwrap())
+    }
+}*/
 
 impl pci_driver::PciDriver for Nvme {
     fn probe(&mut self, bar_region: DeviceBarRegions) {
@@ -164,16 +198,16 @@ fn perf_test_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
             //println!("checking");
             let ret = dev.check_io_raw(128, is_write);
 
-            poll_start = rdtsc();
-            poll_hist.record(ret);
-            poll_elapsed += rdtsc() - poll_start;
+            //poll_start = rdtsc();
+            //poll_hist.record(ret);
+            //poll_elapsed += rdtsc() - poll_start;
 
             let cur_tsc = rdtsc();
 
             if cur_tsc > tsc_end {
                 break;
             }
-            sys_ns_loopsleep(200);
+            //sys_ns_loopsleep(200);
         }
 
         let (sub, comp) = dev.get_stats();
@@ -292,6 +326,217 @@ fn perf_test_iov(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
     }
 }
 
+fn run_blocktest_rref(dev: &Nvme, block_sz: usize, is_write: bool, is_random: bool)
+{
+    let mut block_num: u64 = 0;
+    let batch_sz = 32;
+    let runtime = 30;
+
+    let mut data = [0u8; 4096];
+    if is_write {
+        data = [0xeeu8; 4096];
+    }
+
+    let mut submit = RRefDeque::<BlkReq, 128>::default();
+    let mut collect = RRefDeque::<BlkReq, 128>::default();
+
+    for i in 0..32 {
+        let mut breq = BlkReq::from_data(data.clone());
+        if is_random {
+            breq.block = get_rand_block();
+        } else {
+            breq.block = block_num;
+            block_num = block_num.wrapping_add(8);
+        }
+        submit.push_back(RRef::<BlkReq>::new(breq));
+    }
+
+    println!("======== Starting {}{} test (rrefs)  ==========",
+                                    if is_random { "rand" } else { "" }, 
+                                    if is_write { "write" } else { "read" });
+
+    if let Some(device) = dev.device.borrow_mut().as_mut() {
+        let dev: &mut NvmeDev = device;
+
+        let mut submit_start = 0;
+        let mut submit_elapsed = 0;
+
+        let mut alloc_count = 0;
+        let mut alloc_elapsed = 0;
+
+        let mut count: u64 = 0;
+
+        let mut submit = Some(submit);
+        let mut collect = Some(collect);
+
+        let mut submit_hist = Base2Histogram::new();
+        let mut poll_hist = Base2Histogram::new();
+        let mut ret = 0;
+
+        let tsc_start = rdtsc();
+        let tsc_end = tsc_start + runtime * 2_400_000_000;
+
+        loop {
+            count += 1;
+            submit_start = rdtsc();
+            let (ret, mut submit_, mut collect_) = dev.submit_and_poll_rref(submit.take().unwrap(),
+                                                collect.take().unwrap(), is_write);
+            submit_elapsed += rdtsc() - submit_start;
+
+            //println!("submitted {} reqs, collect {} reqs", ret, collect_.len());
+            submit_hist.record(ret as u64);
+
+            poll_hist.record(collect_.len() as u64);
+
+            while let Some(mut breq) = collect_.pop_front() {
+                if is_random {
+                    breq.block = get_rand_block();
+                } else {
+                    breq.block = block_num;
+                    block_num = block_num.wrapping_add(8);
+                }
+                if submit_.push_back(breq).is_some() {
+                    println!("submit too full already!");   
+                    break;
+                }
+            }
+
+            if submit_.len() == 0  {//&& (alloc_count * batch_sz) < 1024 {
+                println!("Alloc new batch at {}", count);
+                alloc_count += 1;
+                let alloc_rdstc_start = rdtsc();
+                for i in 0..batch_sz {
+                    let mut breq = BlkReq::from_data(data.clone());
+                    if is_random {
+                        breq.block = get_rand_block();
+                    } else {
+                        breq.block = block_num;
+                        block_num = block_num.wrapping_add(8);
+                    }
+                    submit_.push_back(RRef::<BlkReq>::new(breq));
+                }
+                alloc_elapsed += rdtsc() - alloc_rdstc_start;
+            }
+
+
+            submit.replace(submit_);
+            collect.replace(collect_);
+
+            if rdtsc() > tsc_end {
+                break;
+            }
+            //sys_ns_loopsleep(2000);
+        }
+        let elapsed = rdtsc() - tsc_start;
+
+        let adj_runtime = elapsed as f64 / 2_400_000_000_u64 as f64;
+
+        let (sub, comp) = dev.get_stats();
+
+        println!("runtime: {:.2} seconds", adj_runtime);
+
+        println!("submitted {:.2} K IOPS completed {:.2} K IOPS",
+                             sub as f64 / adj_runtime as f64 / 1_000 as f64,
+                             comp as f64 / adj_runtime as f64 / 1_000 as f64);
+        println!("submit_and_poll_rref took {} cycles (avg {} cycles)",
+                                            submit_elapsed, submit_elapsed / count);
+
+        println!("Number of new allocations {}", alloc_count * batch_sz);
+
+
+        for hist in alloc::vec![submit_hist, poll_hist] {
+            println!("hist:");
+            // Iterate buckets that have observations
+            for bucket in hist.iter().filter(|b| b.count > 0) {
+                print!("({:5}, {:5}): {}", bucket.start, bucket.end, bucket.count);
+                print!("\n");
+            }
+        }
+        println!("++++++++++++++++++++++++++++++++++++++++++++++++++++");
+    }
+}
+
+fn run_blocktest_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
+
+    let mut req: Vec<u8>;
+    if is_write {
+        req = alloc::vec![0xbau8; 4096];
+    } else {
+        req = alloc::vec![0u8; 4096];
+    }
+
+    let mut submit: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz as usize);
+    let mut collect: VecDeque<Vec<u8>> = VecDeque::new();
+
+    let mut block_num: u64 = 0;
+
+    for i in 0..batch_sz {
+        submit.push_back(req.clone());
+    }
+
+    if let Some(device) = dev.device.borrow_mut().as_mut() {
+        let dev: &mut NvmeDev = device;
+
+        let mut submit_start = 0;
+        let mut submit_elapsed = 0;
+        let mut poll_start = 0;
+        let mut poll_elapsed = 0;
+        let mut count = 0;
+        let mut allocated_count = 0;
+
+        let mut submit_hist = Base2Histogram::new();
+        let mut poll_hist = Base2Histogram::new();
+        let mut ret = 0;
+
+        let tsc_start = rdtsc();
+        let tsc_end = tsc_start + runtime * 2_400_000_000;
+
+        loop {
+            count += 1;
+            submit_start = rdtsc();
+            submit_hist.record(submit.len() as u64);
+            ret = dev.submit_and_poll_raw(&mut submit, &mut collect, is_write);
+            submit_elapsed += rdtsc() - submit_start;
+
+            //submit_hist.record(ret as u64);
+
+            poll_hist.record(collect.len() as u64);
+
+            submit.append(&mut collect);
+
+            if submit.len() == 0 {
+                allocated_count += 1;
+                println!("allocating new batch at count {}", count);
+                for i in 0..batch_sz {
+                    submit.push_back(req.clone());
+                }
+            }
+
+            if rdtsc() > tsc_end {
+                break;
+            }
+            sys_ns_loopsleep(2000);
+        }
+
+        let (sub, comp) = dev.get_stats();
+        println!("runtime {} submitted {:.2} K IOPS completed {:.2} K IOPS", runtime, sub as f64 / runtime as f64 / 1_000 as f64,
+                      comp as f64 / runtime as f64 / 1_000 as f64);
+        println!("run_blocktest loop {} submit_and_poll took {} cycles (avg {} cycles)", count,
+                                            submit_elapsed, submit_elapsed / count);
+        println!("Allocated breqs {}", allocated_count * batch_sz);
+
+        for hist in alloc::vec![submit_hist, poll_hist] {
+            println!("hist:");
+            // Iterate buckets that have observations
+            for bucket in hist.iter().filter(|b| b.count > 0) {
+                print!("({:5}, {:5}): {}", bucket.start, bucket.end, bucket.count);
+                print!("\n");
+            }
+        }
+
+    }
+}
+
 fn run_blocktest(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
 
     let mut buffer: Vec<u8>;
@@ -382,11 +627,12 @@ fn run_blocktest(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
     }
 }
 
-/*static mut seed: u64 = 123456789;
+static mut seed: u64 = 123456789;
+static pow: u64 = 2u64.pow(31);
 
 fn get_rand_block() -> u64 {
     unsafe {
-        seed = (110351245 * seed + 12345) % 2u64.pow(31);
+        seed = (1103515245 * seed + 12345) % pow;
         seed % 781422768
     }
 }
@@ -399,13 +645,15 @@ fn rand_test(num_iter: usize) -> u64 {
         sum += rand;
     }
     sum
-}*/
+}
+
 
 #[no_mangle]
 pub fn nvme_init(s: Box<dyn Syscall + Send + Sync>,
                  heap: Box<dyn Heap + Send + Sync>,
                  pci: Box<dyn usr::pci::PCI>) {
     libsyscalls::syscalls::init(s);
+    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!("nvme_init: starting nvme driver domain");
     let mut nvme = Nvme::new();
@@ -413,37 +661,69 @@ pub fn nvme_init(s: Box<dyn Syscall + Send + Sync>,
         println!("WARNING: failed to register IXGBE driver");
     }
 
-    /*println!("starting tests!...");
-    let num_iter = 10_000_000;
+    println!("starting tests!...");
+    /*let num_iter = 10_000_000;
     let rand_start = rdtsc();
     let sum = rand_test(num_iter);
     let rand_elapsed = rdtsc() - rand_start;
     println!("Rand {} test {} iterations took {} cycles (avg {} cycles)", sum, num_iter, rand_elapsed, rand_elapsed as f64 / num_iter as f64);
     */
-
     //perf_test_raw(&nvme, 60, 8, false);
    // for _ in 1..1024 {
     //    perf_test_iov(&nvme, 30, 8, false);
     //}
-    run_blocktest(&nvme, 10, 32, false);
-    run_blocktest(&nvme, 10, 32, false);
-    run_blocktest(&nvme, 10, 32, false);
-    run_blocktest(&nvme, 10, 32, false);
-    run_blocktest(&nvme, 10, 32, false);
 
-    /*perf_test_raw(&nvme, 10, 32, true);
-    perf_test_raw(&nvme, 10, 32, true);
-    perf_test_raw(&nvme, 10, 32, true);
-    perf_test_raw(&nvme, 10, 32, true);
-    perf_test_raw(&nvme, 10, 32, true);
 
-    perf_test_raw(&nvme, 10, 32, false);
-    perf_test_raw(&nvme, 10, 32, false);
-    perf_test_raw(&nvme, 10, 32, false);
-    perf_test_raw(&nvme, 10, 32, false);
-    perf_test_raw(&nvme, 10, 32, false);
-    */
+    //run_blocktest_raw(&nvme, 30, 32, true);
 
+    run_blocktest_rref(&nvme, 4096, false, false);
+    run_blocktest_rref(&nvme, 4096, false, false);
+
+    run_blocktest_rref(&nvme, 4096, false, true);
+    run_blocktest_rref(&nvme, 4096, false, true);
+
+
+    run_blocktest_rref(&nvme, 4096, true, false);
+    run_blocktest_rref(&nvme, 4096, true, false);
+
+    run_blocktest_rref(&nvme, 4096, true, true);
+    run_blocktest_rref(&nvme, 4096, true, true);
+
+    panic!("nvme dies");
+    run_blocktest_rref(&nvme, 4096, false, false);
+    run_blocktest_rref(&nvme, 4096, true, false);
+    run_blocktest_rref(&nvme, 4096, true, false);
+    run_blocktest_rref(&nvme, 4096, true, false);
+    run_blocktest_rref(&nvme, 4096, true, false);
+
+
+    run_blocktest_raw(&nvme, 10, 32, true);
+    run_blocktest_raw(&nvme, 10, 32, true);
+    run_blocktest_raw(&nvme, 10, 32, true);
+    run_blocktest_raw(&nvme, 10, 32, true);
+    run_blocktest_raw(&nvme, 10, 32, true);
+
+
+    run_blocktest_raw(&nvme, 10, 32, false);
+    run_blocktest_raw(&nvme, 10, 32, false);
+    run_blocktest_raw(&nvme, 10, 32, false);
+    run_blocktest_raw(&nvme, 10, 32, false);
+    run_blocktest_raw(&nvme, 10, 32, false);
+
+/*
+    perf_test_raw(&nvme, 10, 32, false);
+    perf_test_raw(&nvme, 10, 32, false);
+    perf_test_raw(&nvme, 10, 32, false);
+    perf_test_raw(&nvme, 10, 32, false);
+    perf_test_raw(&nvme, 10, 32, false);
+
+
+    perf_test_raw(&nvme, 10, 32, true);
+    perf_test_raw(&nvme, 10, 32, true);
+    perf_test_raw(&nvme, 10, 32, true);
+    perf_test_raw(&nvme, 10, 32, true);
+    perf_test_raw(&nvme, 10, 32, true);
+*/
     /*perf_test_raw(&nvme, 10, 32, false);
     perf_test_raw(&nvme, 10, 32, false);
     perf_test_raw(&nvme, 10, 32, false);

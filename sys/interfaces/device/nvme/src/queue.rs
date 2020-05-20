@@ -12,7 +12,9 @@ use libdma::nvme::{NvmeCommand, NvmeCompletion};
 use crate::{Result, BlockReq};
 use crate::array_init;
 use console::{println, print};
+use rref::{RRef, RRefDeque};
 use alloc::vec::Vec;
+use usr::bdev::BlkReq;
 
 pub struct Request {
     pub block: u64,
@@ -26,17 +28,20 @@ use crate::NUM_LBAS;
 
 struct Rand {
     seed: u64,
+    pow: u64,
 }
 
 impl Rand {
     fn new() -> Rand {
         Rand {
             seed: 123456789,
+            pow: 2u64.pow(31),
         }
     }
 
+    #[inline(always)]
     fn get_rand_block(&mut self) -> u64 {
-        self.seed = (110351245 * self.seed + 12345) % 2u64.pow(31);
+        self.seed = (1103515245 * self.seed + 12345) % self.pow;
         self.seed % NUM_LBAS
     }
 }
@@ -56,6 +61,7 @@ pub (crate) struct NvmeCommandQueue {
     pub brequests: [Option<BlockReq>; QUEUE_DEPTH],
     pub rrequests: [Option<Vec<u8>>; QUEUE_DEPTH],
     pub raw_requests: [Option<u64>; QUEUE_DEPTH],
+    pub blkreq_rrefs: [Option<RRef<BlkReq>>; QUEUE_DEPTH],
     pub req_slot: [bool; QUEUE_DEPTH],
     block: u64,
 }
@@ -69,6 +75,7 @@ impl NvmeCommandQueue {
             brequests: array_init::array_init(|_| None),
             rrequests: array_init::array_init(|_| None),
             raw_requests: array_init::array_init(|_| None),
+            blkreq_rrefs: array_init::array_init(|_| None),
             req_slot: [false; QUEUE_DEPTH],
             block: 0,
             rand: Rand::new(),
@@ -148,11 +155,11 @@ impl NvmeCommandQueue {
         if !self.req_slot[cid] {
             self.data[cur_idx] = entry;
 
-            self.block = self.rand.get_rand_block();
-            //self.block = (self.block + 8) % NUM_LBAS;
+            //self.block = self.rand.get_rand_block();
+            self.block = (self.block + 8) % NUM_LBAS;
 
             self.data[cur_idx].cdw10 = self.block as u32;
-            self.data[cur_idx].cdw11 = (self.block >> 32) as u32;
+            //self.data[cur_idx].cdw11 = (self.block >> 32) as u32;
 
             //println!("Submitting block[{}] {} at slot {}", cid, self.block, cur_idx);
             //dump_cmd_entry(&self.data[cur_idx]);
@@ -215,6 +222,29 @@ impl NvmeCommandQueue {
         }
     }
 
+    pub fn submit_request_rref(&mut self, entry: NvmeCommand, breq: RRef<BlkReq>)
+                                        -> Option<usize> {
+        let cur_idx = self.i;
+        if self.req_slot[cur_idx] == false {
+            self.data[cur_idx] = entry;
+            self.data[cur_idx].cid = cur_idx as u16;
+            self.data[cur_idx].cdw10 %= NUM_LBAS as u32;
+            //self.block = (self.block + 8) % NUM_LBAS;
+            let cid = cur_idx  as u16;
+
+            //println!("Submitting block[{}] {} at slot {}", cid, breq.block, cur_idx);
+
+            self.blkreq_rrefs[cur_idx] = Some(breq);
+
+            self.req_slot[cur_idx] = true;
+            self.i = (cur_idx + 1) % self.data.len();
+            Some(self.i)
+        } else {
+            //println!("No free slot");
+            None
+        }
+    }
+
     pub fn submit_request_raw(&mut self, entry: NvmeCommand, data: u64)
                                         -> Option<usize> {
         let cur_idx = self.i;
@@ -225,10 +255,10 @@ impl NvmeCommandQueue {
 
             self.raw_requests[cur_idx] = Some(data);
             self.data[cur_idx].cdw10 = self.block as u32;
-            self.data[cur_idx].cdw11 = (self.block >> 32) as u32;
+            //self.data[cur_idx].cdw11 = (self.block >> 32) as u32;
 
-            self.block = self.rand.get_rand_block();
-            //self.block = (self.block + 8) % NUM_LBAS;
+            //self.block = self.rand.get_rand_block();
+            self.block = (self.block + 8) % NUM_LBAS;
 
             //println!("Submitting block[{}] {} at slot {}", cid, self.block, cur_idx);
 

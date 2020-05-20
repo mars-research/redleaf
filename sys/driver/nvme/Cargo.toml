@@ -12,6 +12,7 @@ panic = "abort"
 
 [profile.release]
 panic = "abort"
+debug = true
 
 [dependencies]
 syscalls = { path = "../../../sys/interfaces/syscalls", version = "0.1.0" }
@@ -29,6 +30,7 @@ usr = { path = "../../../sys/interfaces/usr", version = "0.1.0" }
 protocol = { path = "../../../sys/interfaces/protocol", version = "0.1.0" }
 platform = { path = "../../../sys/interfaces/platform", version = "0.1.0" }
 libdma = { path = "../../../sys/lib/libdma", version = "0.1.0" }
+rref = { path = "../../lib/rref", version = "0.1.0" }
 b2histogram = "1.0"
 
 [dependencies.lazy_static]

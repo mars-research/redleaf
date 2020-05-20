@@ -79,7 +79,7 @@ impl create::CreateNetShadow for PDomain {
 }
 
 impl create::CreateNvme for PDomain {
-    fn create_domain_nvme(&self, pci: Box<dyn syscalls::PCI>) -> Box<dyn syscalls::Domain> {
+    fn create_domain_nvme(&self, pci: Box<dyn usr::pci::PCI>) -> Box<dyn syscalls::Domain> {
         disable_irq();
         let r = create_domain_nvme(pci);
         enable_irq();
@@ -305,7 +305,7 @@ pub fn create_domain_net_shadow(create: Arc<dyn create::CreateIxgbe>, pci: Box<d
     build_domain_net_shadow("net_shadow", binary_range, create, pci)
 }
 
-pub fn create_domain_nvme(pci: Box<dyn syscalls::PCI>) -> Box<dyn syscalls::Domain> {
+pub fn create_domain_nvme(pci: Box<dyn usr::pci::PCI>) -> Box<dyn syscalls::Domain> {
 
     extern "C" {
         fn _binary_sys_driver_nvme_build_nvme_start();
@@ -783,8 +783,8 @@ pub fn build_domain_net_shadow(name: &str,
 
 pub fn create_domain_nvmedev(name: &str,
                          binary_range: (*const u8, *const u8),
-                         pci: Box<dyn syscalls::PCI>) -> Box<dyn syscalls::Domain> {
-    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, Box<dyn syscalls::PCI>);
+                         pci: Box<dyn usr::pci::PCI>) -> Box<dyn syscalls::Domain> {
+    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, Box<dyn usr::pci::PCI>);
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)

@@ -13,6 +13,8 @@ use alloc::format;
 use byteorder::{ByteOrder, BigEndian, LittleEndian};
 use crate::BlockReq;
 use core::fmt;
+use usr::bdev::BlkReq;
+use rref::{RRef, RRefDeque};
 
 use core::intrinsics;
 use platform::PciBarAddr;
@@ -195,6 +197,17 @@ impl NvmeDev {
         self.device.submit_and_poll(submit_queue, collect, write)
     }
 
+    pub fn submit_and_poll_raw(&mut self, submit_queue: &mut VecDeque<Vec<u8>>,
+                            collect: &mut VecDeque<Vec<u8>>, write: bool) -> usize {
+        self.device.submit_and_poll_raw(submit_queue, collect, write)
+    }
+
+    pub fn submit_and_poll_rref(&mut self, mut submit: RRefDeque<BlkReq, 128>, mut collect:
+                                 RRefDeque<BlkReq, 128>, write: bool) -> 
+                                (usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>)
+    {
+        self.device.submit_and_poll_rref(submit, collect, write)
+    }
 
     pub fn get_stats(&mut self) -> (u64, u64) {
         let (s, c) = self.device.stats.get_stats();
