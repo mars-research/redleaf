@@ -7,3 +7,6 @@
 [submodule "sys/lib/httparse"]
 	path = sys/lib/httparse
 	url = https://github.com/zhaofengli/httparse
+[submodule "lib/memcpy/musl"]
+	path = lib/memcpy/musl
+	url = git://git.musl-libc.org/musl
