@@ -13,13 +13,11 @@ Domains
 - Call domain init function through the proxy/continuation -- domain might
   panic on entry.  
 
-  > Can we wrap the domain init with unwind? From within the generated domain
-init 
-
-  > yeah, that's a good strategy too, we can rely on normal Rust panic
-mechanism... but it doesn't work because we really might want to terminate an
-undresponsive init function inside the domain with a timeout
-
+     > Can we wrap the domain init with unwind? From within the generated domain
+       init 
+     > yeah, that's a good strategy too, we can rely on normal Rust panic
+       mechanism... but it doesn't work because we really might want to terminate an
+       undresponsive init function inside the domain with a timeout
 
 Recovery/shadows
 
