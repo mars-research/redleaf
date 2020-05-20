@@ -2,18 +2,18 @@ use core::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
 
 use fnv::FnvHasher;
 
-const ETH_HEADER_LEN: usize = 14;
-const UDP_HEADER_LEN: usize = 8;
+pub const ETH_HEADER_LEN: usize = 14;
+pub const UDP_HEADER_LEN: usize = 8;
 
 // https://en.wikipedia.org/wiki/IPv4
-const IPV4_PROTO_OFFSET: usize = 9;
-const IPV4_LENGTH_OFFSET: usize = 2;
-const IPV4_CHECKSUM_OFFSET: usize = 10;
-const IPV4_SRCDST_OFFSET: usize = 12;
-const IPV4_SRCDST_LEN: usize = 8;
+pub const IPV4_PROTO_OFFSET: usize = 9;
+pub const IPV4_LENGTH_OFFSET: usize = 2;
+pub const IPV4_CHECKSUM_OFFSET: usize = 10;
+pub const IPV4_SRCDST_OFFSET: usize = 12;
+pub const IPV4_SRCDST_LEN: usize = 8;
 
-const UDP_LENGTH_OFFSET: usize = 4;
-const UDP_CHECKSUM_OFFSET: usize = 6;
+pub const UDP_LENGTH_OFFSET: usize = 4;
+pub const UDP_CHECKSUM_OFFSET: usize = 6;
 
 pub fn swap_mac(frame: &mut [u8]) {
     for i in 0..6 {

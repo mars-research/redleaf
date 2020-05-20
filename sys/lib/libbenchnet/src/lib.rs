@@ -11,11 +11,14 @@ use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 use b2histogram::Base2Histogram;
 use byteorder::{BigEndian, ByteOrder};
+use console::{print, println};
 use core::ptr;
 use libtime::get_rdtsc as rdtsc;
+use libtime::sys_ns_loopsleep;
+use packettool::{ETH_HEADER_LEN, IPV4_PROTO_OFFSET};
 use rref::{RRef, RRefDeque};
 use usr::net::Net;
-use console::{print, println};
+
 
 const BATCH_SIZE: usize = 32;
 
@@ -264,7 +267,12 @@ pub fn run_tx_udptest(net: &dyn Net, pkt_len: usize, mut debug: bool) {
     println!("Reaped {} packets", net.poll(&mut collect, true).unwrap());
 }
 
+
 pub fn run_rx_udptest_rref(net: &dyn Net, pkt_len: usize, debug: bool) {
+    run_rx_udptest_rref_with_delay(net, pkt_len, debug, 0)
+}
+
+pub fn run_rx_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, debug: bool, delay: usize) {
     let pkt_len = 2048;
     let batch_sz: usize = BATCH_SIZE;
     let mut packets = RRefDeque::<[u8; 1512], 32>::default();
@@ -300,6 +308,7 @@ pub fn run_rx_udptest_rref(net: &dyn Net, pkt_len: usize, debug: bool) {
     loop {
         //submit_rx_hist.record(packets.len() as u64);
 
+        sys_ns_loopsleep(delay as u64);
         let (ret, mut packets_, mut collect_) = net.submit_and_poll_rref(packets.take().unwrap(),
                                 collect.take().unwrap(), false, pkt_len).unwrap();
 
@@ -354,7 +363,7 @@ pub fn run_rx_udptest_rref(net: &dyn Net, pkt_len: usize, debug: bool) {
 
     //println!("seq_start {} seq_end {} delta {}", seq_start, seq_end, seq_end - seq_start);
     println!("sum {} batch alloc_count {}", sum, alloc_count);
-    println!("==> rx batch {}B: {} iterations took {} cycles (avg = {})", pkt_len, sum, elapsed, elapsed / sum as u64);
+    println!("==> rx batch {}B: delay {}ns: {} iterations took {} cycles (avg = {})", pkt_len, delay, sum, elapsed, elapsed / sum as u64);
     // dev.dump_stats();
     for hist in alloc::vec![submit_rx_hist, collect_rx_hist] {
         println!("hist:");
@@ -885,6 +894,15 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) {
 
     for i in 0..batch_sz {
         rx_submit.push_back(RRef::<[u8; 1512]>::new(pkt_arr.clone()));
+    }
+
+    // Make the packets valid so that they don't get rejected by maglev
+    for packet in rx_submit.iter_mut() {
+        // Set protocol to ipv4
+        packet[ETH_HEADER_LEN] = 0b0100_0000;
+
+        // Set protocol to TCP
+        packet[ETH_HEADER_LEN + IPV4_PROTO_OFFSET] = 6;
     }
 
 
