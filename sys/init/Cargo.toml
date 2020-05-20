@@ -14,6 +14,7 @@ panic = "abort"
 
 [profile.release]
 panic = "abort"
+debug = true
 
 [dependencies]
 array-init = "0.1.1"
@@ -39,7 +40,7 @@ default-features = false
 
 [features]
 default = [
-    # "test_ab",
+    "test_ab",
     "test_shadow",
     # "benchnet",
 ]

@@ -14,6 +14,7 @@ panic = "abort"
 
 [profile.release]
 panic = "abort"
+debug = true
 
 # Kernel Dependencies
 [dependencies]
@@ -41,6 +42,7 @@ elfloader = { path = "./lib/rust-elfloader" }
 platform = { path = "./sys/interfaces/platform", version = "0.1.0" }
 unwind = { path = "sys/lib/unwind", version = "0.1.0"}
 memcpy = { path = "lib/memcpy", version = "0.1.0"}
+hashbrown = "0.6"
 
 [dependencies.lazy_static]
 version = "1.3.0"

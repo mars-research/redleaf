@@ -55,7 +55,7 @@ pub fn block_num_for_node(inum: u16, super_block: &SuperBlock) -> u32 {
     inum as u32 / params::IPB as u32 + super_block.inodestart
 }
 
-pub fn fsinit(dev_no: u32, dev: Box<dyn BDev + Send + Sync>) {
+pub fn fsinit(dev_no: u32, dev: Box<dyn BDev>) {
     BCACHE.call_once(|| BufferCache::new(dev));
     SUPER_BLOCK.call_once(|| read_superblock(dev_no));	
     LOG.call_once(|| {	

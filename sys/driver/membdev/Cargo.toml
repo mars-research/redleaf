@@ -14,6 +14,7 @@ panic = "abort"
 
 [profile.release]
 panic = "abort"
+debug = true
 
 [dependencies]
 syscalls = { path = "../../../sys/interfaces/syscalls", version = "0.1.0" }

@@ -14,6 +14,7 @@ panic = "abort"
 
 [profile.release]
 panic = "abort"
+debug = true
 
 [dependencies]
 syscalls = { path = "../../../sys/interfaces/syscalls", version = "0.1.0" }
@@ -31,6 +32,8 @@ platform = { path = "../../../sys/interfaces/platform", version = "0.1.0" }
 usr = { path = "../../../sys/interfaces/usr", version = "0.1.0" }
 b2histogram = "1.0"
 byteorder = { version = "1.3.4", default-features = false }
+sashstore-redleaf = { path = "../../lib/sashstore" }
+libbenchnet = { path = "../../lib/libbenchnet", version = "0.1.0" }
 
 [dependencies.lazy_static]
 version = "1.3.0"
@@ -40,10 +43,23 @@ features = ["spin_no_std"]
 version = "0.2.8"
 default-features = false
 
-[dependencies.fnv]
-git = "https://github.com/servo/rust-fnv"
+
+[dependencies.smoltcp]
+path = "../../lib/smoltcp"
+default-features = false
+features = ["alloc", "proto-ipv4", "socket-tcp", "socket-icmp", "ethernet"]
+
+[dependencies.arrayvec]
+version = "0.5.1"
 default-features = false
 
-[dependencies.twox-hash]
-version = "1.5.0"
+[dependencies.httparse]
+path = "../../lib/httparse"
 default-features = false
+
+[features]
+default = [
+    # "nullnet",
+]
+
+nullnet = []

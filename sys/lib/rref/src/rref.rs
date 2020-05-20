@@ -1,10 +1,12 @@
 // although unsafe function's don't need unsafe blocks, it helps readability
 #![allow(unused_unsafe)]
+use crate::traits::{RRefable, CustomCleanup};
 
 use alloc::boxed::Box;
 use core::ops::{Deref, DerefMut, Drop};
 use core::alloc::Layout;
 use spin::Once;
+use console::println;
 
 static HEAP: Once<Box<dyn syscalls::Heap + Send + Sync>> = Once::new();
 static CRATE_DOMAIN_ID: Once<u64> = Once::new();
@@ -19,26 +21,38 @@ pub fn init(heap: Box<dyn syscalls::Heap + Send + Sync>, domain_id: u64) {
 // A global table retains all memory allocated on the shared heap. When a domain dies, all of
 //   its shared heap objects are dropped, which gives us the guarantee that RRef's
 //   owned reference will be safe to dereference as long as its domain is alive.
-pub struct RRef<T> where T: 'static {
+pub struct RRef<T> where T: 'static + RRefable {
     domain_id_pointer: *mut u64,
     pub(crate) value_pointer: *mut T
 }
 
-unsafe impl<T> Send for RRef<T> where T: Send {}
-unsafe impl<T> Sync for RRef<T> where T: Sync {}
+unsafe impl<T: RRefable> RRefable for RRef<T> {}
+unsafe impl<T: RRefable> Send for RRef<T> where T: Send {}
+unsafe impl<T: RRefable> Sync for RRef<T> where T: Sync {}
 
-impl<T> RRef<T> {
+// pass this function pointer to shared heap
+extern fn drop_t<T: RRefable>(t: *mut T) {
+    unsafe {
+        (&mut *t).cleanup();
+    }
+}
+
+impl<T: RRefable> RRef<T> {
     fn new_with_layout(value: T, layout: Layout) -> RRef<T> {
         // We allocate the shared heap memory by hand. It will be deallocated in one of two cases:
         //   1. RRef<T> gets dropped, and so the memory under it should be freed.
         //   2. The domain owning the RRef dies, and so the shared heap gets cleaned,
         //        and the memory under this RRef is wiped.
+        //  to support both cases, we define the drop here, and pass a pointer to this
+        //    drop function to the shared heap, which then calls it prior to deallocating an rref
+        let drop_fn = unsafe {
+            core::mem::transmute::<extern fn(*mut T) -> (), extern fn(*mut u8) -> ()>(drop_t::<T>)
+        };
 
         // the heap interface allocates both a pointer to T, and a pointer to the domain id
         // when we move the rref, we change the value of the domain id pointer
         // when we modify the rref, we dereference the value pointer
-
-        let (domain_id_pointer, value_memory) = unsafe { HEAP.force_get().alloc(layout) };
+        let (domain_id_pointer, value_memory) = unsafe { HEAP.force_get().alloc(layout, drop_fn) };
         // the memory we get back has size and alignment of T, so this cast is safe
         let value_pointer = value_memory as *mut T;
 
@@ -87,18 +101,24 @@ impl<T> RRef<T> {
     }
 }
 
-impl<T> Drop for RRef<T> {
+impl<T: RRefable> Drop for RRef<T> {
     fn drop(&mut self) {
-        unsafe {
-            // explicitly dropping T allows for dropping recursive RRefs
-            // TODO: this deallocates value_pointer using this domain's allocator, which is likely undefined behavior
-            drop(&mut *self.value_pointer);
-            HEAP.force_get().dealloc(self.value_pointer as *mut u8);
-        };
+        self.cleanup();
     }
 }
 
-impl<T> Deref for RRef<T> {
+impl<T: 'static + RRefable> CustomCleanup for RRef<T> {
+    fn cleanup(&mut self) {
+        unsafe {
+            println!("CustomCleanup::{}::cleanup()", core::any::type_name_of_val(self));
+            // "drop" the contents, only interesting for recursive cases
+            self.ptr_mut().cleanup();
+            HEAP.force_get().dealloc(self.value_pointer as *mut u8);
+        }
+    }
+}
+
+impl<T: RRefable> Deref for RRef<T> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -106,7 +126,7 @@ impl<T> Deref for RRef<T> {
     }
 }
 
-impl<T> DerefMut for RRef<T> {
+impl<T: RRefable> DerefMut for RRef<T> {
     fn deref_mut(&mut self) -> &mut T {
         unsafe { &mut *self.value_pointer }
     }

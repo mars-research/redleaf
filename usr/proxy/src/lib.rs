@@ -1,5 +1,8 @@
 #![no_std]
-#![feature(global_asm)]
+#![feature(
+    global_asm,
+    box_syntax,
+)]
 mod gen;
 
 extern crate malloc;
@@ -23,6 +26,7 @@ pub fn init(
     create_membdev: Arc<dyn create::CreateMemBDev>,
     create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
     create_ixgbe: Arc<dyn create::CreateIxgbe>,
+    create_net_shadow: Arc<dyn create::CreateNetShadow>,
     create_benchnet: Arc<dyn create::CreateBenchnet>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
     create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
@@ -43,6 +47,7 @@ pub fn init(
         create_membdev,
         create_bdev_shadow,
         create_ixgbe,
+        create_net_shadow,
         create_benchnet,
         create_xv6fs,
         create_xv6usr,

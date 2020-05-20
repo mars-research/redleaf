@@ -9,9 +9,10 @@ use spin::Mutex;
 use console::println;
 use create::CreateXv6Usr;
 use rref::RRefDeque;
-use usr_interface::xv6::{Xv6, Xv6Ptr, Thread};
-use usr_interface::vfs::{VFS, FileMode, VFSPtr, UsrVFS, FileStat, NFILE, Result};
 use usr_interface::net::Net;
+use usr_interface::rpc::RpcResult;
+use usr_interface::vfs::{VFS, FileMode, VFSPtr, UsrVFS, FileStat, NFILE, Result};
+use usr_interface::xv6::{Xv6, Thread};
 
 pub struct Rv6Syscalls {
     create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>,
@@ -31,7 +32,15 @@ impl Rv6Syscalls {
 
 
 impl Xv6 for Rv6Syscalls {
-    fn clone(&self) -> Xv6Ptr {
+    fn clone(&self) -> Box<dyn Xv6> {
+        box Self {
+            create_xv6usr: self.create_xv6usr.clone(),
+            fs: self.fs.clone(), 
+            net: self.net.clone(),
+        }
+    }
+
+    fn as_net(&self) -> Box<dyn Net> {
         box Self {
             create_xv6usr: self.create_xv6usr.clone(),
             fs: self.fs.clone(), 
@@ -43,7 +52,7 @@ impl Xv6 for Rv6Syscalls {
         crate::thread::spawn_thread(self.fs.clone(), name, func)
     }
     
-    fn sys_spawn_domain(&self, path: &str, args: &str, fds: [Option<usize>; NFILE]) -> Result<Box<dyn Thread>> {
+    fn sys_spawn_domain(&self, rv6: Box<dyn Xv6>, path: &str, args: &str, fds: [Option<usize>; NFILE]) -> Result<Box<dyn Thread>> {
         // Load bin into memory
         println!("sys_spawn_domain {} {}", path, args);
         let fd = self.fs.sys_open(path, FileMode::READ)?;
@@ -55,13 +64,12 @@ impl Xv6 for Rv6Syscalls {
         // and transfer the ownership over
         let fs_copy = self.fs.clone();
         let path_copy = path.to_owned();
-        let rv6_copy = self.clone();
         let create_copy = self.create_xv6usr.clone();
         let args_copy = args.to_owned();
         let tmp_storage_id = fs_copy.sys_save_threadlocal(fds)?;
         Ok(self.sys_spawn_thread(path, Box::new(move || {
             fs_copy.sys_set_threadlocal(tmp_storage_id).unwrap();
-            create_copy.create_domain_xv6usr(&path_copy, rv6_copy, blob.as_slice(), &args_copy);
+            create_copy.create_domain_xv6usr(&path_copy, rv6, blob.as_slice(), &args_copy);
         })))
     }
 
@@ -104,20 +112,29 @@ impl UsrVFS for Rv6Syscalls {
 }
 
 impl Net for Rv6Syscalls {
-    fn submit_and_poll(&mut self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> usize {
+    fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
         self.net.lock().submit_and_poll(packets, reap_queue, tx)
     }
 
+    fn poll(&self, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
+        self.net.lock().poll(collect, tx)
+    }
+
     fn submit_and_poll_rref(
-        &mut self,
+        &self,
         packets: RRefDeque<[u8; 1512], 32>,
         collect: RRefDeque<[u8; 1512], 32>,
-        tx: bool) -> (
+        tx: bool,
+        pkt_len: usize) -> RpcResult<(
             usize,
             RRefDeque<[u8; 1512], 32>,
             RRefDeque<[u8; 1512], 32>
-        ) {
-        self.net.lock().submit_and_poll_rref(packets, collect, tx)
+        )> {
+        self.net.lock().submit_and_poll_rref(packets, collect, tx, pkt_len)
+    }
+
+    fn poll_rref(&self, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<(usize, RRefDeque<[u8; 1512], 512>)> {
+        self.net.lock().poll_rref(collect, tx)
     }
 }
 

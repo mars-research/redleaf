@@ -42,8 +42,9 @@ large:
  	# wget https://ocw.mit.edu/ans7870/6/6.006/s08/lecturenotes/files/t8.shakespeare.txt -O $@
 	# fallocate -l 128M $@
 
-$(BINS): $(shell find ../xv6/usr/$@ -type f -name '*.rs') Makefile
-	make -C ../xv6/usr/$@	
+.PHONY: $(BINS)
+$(BINS):
+	make -C ../xv6/usr/$@
 	cp ../xv6/usr/$@/build/$@ . -f
 
 .PHONY: clean
