@@ -19,6 +19,17 @@ Domains
        mechanism... but it doesn't work because we really might want to terminate an
        undresponsive init function inside the domain with a timeout
 
+RRefs
+
+- We shall carefully reason about the race condition when the accessor moves
+  the reference outside of the domain. What happens when the domain crashes
+right there in the middle of the operation? Imagine the thread gets slow and it
+took the RRef out the Option is empty, but not yet assigned domain id to the
+RRef. If we unwind the thread to the proxy, the id will never get assigned.  I
+think we need to introduce some notion of the _do_not_unwind_ flag that can be
+set from a trusted place, like from the accessor to make sure that the thread
+continues to run until it leaves the _do_not_unwind_ block. 
+
 Recovery/shadows
 
 - Protect the RpcErr type with an unsafe constructor so the domain cannot itself 
