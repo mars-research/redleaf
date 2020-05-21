@@ -204,9 +204,15 @@ impl NvmeDev {
 
     pub fn submit_and_poll_rref(&mut self, mut submit: RRefDeque<BlkReq, 128>, mut collect:
                                  RRefDeque<BlkReq, 128>, write: bool) -> 
-                                (usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>)
+            (usize, usize, usize, usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>)
     {
         self.device.submit_and_poll_rref(submit, collect, write)
+    }
+
+    pub fn poll_rref(&mut self, mut collect: RRefDeque<BlkReq, 1024>) -> 
+                                (usize, RRefDeque<BlkReq, 1024>)
+    {
+        self.device.poll_rref(collect)
     }
 
     pub fn get_stats(&mut self) -> (u64, u64) {

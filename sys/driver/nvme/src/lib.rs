@@ -339,6 +339,7 @@ fn run_blocktest_rref(dev: &Nvme, block_sz: usize, is_write: bool, is_random: bo
 
     let mut submit = RRefDeque::<BlkReq, 128>::default();
     let mut collect = RRefDeque::<BlkReq, 128>::default();
+    let mut poll = RRefDeque::<BlkReq, 1024>::default();
 
     for i in 0..32 {
         let mut breq = BlkReq::from_data(data.clone());
@@ -352,7 +353,7 @@ fn run_blocktest_rref(dev: &Nvme, block_sz: usize, is_write: bool, is_random: bo
     }
 
     println!("======== Starting {}{} test (rrefs)  ==========",
-                                    if is_random { "rand" } else { "" }, 
+                                    if is_random { "rand" } else { "" },
                                     if is_write { "write" } else { "read" });
 
     if let Some(device) = dev.device.borrow_mut().as_mut() {
@@ -368,10 +369,14 @@ fn run_blocktest_rref(dev: &Nvme, block_sz: usize, is_write: bool, is_random: bo
 
         let mut submit = Some(submit);
         let mut collect = Some(collect);
+        let mut poll = Some(poll);
 
         let mut submit_hist = Base2Histogram::new();
         let mut poll_hist = Base2Histogram::new();
         let mut ret = 0;
+        let mut last_cq = 0;
+        let mut last_sq = 0;
+        let mut sq_id = 0;
 
         let tsc_start = rdtsc();
         let tsc_end = tsc_start + runtime * 2_400_000_000;
@@ -379,11 +384,20 @@ fn run_blocktest_rref(dev: &Nvme, block_sz: usize, is_write: bool, is_random: bo
         loop {
             count += 1;
             submit_start = rdtsc();
-            let (ret, mut submit_, mut collect_) = dev.submit_and_poll_rref(submit.take().unwrap(),
-                                                collect.take().unwrap(), is_write);
+            let (ret, _last_sq, _last_cq, _sq_id, mut submit_, mut collect_) = dev.submit_and_poll_rref(submit.take().unwrap(),
+                                                 collect.take().unwrap(), is_write);
             submit_elapsed += rdtsc() - submit_start;
 
-            //println!("submitted {} reqs, collect {} reqs", ret, collect_.len());
+            if ret > 0 {
+                last_sq = _last_sq;
+            }
+
+            if collect_.len() > 0 {
+                last_cq = _last_cq;
+                sq_id = _sq_id;
+            }
+
+            //println!("submitted {} reqs, collect {} reqs sq: {} cq {}", ret, collect_.len(), last_sq, last_cq);
             submit_hist.record(ret as u64);
 
             poll_hist.record(collect_.len() as u64);
@@ -396,7 +410,7 @@ fn run_blocktest_rref(dev: &Nvme, block_sz: usize, is_write: bool, is_random: bo
                     block_num = block_num.wrapping_add(8);
                 }
                 if submit_.push_back(breq).is_some() {
-                    println!("submit too full already!");   
+                    println!("submit too full already!");
                     break;
                 }
             }
@@ -427,12 +441,26 @@ fn run_blocktest_rref(dev: &Nvme, block_sz: usize, is_write: bool, is_random: bo
             }
             //sys_ns_loopsleep(2000);
         }
+
         let elapsed = rdtsc() - tsc_start;
 
         let adj_runtime = elapsed as f64 / 2_400_000_000_u64 as f64;
 
         let (sub, comp) = dev.get_stats();
 
+        println!("Polling .... last_sq {} last_cq {} sq_id {}", last_sq, last_cq, sq_id);
+
+        let (done, poll_) = dev.poll_rref(poll.take().unwrap());
+
+        println!("Poll: Reaped {} requests", done);
+
+        if let Some(mut submit) = submit.take() {
+            println!("submit {} requests", submit.len());
+        }
+
+        if let Some(mut collect) = collect.take() {
+            println!("collect {} requests", collect.len());
+        }
         println!("runtime: {:.2} seconds", adj_runtime);
 
         println!("submitted {:.2} K IOPS completed {:.2} K IOPS",

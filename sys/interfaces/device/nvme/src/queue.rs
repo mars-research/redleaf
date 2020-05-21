@@ -336,6 +336,10 @@ impl NvmeCompletionQueue {
         })
     }
 
+    pub fn get_cq_head(&self) -> usize {
+        self.i
+    }
+
     pub (crate) fn complete(&mut self) -> Option<(usize, NvmeCompletion, usize)> {
         let entry = unsafe {
             core::ptr::read_volatile(self.data.as_ptr().add(self.i))

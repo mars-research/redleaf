@@ -8,7 +8,7 @@ pub struct NvmeCompletion {
     command_specific: u32,
     _rsvd: u32,
     pub sq_head: u16,
-    sq_id: u16,
+    pub sq_id: u16,
     pub cid: u16,
     pub status: u16,
 }
