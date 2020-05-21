@@ -707,55 +707,33 @@ pub fn nvme_init(s: Box<dyn Syscall + Send + Sync>,
     }
 
     println!("starting tests!...");
-    /*let num_iter = 10_000_000;
-    let rand_start = rdtsc();
-    let sum = rand_test(num_iter);
-    let rand_elapsed = rdtsc() - rand_start;
-    println!("Rand {} test {} iterations took {} cycles (avg {} cycles)", sum, num_iter, rand_elapsed, rand_elapsed as f64 / num_iter as f64);
-    */
-    //perf_test_raw(&nvme, 60, 8, false);
-   // for _ in 1..1024 {
-    //    perf_test_iov(&nvme, 30, 8, false);
-    //}
 
+    #[cfg(feature = "rng_test")]
+    {
+        let num_iter = 10_000_000;
+        let rand_start = rdtsc();
+        let sum = rand_test(num_iter);
+        let rand_elapsed = rdtsc() - rand_start;
+        println!("Rand {} test {} iterations took {} cycles (avg {} cycles)", sum, num_iter,
+                                        rand_elapsed, rand_elapsed as f64 / num_iter as f64);
+    }
+
+    run_blocktest_rref(&nvme, 4096, false, false);
+    run_blocktest_rref(&nvme, 4096, false, false);
+
+    run_blocktest_rref(&nvme, 4096, false, true);
+    run_blocktest_rref(&nvme, 4096, false, true);
+
+
+    run_blocktest_rref(&nvme, 4096, true, false);
+    run_blocktest_rref(&nvme, 4096, true, false);
+
+    run_blocktest_rref(&nvme, 4096, true, true);
+    run_blocktest_rref(&nvme, 4096, true, true);
 
     //run_blocktest_raw(&nvme, 30, 32, true);
+    //perf_test_raw(&nvme, 10, 32, false);
 
-    run_blocktest_rref(&nvme, 4096, false, false);
-    run_blocktest_rref(&nvme, 4096, false, false);
-
-    run_blocktest_rref(&nvme, 4096, false, true);
-    run_blocktest_rref(&nvme, 4096, false, true);
-
-
-    run_blocktest_rref(&nvme, 4096, true, false);
-    run_blocktest_rref(&nvme, 4096, true, false);
-
-    run_blocktest_rref(&nvme, 4096, true, true);
-    run_blocktest_rref(&nvme, 4096, true, true);
-
-/*
-    perf_test_raw(&nvme, 10, 32, false);
-    perf_test_raw(&nvme, 10, 32, false);
-    perf_test_raw(&nvme, 10, 32, false);
-    perf_test_raw(&nvme, 10, 32, false);
-    perf_test_raw(&nvme, 10, 32, false);
-
-
-    perf_test_raw(&nvme, 10, 32, true);
-    perf_test_raw(&nvme, 10, 32, true);
-    perf_test_raw(&nvme, 10, 32, true);
-    perf_test_raw(&nvme, 10, 32, true);
-    perf_test_raw(&nvme, 10, 32, true);
-*/
-    /*perf_test_raw(&nvme, 10, 32, false);
-    perf_test_raw(&nvme, 10, 32, false);
-    perf_test_raw(&nvme, 10, 32, false);
-    perf_test_raw(&nvme, 10, 32, false);
-    perf_test_raw(&nvme, 10, 32, false);
-    */
-    //perf_test_iov(&nvme, 30, 8, true);
-    //perf_test(&nvme, 30, 32, false);
     Box::new(nvme);
 }
 

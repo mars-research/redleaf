@@ -211,6 +211,13 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
     // let (dom_ahci, bdev) = proxy.as_create_membdev().create_domain_membdev();
     let (dom_ahci, bdev) = proxy.as_create_bdev_shadow().create_domain_bdev_shadow(proxy.as_create_membdev());
 
+    // XXX: Somehow, this doesn't select the feature for me!-VN
+    //#[cfg(feature = "nvmedev")]
+    {
+        println!("Creating nvme domain!");
+        let dom_nvme = proxy.as_create_nvme().create_domain_nvme(pci3);
+    }
+
     println!("Creating ixgbe");
     // let (dom_ixgbe, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci2);
     let (dom_ixgbe, net) = proxy.as_create_net_shadow().create_domain_net_shadow(proxy.as_create_ixgbe(), pci2);
@@ -230,8 +237,6 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
         let (dom_shadow, shadow) = proxy.as_create_shadow().create_domain_shadow(proxy.as_create_dom_c());
         let dom_dom_d = proxy.as_create_dom_d().create_domain_dom_d(shadow);
     }
-
-    let dom_nvme = proxy.as_create_nvme().create_domain_nvme(pci3);
 
     #[cfg(not(feature = "benchnet"))]
     {
