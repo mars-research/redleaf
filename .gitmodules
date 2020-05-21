@@ -10,3 +10,6 @@
 [submodule "lib/memcpy/musl"]
 	path = lib/memcpy/musl
 	url = git://git.musl-libc.org/musl
+[submodule "redIDL"]
+	path = redIDL
+	url = https://github.com/mars-research/redIDL.git
