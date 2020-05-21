@@ -1,5 +1,5 @@
 /// RedLeaf block device interface
-use rref::RRef;
+use rref::{RRef, RRefDeque};
 use syscalls::errors::Result;
 
 use crate::rpc::RpcResult;
@@ -46,4 +46,20 @@ impl BlkReq {
         }
     }
 
+}
+
+pub trait NvmeBDev : Send {
+    fn submit_and_poll_rref(
+        &self,
+        submit: RRefDeque<BlkReq, 128>,
+        collect: RRefDeque<BlkReq, 128>,
+        write: bool,
+        ) -> (
+            usize,
+            RRefDeque<BlkReq, 128>,
+            RRefDeque<BlkReq, 128>,
+        );
+
+    fn poll_rref(&mut self, collect: RRefDeque<BlkReq, 1024>) ->
+            (usize, RRefDeque<BlkReq, 1024>);
 }

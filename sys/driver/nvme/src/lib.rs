@@ -68,27 +68,27 @@ impl Nvme {
     }
 }
 
-/*impl usr::bdev::BDev for Nvme {
+impl usr::bdev::NvmeBDev for Nvme {
     fn submit_and_poll_rref(
         &self,
-        mut submit: RRefDeque<BlkReq, 32>,
-        mut collect: RRefDeque<BlkReq, 32>,
+        mut submit: RRefDeque<BlkReq, 128>,
+        mut collect: RRefDeque<BlkReq, 128>,
         write: bool,
         ) -> (
             usize,
-            RRefDeque<BlkReq, 32>,
-            RRefDeque<BlkReq, 32>,
+            RRefDeque<BlkReq, 128>,
+            RRefDeque<BlkReq, 128>,
         )
     {
 
-   let mut submit = Some(submit);
+        let mut submit = Some(submit);
         let mut collect = Some(collect);
-
+        let mut ret = 0;
 
         if let Some(device) = self.device.borrow_mut().as_mut() {
             let dev: &mut NvmeDev = device;
-            let (num, mut submit_, mut collect_) = dev.device.submit_and_poll_rref(submit.take().unwrap(),
-                                                    collect.take().unwrap(), write);
+            let (num, _, _, _, mut submit_, mut collect_) = dev.device.submit_and_poll_rref(submit.take().unwrap(),
+            collect.take().unwrap(), write);
             ret = num;
 
             submit.replace(submit_);
@@ -97,7 +97,25 @@ impl Nvme {
 
         (ret, submit.unwrap(), collect.unwrap())
     }
-}*/
+
+
+    fn poll_rref(&mut self, mut collect: RRefDeque<BlkReq, 1024>) ->
+            (usize, RRefDeque<BlkReq, 1024>)
+    {
+        let mut collect = Some(collect);
+        let mut ret = 0;
+
+        if let Some(device) = self.device.borrow_mut().as_mut() {
+            let dev: &mut NvmeDev = device;
+            let (num, mut collect_) = dev.device.poll_rref(collect.take().unwrap());
+            ret = num;
+
+            collect.replace(collect_);
+        }
+
+        (ret, collect.unwrap())
+    }
+}
 
 impl pci_driver::PciDriver for Nvme {
     fn probe(&mut self, bar_region: DeviceBarRegions) {
@@ -416,7 +434,7 @@ fn run_blocktest_rref(dev: &Nvme, block_sz: usize, is_write: bool, is_random: bo
             }
 
             if submit_.len() == 0  {//&& (alloc_count * batch_sz) < 1024 {
-                println!("Alloc new batch at {}", count);
+                //println!("Alloc new batch at {}", count);
                 alloc_count += 1;
                 let alloc_rdstc_start = rdtsc();
                 for i in 0..batch_sz {
@@ -522,11 +540,10 @@ fn run_blocktest_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
         loop {
             count += 1;
             submit_start = rdtsc();
-            submit_hist.record(submit.len() as u64);
             ret = dev.submit_and_poll_raw(&mut submit, &mut collect, is_write);
             submit_elapsed += rdtsc() - submit_start;
 
-            //submit_hist.record(ret as u64);
+            submit_hist.record(ret as u64);
 
             poll_hist.record(collect.len() as u64);
 
@@ -534,7 +551,7 @@ fn run_blocktest_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
 
             if submit.len() == 0 {
                 allocated_count += 1;
-                println!("allocating new batch at count {}", count);
+                //println!("allocating new batch at count {}", count);
                 for i in 0..batch_sz {
                     submit.push_back(req.clone());
                 }
@@ -716,27 +733,6 @@ pub fn nvme_init(s: Box<dyn Syscall + Send + Sync>,
 
     run_blocktest_rref(&nvme, 4096, true, true);
     run_blocktest_rref(&nvme, 4096, true, true);
-
-    panic!("nvme dies");
-    run_blocktest_rref(&nvme, 4096, false, false);
-    run_blocktest_rref(&nvme, 4096, true, false);
-    run_blocktest_rref(&nvme, 4096, true, false);
-    run_blocktest_rref(&nvme, 4096, true, false);
-    run_blocktest_rref(&nvme, 4096, true, false);
-
-
-    run_blocktest_raw(&nvme, 10, 32, true);
-    run_blocktest_raw(&nvme, 10, 32, true);
-    run_blocktest_raw(&nvme, 10, 32, true);
-    run_blocktest_raw(&nvme, 10, 32, true);
-    run_blocktest_raw(&nvme, 10, 32, true);
-
-
-    run_blocktest_raw(&nvme, 10, 32, false);
-    run_blocktest_raw(&nvme, 10, 32, false);
-    run_blocktest_raw(&nvme, 10, 32, false);
-    run_blocktest_raw(&nvme, 10, 32, false);
-    run_blocktest_raw(&nvme, 10, 32, false);
 
 /*
     perf_test_raw(&nvme, 10, 32, false);
