@@ -1,0 +1,27 @@
+[package]
+name = "benchnet"
+version = "0.1.0"
+authors = ["RedLeaf Team"]
+edition = "2018"
+
+[lib]
+crate-type = ["staticlib"]
+test = false
+bench = false
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+debug = true
+
+[dependencies]
+syscalls = { path = "../../../../sys/interfaces/syscalls", version = "0.1.0" }
+usr = { path = "../../../../sys/interfaces/usr", version = "0.1.0" }
+libsyscalls = { path = "../../../../sys/lib/libsyscalls", version = "0.1.0" }
+malloc = { path = "../../../../sys/lib/malloc", version = "0.1.0" }
+utils = { path = "../../../../lib/utils", version = "0.1.0" }
+usrlib = { package = "lib", path = "../lib", version = "0.1.0" }
+rref = { path = "../../../../sys/lib/rref", version = "0.1.0" }
+libbenchnvme = { path = "../../../../sys/lib/libbenchnvme", version = "0.1.0" }
