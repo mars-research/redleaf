@@ -43,6 +43,7 @@ default = [
     "test_ab",
     "test_shadow",
     # "benchnet",
+    # "benchnvme"
 ]
 
 test_sleep = [ ]
@@ -53,4 +54,4 @@ test_ab = []
 test_shadow = []
 benchnet =[]
 membdev = []
-nvmedev = []
+benchnvme = []
