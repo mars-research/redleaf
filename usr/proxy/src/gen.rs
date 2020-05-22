@@ -192,7 +192,9 @@ impl create::CreateNetShadow for Proxy {
 impl create::CreateNvme for Proxy {
     fn create_domain_nvme(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn usr::bdev::NvmeBDev>) {
         // TODO: write NvmeProxy
-        self.create_nvme.create_domain_nvme(pci)
+        let (domain, nvme) = self.create_nvme.create_domain_nvme(pci);
+        let domain_id = domain.get_domain_id();
+        return (domain, Box::new(NvmeProxy::new(domain_id, nvme)));
     }
 }
 
