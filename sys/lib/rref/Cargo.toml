@@ -15,3 +15,9 @@ console = { path = "../console", version = "0.1.0" }
 # for mocking syscalls in cargo-test
 pc-keyboard = "0.3.1"
 hashbrown = "0.6"
+
+[features]
+default = [
+    "rref_dbg",
+]
+rref_dbg = []

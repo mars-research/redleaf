@@ -110,6 +110,7 @@ impl<T: RRefable> Drop for RRef<T> {
 impl<T: 'static + RRefable> CustomCleanup for RRef<T> {
     fn cleanup(&mut self) {
         unsafe {
+            #[cfg(features = "rref_dbg")]
             println!("CustomCleanup::{}::cleanup()", core::any::type_name_of_val(self));
             // "drop" the contents, only interesting for recursive cases
             self.ptr_mut().cleanup();
