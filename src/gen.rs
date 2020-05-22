@@ -108,7 +108,7 @@ impl create::CreateXv6 for PDomain {
 }
 
 impl create::CreateXv6FS for PDomain {
-    fn create_domain_xv6fs(&self, bdev: Box<dyn usr::bdev::BDev>) ->(Box<dyn syscalls::Domain>, Box<dyn usr::vfs::VFS + Send>) {
+    fn create_domain_xv6fs(&self, bdev: Box<dyn usr::bdev::BDev>) ->(Box<dyn syscalls::Domain>, Box<dyn usr::vfs::VFS>) {
         disable_irq();
         let r = create_domain_xv6fs(bdev);
         enable_irq();
@@ -382,7 +382,7 @@ pub fn create_domain_xv6kernel(ints: Box<dyn syscalls::Interrupt>,
     build_domain_xv6kernel("xv6kernel", binary_range, ints, create_xv6fs, create_xv6usr, bdev, net, nvme)
 }
 
-pub fn create_domain_xv6fs(bdev: Box<dyn usr::bdev::BDev>) ->(Box<dyn syscalls::Domain>, Box<dyn usr::vfs::VFS + Send>) {
+pub fn create_domain_xv6fs(bdev: Box<dyn usr::bdev::BDev>) ->(Box<dyn syscalls::Domain>, Box<dyn usr::vfs::VFS>) {
 
     extern "C" {
         fn _binary_usr_xv6_kernel_fs_build_xv6fs_start();
@@ -924,9 +924,9 @@ pub fn build_domain_init(name: &str,
 pub fn build_domain_fs(
     name: &str,
     binary_range: (*const u8, *const u8),
-    bdev: Box<dyn usr::bdev::BDev>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::vfs::VFS + Send>)
+    bdev: Box<dyn usr::bdev::BDev>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::vfs::VFS>)
 {
-    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, Box<dyn usr::bdev::BDev>) -> Box<dyn usr::vfs::VFS + Send>;
+    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, Box<dyn usr::bdev::BDev>) -> Box<dyn usr::vfs::VFS>;
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)

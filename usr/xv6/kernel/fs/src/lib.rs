@@ -39,7 +39,7 @@ use libtime::get_rdtsc;
 use rref;
 use sysfile::{FileMode, FileStat};
 use syscalls::{Syscall, Heap};
-use usr_interface::vfs::{UsrVFS, KernelVFS, VFS, VFSPtr, NFILE, Result};
+use usr_interface::vfs::{UsrVFS, KernelVFS, VFS, NFILE, Result};
 use usr_interface::bdev::BDev;
 
 mod bcache;
@@ -64,7 +64,7 @@ impl Rv6FS {
 }
 
 impl VFS for Rv6FS {
-    fn clone(&self) -> VFSPtr {
+    fn clone(&self) -> Box<dyn VFS> {
         box Self{}
     }
 }

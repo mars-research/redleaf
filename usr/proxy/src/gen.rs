@@ -199,7 +199,7 @@ impl create::CreateNvme for Proxy {
 }
 
 impl create::CreateXv6FS for Proxy {
-    fn create_domain_xv6fs(&self, bdev: Box<dyn BDev>) -> (Box<dyn Domain>, Box<dyn VFS + Send>) {
+    fn create_domain_xv6fs(&self, bdev: Box<dyn BDev>) -> (Box<dyn Domain>, Box<dyn VFS>) {
         // TODO: write Xv6FSProxy
         self.create_xv6fs.create_domain_xv6fs(bdev)
     }

@@ -12,12 +12,12 @@ use rref::RRefDeque;
 use usr_interface::bdev::{BlkReq, NvmeBDev};
 use usr_interface::net::{Net, NetworkStats};
 use usr_interface::rpc::RpcResult;
-use usr_interface::vfs::{FileMode, FileStat, Result, UsrVFS, VFSPtr, NFILE, VFS};
+use usr_interface::vfs::{FileMode, FileStat, Result, UsrVFS, NFILE, VFS};
 use usr_interface::xv6::{Thread, Xv6};
 
 pub struct Rv6Syscalls {
     create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>,
-    fs: VFSPtr,
+    fs: Box<dyn VFS>,
     net: Arc<Mutex<Box<dyn Net>>>,
     nvme: Arc<Mutex<Box<dyn NvmeBDev>>>,
 }
@@ -25,7 +25,7 @@ pub struct Rv6Syscalls {
 impl Rv6Syscalls {
     pub fn new(
         create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>,
-        fs: VFSPtr,
+        fs: Box<dyn VFS>,
         net: Box<dyn Net>,
         nvme: Box<dyn NvmeBDev>,
     ) -> Self {

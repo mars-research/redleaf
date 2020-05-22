@@ -24,7 +24,6 @@ use syscalls::{Syscall, Heap};
 use usrlib::{print, println};
 use usrlib::syscalls::{sys_read, sys_spawn_domain};
 use usr_interfaces::xv6::Xv6;
-use usr_interfaces::vfs::VFSPtr;
 
 mod parse;
 

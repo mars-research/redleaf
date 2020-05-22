@@ -38,7 +38,7 @@ pub trait CreateNvme: Send + Sync {
 }
 
 pub trait CreateXv6FS: Send + Sync {
-    fn create_domain_xv6fs(&self, bdev: Box<dyn BDev>) ->(Box<dyn Domain>, Box<dyn VFS + Send>);
+    fn create_domain_xv6fs(&self, bdev: Box<dyn BDev>) ->(Box<dyn Domain>, Box<dyn VFS>);
 }
 
 pub trait CreateXv6Usr: Send + Sync {

@@ -23,7 +23,7 @@ use usrlib::syscalls::{sys_open, sys_fstat, sys_read, sys_write, sys_close};
 use syscalls::{Syscall, Heap};
 use libsyscalls::syscalls::sys_println;
 use usr::xv6::Xv6;
-use usr::vfs::{VFSPtr, DirectoryEntry, DirectoryEntryRef, INodeFileType, FileMode};
+use usr::vfs::{DirectoryEntry, DirectoryEntryRef, INodeFileType, FileMode};
 
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, rv6: Box<dyn Xv6>, args: &str) {

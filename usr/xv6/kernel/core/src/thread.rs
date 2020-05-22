@@ -8,7 +8,7 @@ use spin::Mutex;
 use libsyscalls::sync::CondVar;
 use libsyscalls::syscalls::sys_create_thread;
 use usr_interface::xv6::Thread;
-use usr_interface::vfs::VFSPtr;
+use usr_interface::vfs::VFS;
 
 
 lazy_static! {
@@ -59,14 +59,14 @@ impl core::clone::Clone for ThreadHandle {
 }
 
 struct ThreadContext {
-    fs: VFSPtr,
+    fs: Box<dyn VFS>,
     name: String,
     entry: Box<dyn FnOnce() + Send>,
     handle: ThreadHandle,
 }
 
 impl ThreadContext {
-    fn new(fs: VFSPtr, name: String, entry: Box<dyn FnOnce() + Send>, handle: ThreadHandle) -> Self {
+    fn new(fs: Box<dyn VFS>, name: String, entry: Box<dyn FnOnce() + Send>, handle: ThreadHandle) -> Self {
         Self {
             fs,
             name,
@@ -85,7 +85,7 @@ extern fn thread_entry() {
     console::println!("Thread {} exits", context.name);
 }
 
-pub fn spawn_thread(fs: VFSPtr, name: &str, func: Box<dyn FnOnce() + Send>) -> Box<dyn Thread> {
+pub fn spawn_thread(fs: Box<dyn VFS>, name: &str, func: Box<dyn FnOnce() + Send>) -> Box<dyn Thread> {
     let handle = ThreadHandle::new();
     thread_queue.lock().push_back(ThreadContext::new(fs, name.to_string(), func, handle.clone()));
     sys_create_thread(name, thread_entry);

@@ -12,7 +12,7 @@ pub mod directory;
 pub const NFILE: usize =       100;     // open files per system
 
 // syscalls that are exposed to both the kernel and the users
-pub trait UsrVFS {
+pub trait UsrVFS: Send + Sync {
     fn sys_open(&self, path: &str, mode: FileMode) -> Result<usize>;
     fn sys_close(&self, fd: usize) -> Result<()>;
     fn sys_read(&self, fd: usize, buffer: &mut[u8]) -> Result<usize>;
@@ -26,7 +26,7 @@ pub trait UsrVFS {
 }
 
 // syscalls that are only exposed to the kernel
-pub trait KernelVFS {
+pub trait KernelVFS: Send + Sync  {
     // Save threadlocal objects to a temporary storage and return its id
     // For fdtable, only save the selected ones specified by `fds`
     fn sys_save_threadlocal(&self, fds: [Option<usize>; NFILE]) -> Result<usize>;
@@ -36,9 +36,6 @@ pub trait KernelVFS {
     fn sys_thread_exit(&self);
 }
 
-pub trait VFS: UsrVFS + KernelVFS {
-    fn clone(&self) -> VFSPtr;
+pub trait VFS: UsrVFS + KernelVFS + Send + Sync {
+    fn clone(&self) -> Box<dyn VFS>;
 }
-
-pub type VFSPtr = Box<dyn VFS + Send + Sync>;
-pub type KernelVFSPtr = Box<dyn KernelVFS + Send + Sync>;
