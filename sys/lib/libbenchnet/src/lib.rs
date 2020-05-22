@@ -162,17 +162,19 @@ pub fn run_tx_udptest_rref(net: &dyn Net, pkt_len: usize, mut debug: bool) -> Re
         println!("runtime: {:.2} seconds", adj_runtime);
         println!("tx_udptest_rref ({}): Transmitted {} packets took {} cycles (avg = {})",
                                         pkt_len, sum, elapsed, elapsed as f64 / sum as f64);
+
+        //println!("packet.len {} collect.len {}", packets.unwrap().len(), collect.unwrap().len());
+        let (done, mut poll_) = net.poll_rref(poll.take().unwrap(), true).unwrap()?;
+
+        println!("Reaped {} packets", done);
+
         println!("Device Stats\n{}", stats_end);
+
         println!("Number of new allocations {}, took {} cycles (avg = {})", alloc_count * batch_sz, alloc_elapsed,
                                                         alloc_elapsed as f64 / (alloc_count * batch_sz) as f64);
     } else { 
         println!("Test failed! No packets transmitted");
     }
-
-    //println!("packet.len {} collect.len {}", packets.unwrap().len(), collect.unwrap().len());
-    let (done, mut poll_) = net.poll_rref(poll.take().unwrap(), true).unwrap()?;
-
-    println!("Reaped {} packets", done);
 
     print_hist!(collect_tx_hist);
 
@@ -289,6 +291,11 @@ pub fn run_tx_udptest(net: &dyn Net, pkt_len: usize, mut debug: bool) -> Result<
         println!("tx_udptest ({}): Transmitted {} packets took {} cycles (avg = {})",
                                         pkt_len, sum, elapsed, elapsed as f64 / sum as f64);
 
+        //println!("packet.len {} collect.len {}", packets.unwrap().len(), collect.unwrap().len());
+        let done = net.poll(&mut collect, true).unwrap()?;
+
+        println!("Reaped {} packets", done);
+
         println!("Device Stats\n{}", stats_end);
 
         println!("Number of new allocations {}, took {} cycles (avg = {})", alloc_count * batch_sz, alloc_elapsed,
@@ -296,11 +303,6 @@ pub fn run_tx_udptest(net: &dyn Net, pkt_len: usize, mut debug: bool) -> Result<
     } else { 
         println!("Test failed! No packets transmitted");
     }
-
-    //println!("packet.len {} collect.len {}", packets.unwrap().len(), collect.unwrap().len());
-    let done = net.poll(&mut collect, true).unwrap()?;
-
-    println!("Reaped {} packets", done);
 
     print_hist!(collect_tx_hist);
 
@@ -313,7 +315,7 @@ pub fn run_rx_udptest_rref(net: &dyn Net, pkt_len: usize, debug: bool) -> Result
     #[cfg(feature = "noop")]
     return Ok(());
 
-    run_rx_udptest_rref_with_delay(net, pkt_len, debug, 0)
+    run_rx_udptest_rref_with_delay(net, pkt_len, debug, 950)
 }
 
 pub fn run_rx_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, debug: bool, delay: usize) -> Result<()> {
@@ -370,7 +372,13 @@ pub fn run_rx_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, debug: bool
         sum += collect_.len();
         collect_rx_hist.record(collect_.len() as u64);
 
+
         while let Some(packet) = collect_.pop_front() {
+            if collect_start {
+                dump_packet_rref(&packet, 100);
+                collect_start = false;
+            }
+
             packets_.push_back(packet);
         }
 
@@ -411,6 +419,10 @@ pub fn run_rx_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, debug: bool
         println!("rx_udptest_rref(delay: {}ns) : Received {} packets took {} cycles (avg = {})",
                                         delay, sum, elapsed, elapsed as f64 / sum as f64);
 
+        let (done, mut poll_) = net.poll_rref(poll.take().unwrap(), false).unwrap()?;
+
+        println!("Reaped {} packets", done);
+
         println!("Device Stats\n{}", stats_end);
 
         println!("Number of new allocations {}, took {} cycles (avg = {})", alloc_count, alloc_elapsed,
@@ -419,12 +431,7 @@ pub fn run_rx_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, debug: bool
         println!("Test failed! No packets Received");
     }
 
-    let (done, mut poll_) = net.poll_rref(poll.take().unwrap(), false).unwrap()?;
-
-    println!("Reaped {} packets", done);
-
     print_hist!(submit_rx_hist);
-
     print_hist!(collect_rx_hist);
 
     println!("+++++++++++++++++++++++++++++++++++++++++++++++++");
@@ -895,19 +902,19 @@ pub fn run_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> {
 
         println!("fwd_udptest: Forwarding {} packets took {} cycles (avg = {})", fwd_sum, elapsed,
                                                                         elapsed as f64 / fwd_sum as f64);
+
+        let (done_rx, mut rx_poll_) = net.poll_rref(rx_poll.take().unwrap(), false).unwrap()?;
+        let (done_tx, mut tx_poll_) = net.poll_rref(tx_poll.take().unwrap(), true).unwrap()?;
+
+        println!("Reaped rx {} packets tx {} packets", done_rx, done_tx);
+
         println!("Device Stats\n{}", stats_end);
 
         println!("Number of new allocations {}, took {} cycles (avg = {})", alloc_count * batch_sz, alloc_elapsed,
                                                         alloc_elapsed as f64 / (alloc_count * batch_sz) as f64);
     }
 
-    let (done_rx, mut rx_poll_) = net.poll_rref(rx_poll.take().unwrap(), false).unwrap()?;
-    let (done_tx, mut tx_poll_) = net.poll_rref(tx_poll.take().unwrap(), true).unwrap()?;
-
-    println!("Reaped rx {} packets tx {} packets", done_rx, done_tx);
-
     print_hist!(submit_rx_hist);
-
     print_hist!(submit_tx_hist);
 
     println!("+++++++++++++++++++++++++++++++++++++++++++++++++");
@@ -1055,16 +1062,17 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
 
         println!("magleve_fwd_udptest: Forwarding {} packets took {} cycles (avg = {})", fwd_sum, elapsed,
                                                                         elapsed as f64 / fwd_sum as f64);
+
+        let (done_rx, mut rx_poll_) = net.poll_rref(rx_poll.take().unwrap(), false).unwrap()?;
+        let (done_tx, mut tx_poll_) = net.poll_rref(tx_poll.take().unwrap(), true).unwrap()?;
+
+        println!("Reaped rx {} packets tx {} packets", done_rx, done_tx);
+
         println!("Device Stats\n{}", stats_end);
 
         println!("Number of new allocations {}, took {} cycles (avg = {})", alloc_count * batch_sz, alloc_elapsed,
                                                         alloc_elapsed as f64 / (alloc_count * batch_sz) as f64);
     }
-
-    let (done_rx, mut rx_poll_) = net.poll_rref(rx_poll.take().unwrap(), false).unwrap()?;
-    let (done_tx, mut tx_poll_) = net.poll_rref(tx_poll.take().unwrap(), true).unwrap()?;
-
-    println!("Reaped rx {} packets tx {} packets", done_rx, done_tx);
 
     print_hist!(submit_rx_hist);
 
@@ -1184,18 +1192,20 @@ pub fn run_fwd_udptest(net: &dyn Net, pkt_len: u16) -> Result<()> {
 
         println!("fwd_udptest: Forwarding {} packets took {} cycles (avg = {})", fwd_sum, elapsed,
                                                                         elapsed as f64 / fwd_sum as f64);
+
+        //println!("packet.len {} collect.len {}", packets.unwrap().len(), collect.unwrap().len());
+        let done_rx = net.poll(&mut rx_packets, false).unwrap()?;
+        let done_tx = net.poll(&mut tx_packets, true).unwrap()?;
+
+        println!("Reaped rx {} packets tx {} packets", done_rx, done_tx);
+
         println!("Device Stats\n{}", stats_end);
+
         println!("Number of new allocations {}, took {} cycles (avg = {})", alloc_count * batch_sz, alloc_elapsed,
                                                         alloc_elapsed as f64 / (alloc_count * batch_sz) as f64);
     } else { 
         println!("Test failed! No packets Forwarded! Rxed {}, Txed {}", sum, fwd_sum);
     }
-
-    //println!("packet.len {} collect.len {}", packets.unwrap().len(), collect.unwrap().len());
-    let done_rx = net.poll(&mut rx_packets, false).unwrap()?;
-    let done_tx = net.poll(&mut tx_packets, true).unwrap()?;
-
-    println!("Reaped rx {} packets tx {} packets", done_rx, done_tx);
 
     print_hist!(submit_rx_hist);
     print_hist!(submit_tx_hist);
