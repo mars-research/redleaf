@@ -219,10 +219,11 @@ entryother: src/entryother.asm
 .PHONY: cloudlab-deps
 cloudlab-deps:
 	sudo apt update
-	sudo apt install -y qemu nasm xorriso
-	curl https://sh.rustup.rs -sSf | bash -s -- --default-toolchain nightly -y
-	cargo install cargo-xbuild
-	cargo install stack-sizes
+	sudo apt install -y qemu nasm xorriso numactl
+	curl https://sh.rustup.rs -sSf | bash -s -- --default-toolchain nightly-2020-05-15 -y
+	. ~/.cargo/env && \
+	cargo install cargo-xbuild && \
+	cargo install stack-sizes && \
 	rustup component add rust-src
 
 .PHONY: cloudlab-grub
