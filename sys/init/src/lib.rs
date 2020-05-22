@@ -106,6 +106,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
             create_nvme: Arc<dyn create::CreateNvme>,
             create_net_shadow: Arc<dyn create::CreateNetShadow>,
             create_benchnet: Arc<dyn create::CreateBenchnet>,
+            create_benchnvme: Arc<dyn create::CreateBenchnvme>,
             create_ahci: Arc<dyn create::CreateAHCI>,
             create_membdev: Arc<dyn create::CreateMemBDev>,
             create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
@@ -186,6 +187,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
         create_nvme,
         create_net_shadow,
         create_benchnet,
+        create_benchnvme,
         create_xv6fs,
         create_xv6usr,
         create_xv6,
@@ -220,6 +222,9 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
     
     #[cfg(feature = "benchnet")]
     let _ = proxy.as_create_benchnet().create_domain_benchnet(net);
+
+    #[cfg(feature = "benchnvme")]
+    let _ = proxy.as_create_benchnvme().create_domain_benchnvme(nvme);
     
     #[cfg(feature = "test_ab")]
     {
@@ -234,7 +239,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
         let dom_dom_d = proxy.as_create_dom_d().create_domain_dom_d(shadow);
     }
 
-    #[cfg(not(feature = "benchnet"))]
+    #[cfg(not(any(feature = "benchnet", feature = "benchnvme")))]
     {
         let (dom_xv6, rv6) = proxy.as_create_xv6().create_domain_xv6kernel(ints_clone, proxy.as_create_xv6fs(), proxy.as_create_xv6usr(), bdev, net, nvme);
         rv6.sys_spawn_domain(rv6.clone(), "/init", "/init", array_init::array_init(|_| None)).unwrap();

@@ -189,6 +189,15 @@ impl create::CreateBenchnet for PDomain {
     }
 }
 
+impl create::CreateBenchnvme for PDomain {
+    fn create_domain_benchnvme(&self, nvme: Box<dyn usr::bdev::NvmeBDev>) -> Box<dyn syscalls::Domain> {
+        disable_irq();
+        let r = create_domain_benchnvme(nvme);
+        enable_irq();
+        r
+    }
+}
+
 impl proxy::CreateProxy for PDomain {
     fn create_domain_proxy(
         &self,
@@ -200,6 +209,7 @@ impl proxy::CreateProxy for PDomain {
         create_nvme: Arc<dyn create::CreateNvme>,
         create_net_shadow: Arc<dyn create::CreateNetShadow>,
         create_benchnet: Arc<dyn create::CreateBenchnet>,
+        create_benchnvme: Arc<dyn create::CreateBenchnvme>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
         create_xv6usr: Arc<dyn create::CreateXv6Usr>,
         create_xv6: Arc<dyn create::CreateXv6>,
@@ -218,6 +228,7 @@ impl proxy::CreateProxy for PDomain {
             create_nvme,
             create_net_shadow,
             create_benchnet,
+            create_benchnvme,
             create_xv6fs,
             create_xv6usr,
             create_xv6,
@@ -495,6 +506,20 @@ pub fn create_domain_benchnet(net: Box<dyn usr::net::Net>) -> Box<dyn syscalls::
     build_domain_benchnet_helper("benchnet", binary_range, net)
 }
 
+pub fn create_domain_benchnvme(nvme: Box<dyn usr::bdev::NvmeBDev>) -> Box<dyn syscalls::Domain> {
+    extern "C" {
+        fn _binary_usr_test_benchnvme_build_benchnvme_start();
+        fn _binary_usr_test_benchnvme_build_benchnvme_end();
+    }
+
+    let binary_range = (
+        _binary_usr_test_benchnvme_build_benchnvme_start as *const u8,
+        _binary_usr_test_benchnvme_build_benchnvme_end as *const u8
+    );
+
+    build_domain_benchnvme("benchnvme", binary_range, nvme)
+}
+
 pub fn create_domain_proxy(
     create_pci: Arc<dyn create::CreatePCI>,
     create_ahci: Arc<dyn create::CreateAHCI>,
@@ -504,6 +529,7 @@ pub fn create_domain_proxy(
     create_nvme: Arc<dyn create::CreateNvme>,
     create_net_shadow: Arc<dyn create::CreateNetShadow>,
     create_benchnet: Arc<dyn create::CreateBenchnet>,
+    create_benchnvme: Arc<dyn create::CreateBenchnvme>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
     create_xv6usr: Arc<dyn create::CreateXv6Usr>,
     create_xv6: Arc<dyn create::CreateXv6>,
@@ -533,6 +559,7 @@ pub fn create_domain_proxy(
         create_nvme,
         create_net_shadow,
         create_benchnet,
+        create_benchnvme,
         create_xv6fs,
         create_xv6usr,
         create_xv6,
@@ -834,6 +861,7 @@ pub fn build_domain_init(name: &str,
                        Arc<dyn create::CreateNvme>,
                        Arc<dyn create::CreateNetShadow>,
                        Arc<dyn create::CreateBenchnet>,
+                       Arc<dyn create::CreateBenchnvme>,
                        Arc<dyn create::CreateAHCI>,
                        Arc<dyn create::CreateMemBDev>,
                        Arc<dyn create::CreateBDevShadow>,
@@ -865,6 +893,7 @@ pub fn build_domain_init(name: &str,
     user_ep(Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(Interrupt::new()),
             Box::new(PDomain::new(Arc::clone(&dom))),
+            Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
@@ -944,6 +973,7 @@ pub fn build_domain_proxy(
     create_nvme: Arc<dyn create::CreateNvme>,
     create_net_shadow: Arc<dyn create::CreateNetShadow>,
     create_benchnet: Arc<dyn create::CreateBenchnet>,
+    create_benchnvme: Arc<dyn create::CreateBenchnvme>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
     create_xv6usr: Arc<dyn create::CreateXv6Usr>,
     create_xv6: Arc<dyn create::CreateXv6>,
@@ -963,6 +993,7 @@ pub fn build_domain_proxy(
         create_nvme: Arc<dyn create::CreateNvme>,
         create_net_shadow: Arc<dyn create::CreateNetShadow>,
         create_benchnet: Arc<dyn create::CreateBenchnet>,
+        create_benchnvme: Arc<dyn create::CreateBenchnvme>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
         create_xv6usr: Arc<dyn create::CreateXv6Usr>,
         create_xv6: Arc<dyn create::CreateXv6>,
@@ -1005,6 +1036,7 @@ pub fn build_domain_proxy(
         create_nvme,
         create_net_shadow,
         create_benchnet,
+        create_benchnvme,
         create_xv6fs,
         create_xv6usr,
         create_xv6,
@@ -1342,6 +1374,45 @@ pub fn build_domain_benchnet_helper(name: &str,
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     let shadow = user_ep(pdom, pheap, net);
+    disable_irq();
+
+    // change domain id back
+    {
+        thread.lock().current_domain_id = old_id;
+    }
+
+    println!("domain/{}: returned from entry point", name);
+    Box::new(PDomain::new(Arc::clone(&dom)))
+}
+
+pub fn build_domain_benchnvme(name: &str,
+                          binary_range: (*const u8, *const u8),
+                          nvme: Box<dyn usr::bdev::NvmeBDev>) -> Box<dyn syscalls::Domain> {
+    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, nvme: Box<dyn usr::bdev::NvmeBDev>);
+
+    let (dom, entry) = unsafe {
+        load_domain(name, binary_range)
+    };
+
+    let user_ep: UserInit = unsafe {
+        core::mem::transmute::<*const(), UserInit>(entry)
+    };
+
+    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pheap = Box::new(PHeap::new());
+
+    // update current domain id
+    let thread = thread::get_current_ref();
+    let old_id = {
+        let mut thread = thread.lock();
+        let old_id = thread.current_domain_id;
+        thread.current_domain_id = dom.lock().id;
+        old_id
+    };
+
+    // Enable interrupts on exit to user so it can be preempted
+    enable_irq();
+    let shadow = user_ep(pdom, pheap, nvme);
     disable_irq();
 
     // change domain id back

@@ -25,6 +25,7 @@ pub struct Proxy {
     create_nvme: Arc<dyn create::CreateNvme>,
     create_net_shadow: Arc<dyn create::CreateNetShadow>,
     create_benchnet: Arc<dyn create::CreateBenchnet>,
+    create_benchnvme: Arc<dyn create::CreateBenchnvme>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
     create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
     create_xv6: Arc<dyn create::CreateXv6>,
@@ -48,6 +49,7 @@ impl Proxy {
         create_nvme: Arc<dyn create::CreateNvme>,
         create_net_shadow: Arc<dyn create::CreateNetShadow>,
         create_benchnet: Arc<dyn create::CreateBenchnet>,
+        create_benchnvme: Arc<dyn create::CreateBenchnvme>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
         create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
         create_xv6: Arc<dyn create::CreateXv6>,
@@ -66,6 +68,7 @@ impl Proxy {
             create_nvme,
             create_net_shadow,
             create_benchnet,
+            create_benchnvme,
             create_xv6fs,
             create_xv6usr,
             create_xv6,
@@ -99,6 +102,9 @@ impl proxy::Proxy for Proxy {
         Arc::new(self.clone())
     }
     fn as_create_benchnet(&self) -> Arc<dyn create::CreateBenchnet> {
+        Arc::new(self.clone())
+    }
+    fn as_create_benchnvme(&self) -> Arc<dyn create::CreateBenchnvme> {
         Arc::new(self.clone())
     }
     fn as_create_nvme(&self) -> Arc<dyn create::CreateNvme> {
@@ -264,6 +270,12 @@ impl create::CreateShadow for Proxy {
 impl create::CreateBenchnet for Proxy {
     fn create_domain_benchnet(&self, net: Box<dyn Net>) ->(Box<dyn Domain>) {
         self.create_benchnet.create_domain_benchnet(net)
+    }
+}
+
+impl create::CreateBenchnvme for Proxy {
+    fn create_domain_benchnvme(&self, nvme: Box<dyn NvmeBDev>) ->(Box<dyn Domain>) {
+        self.create_benchnvme.create_domain_benchnvme(nvme)
     }
 }
 

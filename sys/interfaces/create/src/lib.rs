@@ -4,7 +4,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use syscalls::{Heap, Domain, Interrupt};
-use usr::{bdev::BDev, vfs::VFS, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}};
+use usr::{bdev::{BDev, NvmeBDev}, vfs::VFS, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}};
 use usr::error::Result;
 
 /* AB: XXX: first thing: change all names to create_domain -- it's absurd */
@@ -79,4 +79,8 @@ pub trait CreateShadow: Send + Sync {
 
 pub trait CreateBenchnet: Send + Sync {
     fn create_domain_benchnet(&self, net: Box<dyn Net>) -> Box<dyn Domain>;
+}
+
+pub trait CreateBenchnvme: Send + Sync {
+    fn create_domain_benchnvme(&self, nvme: Box<dyn NvmeBDev>) -> Box<dyn Domain>;
 }
