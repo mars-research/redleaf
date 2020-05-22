@@ -6,6 +6,7 @@ all:
 	make -C dom_d
 	make -C shadow
 	make -C benchnet_inside
+	make -C benchnvme
 
 .PHONY: clean
 clean:
@@ -15,3 +16,4 @@ clean:
 	make -C dom_d clean
 	make -C shadow clean
 	make -C benchnet_inside clean
+	make -C benchnvme clean
