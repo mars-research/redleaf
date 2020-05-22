@@ -31,6 +31,7 @@ BINS=\
 	wc\
 	benchfs\
 	benchnet\
+	benchnvme\
 
 build/fs.img: mkfs $(FILES) $(BINS) Makefile
 	mkdir -p build
@@ -59,3 +60,4 @@ clean:
 	rm -f ./benchfs
 	rm -f ./large
 	rm -f ./benchnet
+	rm -f ./benchnvme
