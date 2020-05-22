@@ -137,7 +137,7 @@ pub fn run_tx_udptest_rref(net: &dyn Net, pkt_len: usize, mut debug: bool) {
     if sum == 0 {
         sum += 1;
     }
-    println!("==> tx_rref batch {} : {} iterations took {} cycles (avg = {})", pkt_len, sum, elapsed, elapsed / sum as u64);
+    println!("==> tx_rref batch {} : {} iterations took {} cycles (avg = {})", pkt_len, sum, elapsed, elapsed / core::cmp::max(sum as u64, 1));
     // dev.dump_stats();
     println!(" alloc_count {} took {} cycles (avg = {})", alloc_count * 32, alloc_elapsed,
                                                 alloc_elapsed as f64 / (alloc_count * 32) as f64);
@@ -261,7 +261,7 @@ pub fn run_tx_udptest(net: &dyn Net, pkt_len: usize, mut debug: bool) {
     if sum == 0 {
         sum += 1;
     }
-    println!("==> tx batch {} : {} iterations took {} cycles (avg = {})", pkt_len, sum, elapsed, elapsed / sum as u64);
+    println!("==> tx batch {} : {} iterations took {} cycles (avg = {})", pkt_len, sum, elapsed, elapsed / core::cmp::max(sum as u64, 1));
     // dev.dump_stats();
     println!(" alloc_count {}", alloc_count * 32);
     println!("Reaped {} packets", net.poll(&mut collect, true).unwrap());
@@ -363,7 +363,7 @@ pub fn run_rx_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, debug: bool
 
     //println!("seq_start {} seq_end {} delta {}", seq_start, seq_end, seq_end - seq_start);
     println!("sum {} batch alloc_count {}", sum, alloc_count);
-    println!("==> rx batch {}B: delay {}ns: {} iterations took {} cycles (avg = {})", pkt_len, delay, sum, elapsed, elapsed / sum as u64);
+    println!("==> rx batch {}B: delay {}ns: {} iterations took {} cycles (avg = {})", pkt_len, delay, sum, elapsed, elapsed / core::cmp::max(sum as u64, 1));
     // dev.dump_stats();
     for hist in alloc::vec![submit_rx_hist, collect_rx_hist] {
         println!("hist:");
@@ -468,7 +468,7 @@ pub fn run_rx_udptest(net: &dyn Net, pkt_len: usize, debug: bool) {
 
     println!("seq_start {} seq_end {} delta {}", seq_start, seq_end, seq_end - seq_start);
     println!("sum {} batch alloc_count {}", sum, alloc_count);
-    println!("==> rx batch {}B: {} iterations took {} cycles (avg = {})", pkt_len, sum, elapsed, elapsed / sum as u64);
+    println!("==> rx batch {}B: {} iterations took {} cycles (avg = {})", pkt_len, sum, elapsed, elapsed / core::cmp::max(sum as u64, 1));
     // dev.dump_stats();
     for hist in alloc::vec![submit_rx_hist, collect_rx_hist] {
         println!("hist:");
@@ -623,10 +623,10 @@ pub fn dump_packet_rref(pkt: &[u8; 1512], len: usize) {
 //     println!(" ==> submit_rx {} (avg {}) submit_tx {} (avg {}) loop_count {}",
 //                         submit_rx, submit_rx / loop_count, submit_tx, submit_tx / loop_count, loop_count);
 //     println!(" ==> rx batching {}B: {} packets took {} cycles (avg = {})",
-//                         pkt_size, sum, rx_elapsed, rx_elapsed  / sum as u64);
+//                         pkt_size, sum, rx_elapsed, rx_elapsed  / core::cmp::max(sum as u64, 1));
 //     println!(" ==> tx batching {}B: {} packets took {} cycles (avg = {})",
-//                         pkt_size, fwd_sum, tx_elapsed, tx_elapsed  / fwd_sum as u64);
-//     println!("==> fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_size, fwd_sum, elapsed, elapsed / fwd_sum as u64);
+//                         pkt_size, fwd_sum, tx_elapsed, tx_elapsed   / core::cmp::max(fwd_sum as u64, 1));
+//     println!("==> fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_size, fwd_sum, elapsed, elapsed  / core::cmp::max(fwd_sum as u64, 1));
 //     // dev.dump_stats();
 //     //dev.dump_tx_descs();
 // }
@@ -725,10 +725,10 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) {
     println!(" ==> submit_rx {} (avg {}) submit_tx {} (avg {}) loop_count {}",
                         submit_rx, submit_rx / loop_count, submit_tx, submit_tx / loop_count, loop_count);
     println!(" ==> rx batching {}B: {} packets took {} cycles (avg = {})",
-                        pkt_size, sum, rx_elapsed, rx_elapsed  / sum as u64);
+                        pkt_size, sum, rx_elapsed, rx_elapsed  / core::cmp::max(sum as u64, 1));
     println!(" ==> tx batching {}B: {} packets took {} cycles (avg = {})",
-                        pkt_size, fwd_sum, tx_elapsed, tx_elapsed  / fwd_sum as u64);
-    println!("==> maglev fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_size, fwd_sum, elapsed, elapsed / fwd_sum as u64);
+                        pkt_size, fwd_sum, tx_elapsed, tx_elapsed   / core::cmp::max(fwd_sum as u64, 1));
+    println!("==> maglev fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_size, fwd_sum, elapsed, elapsed  / core::cmp::max(fwd_sum as u64, 1));
     // dev.dump_stats();
     //dev.dump_tx_descs();
 }
@@ -870,12 +870,12 @@ pub fn run_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) {
     println!(" ==> submit_rx {} (avg {}) submit_tx {} (avg {}) loop_count {}",
                         submit_rx, submit_rx / loop_count, submit_tx, submit_tx / loop_count, loop_count);
     println!(" ==> rx batching {}B: {} packets took {} cycles (avg = {})",
-                        pkt_len, sum, rx_elapsed, rx_elapsed  / sum as u64);
+                        pkt_len, sum, rx_elapsed, rx_elapsed  / core::cmp::max(sum as u64, 1));
     println!(" ==> mac_swap {}B: {} packets took {} cycles (avg = {})",
-                        pkt_len, sum, mswap_elapsed, mswap_elapsed / sum as u64);
+                        pkt_len, sum, mswap_elapsed, mswap_elapsed / core::cmp::max(sum as u64, 1));
     println!(" ==> tx batching {}B: {} packets took {} cycles (avg = {})",
-                        pkt_len, fwd_sum, tx_elapsed, tx_elapsed  / fwd_sum as u64);
-    println!("==> fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_len, fwd_sum, elapsed, elapsed / fwd_sum as u64);
+                        pkt_len, fwd_sum, tx_elapsed, tx_elapsed   / core::cmp::max(fwd_sum as u64, 1));
+    println!("==> fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_len, fwd_sum, elapsed, elapsed  / core::cmp::max(fwd_sum as u64, 1));
     // dev.dump_stats();
 }
 
@@ -1036,12 +1036,12 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) {
     println!(" ==> submit_rx {} (avg {}) submit_tx {} (avg {}) loop_count {}",
                         submit_rx, submit_rx / loop_count, submit_tx, submit_tx / loop_count, loop_count);
     println!(" ==> rx batching {}B: {} packets took {} cycles (avg = {})",
-                        pkt_len, sum, rx_elapsed, rx_elapsed  / sum as u64);
+                        pkt_len, sum, rx_elapsed, rx_elapsed  / core::cmp::max(sum as u64, 1));
     println!(" ==> mac_swap {}B: {} packets took {} cycles (avg = {})",
-                        pkt_len, sum, mswap_elapsed, mswap_elapsed / sum as u64);
+                        pkt_len, sum, mswap_elapsed, mswap_elapsed / core::cmp::max(sum as u64, 1));
     println!(" ==> tx batching {}B: {} packets took {} cycles (avg = {})",
-                        pkt_len, fwd_sum, tx_elapsed, tx_elapsed  / fwd_sum as u64);
-    println!("==> maglev fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_len, fwd_sum, elapsed, elapsed / fwd_sum as u64);
+                        pkt_len, fwd_sum, tx_elapsed, tx_elapsed   / core::cmp::max(fwd_sum as u64, 1));
+    println!("==> maglev fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_len, fwd_sum, elapsed, elapsed  / core::cmp::max(fwd_sum as u64, 1));
     // dev.dump_stats();
 }
 
@@ -1133,12 +1133,12 @@ pub fn run_fwd_udptest(net: &dyn Net, pkt_len: u16) {
     println!(" ==> submit_rx {} (avg {}) submit_tx {} (avg {}) loop_count {}",
                         submit_rx, submit_rx / loop_count, submit_tx, submit_tx / loop_count, loop_count);
     println!(" ==> rx batching {}B: {} packets took {} cycles (avg = {})",
-                        pkt_len, sum, rx_elapsed, rx_elapsed  / sum as u64);
+                        pkt_len, sum, rx_elapsed, rx_elapsed  / core::cmp::max(sum as u64, 1));
     println!(" ==> mac_swap {}B: {} packets took {} cycles (avg = {})",
-                        pkt_len, sum, mswap_elapsed, mswap_elapsed / sum as u64);
+                        pkt_len, sum, mswap_elapsed, mswap_elapsed / core::cmp::max(sum as u64, 1));
     println!(" ==> tx batching {}B: {} packets took {} cycles (avg = {})",
-                        pkt_len, fwd_sum, tx_elapsed, tx_elapsed  / fwd_sum as u64);
-    println!("==> fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_len, fwd_sum, elapsed, elapsed / fwd_sum as u64);
+                        pkt_len, fwd_sum, tx_elapsed, tx_elapsed   / core::cmp::max(fwd_sum as u64, 1));
+    println!("==> fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_len, fwd_sum, elapsed, elapsed  / core::cmp::max(fwd_sum as u64, 1));
     // dev.dump_stats();
     //dev.dump_tx_descs();
 }
