@@ -115,6 +115,16 @@ impl usr::bdev::NvmeBDev for Nvme {
 
         (ret, collect.unwrap())
     }
+
+    // TODO: it fails silently if the driver is not initialized.
+    //       Return an option instead?
+    fn get_stats(&mut self) -> (u64, u64) {
+        if let Some(device) = self.device.borrow_mut().as_mut() {
+            device.get_stats()
+        } else {
+            (0, 0)
+        }
+    }
 }
 
 impl pci_driver::PciDriver for Nvme {

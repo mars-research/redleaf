@@ -140,9 +140,10 @@ pub fn run_blocktest_rref(dev: &mut dyn NvmeBDev, block_sz: usize, is_write: boo
 
     let adj_runtime = elapsed as f64 / 2_400_000_000_u64 as f64;
 
-    // let (sub, comp) = dev.get_stats();
+    let (sub, comp) = dev.get_stats();
 
     // println!("Polling .... last_sq {} last_cq {} sq_id {}", last_sq, last_cq, sq_id);
+    println!("Polling ....");
 
     let (done, poll_) = dev.poll_rref(poll.take().unwrap());
 
@@ -157,9 +158,9 @@ pub fn run_blocktest_rref(dev: &mut dyn NvmeBDev, block_sz: usize, is_write: boo
     }
     println!("runtime: {:.2} seconds", adj_runtime);
 
-    // println!("submitted {:.2} K IOPS completed {:.2} K IOPS",
-    //                         sub as f64 / adj_runtime as f64 / 1_000 as f64,
-    //                         comp as f64 / adj_runtime as f64 / 1_000 as f64);
+    println!("submitted {:.2} K IOPS completed {:.2} K IOPS",
+                            sub as f64 / adj_runtime as f64 / 1_000 as f64,
+                            comp as f64 / adj_runtime as f64 / 1_000 as f64);
     println!("submit_and_poll_rref took {} cycles (avg {} cycles)",
                                         submit_elapsed, submit_elapsed / count);
 

@@ -189,4 +189,8 @@ impl NvmeBDev for Rv6Syscalls {
     fn poll_rref(&mut self, collect: RRefDeque<BlkReq, 1024>) -> (usize, RRefDeque<BlkReq, 1024>) {
         self.nvme.lock().poll_rref(collect)
     }
+
+    fn get_stats(&mut self) -> (u64, u64) {
+        self.nvme.lock().get_stats()
+    }
 }

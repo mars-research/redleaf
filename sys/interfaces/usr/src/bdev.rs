@@ -62,4 +62,6 @@ pub trait NvmeBDev : Send {
 
     fn poll_rref(&mut self, collect: RRefDeque<BlkReq, 1024>) ->
             (usize, RRefDeque<BlkReq, 1024>);
+
+    fn get_stats(&mut self) -> (u64, u64);
 }
