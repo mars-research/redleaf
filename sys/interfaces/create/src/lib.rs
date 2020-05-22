@@ -33,7 +33,7 @@ pub trait CreateNetShadow: Send + Sync {
     fn create_domain_net_shadow(&self, create: Arc<dyn CreateIxgbe>, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net + Send>);
 }
 
-pub trait CreateNvme {
+pub trait CreateNvme: Send + Sync {
     fn create_domain_nvme(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn usr::bdev::NvmeBDev>);
 }
 
