@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain_id};
 use syscalls::{Heap, Domain, Interrupt};
-use usr::{bdev::{BDev, BSIZE}, vfs::{UsrVFS, VFS}, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::{Net, NetworkStats}, pci::{PCI, PciBar, PciResource}};
+use usr::{bdev::{BDev, BSIZE, NvmeBDev, BlkReq}, vfs::{UsrVFS, VFS}, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::{Net, NetworkStats}, pci::{PCI, PciBar, PciResource}};
 use usr::rpc::{RpcResult, RpcError};
 use usr::error::Result;
 use console::{println, print};
@@ -956,3 +956,83 @@ impl Xv6 for Rv6Proxy {
         self.domain.sys_rdtsc()
     }
 } 
+
+// Rv6 proxy
+struct NvmeProxy {
+    domain: Box<dyn NvmeBDev>,
+    domain_id: u64,
+}
+
+unsafe impl Sync for NvmeProxy {}
+unsafe impl Send for NvmeProxy {}
+
+impl NvmeProxy {
+    fn new(domain_id: u64, domain: Box<dyn NvmeBDev>) -> Self {
+        Self {
+            domain,
+            domain_id,
+        }
+    }
+}
+
+impl NvmeBDev for NvmeProxy {
+    fn submit_and_poll_rref(
+        &self,
+        submit: RRefDeque<BlkReq, 128>,
+        collect: RRefDeque<BlkReq, 128>,
+        write: bool,
+        ) -> RpcResult<Result<(
+            usize,
+            RRefDeque<BlkReq, 128>,
+            RRefDeque<BlkReq, 128>,
+        )>> {
+        // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        submit.move_to(self.domain_id);
+        collect.move_to(self.domain_id);
+        let r = self.domain.submit_and_poll_rref(submit, collect, write);
+        if let Ok(r) = r.as_ref() {
+            if let Ok(r) = r.as_ref() {
+                r.1.move_to(caller_domain);
+                r.2.move_to(caller_domain);
+            }
+        }
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
+    }
+
+    fn poll_rref(&mut self, collect: RRefDeque<BlkReq, 1024>) ->
+            RpcResult<Result<(usize, RRefDeque<BlkReq, 1024>)>> {
+        // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        collect.move_to(self.domain_id);
+        let r = self.domain.poll_rref(collect);
+        if let Ok(r) = r.as_ref() {
+            if let Ok(r) = r.as_ref() {
+                r.1.move_to(caller_domain);
+            }
+        }
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
+    }
+
+    fn get_stats(&mut self) -> RpcResult<Result<(u64, u64)>> {
+        // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        let r = self.domain.get_stats();
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
+    }
+}
