@@ -89,7 +89,7 @@ pub fn run_blocktest_rref(dev: &mut dyn NvmeBDev, block_sz: usize, is_write: boo
         count += 1;
         submit_start = rdtsc();
         let (ret, mut submit_, mut collect_) = dev.submit_and_poll_rref(submit.take().unwrap(),
-                                                collect.take().unwrap(), is_write)?;
+                                                collect.take().unwrap(), is_write).unwrap()?;
         submit_elapsed += rdtsc() - submit_start;
 
         //println!("submitted {} reqs, collect {} reqs sq: {} cq {}", ret, collect_.len(), last_sq, last_cq);
@@ -141,12 +141,12 @@ pub fn run_blocktest_rref(dev: &mut dyn NvmeBDev, block_sz: usize, is_write: boo
 
     let adj_runtime = elapsed as f64 / 2_400_000_000_u64 as f64;
 
-    let (sub, comp) = dev.get_stats()?;
+    let (sub, comp) = dev.get_stats().unwrap()?;
 
     // println!("Polling .... last_sq {} last_cq {} sq_id {}", last_sq, last_cq, sq_id);
     println!("Polling ....");
 
-    let (done, poll_) = dev.poll_rref(poll.take().unwrap())?;
+    let (done, poll_) = dev.poll_rref(poll.take().unwrap()).unwrap()?;
 
     println!("Poll: Reaped {} requests", done);
 

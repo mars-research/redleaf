@@ -31,6 +31,7 @@ use libsyscalls::syscalls::{sys_println, sys_alloc, sys_create_thread};
 use console::{println, print};
 use pci_driver::DeviceBarRegions;
 use usr::error::{ErrorKind, Result};
+use usr::rpc::RpcResult;
 use core::cell::RefCell;
 use alloc::sync::Arc;
 use spin::Mutex;
@@ -74,49 +75,55 @@ impl usr::bdev::NvmeBDev for Nvme {
         mut submit: RRefDeque<BlkReq, 128>,
         mut collect: RRefDeque<BlkReq, 128>,
         write: bool,
-        ) -> Result<(
+        ) -> RpcResult<Result<(
             usize,
             RRefDeque<BlkReq, 128>,
             RRefDeque<BlkReq, 128>,
-        )>
+        )>>
     {
-        let mut submit = Some(submit);
-        let mut collect = Some(collect);
-        let mut ret = 0;
+        Ok((||{
+            let mut submit = Some(submit);
+            let mut collect = Some(collect);
+            let mut ret = 0;
 
-        let device = &mut self.device.borrow_mut();
-        let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
-        let (num, _, _, _, mut submit_, mut collect_) = device.device.submit_and_poll_rref(submit.take().unwrap(),
-        collect.take().unwrap(), write);
-        ret = num;
+            let device = &mut self.device.borrow_mut();
+            let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
+            let (num, _, _, _, mut submit_, mut collect_) = device.device.submit_and_poll_rref(submit.take().unwrap(),
+            collect.take().unwrap(), write);
+            ret = num;
 
-        submit.replace(submit_);
-        collect.replace(collect_);
+            submit.replace(submit_);
+            collect.replace(collect_);
 
-        Ok((ret, submit.unwrap(), collect.unwrap()))
+            Ok((ret, submit.unwrap(), collect.unwrap()))
+        })())
     }
 
 
     fn poll_rref(&mut self, mut collect: RRefDeque<BlkReq, 1024>) ->
-            Result<(usize, RRefDeque<BlkReq, 1024>)>
+            RpcResult<Result<(usize, RRefDeque<BlkReq, 1024>)>>
     {
-        let mut collect = Some(collect);
-        let mut ret = 0;
+        Ok((||{
+            let mut collect = Some(collect);
+            let mut ret = 0;
 
-        let device = &mut self.device.borrow_mut();
-        let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
-        let (num, mut collect_) = device.device.poll_rref(collect.take().unwrap());
-        ret = num;
+            let device = &mut self.device.borrow_mut();
+            let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
+            let (num, mut collect_) = device.device.poll_rref(collect.take().unwrap());
+            ret = num;
 
-        collect.replace(collect_);
+            collect.replace(collect_);
 
-        Ok((ret, collect.unwrap()))
+            Ok((ret, collect.unwrap()))
+        })())
     }
 
-    fn get_stats(&mut self) -> Result<(u64, u64)> {
-        let device = &mut self.device.borrow_mut();
-        let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
-        Ok(device.get_stats())
+    fn get_stats(&mut self) -> RpcResult<Result<(u64, u64)>> {
+        Ok((||{
+            let device = &mut self.device.borrow_mut();
+            let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
+            Ok(device.get_stats())
+        })())
     }
 }
 

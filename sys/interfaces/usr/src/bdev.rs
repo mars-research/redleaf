@@ -54,14 +54,14 @@ pub trait NvmeBDev : Send {
         submit: RRefDeque<BlkReq, 128>,
         collect: RRefDeque<BlkReq, 128>,
         write: bool,
-        ) -> Result<(
+        ) -> RpcResult<Result<(
             usize,
             RRefDeque<BlkReq, 128>,
             RRefDeque<BlkReq, 128>,
-        )>;
+        )>>;
 
     fn poll_rref(&mut self, collect: RRefDeque<BlkReq, 1024>) ->
-            Result<(usize, RRefDeque<BlkReq, 1024>)>;
+            RpcResult<Result<(usize, RRefDeque<BlkReq, 1024>)>>;
 
-    fn get_stats(&mut self) -> Result<(u64, u64)>;
+    fn get_stats(&mut self) -> RpcResult<Result<(u64, u64)>>;
 }
