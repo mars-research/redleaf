@@ -145,11 +145,11 @@ impl Net for Rv6Syscalls {
         packets: &mut VecDeque<Vec<u8>>,
         reap_queue: &mut VecDeque<Vec<u8>>,
         tx: bool,
-    ) -> RpcResult<usize> {
+    ) -> RpcResult<Result<usize>> {
         self.net.lock().submit_and_poll(packets, reap_queue, tx)
     }
 
-    fn poll(&self, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
+    fn poll(&self, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
         self.net.lock().poll(collect, tx)
     }
 
@@ -159,7 +159,7 @@ impl Net for Rv6Syscalls {
         collect: RRefDeque<[u8; 1512], 32>,
         tx: bool,
         pkt_len: usize,
-    ) -> RpcResult<(usize, RRefDeque<[u8; 1512], 32>, RRefDeque<[u8; 1512], 32>)> {
+    ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1512], 32>, RRefDeque<[u8; 1512], 32>)>> {
         self.net
             .lock()
             .submit_and_poll_rref(packets, collect, tx, pkt_len)
@@ -169,11 +169,11 @@ impl Net for Rv6Syscalls {
         &self,
         collect: RRefDeque<[u8; 1512], 512>,
         tx: bool,
-    ) -> RpcResult<(usize, RRefDeque<[u8; 1512], 512>)> {
+    ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1512], 512>)>> {
         self.net.lock().poll_rref(collect, tx)
     }
 
-    fn get_stats(&self) -> RpcResult<NetworkStats> {
+    fn get_stats(&self) -> RpcResult<Result<NetworkStats>> {
         self.net.lock().get_stats()
     }
 }

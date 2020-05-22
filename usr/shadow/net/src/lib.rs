@@ -17,6 +17,7 @@ use core::panic::PanicInfo;
 use usr;
 use rref::{RRef, RRefDeque};
 use alloc::vec::Vec;
+use usr::error::Result;
 use usr::net::{Net, NetworkStats};
 use usr::pci::PCI;
 use usr::rpc::RpcResult;
@@ -53,7 +54,7 @@ impl Shadow {
 }
 
 impl Net for Shadow {
-    fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
+    fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
         self.shadow.lock().net.submit_and_poll(packets, reap_queue, tx)
     }
 
@@ -62,24 +63,24 @@ impl Net for Shadow {
         packets: RRefDeque<[u8; 1512], 32>,
         collect: RRefDeque<[u8; 1512], 32>,
         tx: bool,
-        pkt_len: usize) -> RpcResult<(
+        pkt_len: usize) -> RpcResult<Result<(
             usize,
             RRefDeque<[u8; 1512], 32>,
             RRefDeque<[u8; 1512], 32>
-        )>
+        )>>
     {
         self.shadow.lock().net.submit_and_poll_rref(packets, collect, tx, pkt_len)
     }
 
-    fn poll(&self, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
+    fn poll(&self, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
         self.shadow.lock().net.poll(collect, tx)
     }
 
-    fn poll_rref(&self, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<(usize, RRefDeque<[u8; 1512], 512>)> {
+    fn poll_rref(&self, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<Result<(usize, RRefDeque<[u8; 1512], 512>)>> {
         self.shadow.lock().net.poll_rref(collect, tx)
     }
 
-    fn get_stats(&self) -> RpcResult<NetworkStats> {
+    fn get_stats(&self) -> RpcResult<Result<NetworkStats>> {
         self.shadow.lock().net.get_stats()
     }
 

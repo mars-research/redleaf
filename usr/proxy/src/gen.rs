@@ -411,13 +411,13 @@ impl IxgbeProxy {
 
 //Code to unwind net_submit_and_poll
 #[no_mangle]
-pub extern fn net_submit_and_poll(s: &Box<usr::net::Net>, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
+pub extern fn net_submit_and_poll(s: &Box<usr::net::Net>, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
     //println!("one_arg: x:{}", x);
     s.submit_and_poll(packets, reap_queue, tx)
 }
 
 #[no_mangle]
-pub extern fn net_submit_and_poll_err(s: &Box<usr::net::Net>, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
+pub extern fn net_submit_and_poll_err(s: &Box<usr::net::Net>, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
     println!("net_submit_and_poll was aborted");
     Err(unsafe{RpcError::panic()})
 }
@@ -428,19 +428,19 @@ pub extern "C" fn net_submit_and_poll_addr() -> u64 {
 }
 
 extern {
-    fn net_submit_and_poll_tramp(s: &Box<usr::net::Net>, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize>;
+    fn net_submit_and_poll_tramp(s: &Box<usr::net::Net>, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>>;
 }
 
 trampoline!(net_submit_and_poll);
 
 //Code to unwind net_poll
 #[no_mangle]
-pub extern fn net_poll(s: &Box<usr::net::Net>, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
+pub extern fn net_poll(s: &Box<usr::net::Net>, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
     s.poll(collect, tx)
 }
 
 #[no_mangle]
-pub extern fn net_poll_err(s: &Box<usr::net::Net>, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
+pub extern fn net_poll_err(s: &Box<usr::net::Net>, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
     println!("net_poll was aborted");
     Err(unsafe{RpcError::panic()})
 }
@@ -451,7 +451,7 @@ pub extern "C" fn net_poll_addr() -> u64 {
 }
 
 extern {
-    fn net_poll_tramp(s: &Box<usr::net::Net>, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize>;
+    fn net_poll_tramp(s: &Box<usr::net::Net>, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>>;
 }
 
 trampoline!(net_poll);
@@ -462,11 +462,11 @@ pub extern fn net_submit_and_poll_rref(s: &Box<usr::net::Net>,
         packets: RRefDeque<[u8; 1512], 32>,
         collect: RRefDeque<[u8; 1512], 32>,
         tx: bool,
-        pkt_len: usize) -> RpcResult<(
+        pkt_len: usize) -> RpcResult<Result<(
             usize,
             RRefDeque<[u8; 1512], 32>,
             RRefDeque<[u8; 1512], 32>
-        )> {
+        )>> {
     s.submit_and_poll_rref(packets, collect, tx, pkt_len)
 }
 
@@ -475,11 +475,11 @@ pub extern fn net_submit_and_poll_rref_err(s: &Box<usr::net::Net>,
         packets: RRefDeque<[u8; 1512], 32>,
         collect: RRefDeque<[u8; 1512], 32>,
         tx: bool,
-        pkt_len: usize) -> RpcResult<(
+        pkt_len: usize) -> RpcResult<Result<(
             usize,
             RRefDeque<[u8; 1512], 32>,
             RRefDeque<[u8; 1512], 32>
-        )> {
+        )>> {
     println!("net_submit_and_poll_rref was aborted");
     Err(unsafe{RpcError::panic()})
 }
@@ -494,23 +494,23 @@ extern {
         packets: RRefDeque<[u8; 1512], 32>,
         collect: RRefDeque<[u8; 1512], 32>,
         tx: bool,
-        pkt_len: usize) -> RpcResult<(
+        pkt_len: usize) -> RpcResult<Result<(
             usize,
             RRefDeque<[u8; 1512], 32>,
             RRefDeque<[u8; 1512], 32>
-        )>;
+        )>>;
 }
 
 trampoline!(net_submit_and_poll_rref);
 
 //Code to unwind poll_rref
 #[no_mangle]
-pub extern fn net_poll_rref(s: &Box<usr::net::Net>, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<(usize, RRefDeque<[u8; 1512], 512>)> {
+pub extern fn net_poll_rref(s: &Box<usr::net::Net>, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<Result<(usize, RRefDeque<[u8; 1512], 512>)>> {
     s.poll_rref(collect, tx)
 }
 
 #[no_mangle]
-pub extern fn net_poll_rref_err(s: &Box<usr::net::Net>, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<(usize, RRefDeque<[u8; 1512], 512>)> {
+pub extern fn net_poll_rref_err(s: &Box<usr::net::Net>, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<Result<(usize, RRefDeque<[u8; 1512], 512>)>> {
     println!("net_poll_rref was aborted");
     Err(unsafe{RpcError::panic()})
 }
@@ -521,7 +521,7 @@ pub extern "C" fn net_poll_rref_addr() -> u64 {
 }
 
 extern {
-    fn net_poll_rref_tramp(s: &Box<usr::net::Net>, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<(usize, RRefDeque<[u8; 1512], 512>)>;
+    fn net_poll_rref_tramp(s: &Box<usr::net::Net>, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<Result<(usize, RRefDeque<[u8; 1512], 512>)>>;
 }
 
 trampoline!(net_poll_rref);
@@ -529,13 +529,13 @@ trampoline!(net_poll_rref);
 
 //Code to unwind get_stats
 #[no_mangle]
-pub extern fn get_stats(s: &Box<usr::net::Net>) -> RpcResult<NetworkStats> {
+pub extern fn get_stats(s: &Box<usr::net::Net>) -> RpcResult<Result<NetworkStats>> {
     //println!("one_arg: x:{}", x);
     s.get_stats()
 }
 
 #[no_mangle]
-pub extern fn get_stats_err(s: &Box<usr::net::Net>) -> RpcResult<NetworkStats> {
+pub extern fn get_stats_err(s: &Box<usr::net::Net>) -> RpcResult<Result<NetworkStats>> {
     println!("get_stats was aborted");
     Err(unsafe{RpcError::panic()})
 }
@@ -546,13 +546,13 @@ pub extern "C" fn get_stats_addr() -> u64 {
 }
 
 extern {
-    fn get_stats_tramp(s: &Box<usr::net::Net>) -> RpcResult<NetworkStats>;
+    fn get_stats_tramp(s: &Box<usr::net::Net>) -> RpcResult<Result<NetworkStats>>;
 }
 
 trampoline!(get_stats);
 
 impl Net for IxgbeProxy {
-    fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
+    fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
 
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
@@ -568,7 +568,7 @@ impl Net for IxgbeProxy {
         r
     }
 
-    fn poll(&self, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
+    fn poll(&self, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
@@ -588,11 +588,11 @@ impl Net for IxgbeProxy {
         packets: RRefDeque<[u8; 1512], 32>,
         collect: RRefDeque<[u8; 1512], 32>,
         tx: bool,
-        pkt_len: usize) -> RpcResult<(
+        pkt_len: usize) -> RpcResult<Result<(
             usize,
             RRefDeque<[u8; 1512], 32>,
             RRefDeque<[u8; 1512], 32>
-        )>
+        )>>
     {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
@@ -606,8 +606,10 @@ impl Net for IxgbeProxy {
         let r = unsafe{ net_submit_and_poll_rref_tramp(&self.domain, packets, collect, tx, pkt_len) };
 
         if let Ok(r) = r.as_ref() {
-            r.1.move_to(caller_domain);
-            r.2.move_to(caller_domain);
+            if let Ok(r) = r.as_ref() {
+                r.1.move_to(caller_domain);
+                r.2.move_to(caller_domain);
+            }
         }
 
         // move thread back
@@ -616,7 +618,7 @@ impl Net for IxgbeProxy {
         r
     }
 
-    fn poll_rref(&self, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<(usize, RRefDeque<[u8; 1512], 512>)> {
+    fn poll_rref(&self, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<Result<(usize, RRefDeque<[u8; 1512], 512>)>> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
@@ -628,7 +630,9 @@ impl Net for IxgbeProxy {
         let r = unsafe { net_poll_rref_tramp(&self.domain, collect, tx) };
 
         if let Ok(r) = r.as_ref() {
-            r.1.move_to(caller_domain);
+            if let Ok(r) = r.as_ref() {
+                r.1.move_to(caller_domain);
+            }
         }
 
         // move thread back
@@ -637,7 +641,7 @@ impl Net for IxgbeProxy {
         r
     }
 
-    fn get_stats(&self) -> RpcResult<NetworkStats> {
+    fn get_stats(&self) -> RpcResult<Result<NetworkStats>> {
          // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
@@ -822,11 +826,11 @@ impl Rv6Proxy {
 }
 
 impl Net for Rv6Proxy {
-    fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
+    fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
         unimplemented!()
     }
 
-    fn poll(&self, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
+    fn poll(&self, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
         unimplemented!()
     }
 
@@ -835,11 +839,11 @@ impl Net for Rv6Proxy {
         packets: RRefDeque<[u8; 1512], 32>,
         collect: RRefDeque<[u8; 1512], 32>,
         tx: bool,
-        pkt_len: usize) -> RpcResult<(
+        pkt_len: usize) -> RpcResult<Result<(
             usize,
             RRefDeque<[u8; 1512], 32>,
             RRefDeque<[u8; 1512], 32>
-        )>
+        )>>
     {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
@@ -848,8 +852,10 @@ impl Net for Rv6Proxy {
         collect.move_to(self.domain_id);
         let r = self.domain.submit_and_poll_rref(packets, collect, tx, pkt_len);
         if let Ok(r) = r.as_ref() {
-            r.1.move_to(caller_domain);
-            r.2.move_to(caller_domain);
+            if let Ok(r) = r.as_ref() {
+                r.1.move_to(caller_domain);
+                r.2.move_to(caller_domain);
+            }
         }
 
         // move thread back
@@ -858,7 +864,7 @@ impl Net for Rv6Proxy {
         r
     }
 
-    fn poll_rref(&self, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<(usize, RRefDeque<[u8; 1512], 512>)>
+    fn poll_rref(&self, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<Result<(usize, RRefDeque<[u8; 1512], 512>)>>
     {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
@@ -866,7 +872,9 @@ impl Net for Rv6Proxy {
         collect.move_to(self.domain_id);
         let r = self.domain.poll_rref(collect, tx);
         if let Ok(r) = r.as_ref() {
-            r.1.move_to(caller_domain);
+            if let Ok(r) = r.as_ref() {
+                r.1.move_to(caller_domain);
+            }
         }
 
         // move thread back
@@ -875,7 +883,7 @@ impl Net for Rv6Proxy {
         r
     }
 
-    fn get_stats(&self) -> RpcResult<NetworkStats> {
+    fn get_stats(&self) -> RpcResult<Result<NetworkStats>> {
          // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
