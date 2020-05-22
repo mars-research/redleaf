@@ -23,6 +23,9 @@ use usr::net::Net;
 const BATCH_SIZE: usize = 32;
 
 pub fn run_tx_udptest_rref(net: &dyn Net, pkt_len: usize, mut debug: bool) {
+    #[cfg(feature = "noop")]
+    return;
+
     let batch_sz: usize = BATCH_SIZE;
     let mut packets = RRefDeque::<[u8; 1512], 32>::default();
     let mut collect = RRefDeque::<[u8; 1512], 32>::default();
@@ -177,6 +180,9 @@ pub fn run_tx_udptest_rref(net: &dyn Net, pkt_len: usize, mut debug: bool) {
 }
 
 pub fn run_tx_udptest(net: &dyn Net, pkt_len: usize, mut debug: bool) {
+    #[cfg(feature = "noop")]
+    return;
+
     let batch_sz: usize = BATCH_SIZE;
     let mut packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
     let mut collect: VecDeque<Vec<u8>> = VecDeque::new();
@@ -269,10 +275,16 @@ pub fn run_tx_udptest(net: &dyn Net, pkt_len: usize, mut debug: bool) {
 
 
 pub fn run_rx_udptest_rref(net: &dyn Net, pkt_len: usize, debug: bool) {
+    #[cfg(feature = "noop")]
+    return;
+
     run_rx_udptest_rref_with_delay(net, pkt_len, debug, 0)
 }
 
 pub fn run_rx_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, debug: bool, delay: usize) {
+    #[cfg(feature = "noop")]
+    return;
+
     let pkt_len = 2048;
     let batch_sz: usize = BATCH_SIZE;
     let mut packets = RRefDeque::<[u8; 1512], 32>::default();
@@ -400,6 +412,9 @@ pub fn run_rx_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, debug: bool
 }
 
 pub fn run_rx_udptest(net: &dyn Net, pkt_len: usize, debug: bool) {
+    #[cfg(feature = "noop")]
+    return;
+
     let pkt_len = 2048;
     let batch_sz: usize = BATCH_SIZE;
     let mut packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
@@ -632,6 +647,9 @@ pub fn dump_packet_rref(pkt: &[u8; 1512], len: usize) {
 // }
 
 pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) {
+    #[cfg(feature = "noop")]
+    return;
+
     let batch_sz = BATCH_SIZE;
     let mut maglev = maglev::Maglev::new(0..3);
     let mut rx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
@@ -734,6 +752,9 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) {
 }
 
 pub fn run_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) {
+    #[cfg(feature = "noop")]
+    return;
+
     let batch_sz = BATCH_SIZE;
     let mut rx_submit = RRefDeque::<[u8; 1512], 32>::default();
     let mut rx_collect = RRefDeque::<[u8; 1512], 32>::default();
@@ -880,6 +901,9 @@ pub fn run_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) {
 }
 
 pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) {
+    #[cfg(feature = "noop")]
+    return;
+
     let batch_sz = BATCH_SIZE;
     let mut maglev = maglev::Maglev::new(0..3);
     let mut rx_submit = RRefDeque::<[u8; 1512], 32>::default();
@@ -1046,6 +1070,9 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) {
 }
 
 pub fn run_fwd_udptest(net: &dyn Net, pkt_len: u16) {
+    #[cfg(feature = "noop")]
+    return;
+
     let batch_sz = BATCH_SIZE;
     let mut rx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
     let mut tx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);

@@ -23,3 +23,9 @@ default-features = false
 [dependencies.twox-hash]
 version = "1.5.0"
 default-features = false
+
+[features]
+default = [
+    # "noop",
+]
+noop = []
