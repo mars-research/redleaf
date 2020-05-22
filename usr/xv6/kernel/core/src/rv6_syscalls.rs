@@ -10,7 +10,7 @@ use console::println;
 use create::CreateXv6Usr;
 use rref::RRefDeque;
 use usr_interface::bdev::{BlkReq, NvmeBDev};
-use usr_interface::net::Net;
+use usr_interface::net::{Net, NetworkStats};
 use usr_interface::rpc::RpcResult;
 use usr_interface::vfs::{FileMode, FileStat, Result, UsrVFS, VFSPtr, NFILE, VFS};
 use usr_interface::xv6::{Thread, Xv6};
@@ -171,6 +171,10 @@ impl Net for Rv6Syscalls {
         tx: bool,
     ) -> RpcResult<(usize, RRefDeque<[u8; 1512], 512>)> {
         self.net.lock().poll_rref(collect, tx)
+    }
+
+    fn get_stats(&self) -> RpcResult<NetworkStats> {
+        self.net.lock().get_stats()
     }
 }
 

@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain_id};
 use syscalls::{Heap, Domain, Interrupt};
-use usr::{bdev::{BDev, BSIZE, NvmeBDev}, vfs::{UsrVFS, VFS}, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}};
+use usr::{bdev::{BDev, BSIZE}, vfs::{UsrVFS, VFS}, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::{Net, NetworkStats}, pci::{PCI, PciBar, PciResource}};
 use usr::rpc::{RpcResult, RpcError};
 use usr::error::Result;
 use console::{println, print};
@@ -274,7 +274,7 @@ impl create::CreateBenchnet for Proxy {
 }
 
 impl create::CreateBenchnvme for Proxy {
-    fn create_domain_benchnvme(&self, nvme: Box<dyn NvmeBDev>) ->(Box<dyn Domain>) {
+    fn create_domain_benchnvme(&self, nvme: Box<dyn usr::bdev::NvmeBDev>) ->(Box<dyn Domain>) {
         self.create_benchnvme.create_domain_benchnvme(nvme)
     }
 }
@@ -409,10 +409,7 @@ impl IxgbeProxy {
     }
 }
 
-/* 
- * Code to unwind net_submit_and_poll
- */
-
+//Code to unwind net_submit_and_poll
 #[no_mangle]
 pub extern fn net_submit_and_poll(s: &Box<usr::net::Net>, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
     //println!("one_arg: x:{}", x);
@@ -436,10 +433,7 @@ extern {
 
 trampoline!(net_submit_and_poll);
 
-/* 
- * Code to unwind net_poll
- */
-
+//Code to unwind net_poll
 #[no_mangle]
 pub extern fn net_poll(s: &Box<usr::net::Net>, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
     s.poll(collect, tx)
@@ -462,10 +456,7 @@ extern {
 
 trampoline!(net_poll);
 
-/* 
- * Code to unwind net_submit_and_poll_rref
- */
-
+//Code to unwind net_submit_and_poll_rref
 #[no_mangle]
 pub extern fn net_submit_and_poll_rref(s: &Box<usr::net::Net>,
         packets: RRefDeque<[u8; 1512], 32>,
@@ -512,10 +503,7 @@ extern {
 
 trampoline!(net_submit_and_poll_rref);
 
-/* 
- * Code to unwind net_poll_rref
- */
-
+//Code to unwind poll_rref
 #[no_mangle]
 pub extern fn net_poll_rref(s: &Box<usr::net::Net>, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<(usize, RRefDeque<[u8; 1512], 512>)> {
     s.poll_rref(collect, tx)
@@ -539,6 +527,29 @@ extern {
 trampoline!(net_poll_rref);
 
 
+//Code to unwind get_stats
+#[no_mangle]
+pub extern fn get_stats(s: &Box<usr::net::Net>) -> RpcResult<NetworkStats> {
+    //println!("one_arg: x:{}", x);
+    s.get_stats()
+}
+
+#[no_mangle]
+pub extern fn get_stats_err(s: &Box<usr::net::Net>) -> RpcResult<NetworkStats> {
+    println!("get_stats was aborted");
+    Err(unsafe{RpcError::panic()})
+}
+
+#[no_mangle]
+pub extern "C" fn get_stats_addr() -> u64 {
+    get_stats_err as u64
+}
+
+extern {
+    fn get_stats_tramp(s: &Box<usr::net::Net>) -> RpcResult<NetworkStats>;
+}
+
+trampoline!(get_stats);
 
 impl Net for IxgbeProxy {
     fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
@@ -564,7 +575,7 @@ impl Net for IxgbeProxy {
         #[cfg(not(feature = "tramp"))]
         let r = self.domain.poll(collect, tx);
         #[cfg(feature = "tramp")]
-        let r = unsafe { net_poll(&self.domain, collect, tx) };
+        let r = unsafe { net_poll_tramp(&self.domain, collect, tx) };
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };
@@ -610,13 +621,27 @@ impl Net for IxgbeProxy {
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
         collect.move_to(self.domain_id);
+
         #[cfg(not(feature = "tramp"))]
         let r = self.domain.poll_rref(collect, tx);
         #[cfg(feature = "tramp")]
-        let r = unsafe { net_poll_rref(&self.domain, collect, tx) };
+        let r = unsafe { net_poll_rref_tramp(&self.domain, collect, tx) };
+
         if let Ok(r) = r.as_ref() {
             r.1.move_to(caller_domain);
         }
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
+    }
+
+    fn get_stats(&self) -> RpcResult<NetworkStats> {
+         // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        let r = unsafe{ get_stats_tramp(&self.domain) };
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };
@@ -849,6 +874,18 @@ impl Net for Rv6Proxy {
 
         r
     }
+
+    fn get_stats(&self) -> RpcResult<NetworkStats> {
+         // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        let r = self.domain.get_stats();
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
+    }
 }
 
 
@@ -897,7 +934,7 @@ impl Xv6 for Rv6Proxy {
     fn as_net(&self) -> Box<dyn Net> {
         box IxgbeProxy::new(self.domain_id, self.domain.as_net())
     }
-    fn as_nvme(&self) -> Box<dyn NvmeBDev> {
+    fn as_nvme(&self) -> Box<dyn usr::bdev::NvmeBDev> {
         // TODO: proxy
         self.domain.as_nvme()
     }

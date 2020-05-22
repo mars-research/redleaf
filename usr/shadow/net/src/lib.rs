@@ -17,7 +17,7 @@ use core::panic::PanicInfo;
 use usr;
 use rref::{RRef, RRefDeque};
 use alloc::vec::Vec;
-use usr::net::Net;
+use usr::net::{Net, NetworkStats};
 use usr::pci::PCI;
 use usr::rpc::RpcResult;
 use create::CreateIxgbe;
@@ -78,6 +78,12 @@ impl Net for Shadow {
     fn poll_rref(&self, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<(usize, RRefDeque<[u8; 1512], 512>)> {
         self.shadow.lock().net.poll_rref(collect, tx)
     }
+
+    fn get_stats(&self) -> RpcResult<NetworkStats> {
+        self.shadow.lock().net.get_stats()
+    }
+
+
 }
 
 #[no_mangle]

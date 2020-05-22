@@ -51,6 +51,7 @@ use core::{mem, ptr};
 use rref::{RRef, RRefDeque};
 use libbenchnet::packettool;
 
+pub use usr::net::NetworkStats;
 use libtime::get_rdtsc as rdtsc;
 
 use sashstore_redleaf::SashStore;
@@ -166,6 +167,21 @@ impl usr::net::Net for Ixgbe {
         Ok((ret, collect.unwrap()))
     }
 
+    fn get_stats(&self) -> RpcResult<NetworkStats> {
+        let mut ret = NetworkStats::new();
+
+        if !self.device_initialized {
+            return Ok(NetworkStats::new());
+        }
+
+        if let Some(device) = self.device.borrow_mut().as_mut() {
+            let dev: &mut Intel8259x = device;
+            let stats = dev.get_stats();
+            ret = stats;
+        }
+
+        Ok(ret)       
+    }
 }
 
 impl pci_driver::PciDriver for Ixgbe {

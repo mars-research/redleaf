@@ -2,6 +2,7 @@ use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 use rref::{RRef, RRefDeque};
 use usr::rpc::RpcResult;
+use crate::NetworkStats;
 
 pub struct NullNet {}
 
@@ -37,5 +38,9 @@ impl usr::net::Net for NullNet {
 
     fn poll_rref(&self, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<(usize, RRefDeque<[u8; 1512], 512>)> {
         Ok((0, collect))
+    }
+
+    fn get_stats(&self) -> RpcResult<NetworkStats> {
+        Ok(NetworkStats::new())
     }
 }

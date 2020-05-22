@@ -4,6 +4,45 @@ use rref::{RRef, RRefDeque};
 // TODO: remove once Ixgbe transitions to RRefDeque
 use alloc::{vec::Vec, collections::VecDeque};
 use crate::rpc::RpcResult;
+use core::fmt;
+
+pub struct NetworkStats {
+    pub tx_count: u64,
+    pub rx_count: u64,
+    pub tx_dma_ok: u64,
+    pub rx_dma_ok: u64,
+    pub rx_missed: u64,
+    pub rx_crc_err: u64
+}
+
+impl NetworkStats {
+    pub fn new() -> Self {
+        Self {
+            tx_count: 0,
+            rx_count: 0,
+            tx_dma_ok: 0,
+            rx_dma_ok: 0,
+            rx_missed: 0,
+            rx_crc_err: 0,
+        }
+    }
+
+    pub fn stats_diff(&mut self, start: NetworkStats) {
+        self.tx_count.saturating_sub(start.tx_count);
+        self.rx_count.saturating_sub(start.rx_count);
+        self.tx_dma_ok.saturating_sub(start.tx_dma_ok);
+        self.rx_dma_ok.saturating_sub(start.rx_dma_ok);
+        self.rx_missed.saturating_sub(start.rx_missed);
+        self.rx_crc_err.saturating_sub(start.rx_crc_err);
+    }
+}
+
+impl fmt::Display for NetworkStats {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "=> Tx stats: Count: {} dma_OK: {}\n", self.tx_count, self.tx_dma_ok);
+        write!(f, "=> Rx stats: Count: {} dma_OK: {} missed: {} crc_err: {}", self.rx_count, self.rx_dma_ok, self.rx_missed, self.rx_crc_err)
+    }
+}
 
 pub trait Net: Send {
     fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize>;
@@ -22,4 +61,6 @@ pub trait Net: Send {
         )>;
 
     fn poll_rref(&self, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<(usize, RRefDeque<[u8; 1512], 512>)>;
+
+    fn get_stats(&self) -> RpcResult<NetworkStats>;
 }

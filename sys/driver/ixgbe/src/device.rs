@@ -13,6 +13,7 @@ use libtime::sys_ns_loopsleep;
 use alloc::format;
 use protocol::UdpPacket;
 use crate::PciBarAddr;
+use crate::NetworkStats;
 
 const ONE_MS_IN_NS: u64 = 1_000_000 * 1;
 const PACKET_SIZE: usize = 60;
@@ -451,5 +452,16 @@ impl Intel8259x {
         self.device.dump_dma_regs();
 
         self.dump_stats();
+    }
+
+    pub fn get_stats(&self) -> NetworkStats {
+        NetworkStats {
+            tx_count: self.read_reg(IxgbeRegs::GPTC),
+            rx_count: self.read_reg(IxgbeRegs::GPRC),
+            tx_dma_ok: self.read_reg(IxgbeRegs::TXDGPC),
+            rx_dma_ok: self.read_reg(IxgbeRegs::RXDGPC),
+            rx_missed: self.read_reg_idx(IxgbeNoDmaArrayRegs::Rxmpc, 0),
+            rx_crc_err: self.read_reg(IxgbeRegs::CRCERRS),
+        }
     }
 }
