@@ -356,10 +356,14 @@ impl BDev for BDevProxy {
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
         data.move_to(self.domain_id);
-        // let r = self.domain.read(block, data);
+
+        #[cfg(not(feature = "tramp"))]
+        let r = self.domain.read(block, data);
+        #[cfg(feature = "tramp")]
+
         let mut r = unsafe { bdev_read_tramp(&self.domain, block, data) };
-        if r.is_ok() {
-            r.as_mut().unwrap().move_to(caller_domain);
+        if let Ok(r) = r.as_ref() {
+            r.move_to(caller_domain);
         }
 
         // move thread back
@@ -373,8 +377,12 @@ impl BDev for BDevProxy {
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
         data.move_to(self.domain_id);
-        // let r = self.domain.write(block, data);
+
+        #[cfg(not(feature = "tramp"))]
+        let r = self.domain.write(block, data);
+        #[cfg(feature = "tramp")]
         let r = unsafe { bdev_write_tramp(&self.domain, block, data) };
+        
         data.move_to(caller_domain);
 
         // move thread back
@@ -468,7 +476,6 @@ pub extern fn net_submit_and_poll_rref(s: &Box<usr::net::Net>,
             RRefDeque<[u8; 1512], 32>,
             RRefDeque<[u8; 1512], 32>
         )> {
-    //println!("one_arg: x:{}", x);
     s.submit_and_poll_rref(packets, collect, tx, pkt_len)
 }
 
@@ -539,7 +546,9 @@ impl Net for IxgbeProxy {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
-        // let r = self.domain.submit_and_poll(packets, reap_queue, tx);
+        #[cfg(not(feature = "tramp"))]
+        let r = self.domain.submit_and_poll(packets, reap_queue, tx);
+        #[cfg(feature = "tramp")]
         let r = unsafe { net_submit_and_poll_tramp(&self.domain, packets, reap_queue, tx) };
 
         // move thread back
@@ -552,7 +561,9 @@ impl Net for IxgbeProxy {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
-        // let r = self.domain.poll(collect, tx);
+        #[cfg(not(feature = "tramp"))]
+        let r = self.domain.poll(collect, tx);
+        #[cfg(feature = "tramp")]
         let r = unsafe { net_poll(&self.domain, collect, tx) };
 
         // move thread back
@@ -577,8 +588,12 @@ impl Net for IxgbeProxy {
 
         packets.move_to(self.domain_id);
         collect.move_to(self.domain_id);
-        // let r = self.domain.submit_and_poll_rref(packets, collect, tx, pkt_len);
+
+        #[cfg(not(feature = "tramp"))]
+        let r = self.domain.submit_and_poll_rref(packets, collect, tx, pkt_len);
+        #[cfg(feature = "tramp")]
         let r = unsafe{ net_submit_and_poll_rref_tramp(&self.domain, packets, collect, tx, pkt_len) };
+
         if let Ok(r) = r.as_ref() {
             r.1.move_to(caller_domain);
             r.2.move_to(caller_domain);
@@ -595,7 +610,9 @@ impl Net for IxgbeProxy {
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
         collect.move_to(self.domain_id);
-        // let r = self.domain.poll_rref(collect, tx);
+        #[cfg(not(feature = "tramp"))]
+        let r = self.domain.poll_rref(collect, tx);
+        #[cfg(feature = "tramp")]
         let r = unsafe { net_poll_rref(&self.domain, collect, tx) };
         if let Ok(r) = r.as_ref() {
             r.1.move_to(caller_domain);
