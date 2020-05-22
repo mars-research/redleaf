@@ -505,6 +505,33 @@ extern {
 
 trampoline!(net_submit_and_poll_rref);
 
+/* 
+ * Code to unwind net_poll_rref
+ */
+
+#[no_mangle]
+pub extern fn net_poll_rref(s: &Box<usr::net::Net>, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<(usize, RRefDeque<[u8; 1512], 512>)> {
+    s.poll_rref(collect, tx)
+}
+
+#[no_mangle]
+pub extern fn net_poll_rref_err(s: &Box<usr::net::Net>, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<(usize, RRefDeque<[u8; 1512], 512>)> {
+    println!("net_poll_rref was aborted");
+    Err(unsafe{RpcError::panic()})
+}
+
+#[no_mangle]
+pub extern "C" fn net_poll_rref_addr() -> u64 {
+    net_poll_rref_err as u64
+}
+
+extern {
+    fn net_poll_rref_tramp(s: &Box<usr::net::Net>, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<(usize, RRefDeque<[u8; 1512], 512>)>;
+}
+
+trampoline!(net_poll_rref);
+
+
 
 impl Net for IxgbeProxy {
     fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
@@ -568,7 +595,8 @@ impl Net for IxgbeProxy {
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
         collect.move_to(self.domain_id);
-        let r = self.domain.poll_rref(collect, tx);
+        // let r = self.domain.poll_rref(collect, tx);
+        let r = unsafe { net_poll_rref(&self.domain, collect, tx) };
         if let Ok(r) = r.as_ref() {
             r.1.move_to(caller_domain);
         }
