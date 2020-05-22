@@ -429,6 +429,32 @@ extern {
 trampoline!(net_submit_and_poll);
 
 /* 
+ * Code to unwind net_poll
+ */
+
+#[no_mangle]
+pub extern fn net_poll(s: &Box<usr::net::Net>, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
+    s.poll(collect, tx)
+}
+
+#[no_mangle]
+pub extern fn net_poll_err(s: &Box<usr::net::Net>, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize> {
+    println!("net_poll was aborted");
+    Err(unsafe{RpcError::panic()})
+}
+
+#[no_mangle]
+pub extern "C" fn net_poll_addr() -> u64 {
+    net_poll_err as u64
+}
+
+extern {
+    fn net_poll_tramp(s: &Box<usr::net::Net>, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<usize>;
+}
+
+trampoline!(net_poll);
+
+/* 
  * Code to unwind net_submit_and_poll_rref
  */
 
@@ -487,7 +513,7 @@ impl Net for IxgbeProxy {
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
         // let r = self.domain.submit_and_poll(packets, reap_queue, tx);
-        let mut r = unsafe { net_submit_and_poll_tramp(&self.domain, packets, reap_queue, tx) };
+        let r = unsafe { net_submit_and_poll_tramp(&self.domain, packets, reap_queue, tx) };
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };
@@ -499,8 +525,8 @@ impl Net for IxgbeProxy {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
-        // collect.move_to(self.domain_id);
-        let r = self.domain.poll(collect, tx);
+        // let r = self.domain.poll(collect, tx);
+        let r = unsafe { net_poll(&self.domain, collect, tx) };
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };
