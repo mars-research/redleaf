@@ -40,7 +40,8 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
             create_xv6fs: Arc<dyn create::CreateXv6FS>,
             create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
             bdev: Box<dyn BDev>,
-            net: Box<dyn usr_interface::net::Net + Send>) -> Box<dyn Xv6>
+            net: Box<dyn usr_interface::net::Net + Send>,
+            nvme: Box<dyn usr_interface::bdev::NvmeBDev>) -> Box<dyn Xv6>
 {
    
     libsyscalls::syscalls::init(s);
@@ -52,7 +53,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
     // Init fs
     let (_dom_xv6fs, fs)  = create_xv6fs.create_domain_xv6fs(bdev);
     // Init kernel
-    box rv6_syscalls::Rv6Syscalls::new(create_xv6usr, fs.clone(), net)
+    box rv6_syscalls::Rv6Syscalls::new(create_xv6usr, fs.clone(), net, nvme)
 }
 
 // This function is called on panic.

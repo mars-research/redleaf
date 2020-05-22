@@ -211,12 +211,8 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
     // let (dom_ahci, bdev) = proxy.as_create_membdev().create_domain_membdev();
     let (dom_ahci, bdev) = proxy.as_create_bdev_shadow().create_domain_bdev_shadow(proxy.as_create_membdev());
 
-    // XXX: Somehow, this doesn't select the feature for me!-VN
-    //#[cfg(feature = "nvmedev")]
-    {
-        println!("Creating nvme domain!");
-        let dom_nvme = proxy.as_create_nvme().create_domain_nvme(pci3);
-    }
+    println!("Creating nvme domain!");
+    let (dom_nvme, nvme) = proxy.as_create_nvme().create_domain_nvme(pci3);
 
     println!("Creating ixgbe");
     // let (dom_ixgbe, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci2);
@@ -240,7 +236,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
 
     #[cfg(not(feature = "benchnet"))]
     {
-        let (dom_xv6, rv6) = proxy.as_create_xv6().create_domain_xv6kernel(ints_clone, proxy.as_create_xv6fs(), proxy.as_create_xv6usr(), bdev, net);
+        let (dom_xv6, rv6) = proxy.as_create_xv6().create_domain_xv6kernel(ints_clone, proxy.as_create_xv6fs(), proxy.as_create_xv6usr(), bdev, net, nvme);
         rv6.sys_spawn_domain(rv6.clone(), "/init", "/init", array_init::array_init(|_| None)).unwrap();
     }
 }

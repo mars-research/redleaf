@@ -517,7 +517,7 @@ fn run_blocktest(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
 #[no_mangle]
 pub fn nvme_init(s: Box<dyn Syscall + Send + Sync>,
                  heap: Box<dyn Heap + Send + Sync>,
-                 pci: Box<dyn usr::pci::PCI>) {
+                 pci: Box<dyn usr::pci::PCI>) -> Box<dyn usr::bdev::NvmeBDev> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
@@ -555,7 +555,7 @@ pub fn nvme_init(s: Box<dyn Syscall + Send + Sync>,
     //run_blocktest_raw(&nvme, 30, 32, true);
     //perf_test_raw(&nvme, 10, 32, false);
 
-    Box::new(nvme);
+    Box::new(nvme)
 }
 
 // This function is called on panic.

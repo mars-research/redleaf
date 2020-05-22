@@ -34,7 +34,7 @@ pub trait CreateNetShadow: Send + Sync {
 }
 
 pub trait CreateNvme {
-    fn create_domain_nvme(&self, pci: Box<dyn PCI>) -> Box<dyn Domain>;
+    fn create_domain_nvme(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn usr::bdev::NvmeBDev>);
 }
 
 pub trait CreateXv6FS: Send + Sync {
@@ -52,7 +52,8 @@ pub trait CreateXv6: Send + Sync {
                                create_xv6fs: Arc<dyn CreateXv6FS>,
                                create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>,
                                bdev: Box<dyn BDev>,
-                               net: Box<dyn usr::net::Net>) -> (Box<dyn Domain>, Box<dyn Xv6>);
+                               net: Box<dyn usr::net::Net>,
+                               nvme: Box<dyn usr::bdev::NvmeBDev>) -> (Box<dyn Domain>, Box<dyn Xv6>);
 }
 
 pub trait CreateDomA: Send + Sync {

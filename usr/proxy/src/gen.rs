@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain_id};
 use syscalls::{Heap, Domain, Interrupt};
-use usr::{bdev::{BDev, BSIZE}, vfs::{UsrVFS, VFS}, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}};
+use usr::{bdev::{BDev, BSIZE, NvmeBDev}, vfs::{UsrVFS, VFS}, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}};
 use usr::rpc::{RpcResult, RpcError};
 use usr::error::Result;
 use console::{println, print};
@@ -184,7 +184,7 @@ impl create::CreateNetShadow for Proxy {
 }
 
 impl create::CreateNvme for Proxy {
-    fn create_domain_nvme(&self, pci: Box<dyn PCI>) -> Box<dyn Domain> {
+    fn create_domain_nvme(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn usr::bdev::NvmeBDev>) {
         // TODO: write NvmeProxy
         self.create_nvme.create_domain_nvme(pci)
     }
@@ -210,8 +210,9 @@ impl create::CreateXv6 for Proxy {
                                create_xv6fs: Arc<dyn create::CreateXv6FS>,
                                create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
                                bdev: Box<dyn BDev>,
-                               net: Box<dyn usr::net::Net>) -> (Box<dyn Domain>, Box<dyn Xv6>) {
-        let (domain, rv6) = self.create_xv6.create_domain_xv6kernel(ints, create_xv6fs, create_xv6usr, bdev, net);
+                               net: Box<dyn usr::net::Net>,
+                               nvme: Box<dyn usr::bdev::NvmeBDev>) -> (Box<dyn Domain>, Box<dyn Xv6>) {
+        let (domain, rv6) = self.create_xv6.create_domain_xv6kernel(ints, create_xv6fs, create_xv6usr, bdev, net, nvme);
         let domain_id = domain.get_domain_id();
         (domain, Box::new(Rv6Proxy::new(domain_id, rv6)))
     }
@@ -812,6 +813,10 @@ impl Xv6 for Rv6Proxy {
     }
     fn as_net(&self) -> Box<dyn Net> {
         box IxgbeProxy::new(self.domain_id, self.domain.as_net())
+    }
+    fn as_nvme(&self) -> Box<dyn NvmeBDev> {
+        // TODO: proxy
+        self.domain.as_nvme()
     }
     fn sys_spawn_thread(&self, name: &str, func: alloc::boxed::Box<dyn FnOnce() + Send>) -> Box<dyn Thread> {
         self.domain.sys_spawn_thread(name, func)
