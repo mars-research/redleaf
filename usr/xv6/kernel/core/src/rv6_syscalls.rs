@@ -18,7 +18,7 @@ use usr_interface::xv6::{Thread, Xv6};
 pub struct Rv6Syscalls {
     create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>,
     fs: VFSPtr,
-    net: Arc<Mutex<Box<dyn Net + Send>>>,
+    net: Arc<Mutex<Box<dyn Net>>>,
     nvme: Arc<Mutex<Box<dyn NvmeBDev>>>,
 }
 
@@ -26,7 +26,7 @@ impl Rv6Syscalls {
     pub fn new(
         create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>,
         fs: VFSPtr,
-        net: Box<dyn Net + Send>,
+        net: Box<dyn Net>,
         nvme: Box<dyn NvmeBDev>,
     ) -> Self {
         Self {

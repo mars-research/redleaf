@@ -26,11 +26,11 @@ pub trait CreateBDevShadow: Send + Sync {
 }
 
 pub trait CreateIxgbe: Send + Sync {
-    fn create_domain_ixgbe(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net + Send>);
+    fn create_domain_ixgbe(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net>);
 }
 
 pub trait CreateNetShadow: Send + Sync {
-    fn create_domain_net_shadow(&self, create: Arc<dyn CreateIxgbe>, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net + Send>);
+    fn create_domain_net_shadow(&self, create: Arc<dyn CreateIxgbe>, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net>);
 }
 
 pub trait CreateNvme: Send + Sync {

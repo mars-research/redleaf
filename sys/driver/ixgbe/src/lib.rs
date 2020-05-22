@@ -202,7 +202,7 @@ impl pci_driver::PciDriver for Ixgbe {
 #[no_mangle]
 pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
                  heap: Box<dyn Heap + Send + Sync>,
-                 pci: Box<dyn usr::pci::PCI>) -> Box<dyn usr::net::Net + Send> {
+                 pci: Box<dyn usr::pci::PCI>) -> Box<dyn usr::net::Net> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 

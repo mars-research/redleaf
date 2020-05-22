@@ -174,7 +174,7 @@ impl create::CreateBDevShadow for Proxy {
 }
 
 impl create::CreateIxgbe for Proxy {
-    fn create_domain_ixgbe(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net + Send>) {
+    fn create_domain_ixgbe(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net>) {
         let (domain, ixgbe) = self.create_ixgbe.create_domain_ixgbe(pci);
         let domain_id = domain.get_domain_id();
         (domain, Box::new(IxgbeProxy::new(domain_id, ixgbe)))
@@ -182,7 +182,7 @@ impl create::CreateIxgbe for Proxy {
 }
 
 impl create::CreateNetShadow for Proxy {
-    fn create_domain_net_shadow(&self, create: Arc<dyn create::CreateIxgbe>, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net + Send>) {
+    fn create_domain_net_shadow(&self, create: Arc<dyn create::CreateIxgbe>, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net>) {
         let (domain, shadow) = self.create_net_shadow.create_domain_net_shadow(create, pci);
         let domain_id = domain.get_domain_id();
         return (domain, Box::new(IxgbeProxy::new(domain_id, shadow)));
