@@ -1,7 +1,7 @@
 /// RedLeaf block device interface
 use rref::{RRef, RRefDeque};
-use syscalls::errors::Result;
 
+use crate::error::Result;
 use crate::rpc::RpcResult;
 
 pub const BSIZE: usize =        4096;   // block size
@@ -54,14 +54,14 @@ pub trait NvmeBDev : Send {
         submit: RRefDeque<BlkReq, 128>,
         collect: RRefDeque<BlkReq, 128>,
         write: bool,
-        ) -> (
+        ) -> Result<(
             usize,
             RRefDeque<BlkReq, 128>,
             RRefDeque<BlkReq, 128>,
-        );
+        )>;
 
     fn poll_rref(&mut self, collect: RRefDeque<BlkReq, 1024>) ->
-            (usize, RRefDeque<BlkReq, 1024>);
+            Result<(usize, RRefDeque<BlkReq, 1024>)>;
 
-    fn get_stats(&mut self) -> (u64, u64);
+    fn get_stats(&mut self) -> Result<(u64, u64)>;
 }

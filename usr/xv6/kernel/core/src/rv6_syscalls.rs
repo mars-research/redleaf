@@ -184,17 +184,17 @@ impl NvmeBDev for Rv6Syscalls {
         submit: RRefDeque<BlkReq, 128>,
         collect: RRefDeque<BlkReq, 128>,
         write: bool,
-    ) -> (usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>) {
+    ) -> Result<(usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>)> {
         self.nvme
             .lock()
             .submit_and_poll_rref(submit, collect, write)
     }
 
-    fn poll_rref(&mut self, collect: RRefDeque<BlkReq, 1024>) -> (usize, RRefDeque<BlkReq, 1024>) {
+    fn poll_rref(&mut self, collect: RRefDeque<BlkReq, 1024>) -> Result<(usize, RRefDeque<BlkReq, 1024>)> {
         self.nvme.lock().poll_rref(collect)
     }
 
-    fn get_stats(&mut self) -> (u64, u64) {
+    fn get_stats(&mut self) -> Result<(u64, u64)> {
         self.nvme.lock().get_stats()
     }
 }

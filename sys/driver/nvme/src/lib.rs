@@ -30,7 +30,7 @@ use syscalls::{Syscall, Heap};
 use libsyscalls::syscalls::{sys_println, sys_alloc, sys_create_thread};
 use console::{println, print};
 use pci_driver::DeviceBarRegions;
-pub use libsyscalls::errors::Result;
+use usr::error::{ErrorKind, Result};
 use core::cell::RefCell;
 use alloc::sync::Arc;
 use spin::Mutex;
@@ -74,56 +74,49 @@ impl usr::bdev::NvmeBDev for Nvme {
         mut submit: RRefDeque<BlkReq, 128>,
         mut collect: RRefDeque<BlkReq, 128>,
         write: bool,
-        ) -> (
+        ) -> Result<(
             usize,
             RRefDeque<BlkReq, 128>,
             RRefDeque<BlkReq, 128>,
-        )
+        )>
     {
-
         let mut submit = Some(submit);
         let mut collect = Some(collect);
         let mut ret = 0;
 
-        if let Some(device) = self.device.borrow_mut().as_mut() {
-            let dev: &mut NvmeDev = device;
-            let (num, _, _, _, mut submit_, mut collect_) = dev.device.submit_and_poll_rref(submit.take().unwrap(),
-            collect.take().unwrap(), write);
-            ret = num;
+        let device = &mut self.device.borrow_mut();
+        let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
+        let (num, _, _, _, mut submit_, mut collect_) = device.device.submit_and_poll_rref(submit.take().unwrap(),
+        collect.take().unwrap(), write);
+        ret = num;
 
-            submit.replace(submit_);
-            collect.replace(collect_);
-        }
+        submit.replace(submit_);
+        collect.replace(collect_);
 
-        (ret, submit.unwrap(), collect.unwrap())
+        Ok((ret, submit.unwrap(), collect.unwrap()))
     }
 
 
     fn poll_rref(&mut self, mut collect: RRefDeque<BlkReq, 1024>) ->
-            (usize, RRefDeque<BlkReq, 1024>)
+            Result<(usize, RRefDeque<BlkReq, 1024>)>
     {
         let mut collect = Some(collect);
         let mut ret = 0;
 
-        if let Some(device) = self.device.borrow_mut().as_mut() {
-            let dev: &mut NvmeDev = device;
-            let (num, mut collect_) = dev.device.poll_rref(collect.take().unwrap());
-            ret = num;
+        let device = &mut self.device.borrow_mut();
+        let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
+        let (num, mut collect_) = device.device.poll_rref(collect.take().unwrap());
+        ret = num;
 
-            collect.replace(collect_);
-        }
+        collect.replace(collect_);
 
-        (ret, collect.unwrap())
+        Ok((ret, collect.unwrap()))
     }
 
-    // TODO: it fails silently if the driver is not initialized.
-    //       Return an option instead?
-    fn get_stats(&mut self) -> (u64, u64) {
-        if let Some(device) = self.device.borrow_mut().as_mut() {
-            device.get_stats()
-        } else {
-            (0, 0)
-        }
+    fn get_stats(&mut self) -> Result<(u64, u64)> {
+        let device = &mut self.device.borrow_mut();
+        let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
+        Ok(device.get_stats())
     }
 }
 
@@ -549,18 +542,18 @@ pub fn nvme_init(s: Box<dyn Syscall + Send + Sync>,
                                         rand_elapsed, rand_elapsed as f64 / num_iter as f64);
     }
 
-    libbenchnvme::run_blocktest_rref(&mut nvme, 4096, /*is_write=*/false, /*is_random=*/false);
-    libbenchnvme::run_blocktest_rref(&mut nvme, 4096, /*is_write=*/false, /*is_random=*/false);
+    let _ = libbenchnvme::run_blocktest_rref(&mut nvme, 4096, /*is_write=*/false, /*is_random=*/false);
+    let _ = libbenchnvme::run_blocktest_rref(&mut nvme, 4096, /*is_write=*/false, /*is_random=*/false);
 
-    libbenchnvme::run_blocktest_rref(&mut nvme, 4096, /*is_write=*/false, /*is_random=*/true);
-    libbenchnvme::run_blocktest_rref(&mut nvme, 4096, /*is_write=*/false, /*is_random=*/true);
+    let _ = libbenchnvme::run_blocktest_rref(&mut nvme, 4096, /*is_write=*/false, /*is_random=*/true);
+    let _ = libbenchnvme::run_blocktest_rref(&mut nvme, 4096, /*is_write=*/false, /*is_random=*/true);
 
 
-    libbenchnvme::run_blocktest_rref(&mut nvme, 4096, /*is_write=*/true, /*is_random=*/false);
-    libbenchnvme::run_blocktest_rref(&mut nvme, 4096, /*is_write=*/true, /*is_random=*/false);
+    let _ = libbenchnvme::run_blocktest_rref(&mut nvme, 4096, /*is_write=*/true, /*is_random=*/false);
+    let _ = libbenchnvme::run_blocktest_rref(&mut nvme, 4096, /*is_write=*/true, /*is_random=*/false);
 
-    libbenchnvme::run_blocktest_rref(&mut nvme, 4096, /*is_write=*/true, /*is_random=*/true);
-    libbenchnvme::run_blocktest_rref(&mut nvme, 4096, /*is_write=*/true, /*is_random=*/true);
+    let _ = libbenchnvme::run_blocktest_rref(&mut nvme, 4096, /*is_write=*/true, /*is_random=*/true);
+    let _ = libbenchnvme::run_blocktest_rref(&mut nvme, 4096, /*is_write=*/true, /*is_random=*/true);
 
     //run_blocktest_raw(&nvme, 30, 32, true);
     //perf_test_raw(&nvme, 10, 32, false);

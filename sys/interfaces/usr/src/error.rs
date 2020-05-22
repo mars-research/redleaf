@@ -139,6 +139,8 @@ pub enum ErrorKind {
     DirectoryExhausted,
     /// Operation not supported, like seeking a non-inode file.
     UnsupportedOperation,
+    /// Device not initialized
+    UninitializedDevice,
 }
 
 // impl ErrorKind {
