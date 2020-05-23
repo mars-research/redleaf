@@ -24,6 +24,7 @@ pub struct Proxy {
     create_ixgbe: Arc<dyn create::CreateIxgbe>,
     create_nvme: Arc<dyn create::CreateNvme>,
     create_net_shadow: Arc<dyn create::CreateNetShadow>,
+    create_nvme_shadow: Arc<dyn create::CreateNvmeShadow>,
     create_benchnet: Arc<dyn create::CreateBenchnet>,
     create_benchnvme: Arc<dyn create::CreateBenchnvme>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
@@ -48,6 +49,7 @@ impl Proxy {
         create_ixgbe: Arc<dyn create::CreateIxgbe>,
         create_nvme: Arc<dyn create::CreateNvme>,
         create_net_shadow: Arc<dyn create::CreateNetShadow>,
+        create_nvme_shadow: Arc<dyn create::CreateNvmeShadow>,
         create_benchnet: Arc<dyn create::CreateBenchnet>,
         create_benchnvme: Arc<dyn create::CreateBenchnvme>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
@@ -67,6 +69,7 @@ impl Proxy {
             create_ixgbe,
             create_nvme,
             create_net_shadow,
+            create_nvme_shadow,
             create_benchnet,
             create_benchnvme,
             create_xv6fs,
@@ -99,6 +102,9 @@ impl proxy::Proxy for Proxy {
         Arc::new(self.clone())
     }
     fn as_create_net_shadow(&self) -> Arc<dyn create::CreateNetShadow> {
+        Arc::new(self.clone())
+    }
+    fn as_create_nvme_shadow(&self) -> Arc<dyn create::CreateNvmeShadow> {
         Arc::new(self.clone())
     }
     fn as_create_benchnet(&self) -> Arc<dyn create::CreateBenchnet> {
@@ -186,6 +192,14 @@ impl create::CreateNetShadow for Proxy {
         let (domain, shadow) = self.create_net_shadow.create_domain_net_shadow(create, pci);
         let domain_id = domain.get_domain_id();
         return (domain, Box::new(IxgbeProxy::new(domain_id, shadow)));
+    }
+}
+
+impl create::CreateNvmeShadow for Proxy {
+    fn create_domain_nvme_shadow(&self, create: Arc<dyn create::CreateNvme>, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn NvmeBDev>) {
+        let (domain, shadow) = self.create_nvme_shadow.create_domain_nvme_shadow(create, pci);
+        let domain_id = domain.get_domain_id();
+        return (domain, Box::new(NvmeProxy::new(domain_id, shadow)));
     }
 }
 

@@ -48,6 +48,7 @@ domain_list := sys/init/build/init \
 	sys/driver/ixgbe/build/ixgbe \
 	sys/driver/nvme/build/nvme \
 	usr/shadow/net/build/net_shadow \
+	usr/shadow/nvme/build/nvme_shadow \
 	usr/test/benchnet_inside/build/benchnet_inside \
 	usr/test/benchnvme/build/benchnvme
 
