@@ -18,11 +18,6 @@ use usr::rpc::RpcResult;
 use create::CreateMemBDev;
 use spin::Mutex;
 
-extern "C" {
-    fn _binary___________usr_mkfs_build_fs_img_start();
-    fn _binary___________usr_mkfs_build_fs_img_end(); 
-}
-
 struct ShadowInternal {
     create: Arc<dyn CreateMemBDev>,
     bdev: Box<dyn BDev>,
@@ -40,13 +35,8 @@ impl ShadowInternal {
     }
 
     unsafe fn restart_bdev(&mut self) {
-        let start = _binary___________usr_mkfs_build_fs_img_start;
-        let end = _binary___________usr_mkfs_build_fs_img_end;
-        let size = end as usize - start as usize;
-        let memdisk = core::slice::from_raw_parts_mut(start as *mut u8, size);
-
         let old_domain = self.dom.take().unwrap();
-        let (domain, bdev) = self.create.recreate_domain_membdev(old_domain, memdisk);
+        let (domain, bdev) = self.create.recreate_domain_membdev(old_domain, libmembdev::get_memdisk());
         self.dom = Some(domain); 
         self.bdev = bdev;
     }
