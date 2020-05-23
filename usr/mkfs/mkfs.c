@@ -215,7 +215,7 @@ rsect(uint sec, void *buf)
   }
   int sz = read(fsfd, buf, BSIZE);
   if(sz != BSIZE){
-    fprintf(stderr, "read %d bytes\n", sz);
+    fprintf(stderr, "error: read %d bytes. usually caused by not having enough space. increase FSSIZE in param.h to fix this.\n", sz);
     perror("read");
     exit(1);
   }
