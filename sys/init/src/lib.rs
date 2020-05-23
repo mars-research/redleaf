@@ -234,7 +234,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
         let dom_dom_b = proxy.as_create_dom_b().create_domain_dom_b(dom_a);
     }
 
-    #[cfg(feature = "test_shadow")]
+    #[cfg(feature = "test_cd")]
     {
         //let (dom_dom_c, dom_c) = proxy.as_create_dom_c().create_domain_dom_c();
         let (dom_shadow, shadow) = proxy.as_create_shadow().create_domain_shadow(proxy.as_create_dom_c());

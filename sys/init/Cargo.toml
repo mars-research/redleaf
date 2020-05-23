@@ -41,7 +41,7 @@ default-features = false
 [features]
 default = [
     "test_ab",
-    "test_shadow",
+    "test_cd",
     # "benchnet",
     # "benchnvme"
 ]
@@ -51,7 +51,7 @@ test_timer_thread = [ ]
 test_threads = [ ]
 test_guard_page = [ ]
 test_ab = []
-test_shadow = []
+test_cd = []
 benchnet =[]
 membdev = []
 benchnvme = []
