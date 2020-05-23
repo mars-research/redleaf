@@ -205,22 +205,25 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
     println!("Creating pci");
     let (dom_pci, pci) = proxy.as_create_pci().create_domain_pci();
 
-    let pci2 = pci.pci_clone();
-    let pci3 = pci.pci_clone();
-
     #[cfg(not(feature = "membdev"))]
-    let (dom_ahci, bdev) = proxy.as_create_ahci().create_domain_ahci(pci);
+    let (dom_ahci, bdev) = proxy.as_create_ahci().create_domain_ahci(pci.pci_clone());
 
     #[cfg(feature = "membdev")]
-    // let (dom_ahci, bdev) = proxy.as_create_membdev().create_domain_membdev();
+    #[cfg(not(feature = "shadow"))]
+    // Memfs is linked with the shadow domain so membdev doesn't work without shadow currently.
+    let (dom_ahci, bdev) = proxy.as_create_membdev().create_domain_membdev(&mut []);
+    #[cfg(feature = "membdev")]
+    #[cfg(feature = "shadow")]
     let (dom_ahci, bdev) = proxy.as_create_bdev_shadow().create_domain_bdev_shadow(proxy.as_create_membdev());
 
     println!("Creating nvme domain!");
-    let (dom_nvme, nvme) = proxy.as_create_nvme().create_domain_nvme(pci3);
+    let (dom_nvme, nvme) = proxy.as_create_nvme().create_domain_nvme(pci.pci_clone());
 
     println!("Creating ixgbe");
-    // let (dom_ixgbe, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci2);
-    let (dom_ixgbe, net) = proxy.as_create_net_shadow().create_domain_net_shadow(proxy.as_create_ixgbe(), pci2);
+    #[cfg(not(feature = "shadow"))]
+    let (dom_ixgbe, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci.pci_clone());
+    #[cfg(feature = "shadow")]
+    let (dom_ixgbe, net) = proxy.as_create_net_shadow().create_domain_net_shadow(proxy.as_create_ixgbe(), pci.pci_clone());
     
     #[cfg(feature = "benchnet")]
     let _ = proxy.as_create_benchnet().create_domain_benchnet(net);
@@ -236,9 +239,11 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
 
     #[cfg(feature = "test_cd")]
     {
-        //let (dom_dom_c, dom_c) = proxy.as_create_dom_c().create_domain_dom_c();
-        let (dom_shadow, shadow) = proxy.as_create_shadow().create_domain_shadow(proxy.as_create_dom_c());
-        let dom_dom_d = proxy.as_create_dom_d().create_domain_dom_d(shadow);
+        #[cfg(not(feature = "shadow"))]
+        let (dom_dom_c, dom_c) = proxy.as_create_dom_c().create_domain_dom_c();
+        #[cfg(feature = "shadow")]
+        let (dom_shadow, dom_c) = proxy.as_create_shadow().create_domain_shadow(proxy.as_create_dom_c());
+        let dom_dom_d = proxy.as_create_dom_d().create_domain_dom_d(dom_c);
     }
 
     #[cfg(not(any(feature = "benchnet", feature = "benchnvme")))]

@@ -42,6 +42,7 @@ default-features = false
 default = [
     "test_ab",
     "test_cd",
+    "shadow",
     # "benchnet",
     # "benchnvme"
 ]
@@ -55,3 +56,4 @@ test_cd = []
 benchnet =[]
 membdev = []
 benchnvme = []
+shadow = []
