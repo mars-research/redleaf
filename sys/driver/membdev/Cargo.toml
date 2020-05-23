@@ -26,6 +26,7 @@ spin = { path = "../../../lib/spin-rs" }
 usr = { path = "../../../sys/interfaces/usr", version = "0.1.0" }
 bitflags = "1.0.4"
 rref = { path = "../../../sys/lib/rref", version = "0.1.0" }
+libmembdev = { path = "../../../sys/lib/libmembdev", version = "0.1.0" }
 memcpy = { path = "../../../lib/memcpy", version = "0.1.0" }
 
 [dependencies.lazy_static]

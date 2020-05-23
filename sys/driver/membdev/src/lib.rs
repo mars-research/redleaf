@@ -11,8 +11,6 @@
     maybe_uninit_extra
 )]
 
-mod membdev;
-
 use alloc::boxed::Box;
 use core::panic::PanicInfo;
 
@@ -28,11 +26,16 @@ extern crate memcpy;
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>,
             heap: Box<dyn Heap + Send + Sync>,
-            memdisk: &'static mut [u8]) -> Box<dyn BDev> {
+            mut memdisk: &'static mut [u8]) -> Box<dyn BDev> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
-    Box::new(membdev::MemBDev::new(memdisk))
+    if memdisk.len() == 0 {
+        console::println!("an empty memdisk is passed into memdisk. the default memdisk is now being used");
+        memdisk = unsafe { libmembdev::get_memdisk() };
+    }
+
+    Box::new(libmembdev::MemBDev::new(memdisk))
 }
 
 // This function is called on panic.
