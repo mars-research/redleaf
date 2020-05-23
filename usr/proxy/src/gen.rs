@@ -1,7 +1,7 @@
 use proxy;
 use usr;
 use create;
-use rref::{RRef, RRefDeque};
+use rref::{RRef, RRefDeque, traits::CustomCleanup};
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain_id};
@@ -9,6 +9,7 @@ use syscalls::{Heap, Domain, Interrupt};
 use usr::{bdev::{BDev, BSIZE, NvmeBDev, BlkReq}, vfs::{UsrVFS, VFS}, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::{Net, NetworkStats}, pci::{PCI, PciBar, PciResource}};
 use usr::rpc::{RpcResult, RpcError};
 use usr::error::Result;
+use core::mem::transmute;
 use console::{println, print};
 use unwind::trampoline;
 
@@ -400,6 +401,12 @@ impl BDev for BDevProxy {
         let r = unsafe { bdev_write_tramp(&self.domain, block, data) };
 
         data.forfeit();
+
+        // TODO: impl domain_is_dead
+        if /* sys_domain_is_dead(caller_domain) */ false && data.borrow_count() == 0 {
+            let mut_ref = unsafe { &mut *(data as *const _ as *mut RRef<[u8; BSIZE]>) };
+            mut_ref.cleanup();
+        }
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };

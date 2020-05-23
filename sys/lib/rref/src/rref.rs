@@ -96,6 +96,10 @@ impl<T: RRefable> RRef<T> {
         }
     }
 
+    pub fn borrow_count(&self) -> u64 {
+        unsafe { *self.borrow_count_pointer }
+    }
+
     // TODO: move to kernel if possible
     // TODO: mark unsafe
     pub fn move_to(&self, new_domain_id: u64) {
