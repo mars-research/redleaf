@@ -3,6 +3,7 @@ impl<T> !RRefable for *mut T {}
 impl<T> !RRefable for *const T {}
 impl<T> !RRefable for &T {}
 impl<T> !RRefable for &mut T {}
+impl<T> !RRefable for [T] {}
 
 pub trait CustomCleanup {
     fn cleanup(&mut self);

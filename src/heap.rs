@@ -10,6 +10,7 @@ use hashbrown::HashMap;
 struct SharedHeapAllocation {
     ptr: *mut u8, // *mut T
     domain_id_ptr: *mut u64,
+    borrow_count_ptr: *mut u64,
     layout: Layout,
     drop_fn: extern fn(*mut u8) -> (), // semantically Drop::<T>::drop
 }
@@ -30,7 +31,7 @@ impl PHeap {
 }
 
 impl syscalls::Heap for PHeap {
-    unsafe fn alloc(&self, layout: Layout, drop_fn: extern fn(*mut u8) -> ()) -> (*mut u64, *mut u8) {
+    unsafe fn alloc(&self, layout: Layout, drop_fn: extern fn(*mut u8) -> ()) -> (*mut u64, *mut u64, *mut u8) {
         disable_irq();
         let ptrs = alloc_heap(layout, drop_fn);
         enable_irq();
@@ -44,18 +45,20 @@ impl syscalls::Heap for PHeap {
     }
 }
 
-unsafe fn alloc_heap(layout: Layout, drop_fn: extern fn(*mut u8) -> ()) -> (*mut u64, *mut u8) {
+unsafe fn alloc_heap(layout: Layout, drop_fn: extern fn(*mut u8) -> ()) -> (*mut u64, *mut u64, *mut u8) {
     let domain_id_ptr = MEM_PROVIDER.alloc(Layout::new::<u64>()) as *mut u64;
+    let borrow_count_ptr = MEM_PROVIDER.alloc(Layout::new::<u64>()) as *mut u64;
     let ptr = MEM_PROVIDER.alloc(layout);
 
     unsafe { &mut allocations.lock() }.insert(ptr as usize, SharedHeapAllocation {
         ptr,
         domain_id_ptr,
+        borrow_count_ptr,
         layout,
         drop_fn,
     });
 
-    (domain_id_ptr, ptr)
+    (domain_id_ptr, borrow_count_ptr, ptr)
 }
 
 unsafe fn dealloc_heap(ptr: *mut u8) {
@@ -63,6 +66,7 @@ unsafe fn dealloc_heap(ptr: *mut u8) {
         unsafe {
             MEM_PROVIDER.dealloc(ptr, allocation.layout);
             MEM_PROVIDER.dealloc(allocation.domain_id_ptr as *mut u8, Layout::new::<u64>());
+            MEM_PROVIDER.dealloc(allocation.borrow_count_ptr as *mut u8, Layout::new::<u64>());
         }
     }
 }
@@ -84,6 +88,7 @@ pub unsafe fn drop_domain(domain_id: u64) {
         unsafe {
             MEM_PROVIDER.dealloc(allocation.ptr, allocation.layout);
             MEM_PROVIDER.dealloc(allocation.domain_id_ptr as *mut u8, Layout::new::<u64>());
+            MEM_PROVIDER.dealloc(allocation.borrow_count_ptr as *mut u8, Layout::new::<u64>());
         }
     }
 }

@@ -44,8 +44,9 @@ mod tests {
     }
 
     impl syscalls::Heap for TestHeap {
-        unsafe fn alloc(&self, layout: Layout, drop_fn: extern fn(*mut u8) -> ()) -> (*mut u64, *mut u8) {
+        unsafe fn alloc(&self, layout: Layout, drop_fn: extern fn(*mut u8) -> ()) -> (*mut u64, *mut u64, *mut u8) {
             let domain_id_ptr = Box::into_raw(Box::<u64>::new(0));
+            let borrow_count_ptr = Box::into_raw(Box::<u64>::new(0));
 
             let mut buf = Vec::with_capacity(layout.size());
             let ptr = buf.as_mut_ptr();
@@ -53,13 +54,12 @@ mod tests {
 
             self.map.lock().insert(ptr as usize, drop_fn);
 
-            (domain_id_ptr, ptr)
+            (domain_id_ptr, borrow_count_ptr, ptr)
         }
 
         unsafe fn dealloc(&self, ptr: *mut u8) {
             let mut map = self.map.lock();
-            let drop_fn = map.get(&(ptr as usize)).unwrap();
-            (drop_fn)(ptr);
+            // don't call drop_fn here - only in the case of a crashed domain (which we don't simulate)
         }
     }
 
@@ -97,6 +97,25 @@ mod tests {
     }
 
     #[test]
+    fn rref_borrow() {
+        init_heap();
+        init_syscall();
+
+        fn borrow_rref_recursively(mut borrow_count: u64, rref: &RRef<usize>) {
+            assert_eq!(borrow_count, unsafe { *rref.borrow_count_pointer });
+            if borrow_count < 10 {
+                rref.borrow();
+                borrow_count += 1;
+                // borrow_rref_recursively(borrow_count, rref);
+                rref.forfeit();
+            }
+        };
+
+        let rref = RRef::new(100usize);
+        borrow_rref_recursively(0, &rref);
+    }
+
+    #[test]
     fn rref_drop() {
         init_heap();
         init_syscall();
@@ -110,6 +129,11 @@ mod tests {
         impl<T: 'static + RRefable> CustomCleanup for Container<T> {
             fn cleanup(&mut self) {
                 unsafe { counter += 1 };
+            }
+        }
+        impl<T: 'static + RRefable> Drop for Container<T> {
+            fn drop(&mut self) {
+                self.cleanup();
             }
         }
 

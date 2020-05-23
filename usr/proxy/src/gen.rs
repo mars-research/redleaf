@@ -392,14 +392,14 @@ impl BDev for BDevProxy {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
-        data.move_to(self.domain_id);
+        data.borrow();
 
         #[cfg(not(feature = "tramp"))]
         let r = self.domain.write(block, data);
         #[cfg(feature = "tramp")]
         let r = unsafe { bdev_write_tramp(&self.domain, block, data) };
-        
-        data.move_to(caller_domain);
+
+        data.forfeit();
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };

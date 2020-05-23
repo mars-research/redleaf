@@ -33,6 +33,14 @@ impl<T: RRefable, const N: usize> RRefDeque<T, N> {
         self.arr.move_to(new_domain_id);
     }
 
+    pub fn borrow(&self) {
+        self.arr.borrow();
+    }
+
+    pub fn forfeit(&self) {
+        self.arr.forfeit();
+    }
+
     pub fn len(&self) -> usize {
         if self.head > self.tail {
             self.head - self.tail

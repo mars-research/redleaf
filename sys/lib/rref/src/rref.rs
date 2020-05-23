@@ -23,12 +23,12 @@ pub fn init(heap: Box<dyn syscalls::Heap + Send + Sync>, domain_id: u64) {
 //   owned reference will be safe to dereference as long as its domain is alive.
 pub struct RRef<T> where T: 'static + RRefable {
     domain_id_pointer: *mut u64,
+    pub(crate) borrow_count_pointer: *mut u64,
     pub(crate) value_pointer: *mut T
 }
 
 unsafe impl<T: RRefable> RRefable for RRef<T> {}
 unsafe impl<T: RRefable> Send for RRef<T> where T: Send {}
-unsafe impl<T: RRefable> Sync for RRef<T> where T: Sync {}
 
 // pass this function pointer to shared heap
 extern fn drop_t<T: RRefable>(t: *mut T) {
@@ -52,19 +52,22 @@ impl<T: RRefable> RRef<T> {
         // the heap interface allocates both a pointer to T, and a pointer to the domain id
         // when we move the rref, we change the value of the domain id pointer
         // when we modify the rref, we dereference the value pointer
-        let (domain_id_pointer, value_memory) = unsafe { HEAP.force_get().alloc(layout, drop_fn) };
+        let (domain_id_pointer, borrow_count_pointer, value_memory) = unsafe { HEAP.force_get().alloc(layout, drop_fn) };
         // the memory we get back has size and alignment of T, so this cast is safe
         let value_pointer = value_memory as *mut T;
 
         unsafe {
             // set initial domain id
             *domain_id_pointer = *CRATE_DOMAIN_ID.force_get();
+            // borrow count starts at zero
+            *borrow_count_pointer = 0;
             // copy value to shared heap
             core::ptr::write(value_pointer, value);
         }
 
         RRef {
             domain_id_pointer,
+            borrow_count_pointer,
             value_pointer
         }
     }
@@ -78,6 +81,19 @@ impl<T: RRefable> RRef<T> {
         let size = core::mem::size_of::<T>();
         let layout = unsafe { Layout::from_size_align_unchecked(size, align) };
         Self::new_with_layout(value, layout)
+    }
+
+    pub fn borrow(&self) {
+        unsafe {
+            *self.borrow_count_pointer += 1;
+        }
+    }
+
+    pub fn forfeit(&self) {
+        unsafe {
+            debug_assert_ne!(*self.borrow_count_pointer, 0);
+            *self.borrow_count_pointer -= 1;
+        }
     }
 
     // TODO: move to kernel if possible

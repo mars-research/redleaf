@@ -44,6 +44,14 @@ impl<T: RRefable, const N: usize> RRefArray<T, N> {
         self.arr.move_to(new_domain_id);
     }
 
+    pub fn borrow(&self) {
+        self.arr.borrow();
+    }
+
+    pub fn forfeit(&self) {
+        self.arr.forfeit();
+    }
+
     pub(crate) fn get_ref(&self, index: usize) -> Option<&T> {
         self.arr[index].as_ref().map(|r| &**r)
     }
