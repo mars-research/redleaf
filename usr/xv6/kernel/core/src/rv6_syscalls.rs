@@ -90,7 +90,6 @@ impl Xv6 for Rv6Syscalls {
         let path_copy = path.to_owned();
         let create_copy = self.create_xv6usr.clone();
         let args_copy = args.to_owned();
-        let rv6 = self.clone();
         let tmp_storage_id = fs_copy.sys_save_threadlocal(fds)?;
         Ok(self.sys_spawn_thread(
             path,
