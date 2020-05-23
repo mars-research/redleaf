@@ -45,5 +45,6 @@ default = [
     "tramp"
 ]
 
-unwind_dom_c = [ ]
+unwind_dom_c = []
+# Enable stack unwinding. RPC calls will return an error if the thread unwinds
 tramp = []

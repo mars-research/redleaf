@@ -56,4 +56,6 @@ test_cd = []
 benchnet =[]
 membdev = []
 benchnvme = []
+# Bring up shadow domains for restart.
+# Use with `tramp` feature, otherwise the stack won't unwind properly
 shadow = []
