@@ -31,12 +31,7 @@ struct ShadowInternal {
 
 impl ShadowInternal {
     unsafe fn new(create: Arc<dyn CreateMemBDev>) -> Self {
-        let start = _binary___________usr_mkfs_build_fs_img_start;
-        let end = _binary___________usr_mkfs_build_fs_img_end;
-        let size = end as usize - start as usize;
-        let memdisk = core::slice::from_raw_parts_mut(start as *mut u8, size);
-
-        let (dom, bdev) = create.create_domain_membdev(memdisk);
+        let (dom, bdev) = create.create_domain_membdev(libmembdev::get_memdisk());
         Self {
             create,
             bdev,

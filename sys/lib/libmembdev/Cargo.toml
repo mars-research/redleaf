@@ -1,0 +1,14 @@
+[package]
+name = "libmembdev"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+crate-type = ["lib"]
+
+
+[dependencies]
+usr = { path = "../../../sys/interfaces/usr", version = "0.1.0" }
+rref = { path = "../../../sys/lib/rref", version = "0.1.0" }
+console = { path = "../../../sys/lib/console", version = "0.1.0" }
+spin = { path = "../../../lib/spin-rs" }

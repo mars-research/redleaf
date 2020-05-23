@@ -37,6 +37,12 @@ build/fs.img: mkfs $(FILES) $(BINS) Makefile
 	mkdir -p build
 	./mkfs build/fs.img $(FILES) $(BINS)
 
+build/fs.o: build/fs.img
+	objcopy -I binary -O elf64-x86-64 -B i386 build/fs.img build/fs.o
+
+build/libfs.a: build/fs.o
+	ar cr --target elf64-x86-64 build/libfs.a build/fs.o
+
 .PHONY: large
 large:
 	echo "hello" > $@
