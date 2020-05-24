@@ -21,13 +21,13 @@ impl usr::net::Net for NullNet {
 
     fn submit_and_poll_rref(
         &self,
-        mut packets: RRefDeque<[u8; 1512], 32>,
-        mut collect: RRefDeque<[u8; 1512], 32>,
+        mut packets: RRefDeque<[u8; 1514], 32>,
+        mut collect: RRefDeque<[u8; 1514], 32>,
         tx: bool,
         pkt_len: usize) -> RpcResult<Result<(
             usize,
-            RRefDeque<[u8; 1512], 32>,
-            RRefDeque<[u8; 1512], 32>
+            RRefDeque<[u8; 1514], 32>,
+            RRefDeque<[u8; 1514], 32>
         )>>
     {
         Ok(Ok((packets.len(), collect, packets)))
@@ -37,7 +37,7 @@ impl usr::net::Net for NullNet {
         unimplemented!()
     }
 
-    fn poll_rref(&self, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<Result<(usize, RRefDeque<[u8; 1512], 512>)>> {
+    fn poll_rref(&self, collect: RRefDeque<[u8; 1514], 512>, tx: bool) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>> {
         Ok(Ok((0, collect)))
     }
 

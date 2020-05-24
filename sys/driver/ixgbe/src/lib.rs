@@ -94,20 +94,19 @@ impl usr::net::Net for Ixgbe {
             let device = &mut self.device.borrow_mut();
             let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
             ret = device.device.submit_and_poll(&mut packets, &mut collect, tx, false);
-            packets.append(&mut collect);
             Ok(ret)
         })())       
     }
 
     fn submit_and_poll_rref(
         &self,
-        mut packets: RRefDeque<[u8; 1512], 32>,
-        mut collect: RRefDeque<[u8; 1512], 32>,
+        mut packets: RRefDeque<[u8; 1514], 32>,
+        mut collect: RRefDeque<[u8; 1514], 32>,
         tx: bool,
         pkt_len: usize) -> RpcResult<Result<(
             usize,
-            RRefDeque<[u8; 1512], 32>,
-            RRefDeque<[u8; 1512], 32>
+            RRefDeque<[u8; 1514], 32>,
+            RRefDeque<[u8; 1514], 32>
         )>>
     {
         Ok((||{
@@ -142,7 +141,7 @@ impl usr::net::Net for Ixgbe {
         })())       
     }
 
-    fn poll_rref(&self, mut collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<Result<(usize, RRefDeque<[u8; 1512], 512>)>> {
+    fn poll_rref(&self, mut collect: RRefDeque<[u8; 1514], 512>, tx: bool) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>> {
         Ok((||{
             let mut ret: usize = 0;
             let mut collect = Some(collect);
@@ -224,15 +223,54 @@ pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
 
     // run_tx_udptest(&ixgbe, 64, false);
 
-    // libbenchnet::run_tx_udptest_rref(&ixgbe, 64, false);
+    //libbenchnet::run_tx_udptest_rref(&ixgbe, 64, false);
 
-    // // run_rx_udptest(&ixgbe, 64, false);
 
-    // libbenchnet::run_rx_udptest_rref(&ixgbe, 64, false);
+/*    libbenchnet::run_tx_udptest(&ixgbe, 64, false);
+    libbenchnet::run_tx_udptest(&ixgbe, 64, false);
+    libbenchnet::run_tx_udptest(&ixgbe, 64, false);
+    libbenchnet::run_tx_udptest(&ixgbe, 64, false);
+    libbenchnet::run_tx_udptest(&ixgbe, 64, false);
+*/
+
+    /*for _ in 0..5 {
+        libbenchnet::run_tx_udptest(&ixgbe, 64, false);
+    }
+
+    for _ in 0..5 {
+        libbenchnet::run_tx_udptest(&ixgbe, 1514, false);
+    }*/
+ 
+    //libbenchnet::run_tx_udptest(&ixgbe, 64, false);
+    //libbenchnet::run_tx_udptest(&ixgbe, 1514, false);
+
+    /*for d in (0..1000).step_by(100) {
+        libbenchnet::run_rx_udptest_with_delay(&ixgbe, 1514, false, d);
+    }*/
+
+    for d in (0..1000).step_by(100) {
+        libbenchnet::run_rx_udptest_rref_with_delay(&ixgbe, 1514, false, d);
+    }
+
+    panic!("");
+    libbenchnet::run_rx_udptest_with_delay(&ixgbe, 64, false, 400);
+    libbenchnet::run_rx_udptest_with_delay(&ixgbe, 64, false, 950);
+
+
+    libbenchnet::run_rx_udptest_rref_with_delay(&ixgbe, 64, false, 400);
+
+    libbenchnet::run_rx_udptest_rref_with_delay(&ixgbe, 64, false, 950);
+
+
+    //libbenchnet::run_rx_udptest_rref(&ixgbe, 64, false);
 
     // // run_fwd_udptest(&ixgbe, 64);
 
-    // libbenchnet::run_fwd_udptest_rref(&ixgbe, 64);
+    libbenchnet::run_fwd_udptest(&ixgbe, 64);
+
+    //libbenchnet::run_fwd_udptest_rref(&ixgbe, 1514);
+
+    //panic!();
 
     // libbenchnet::run_maglev_fwd_udptest_rref(&ixgbe, 64);
 

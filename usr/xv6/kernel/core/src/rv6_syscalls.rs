@@ -154,11 +154,12 @@ impl Net for Rv6Syscalls {
 
     fn submit_and_poll_rref(
         &self,
-        packets: RRefDeque<[u8; 1512], 32>,
-        collect: RRefDeque<[u8; 1512], 32>,
+        packets: RRefDeque<[u8; 1514], 32>,
+        collect: RRefDeque<[u8; 1514], 32>,
         tx: bool,
         pkt_len: usize,
-    ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1512], 32>, RRefDeque<[u8; 1512], 32>)>> {
+    ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 32>, RRefDeque<[u8; 1514], 32>)>> {
+        //println!("rv6 syscall");
         self.net
             .lock()
             .submit_and_poll_rref(packets, collect, tx, pkt_len)
@@ -166,9 +167,9 @@ impl Net for Rv6Syscalls {
 
     fn poll_rref(
         &self,
-        collect: RRefDeque<[u8; 1512], 512>,
+        collect: RRefDeque<[u8; 1514], 512>,
         tx: bool,
-    ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1512], 512>)>> {
+    ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>> {
         self.net.lock().poll_rref(collect, tx)
     }
 

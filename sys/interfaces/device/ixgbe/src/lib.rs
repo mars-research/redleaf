@@ -57,10 +57,10 @@ pub struct IxgbeDevice {
     //pub bar: Box<dyn IxgbeBarRegion>,
     bar: PciBarAddr,
     transmit_buffers: [Option<Vec<u8>>; NUM_TX_DESCS],
-    transmit_rrefs: [Option<RRef<[u8; 1512]>>; NUM_TX_DESCS],
+    transmit_rrefs: [Option<RRef<[u8; 1514]>>; NUM_TX_DESCS],
     transmit_ring: Dma<[ixgbe_adv_tx_desc; NUM_TX_DESCS]>,
     receive_buffers: [Option<Vec<u8>>; NUM_RX_DESCS],
-    receive_rrefs: [Option<RRef<[u8; 1512]>>; NUM_TX_DESCS],
+    receive_rrefs: [Option<RRef<[u8; 1514]>>; NUM_TX_DESCS],
     receive_ring: Dma<[ixgbe_adv_rx_desc; NUM_RX_DESCS]>,
     tx_slot: [bool; NUM_TX_DESCS],
     rx_slot: [bool; NUM_RX_DESCS],
@@ -111,7 +111,7 @@ impl IxgbeDevice {
 
     pub fn write_reg(&self, reg: IxgbeRegs, val: u64) {
         unsafe {
-            println!("writing to {:x}", self.bar.get_base() as u64 + reg as u64);
+            //println!("writing to {:x}", self.bar.get_base() as u64 + reg as u64);
             ptr::write_volatile((self.bar.get_base() as u64 + reg as u64) as *mut u32, val as u32);
         }
     }
@@ -345,8 +345,8 @@ impl IxgbeDevice {
         sent
     }
 
-    pub fn submit_and_poll_rref(&mut self, mut packets: RRefDeque<[u8; 1512], 32>, mut collect: RRefDeque<[u8; 1512], 32>, tx: bool, pkt_len: usize, debug: bool) ->
-            (usize, RRefDeque<[u8; 1512], 32>, RRefDeque<[u8; 1512], 32>)
+    pub fn submit_and_poll_rref(&mut self, mut packets: RRefDeque<[u8; 1514], 32>, mut collect: RRefDeque<[u8; 1514], 32>, tx: bool, pkt_len: usize, debug: bool) ->
+            (usize, RRefDeque<[u8; 1514], 32>, RRefDeque<[u8; 1514], 32>)
     {
         if tx {
             self.tx_submit_and_poll_rref(packets, collect, pkt_len, debug)
@@ -372,8 +372,8 @@ impl IxgbeDevice {
     }
 
 
-    pub fn poll_rref(&mut self, mut reap_queue: RRefDeque<[u8; 1512], 512>, tx: bool) ->
-                        (usize, RRefDeque<[u8; 1512], 512>) {
+    pub fn poll_rref(&mut self, mut reap_queue: RRefDeque<[u8; 1514], 512>, tx: bool) ->
+                        (usize, RRefDeque<[u8; 1514], 512>) {
         if tx {
             self.tx_poll_rref(reap_queue)
         } else {
@@ -382,8 +382,8 @@ impl IxgbeDevice {
     }
 
     fn tx_poll_rref(&mut self,
-                        mut reap_queue: RRefDeque<[u8; 1512], 512>) ->
-                        (usize, RRefDeque<[u8; 1512], 512>) {
+                        mut reap_queue: RRefDeque<[u8; 1514], 512>) ->
+                        (usize, RRefDeque<[u8; 1514], 512>) {
 
         let num_descriptors = self.transmit_ring.len();
         let mut reaped: usize = 0;
@@ -424,8 +424,8 @@ impl IxgbeDevice {
     }
 
     fn rx_poll_rref(&mut self,
-                        mut reap_queue: RRefDeque<[u8; 1512], 512>) ->
-                        (usize, RRefDeque<[u8; 1512], 512>) {
+                        mut reap_queue: RRefDeque<[u8; 1514], 512>) ->
+                        (usize, RRefDeque<[u8; 1514], 512>) {
 
 
         let num_descriptors = self.receive_ring.len();
@@ -560,7 +560,7 @@ impl IxgbeDevice {
                 }
             }
         }
-        println!("Found {} sent DDs", count);
+        println!("Found {} rx DDs", count);
 
         let head = self.read_qreg_idx(IxgbeDmaArrayRegs::Rdh, 0);
         let tail = self.read_qreg_idx(IxgbeDmaArrayRegs::Rdt, 0);
@@ -801,6 +801,7 @@ impl IxgbeDevice {
         if sent == 0 {
             //println!("Sent {} packets", sent);
         }
+
         sent
     }
 
@@ -968,9 +969,9 @@ impl IxgbeDevice {
         received_packets
     }
 
-    fn tx_submit_and_poll_rref(&mut self, mut packets: RRefDeque<[u8; 1512], 32>,
-                                mut reap_queue: RRefDeque<[u8; 1512], 32>, pkt_len: usize, debug: bool) ->
-            (usize, RRefDeque<[u8; 1512], 32>, RRefDeque<[u8; 1512], 32>)
+    fn tx_submit_and_poll_rref(&mut self, mut packets: RRefDeque<[u8; 1514], 32>,
+                                mut reap_queue: RRefDeque<[u8; 1514], 32>, pkt_len: usize, debug: bool) ->
+            (usize, RRefDeque<[u8; 1514], 32>, RRefDeque<[u8; 1514], 32>)
     {
         let mut sent = 0;
         let mut tx_index = self.transmit_index;
@@ -1032,7 +1033,7 @@ impl IxgbeDevice {
                 }
 
 
-                let pkt_addr = &*packet as *const [u8; 1512] as *const u64 as u64;
+                let pkt_addr = &*packet as *const [u8; 1514] as *const u64 as u64;
                 if debug {
                     //println!("programming new buffer! {:x} packet[0] {:x}", packet.as_ptr() as u64, packet[0]);
                 }
@@ -1121,9 +1122,9 @@ impl IxgbeDevice {
     }
 
     #[inline(always)]
-    fn rx_submit_and_poll_rref(&mut self, mut packets: RRefDeque<[u8; 1512], 32>,
-                                mut reap_queue: RRefDeque<[u8; 1512], 32>, pkt_len: usize, debug: bool) ->
-            (usize, RRefDeque<[u8; 1512], 32>, RRefDeque<[u8; 1512], 32>)
+    fn rx_submit_and_poll_rref(&mut self, mut packets: RRefDeque<[u8; 1514], 32>,
+                                mut reap_queue: RRefDeque<[u8; 1514], 32>, pkt_len: usize, debug: bool) ->
+            (usize, RRefDeque<[u8; 1514], 32>, RRefDeque<[u8; 1514], 32>)
     {
         let mut rx_index = self.receive_index;
         let mut last_rx_index = self.receive_index;
@@ -1177,7 +1178,7 @@ impl IxgbeDevice {
             unsafe {
                 if self.rx_slot[rx_index] {
                     if let Some(mut buf) = self.receive_rrefs[rx_index].take() {
-                        if length <= 1512 {
+                        if length <= 1514 {
                             if reap_queue.push_back(buf).is_some() {
                                 println!("rx_sub_and_poll1: Pushing to a full reap queue");
                             }
@@ -1189,7 +1190,7 @@ impl IxgbeDevice {
                     rx_clean_index = wrap_ring(rx_clean_index, self.receive_ring.len());
                 }
 
-                let pkt_addr = &*packet as *const [u8; 1512] as *const u64 as u64;
+                let pkt_addr = &*packet as *const [u8; 1514] as *const u64 as u64;
 
                 core::ptr::write_volatile(
                     &(*self.receive_ring.as_ptr().add(rx_index)).read.pkt_addr as *const u64 as *mut u64,

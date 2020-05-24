@@ -60,15 +60,16 @@ impl Net for Shadow {
 
     fn submit_and_poll_rref(
         &self,
-        packets: RRefDeque<[u8; 1512], 32>,
-        collect: RRefDeque<[u8; 1512], 32>,
+        packets: RRefDeque<[u8; 1514], 32>,
+        collect: RRefDeque<[u8; 1514], 32>,
         tx: bool,
         pkt_len: usize) -> RpcResult<Result<(
             usize,
-            RRefDeque<[u8; 1512], 32>,
-            RRefDeque<[u8; 1512], 32>
+            RRefDeque<[u8; 1514], 32>,
+            RRefDeque<[u8; 1514], 32>
         )>>
     {
+        //println!("in shadow");
         self.shadow.lock().net.submit_and_poll_rref(packets, collect, tx, pkt_len)
     }
 
@@ -76,7 +77,7 @@ impl Net for Shadow {
         self.shadow.lock().net.poll(collect, tx)
     }
 
-    fn poll_rref(&self, collect: RRefDeque<[u8; 1512], 512>, tx: bool) -> RpcResult<Result<(usize, RRefDeque<[u8; 1512], 512>)>> {
+    fn poll_rref(&self, collect: RRefDeque<[u8; 1514], 512>, tx: bool) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>> {
         self.shadow.lock().net.poll_rref(collect, tx)
     }
 
