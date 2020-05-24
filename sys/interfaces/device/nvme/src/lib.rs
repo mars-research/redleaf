@@ -584,9 +584,11 @@ impl NvmeDevice {
             if let Some(tail) = queue.submit_request_raw(entry, req.as_ptr() as u64) {
                 cur_tail = tail;
                 count += 1;
+                self.stats.submitted += 1;
+            } else {
+                submit_queue.push_front(req);
+                break;
             }
-
-            self.stats.submitted += 1;
         }
 
         if count > 0 {
@@ -837,7 +839,7 @@ impl NvmeDevice {
         (sub_count, cur_tail, cur_head, sq_id as usize, submit, collect)
     }
 
-    pub fn submit_and_poll_raw(&mut self, submit: &mut VecDeque<Vec<u8>>, collect: &mut VecDeque<Vec<u8>>, write: bool) -> usize {
+    pub fn submit_and_poll_raw(&mut self, submit: &mut VecDeque<Vec<u8>>, collect: &mut VecDeque<Vec<u8>>, write: bool, is_random: bool) -> usize {
         let mut sub_count = 0;
         let mut reap_count = 0;
         let mut cur_tail = 0;
@@ -873,7 +875,7 @@ impl NvmeDevice {
             }
 
             if queue.is_submittable() {
-                if let Some(tail) = queue.submit_request_raw(entry, breq.as_ptr() as u64) {
+                if let Some(tail) = if is_random { queue.submit_request_rand_raw(entry, breq.as_ptr() as u64) } else { queue.submit_request_raw(entry, breq.as_ptr() as u64) } {
                     cur_tail = tail;
                     sub_count += 1;
 
@@ -893,6 +895,8 @@ impl NvmeDevice {
                             }
                             sq.req_slot[cq_idx] = false;
                             reap_count += 1;
+                        } else {
+                            println!("submit_and_poll_raw: Weird! slot finished, but not found!");
                         }
                         cur_head = head;
                         //TODO: Handle errors
@@ -905,7 +909,6 @@ impl NvmeDevice {
                 submit.push_front(breq);
                 break;
             }
-
         }
 
         if sub_count > 0 {

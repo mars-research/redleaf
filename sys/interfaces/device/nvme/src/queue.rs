@@ -245,6 +245,30 @@ impl NvmeCommandQueue {
         }
     }
 
+    pub fn submit_request_rand_raw(&mut self, entry: NvmeCommand, data: u64)
+                                        -> Option<usize> {
+        let cur_idx = self.i;
+        if self.req_slot[cur_idx] == false {
+            self.data[cur_idx] = entry;
+            self.data[cur_idx].cid = cur_idx as u16;
+            let cid = cur_idx  as u16;
+
+            self.raw_requests[cur_idx] = Some(data);
+            self.data[cur_idx].cdw10 = self.block as u32;
+
+            self.block = self.rand.get_rand_block();
+
+            //println!("Submitting block[{}] {} at slot {}", cid, self.block, cur_idx);
+
+            self.req_slot[cur_idx] = true;
+            self.i = (cur_idx + 1) % self.data.len();
+            Some(self.i)
+        } else {
+            //println!("No free slot");
+            None
+        }
+    }
+
     pub fn submit_request_raw(&mut self, entry: NvmeCommand, data: u64)
                                         -> Option<usize> {
         let cur_idx = self.i;
@@ -255,9 +279,7 @@ impl NvmeCommandQueue {
 
             self.raw_requests[cur_idx] = Some(data);
             self.data[cur_idx].cdw10 = self.block as u32;
-            //self.data[cur_idx].cdw11 = (self.block >> 32) as u32;
 
-            //self.block = self.rand.get_rand_block();
             self.block = (self.block + 8) % NUM_LBAS;
 
             //println!("Submitting block[{}] {} at slot {}", cid, self.block, cur_idx);

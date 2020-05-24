@@ -354,7 +354,7 @@ fn perf_test_iov(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
     }
 }
 
-fn run_blocktest_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
+fn run_blocktest_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool, is_random: bool) {
 
     let mut req: Vec<u8>;
     if is_write {
@@ -392,7 +392,7 @@ fn run_blocktest_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
         loop {
             count += 1;
             submit_start = rdtsc();
-            ret = dev.submit_and_poll_raw(&mut submit, &mut collect, is_write);
+            ret = dev.submit_and_poll_raw(&mut submit, &mut collect, is_write, is_random);
             submit_elapsed += rdtsc() - submit_start;
 
             submit_hist.record(ret as u64);
@@ -412,7 +412,7 @@ fn run_blocktest_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
             if rdtsc() > tsc_end {
                 break;
             }
-            sys_ns_loopsleep(2000);
+            //sys_ns_loopsleep(2000);
         }
 
         let (sub, comp) = dev.get_stats();

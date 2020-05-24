@@ -198,8 +198,8 @@ impl NvmeDev {
     }
 
     pub fn submit_and_poll_raw(&mut self, submit_queue: &mut VecDeque<Vec<u8>>,
-                            collect: &mut VecDeque<Vec<u8>>, write: bool) -> usize {
-        self.device.submit_and_poll_raw(submit_queue, collect, write)
+                            collect: &mut VecDeque<Vec<u8>>, write: bool, is_random: bool) -> usize {
+        self.device.submit_and_poll_raw(submit_queue, collect, write, is_random)
     }
 
     pub fn submit_and_poll_rref(&mut self, mut submit: RRefDeque<BlkReq, 128>, mut collect:
