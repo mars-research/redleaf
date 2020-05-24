@@ -29,7 +29,7 @@ mod tests {
     use syscalls::{Syscall, Thread};
     extern crate pc_keyboard;
     use hashbrown::HashMap;
-    use spin::Mutex;
+    use spin::{Mutex, MutexGuard};
 
     struct TestHeap {
         map: Mutex<HashMap<usize, extern fn(*mut u8)>>,
@@ -115,12 +115,127 @@ mod tests {
         borrow_rref_recursively(0, &rref);
     }
 
+    static mut cleanup_counter: usize = 0usize;
+    static cleanup_lock: Mutex<()> = Mutex::new(());
+    fn reset_cleanup() -> MutexGuard<'static, ()> {
+        let guard = cleanup_lock.lock();
+        unsafe { cleanup_counter = 0 };
+        guard
+    }
+
+    struct CleanupTest {
+        val: usize
+    }
+    impl CustomCleanup for CleanupTest {
+        fn cleanup(&mut self) {
+            unsafe { cleanup_counter += 1 };
+        }
+    }
+
     #[test]
-    fn rref_drop() {
+    fn cleanup_simple() {
+        let guard = reset_cleanup();
+
+        let mut foo = CleanupTest { val: 10 };
+        assert_eq!(unsafe { cleanup_counter }, 0);
+        foo.cleanup();
+        assert_eq!(unsafe { cleanup_counter }, 1);
+        drop(foo);
+        // cleanup is not called upon drop on non-rref types
+        assert_eq!(unsafe { cleanup_counter }, 1);
+
+        drop(guard);
+    }
+
+    #[test]
+    fn cleanup_option() {
+        let guard = reset_cleanup();
+
+        let mut option = Some(CleanupTest { val: 10 });
+        assert_eq!(unsafe { cleanup_counter }, 0);
+        option.cleanup();
+        assert_eq!(unsafe { cleanup_counter }, 1);
+        drop(option);
+        // cleanup is not called upon drop on non-rref types
+        assert_eq!(unsafe { cleanup_counter }, 1);
+
+        drop(guard);
+    }
+
+    #[test]
+    fn cleanup_drop_option_rref() {
         init_heap();
         init_syscall();
+        let guard = reset_cleanup();
 
-        static mut counter: usize = 0usize;
+        let rref = RRef::new(Some(RRef::new(Some(CleanupTest { val: 10 }))));
+        assert_eq!(unsafe { cleanup_counter }, 0);
+        drop(rref);
+        // dropping an rref calls cleanup recursively
+        assert_eq!(unsafe { cleanup_counter }, 1);
+
+        drop(guard);
+    }
+
+    #[test]
+    fn cleanup_option_rref() {
+        init_heap();
+        init_syscall();
+        let guard = reset_cleanup();
+
+        let mut rref = RRef::new(Some(RRef::new(Some(CleanupTest { val: 10 }))));
+        assert_eq!(unsafe { cleanup_counter }, 0);
+        rref.cleanup();
+        assert_eq!(unsafe { cleanup_counter }, 1);
+        drop(rref);
+        assert_eq!(unsafe { cleanup_counter }, 2);
+
+        drop(guard);
+    }
+
+    #[test]
+    fn cleanup_rref_array() {
+        init_heap();
+        init_syscall();
+        let guard = reset_cleanup();
+
+        let mut rref_array = RRefArray::new([
+            Some(RRef::new(CleanupTest { val: 10 })),
+            Some(RRef::new(CleanupTest { val: 15 })),
+            None,
+            Some(RRef::new(CleanupTest { val: 20 })),
+        ]);
+        assert_eq!(unsafe { cleanup_counter }, 0);
+        drop(rref_array);
+        assert_eq!(unsafe { cleanup_counter }, 3);
+
+        drop(guard);
+    }
+
+    #[test]
+    fn cleanup_rref_deque() {
+        init_heap();
+        init_syscall();
+        let guard = reset_cleanup();
+
+        let mut rref_deque = RRefDeque::new([
+            Some(RRef::new(CleanupTest { val: 10 })),
+            Some(RRef::new(CleanupTest { val: 15 })),
+            None,
+            Some(RRef::new(CleanupTest { val: 20 })),
+        ]);
+        assert_eq!(unsafe { cleanup_counter }, 0);
+        drop(rref_deque);
+        assert_eq!(unsafe { cleanup_counter }, 3);
+
+        drop(guard);
+    }
+
+    #[test]
+    fn cleanup_rref_container() {
+        init_heap();
+        init_syscall();
+        let guard = reset_cleanup();
 
         struct Container<T: 'static + RRefable> {
             inner: RRef<T>,
@@ -128,25 +243,22 @@ mod tests {
 
         impl<T: 'static + RRefable> CustomCleanup for Container<T> {
             fn cleanup(&mut self) {
-                unsafe { counter += 1 };
-            }
-        }
-        impl<T: 'static + RRefable> Drop for Container<T> {
-            fn drop(&mut self) {
-                self.cleanup();
+                unsafe { cleanup_counter += 1 };
             }
         }
 
         let rref = RRef::new(55usize);
         let inner = Container { inner: rref };
-        let innerRRef = RRef::new(inner);
+        let inner_rref = RRef::new(inner);
         // Container<RRef<Container<RRef<usize>>>>
-        let outer = Container { inner: innerRRef };
+        let outer = Container { inner: inner_rref };
 
-        unsafe { assert_eq!(counter, 0) };
+        assert_eq!(unsafe { cleanup_counter }, 0);
         drop(outer);
-        // should call cleanup on inner and outer
-        unsafe { assert_eq!(counter, 2) };
+        // should call cleanup on inner, but not outer (since cleanup doesn't get called unless dropped by rref/iter)
+        assert_eq!(unsafe { cleanup_counter }, 1);
+
+        drop(guard);
     }
 
     #[test]

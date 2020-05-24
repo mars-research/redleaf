@@ -5,7 +5,7 @@ impl<T> !RRefable for &T {}
 impl<T> !RRefable for &mut T {}
 impl<T> !RRefable for [T] {}
 
-pub trait CustomCleanup {
+pub trait CustomCleanup: RRefable {
     fn cleanup(&mut self);
 }
 
@@ -30,14 +30,6 @@ impl<T: RRefable> CustomCleanup for Option<T> {
 }
 
 impl<T: RRefable, const N: usize> CustomCleanup for [T; N] {
-    fn cleanup(&mut self) {
-        // println!("CustomCleanup::{}::cleanup()", core::any::type_name_of_val(self));
-        for el in self.iter_mut() {
-            el.cleanup();
-        }
-    }
-}
-impl<T: RRefable> CustomCleanup for [T] {
     fn cleanup(&mut self) {
         // println!("CustomCleanup::{}::cleanup()", core::any::type_name_of_val(self));
         for el in self.iter_mut() {
