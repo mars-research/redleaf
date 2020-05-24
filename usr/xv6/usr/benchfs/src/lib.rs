@@ -34,43 +34,67 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
 
     let mut args = args.split_whitespace();
     args.next().unwrap();
-    let options = args.next().unwrap_or("r");
+    let options = args.next().unwrap_or("rw");
     let file = args.next().unwrap_or("large");
+    let file_size = 128 * 1024 * 1024;
 
-    let sizes = [512, 1024, 4096, 8192, 16 * 1024, 256 * 1024, 1024 * 1024, 4 * 1024 * 1024, 16 * 1024 * 1024, 64 * 1024 * 1024];
+    // let buffer_sizes = [512, 1024, 4096, 8192, 16 * 1024, 256 * 1024, 1024 * 1024, 4 * 1024 * 1024, 16 * 1024 * 1024, 64 * 1024 * 1024];
+    let buffer_sizes = [4 * 1024];
 
-    for bsize in sizes.iter() {
-        let mut buffer = alloc::vec![123u8; *bsize];
+    for bsize in buffer_sizes.iter() {
+        let bsize = *bsize;
+        let mut buffer = alloc::vec![123u8; bsize];
 
+        // 4GB
+        let total_size = 4 * 1024 * 1024 * 1024;
+        assert!(total_size % bsize == 0);
         if options.contains('w') {
             let fd = sys_open(file, FileMode::WRITE | FileMode::CREATE).unwrap();
 
             // warm up
             sys_write(fd, buffer.as_slice()).unwrap();
+            rv6.sys_seek(fd, 0).unwrap();
 
+            let mut curr_size = 0;
+            let mut seek_count = 0;
             let start = rv6.sys_rdtsc();
-            let mut total_size = 0;
-            for _ in 0..1024 {
-                if total_size > 64 * 1024 * 1024  { break; }
-                let size = sys_write(fd, buffer.as_slice()).unwrap();
-                total_size += size;
+            for offset in (bsize..total_size + bsize).step_by(bsize) {
+                if offset % file_size == 0 {
+                    rv6.sys_seek(fd, 0).unwrap();
+                    seek_count += 1;
+                }
+                curr_size += sys_write(fd, buffer.as_slice()).unwrap();
             }
-            println!("Write: buffer size: {}, total bytes: {}, cycles: {}", bsize, total_size, rv6.sys_rdtsc() - start);
+            let elapse = rv6.sys_rdtsc() - start;
+            println!("Write: buffer size: {}, total bytes: {}, cycles: {}, seek count: {}", bsize, total_size, elapse, seek_count);
+            assert_eq!(curr_size, total_size);
             
             sys_close(fd).unwrap();
         }
 
+        // 30GB
+        let total_size = 30 * 1024 * 1024 * 1024;
+        assert!(total_size % bsize == 0);
         if options.contains('r') {
             let fd = sys_open(file, FileMode::READ).unwrap();
 
+            // warm up
+            rv6.sys_read(fd, buffer.as_mut_slice()).unwrap();
+            rv6.sys_seek(fd, 0).unwrap();
+
+            let mut curr_size = 0;
+            let mut seek_count = 0;
             let start = rv6.sys_rdtsc();
-            let mut total_size = 0;
-            loop {
-                let size = sys_read(fd, buffer.as_mut_slice()).unwrap();
-                if size == 0 { break; }
-                total_size += size;
+            for offset in (bsize..total_size + bsize).step_by(bsize) {
+                if offset % file_size == 0 {
+                    rv6.sys_seek(fd, 0).unwrap();
+                    seek_count += 1;
+                }
+                curr_size += rv6.sys_read(fd, buffer.as_mut_slice()).unwrap();
             }
-            println!("Read: buffer size: {}, total bytes: {}, cycles: {}", bsize, total_size, rv6.sys_rdtsc() - start);
+            let elapse = rv6.sys_rdtsc() - start;
+            println!("Read: buffer size: {}, total bytes: {}, cycles: {}, seek count: {}", bsize, total_size, elapse, seek_count);
+            assert_eq!(curr_size, total_size);
 
             sys_close(fd).unwrap();
         }
