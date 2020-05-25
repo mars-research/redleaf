@@ -27,8 +27,8 @@ use fnv::FnvHasher;
 use twox_hash::XxHash;
 use lru::LruCache;
 
-const TABLE_SIZE: usize = 655373;
-const CACHE_SIZE: usize = 65537;
+const TABLE_SIZE: usize = 65537;
+const CACHE_SIZE: usize = 1000;
 
 type FnvHashFactory = BuildHasherDefault<FnvHasher>;
 type XxHashFactory = BuildHasherDefault<XxHash>;
