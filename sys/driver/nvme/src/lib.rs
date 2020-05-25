@@ -567,6 +567,7 @@ pub fn nvme_init(s: Box<dyn Syscall + Send + Sync>,
         if let Err(_) = pci.pci_register_driver(&mut nvme, 0, None) {
             println!("WARNING: failed to register IXGBE driver");
         }
+        nvme
     };
     #[cfg(feature = "nullnvme")]
     let mut nvme = nullnvme::NullNvme::new();
