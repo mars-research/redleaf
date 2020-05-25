@@ -624,6 +624,7 @@ pub fn nvme_init(s: Box<dyn Syscall + Send + Sync>,
 
 // This function is called on panic.
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo) -> ! {
+    println!("{:?}", info);
     loop {}
 }
