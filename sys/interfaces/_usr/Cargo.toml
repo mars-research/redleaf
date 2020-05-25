@@ -1,0 +1,17 @@
+[package]
+name = "usr"
+version = "0.1.0"
+authors = ["Dan Appel <appeld@uci.edu>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bitflags = "1.2.1"
+byteorder = { version = "1.2", default-features = false }
+num-traits = { version = "0.2", default-features = false }
+num-derive = { version = "0.3", default-features = false }
+syscalls = { path = "../syscalls/", version = "0.1.0" }
+rref = { path = "../../lib/rref/", version = "0.1.0" }
+pci_driver = { path = "../dev/pci/pci_driver/", version = "0.1.0" }
+red_idl = { path = "../../../redIDL/red_idl" }
