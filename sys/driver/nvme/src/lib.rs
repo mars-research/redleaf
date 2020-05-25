@@ -355,7 +355,12 @@ fn perf_test_iov(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
 }
 
 fn run_blocktest_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool, is_random: bool) {
+   run_blocktest_raw_with_delay(dev, runtime, batch_sz, is_write, is_random, 0);
+}
 
+fn run_blocktest_raw_with_delay(dev: &Nvme, runtime: u64, batch_sz: u64,
+                                is_write: bool, is_random: bool,
+                                delay: u64) {
     let mut req: Vec<u8>;
     if is_write {
         req = alloc::vec![0xbau8; 4096];
@@ -380,11 +385,16 @@ fn run_blocktest_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool, is
         let mut poll_start = 0;
         let mut poll_elapsed = 0;
         let mut count = 0;
-        let mut allocated_count = 0;
+        let mut alloc_count = 0;
 
         let mut submit_hist = Base2Histogram::new();
         let mut poll_hist = Base2Histogram::new();
         let mut ret = 0;
+
+        println!("======== Starting {}{} test (delay {})  ==========",
+                                    if is_random { "rand" } else { "" },
+                                    if is_write { "write" } else { "read" },
+                                    delay);
 
         let tsc_start = rdtsc();
         let tsc_end = tsc_start + runtime * 2_400_000_000;
@@ -402,7 +412,7 @@ fn run_blocktest_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool, is
             submit.append(&mut collect);
 
             if submit.len() == 0 {
-                allocated_count += 1;
+                alloc_count += 1;
                 //println!("allocating new batch at count {}", count);
                 for i in 0..batch_sz {
                     submit.push_back(req.clone());
@@ -412,15 +422,33 @@ fn run_blocktest_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool, is
             if rdtsc() > tsc_end {
                 break;
             }
-            //sys_ns_loopsleep(2000);
+            sys_ns_loopsleep(delay);
         }
 
+        let elapsed = rdtsc() - tsc_start;
+
+        let adj_runtime = elapsed as f64 / 2_400_000_000_u64 as f64;
+
         let (sub, comp) = dev.get_stats();
-        println!("runtime {} submitted {:.2} K IOPS completed {:.2} K IOPS", runtime, sub as f64 / runtime as f64 / 1_000 as f64,
-                      comp as f64 / runtime as f64 / 1_000 as f64);
-        println!("run_blocktest loop {} submit_and_poll took {} cycles (avg {} cycles)", count,
-                                            submit_elapsed, submit_elapsed / count);
-        println!("Allocated breqs {}", allocated_count * batch_sz);
+
+        println!("Polling ....");
+
+        let done = dev.poll_raw(&mut collect);
+
+        println!("Poll: Reaped {} requests", done);
+        println!("submit {} requests", submit.len());
+        println!("collect {} requests", collect.len());
+
+        println!("runtime: {:.2} seconds", adj_runtime);
+
+        println!("submitted {:.2} K IOPS completed {:.2} K IOPS",
+                 sub as f64 / adj_runtime as f64 / 1_000 as f64,
+                 comp as f64 / adj_runtime as f64 / 1_000 as f64);
+        println!("submit_and_poll_rref took {} cycles (avg {} cycles)",
+        submit_elapsed, submit_elapsed / count);
+
+        println!("Number of new allocations {}", alloc_count * batch_sz);
+
 
         for hist in alloc::vec![submit_hist, poll_hist] {
             println!("hist:");
@@ -430,7 +458,7 @@ fn run_blocktest_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool, is
                 print!("\n");
             }
         }
-
+        println!("++++++++++++++++++++++++++++++++++++++++++++++++++++");
     }
 }
 

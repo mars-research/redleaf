@@ -209,6 +209,11 @@ impl NvmeDev {
         self.device.submit_and_poll_rref(submit, collect, write)
     }
 
+    pub fn poll_raw(&mut self, collect: &mut VecDeque<Vec<u8>>) -> usize
+    {
+        self.device.poll_raw(collect)
+    }
+
     pub fn poll_rref(&mut self, mut collect: RRefDeque<BlkReq, 1024>) -> 
                                 (usize, RRefDeque<BlkReq, 1024>)
     {

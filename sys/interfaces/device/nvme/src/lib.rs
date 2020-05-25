@@ -653,6 +653,57 @@ impl NvmeDevice {
         }
     }
 
+    pub fn poll_raw(&mut self, collect: &mut VecDeque<Vec<u8>>) -> usize
+    {
+        let qid = 1;
+        let mut count: usize = 0;
+        let mut reap_count = 0;
+        let mut cur_head = 0;
+        let reap_all = false;
+
+        let cq = &mut self.completion_queues[qid];
+        let sq = &mut self.submission_queues[qid];
+
+        loop {
+            let cq = &mut self.completion_queues[qid];
+            let sq = &mut self.submission_queues[qid];
+
+            let cid = cq.get_cq_head() % cq.data.len();
+
+            if sq.req_slot[cid] {
+                if let Some((head, entry, cq_idx)) = if reap_all { Some(cq.complete_spin()) } else { cq.complete() } {
+                    if let Some(req) = &mut sq.raw_requests[cq_idx] {
+                        let vec = unsafe {
+                            Vec::from_raw_parts(*req as *mut u8,
+                                                4096,
+                                                4096)
+                        };
+
+                        collect.push_front(vec);
+                    }
+                    sq.req_slot[cq_idx] = false;
+                    sq.raw_requests[cq_idx] = None;
+                    reap_count += 1;
+                    cur_head = head;
+                    //TODO: Handle errors
+                    self.stats.completed += 1;
+                }
+            } else {
+                break;
+            }
+            count += 1;
+
+            if count == cq.data.len() {
+                break;
+            }
+        }
+        if reap_count > 0 {
+            println!("poll_rref: Updating cq_head to {}", cur_head);
+            self.completion_queue_head(qid as u16, cur_head as u16);
+        }
+        reap_count
+    }
+
     pub fn poll_rref(&mut self, mut collect: RRefDeque<BlkReq, 1024>) ->
             (usize, RRefDeque<BlkReq, 1024>)
     {
