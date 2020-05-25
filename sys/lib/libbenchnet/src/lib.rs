@@ -715,7 +715,7 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
         for pkt in tx_packets.iter_mut() {
             let backend = {
                 if let Some(hash) = packettool::get_flowhash(&pkt) {
-                    Some(maglev.get_index(&hash))
+                    Some(maglev.get_index_from_hash(hash))
                 } else {
                     None
                 }

@@ -20,21 +20,24 @@
 
 use core::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
 use core::iter;
+use core::cell::RefCell;
 use alloc::vec::Vec;
 
 use fnv::FnvHasher;
 use twox_hash::XxHash;
+use lru::LruCache;
 
 const TABLE_SIZE: usize = 655373;
+const CACHE_SIZE: usize = 65537;
 
 type FnvHashFactory = BuildHasherDefault<FnvHasher>;
 type XxHashFactory = BuildHasherDefault<XxHash>;
 
 /// Maglev lookup table
-#[derive(Clone)]
 pub struct Maglev<N> {
     pub nodes: Vec<N>,
     pub lookup: Vec<isize>,
+    pub cache: RefCell<LruCache<usize, usize>>, // hash -> backend
 }
 
 impl<N: Hash + Eq> Maglev<N> {
@@ -42,8 +45,9 @@ impl<N: Hash + Eq> Maglev<N> {
     pub fn new<I: IntoIterator<Item = N>>(nodes: I) -> Self {
         let nodes = nodes.into_iter().collect::<Vec<_>>();
         let lookup = Self::populate(&nodes);
+        let cache = RefCell::new(LruCache::new(CACHE_SIZE));
 
-        Maglev { nodes, lookup }
+        Maglev { nodes, lookup, cache }
     }
 
     #[inline]
@@ -120,7 +124,24 @@ impl<N: Hash + Eq> Maglev<N> {
         key.hash(&mut h1);
         let hash = h1.finish() as usize;
 
-        self.lookup[hash % self.lookup.len()] as usize
+        self.get_index_from_hash(hash)
+    }
+
+    #[inline]
+    pub fn get_index_from_hash(&self, hash: usize) -> usize {
+        let mut cache = self.cache.borrow_mut();
+        match cache.get(&hash) {
+            None => {
+                // Use lookup directly
+                let idx = self.lookup[hash % self.lookup.len()] as usize;
+                cache.put(hash, idx);
+                idx
+            },
+            Some(idx) => {
+                // Use cached backend
+                *idx
+            },
+        }
     }
 
     #[inline]

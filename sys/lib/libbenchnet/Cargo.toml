@@ -24,6 +24,11 @@ default-features = false
 version = "1.5.0"
 default-features = false
 
+[dependencies.lru]
+git = "https://github.com/zhaofengli/lru-rs"
+default-features = false
+features = ["nightly", "hashbrown"]
+
 [features]
 default = [
     # "noop",
