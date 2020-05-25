@@ -27,7 +27,7 @@ const ONE_HOUR: u64 = 2_400_000_000;
 impl BDev for MemBDev {
     fn read(&self, block: u32, mut data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>> {
         // console::println!("bdev.read {}", block);
-        assert!(libtime::get_rdtsc() < self.end_time);
+        // assert!(libtime::get_rdtsc() < self.end_time);
         let start = block as usize * Self::SECTOR_SIZE;
         let size = data.len();
 
