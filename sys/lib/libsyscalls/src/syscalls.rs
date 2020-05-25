@@ -61,6 +61,11 @@ pub fn sys_current_thread() -> Box<dyn Thread> {
     scalls.sys_current_thread()
 }
 
+pub fn sys_current_thread_id() -> u64 {
+    let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
+    return scalls.sys_current_thread_id();
+}
+
 pub fn sys_get_current_domain_id() -> u64 {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
     return scalls.sys_get_current_domain_id();

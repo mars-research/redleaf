@@ -28,6 +28,7 @@ console = { path = "../../../sys/lib/console", version = "0.1.0" }
 slabmalloc = { path = "../../../sys/lib/slabmalloc" }
 malloc = { path = "../../../sys/lib/malloc", version = "0.1.0" }
 rref = { path = "../../../sys/lib/rref", version = "0.1.0" }
+tls = { path = "../../../sys/lib/tls", version = "0.1.0" }
 spin = { path = "../../../lib/spin-rs" }
 
 [dependencies.lazy_static]

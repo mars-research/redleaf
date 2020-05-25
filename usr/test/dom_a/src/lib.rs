@@ -3,15 +3,15 @@ extern crate malloc;
 extern crate alloc;
 use libsyscalls;
 use syscalls::{Syscall, Heap};
-use create;
 use alloc::boxed::Box;
-use alloc::sync::Arc;
 use console::println;
-use core::alloc::Layout;
 use core::panic::PanicInfo;
 use usr;
 use rref::{RRef, RRefDeque};
-use alloc::vec::Vec;
+use tls::ThreadLocal;
+use libtime::get_rdtsc as rdtsc;
+#[macro_use]
+use lazy_static::lazy_static;
 
 struct DomA {
 }
@@ -52,12 +52,34 @@ impl usr::dom_a::DomA for DomA {
     }
 }
 
+lazy_static! {
+    pub static ref COUNTER: ThreadLocal<usize> = ThreadLocal::new(|| 0usize);
+}
+
+fn bench_tls() {
+    let ops = 10_000_000;
+
+    let start = rdtsc();
+    for _ in 0..ops {
+        COUNTER.with(|counter| {
+            *counter += 1;
+        });
+    }
+    let end = rdtsc();
+    println!("ops: {}, delta: {}, delta/ops: {}", ops, end - start, (end - start) / ops);
+}
+
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>) -> Box<dyn usr::dom_a::DomA> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!("In domain A, id: {}", libsyscalls::syscalls::sys_get_current_domain_id());
+
+    println!("Bench tls");
+    for _ in 0..10 {
+        bench_tls();
+    }
 
     Box::new(DomA::new())
 }

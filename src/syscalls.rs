@@ -150,6 +150,21 @@ impl syscalls::Syscall for PDomain {
         current
     }
 
+    fn sys_current_thread_id(&self) -> u64 {
+        disable_irq();
+        let thread_id = {
+            // get domain id without locking the current thread
+            let thread_option: &Option<Arc<Mutex<thread::Thread>>> = &thread::CURRENT.borrow();
+            let thread_arc: &Arc<Mutex<thread::Thread>> = thread_option.as_ref().unwrap();
+            let thread_mutex: &mut Mutex<thread::Thread> = unsafe {
+                &mut *((&**thread_arc) as *const Mutex<thread::Thread> as *mut Mutex<thread::Thread>)
+            };
+            thread_mutex.get_mut().id
+        };
+        enable_irq();
+        thread_id
+    }
+
     fn sys_get_current_domain_id(&self) -> u64 {
         disable_irq();
         let domain_id = {

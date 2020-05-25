@@ -2,7 +2,7 @@
 
 use hashbrown::HashMap;
 use spin::Mutex;
-use libsyscalls::syscalls::{sys_current_thread, sys_yield};
+use libsyscalls::syscalls::{sys_current_thread_id, sys_yield};
 
 pub struct ThreadLocal<T> {
     values: Mutex<HashMap<u64, Option<T>>>,
@@ -18,7 +18,7 @@ impl<T> ThreadLocal<T> {
     }
 
     pub fn with<F, R>(&self, f: F) -> R where F: FnOnce(&mut T) -> R {
-        let thread_id = sys_current_thread().get_id();
+        let thread_id = sys_current_thread_id();
         // Take the value out from the global map so we don't hold the lock for too long
         let mut value = self.values.lock().entry(thread_id).or_insert_with(|| Some((self.init)())).take();
         let mut value = value.expect("ThreadLocal object is being used by another thread");
@@ -37,7 +37,7 @@ impl<T> ThreadLocal<T> {
 
     // drop
     pub fn drop(&self) {
-        let thread_id = sys_current_thread().get_id();
+        let thread_id = sys_current_thread_id();
         self.values.lock().remove(&thread_id);
     }
 }

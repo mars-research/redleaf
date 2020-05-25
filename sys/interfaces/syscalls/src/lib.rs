@@ -52,6 +52,7 @@ pub trait Syscall {
     fn sys_yield(&self);
     fn sys_create_thread(&self, name: &str, func: extern fn()) -> Box<dyn Thread>;
     fn sys_current_thread(&self) -> Box<dyn Thread>;
+    fn sys_current_thread_id(&self) -> u64;
     fn sys_get_current_domain_id(&self) -> u64;
     unsafe fn sys_update_current_domain_id(&self, new_domain_id: u64) -> u64;
     unsafe fn sys_register_cont(&self, cont: &Continuation);
