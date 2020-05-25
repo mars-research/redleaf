@@ -301,7 +301,7 @@ impl BufferCache {
         if !valid {
             let sector = block_number * (BSIZE / SECTOR_SIZE) as u32;
             let mut guard = buffer.lock();
-            *guard = BufferBlockWrapper(Some(self.bdev.read(sector, guard.take()).unwrap()));
+            (*guard).0 = Some(self.bdev.read(sector, guard.take()).unwrap());
         }
         BufferGuard {
             dev: device,
