@@ -406,6 +406,7 @@ impl BDev for BDevProxy {
         if /* sys_domain_is_dead(caller_domain) */ false && data.borrow_count() == 0 {
             let mut_ref = unsafe { &mut *(data as *const _ as *mut RRef<[u8; BSIZE]>) };
             mut_ref.cleanup();
+            // TODO: don't return into dead domain, exit instead
         }
 
         // move thread back
@@ -628,11 +629,9 @@ impl Net for IxgbeProxy {
         #[cfg(feature = "tramp")]
         let r = unsafe{ net_submit_and_poll_rref_tramp(&self.domain, packets, collect, tx, pkt_len) };
 
-        if let Ok(r) = r.as_ref() {
-            if let Ok(r) = r.as_ref() {
-                r.1.move_to(caller_domain);
-                r.2.move_to(caller_domain);
-            }
+        if let Ok(Ok(r)) = r.as_ref() {
+            r.1.move_to(caller_domain);
+            r.2.move_to(caller_domain);
         }
 
         // move thread back
@@ -652,10 +651,8 @@ impl Net for IxgbeProxy {
         #[cfg(feature = "tramp")]
         let r = unsafe { net_poll_rref_tramp(&self.domain, collect, tx) };
 
-        if let Ok(r) = r.as_ref() {
-            if let Ok(r) = r.as_ref() {
-                r.1.move_to(caller_domain);
-            }
+        if let Ok(Ok(r)) = r.as_ref() {
+            r.1.move_to(caller_domain);
         }
 
         // move thread back
@@ -874,11 +871,9 @@ impl Net for Rv6Proxy {
         packets.move_to(self.domain_id);
         collect.move_to(self.domain_id);
         let r = self.domain.submit_and_poll_rref(packets, collect, tx, pkt_len);
-        if let Ok(r) = r.as_ref() {
-            if let Ok(r) = r.as_ref() {
-                r.1.move_to(caller_domain);
-                r.2.move_to(caller_domain);
-            }
+        if let Ok(Ok(r)) = r.as_ref() {
+            r.1.move_to(caller_domain);
+            r.2.move_to(caller_domain);
         }
 
         // move thread back
@@ -894,10 +889,8 @@ impl Net for Rv6Proxy {
 
         collect.move_to(self.domain_id);
         let r = self.domain.poll_rref(collect, tx);
-        if let Ok(r) = r.as_ref() {
-            if let Ok(r) = r.as_ref() {
-                r.1.move_to(caller_domain);
-            }
+        if let Ok(Ok(r)) = r.as_ref() {
+            r.1.move_to(caller_domain);
         }
 
         // move thread back
@@ -1015,11 +1008,9 @@ impl NvmeBDev for NvmeProxy {
         submit.move_to(self.domain_id);
         collect.move_to(self.domain_id);
         let r = self.domain.submit_and_poll_rref(submit, collect, write);
-        if let Ok(r) = r.as_ref() {
-            if let Ok(r) = r.as_ref() {
-                r.1.move_to(caller_domain);
-                r.2.move_to(caller_domain);
-            }
+        if let Ok(Ok(r)) = r.as_ref() {
+            r.1.move_to(caller_domain);
+            r.2.move_to(caller_domain);
         }
 
         // move thread back
@@ -1035,10 +1026,8 @@ impl NvmeBDev for NvmeProxy {
 
         collect.move_to(self.domain_id);
         let r = self.domain.poll_rref(collect);
-        if let Ok(r) = r.as_ref() {
-            if let Ok(r) = r.as_ref() {
-                r.1.move_to(caller_domain);
-            }
+        if let Ok(Ok(r)) = r.as_ref() {
+            r.1.move_to(caller_domain);
         }
 
         // move thread back
