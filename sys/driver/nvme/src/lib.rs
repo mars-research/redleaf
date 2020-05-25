@@ -560,10 +560,15 @@ pub fn nvme_init(s: Box<dyn Syscall + Send + Sync>,
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!("nvme_init: starting nvme driver domain");
-    let mut nvme = Nvme::new();
-    if let Err(_) = pci.pci_register_driver(&mut nvme, 0, None) {
-        println!("WARNING: failed to register IXGBE driver");
-    }
+    #[cfg(not(feature = "nullnvme"))]
+    let mut nvme = {
+        let mut nvme = Nvme::new();
+        if let Err(_) = pci.pci_register_driver(&mut nvme, 0, None) {
+            println!("WARNING: failed to register IXGBE driver");
+        }
+    };
+    #[cfg(feature = "nullnvme")]
+    let mut nvme = nullnvme::NullNvme::new();
 
     println!("starting tests!...");
 

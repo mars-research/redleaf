@@ -43,4 +43,10 @@ version = "0.2.8"
 default-features = false
 
 [features]
+default = [
+    # "nullnvme"
+]
+
 #rng_test = []
+# Makes calls to nvme noop
+nullnvme = []
