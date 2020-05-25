@@ -17,4 +17,4 @@ pub unsafe fn get_memdisk() -> &'static mut [u8] {
     let end = _binary_build_fs_img_end;
     let size = end as usize - start as usize;
     core::slice::from_raw_parts_mut(start as *mut u8, size)
-}
+} 

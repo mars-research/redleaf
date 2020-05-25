@@ -8,7 +8,7 @@ use usr::rpc::RpcResult;
 
 pub struct MemBDev {
     memdisk: Mutex<&'static mut [u8]>,
-    seen: AtomicBool,
+    end_time: u64,
 }
 
 impl MemBDev {
@@ -17,18 +17,17 @@ impl MemBDev {
     pub fn new(memdisk: &'static mut [u8]) -> Self {
         Self {
             memdisk: Mutex::new(memdisk),
-            seen: AtomicBool::new(false),
+            end_time: libtime::get_rdtsc() + ONE_HOUR,
         }
     }
 }
 
+const ONE_HOUR: u64 = 2_400_000_000;
+
 impl BDev for MemBDev {
     fn read(&self, block: u32, mut data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>> {
         // console::println!("bdev.read {}", block);
-        // if block == 304 {
-        //     // Will panic the second time we see this block
-        //     assert!(!self.seen.swap(true, Ordering::SeqCst));
-        // }
+        assert!(libtime::get_rdtsc() < self.end_time);
         let start = block as usize * Self::SECTOR_SIZE;
         let size = data.len();
 
