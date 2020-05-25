@@ -19,6 +19,7 @@ extern crate malloc;
 extern crate alloc;
 
 mod device;
+mod nullnvme;
 
 use alloc::collections::VecDeque;
 use alloc::boxed::Box;
