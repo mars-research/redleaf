@@ -27,6 +27,8 @@ use fnv::FnvHasher;
 use twox_hash::XxHash;
 use lru::LruCache;
 
+use hashbrown::HashMap;
+
 const TABLE_SIZE: usize = 65537;
 const CACHE_SIZE: usize = 1000;
 
@@ -37,7 +39,8 @@ type XxHashFactory = BuildHasherDefault<XxHash>;
 pub struct Maglev<N> {
     pub nodes: Vec<N>,
     pub lookup: Vec<isize>,
-    pub cache: RefCell<LruCache<usize, usize>>, // hash -> backend
+    pub cache: RefCell<HashMap<usize, usize>>,
+    // pub cache: RefCell<LruCache<usize, usize>>, // hash -> backend
 }
 
 impl<N: Hash + Eq> Maglev<N> {
@@ -45,7 +48,8 @@ impl<N: Hash + Eq> Maglev<N> {
     pub fn new<I: IntoIterator<Item = N>>(nodes: I) -> Self {
         let nodes = nodes.into_iter().collect::<Vec<_>>();
         let lookup = Self::populate(&nodes);
-        let cache = RefCell::new(LruCache::new(CACHE_SIZE));
+        // let cache = RefCell::new(LruCache::new(CACHE_SIZE));
+        let cache = RefCell::new(HashMap::with_capacity(3_000_000));
 
         Maglev { nodes, lookup, cache }
     }
@@ -134,7 +138,7 @@ impl<N: Hash + Eq> Maglev<N> {
             None => {
                 // Use lookup directly
                 let idx = self.lookup[hash % self.lookup.len()] as usize;
-                cache.put(hash, idx);
+                cache.insert(hash, idx);
                 idx
             },
             Some(idx) => {
