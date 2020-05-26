@@ -918,6 +918,9 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
     #[cfg(feature = "noop")]
     return Ok(());
 
+    let mut sender_mac = alloc::vec![0x90, 0xe2, 0xba, 0xb5, 0x13, 0x60];
+    let mut our_mac = alloc::vec![0x90, 0xe2, 0xba, 0xb5, 0x15, 0x74];
+
     let batch_sz = BATCH_SIZE;
     let mut maglev = maglev::Maglev::new(0..3);
     let mut rx_submit = RRefDeque::<[u8; 1512], 32>::default();
@@ -992,10 +995,16 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
                 }
             };
 
+            /*
             if let Some(_) = backend {
                 for i in 0..6 {
                     (pkt).swap(i, 6 + i);
                 }
+            }
+            */
+            unsafe {
+                ptr::copy(our_mac.as_ptr(), pkt.as_mut_ptr().offset(6), our_mac.capacity());
+                ptr::copy(sender_mac.as_ptr(), pkt.as_mut_ptr().offset(0), sender_mac.capacity());
             }
         }
 
@@ -1041,6 +1050,8 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
     stats_end.stats_diff(stats_start);
 
     let adj_runtime = elapsed as f64 / 2_600_000_000_u64 as f64;
+
+    maglev.dump_stats();
 
     if sum > 0 && fwd_sum > 0 {
         println!("runtime: {:.2} seconds", adj_runtime);

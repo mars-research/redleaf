@@ -27,10 +27,18 @@ use fnv::FnvHasher;
 use twox_hash::XxHash;
 use lru::LruCache;
 
+use core::default::Default;
+
 use hashbrown::HashMap;
+use sashstore_redleaf::indexmap::Index;
+
+use console::println;
 
 const TABLE_SIZE: usize = 65537;
-const CACHE_SIZE: usize = 1000;
+const CACHE_SIZE: usize = 1 << 24;
+
+static mut HIT_COUNT: usize = 0;
+static mut HASHMAP_TOTAL: usize = 0;
 
 type FnvHashFactory = BuildHasherDefault<FnvHasher>;
 type XxHashFactory = BuildHasherDefault<XxHash>;
@@ -39,8 +47,9 @@ type XxHashFactory = BuildHasherDefault<XxHash>;
 pub struct Maglev<N> {
     pub nodes: Vec<N>,
     pub lookup: Vec<isize>,
-    pub cache: RefCell<HashMap<usize, usize>>,
     // pub cache: RefCell<LruCache<usize, usize>>, // hash -> backend
+    // pub cache: RefCell<HashMap<usize, usize, FnvHashFactory>>,
+    pub cache: RefCell<Index<usize, usize>>,
 }
 
 impl<N: Hash + Eq> Maglev<N> {
@@ -49,7 +58,8 @@ impl<N: Hash + Eq> Maglev<N> {
         let nodes = nodes.into_iter().collect::<Vec<_>>();
         let lookup = Self::populate(&nodes);
         // let cache = RefCell::new(LruCache::new(CACHE_SIZE));
-        let cache = RefCell::new(HashMap::with_capacity(3_000_000));
+        // let cache = RefCell::new(HashMap::with_capacity_and_hasher(CACHE_SIZE, Default::default()));
+        let cache = RefCell::new(Index::with_capacity(CACHE_SIZE));
 
         Maglev { nodes, lookup, cache }
     }
@@ -134,18 +144,26 @@ impl<N: Hash + Eq> Maglev<N> {
     #[inline]
     pub fn get_index_from_hash(&self, hash: usize) -> usize {
         let mut cache = self.cache.borrow_mut();
-        match cache.get(&hash) {
+        let mut set_cache = false;
+        let x = match cache.get(&hash) {
             None => {
                 // Use lookup directly
-                let idx = self.lookup[hash % self.lookup.len()] as usize;
-                cache.insert(hash, idx);
-                idx
+                set_cache = true;
+                self.lookup[hash % self.lookup.len()] as usize
             },
             Some(idx) => {
                 // Use cached backend
+                unsafe { HIT_COUNT += 1; }
                 *idx
             },
+        };
+        unsafe { HASHMAP_TOTAL += 1; }
+
+        if set_cache {
+            cache.insert(hash, x);
         }
+
+        x
     }
 
     #[inline]
@@ -154,5 +172,12 @@ impl<N: Hash + Eq> Maglev<N> {
         Q: Hash + Eq,
     {
         &self.nodes[self.get_index(key)]
+    }
+
+    pub fn dump_stats(&self) {
+        unsafe {
+            println!("Hits: {}, total: {}", HIT_COUNT, HASHMAP_TOTAL);
+        }
+        sashstore_redleaf::indexmap::print_stats();
     }
 }
