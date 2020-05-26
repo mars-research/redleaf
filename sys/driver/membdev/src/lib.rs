@@ -30,6 +30,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>,
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
+    #[cfg(feature = "default-memdisk")]
     if memdisk.len() == 0 {
         console::println!("an empty memdisk is passed into memdisk. the default memdisk is now being used");
         memdisk = unsafe { libmembdev::get_memdisk() };

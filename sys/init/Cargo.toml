@@ -57,4 +57,6 @@ membdev = []
 benchnvme = []
 # Bring up shadow domains for restart.
 # Use with `tramp` feature, otherwise the stack won't unwind properly
+# Also, turn the `default-memdisk` feature on in `sys/driver/membdev`.
+# Otherwise, the membdev domain will not have a memdisk to operative with.
 shadow = []
