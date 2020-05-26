@@ -749,20 +749,39 @@ impl DomCProxy {
 }
 
 /* 
+ * Code to unwind no_arg
+ */
+
+#[no_mangle]
+pub extern fn no_arg(s: &Box<dyn usr::dom_c::DomC>) -> RpcResult<()> {
+    s.no_arg()
+}
+
+#[no_mangle]
+pub extern fn no_arg_err(s: &Box<dyn usr::dom_c::DomC>) -> RpcResult<()> {
+    println!("no_arg was aborted");
+    Err(unsafe{RpcError::panic()})
+}
+
+#[no_mangle]
+pub extern "C" fn no_arg_addr() -> u64 {
+    no_arg_err as u64
+}
+
+extern {
+    fn no_arg_tramp(s: &Box<dyn usr::dom_c::DomC>) -> RpcResult<()>;
+}
+
+trampoline!(no_arg);
+
+/* 
  * Code to unwind one_arg
  */
 
 #[no_mangle]
 pub extern fn one_arg(s: &Box<dyn usr::dom_c::DomC>, x: usize) -> RpcResult<usize> {
     //println!("one_arg: x:{}", x);
-    let r = s.one_arg(x);
-
-    match r {
-        Ok(n) => {/*println!("one_arg:{}", n)*/},
-        Err(e) => println!("one_arg: error:{:?}", e),
-    }
-
-    r
+    s.one_arg(x)
 }
 
 #[no_mangle]
@@ -782,12 +801,42 @@ extern {
 
 trampoline!(one_arg);
 
+/* 
+ * Code to unwind one_rref
+ */
+
+#[no_mangle]
+pub extern fn one_rref(s: &Box<dyn usr::dom_c::DomC>, x: RRef<usize>) -> RpcResult<RRef<usize>> {
+    //println!("one_rref: x:{}", x);
+    s.one_rref(x)
+}
+
+#[no_mangle]
+pub extern fn one_rref_err(s: &Box<dyn usr::dom_c::DomC>, x: RRef<usize>) -> RpcResult<RRef<usize>> {
+    println!("one_rref was aborted");
+    Err(unsafe{RpcError::panic()})
+}
+
+#[no_mangle]
+pub extern "C" fn one_rref_addr() -> u64 {
+    one_rref_err as u64
+}
+
+extern {
+    fn one_rref_tramp(s: &Box<dyn usr::dom_c::DomC>, x: RRef<usize>) -> RpcResult<RRef<usize>>;
+}
+
+trampoline!(one_rref);
+
 impl usr::dom_c::DomC for DomCProxy {
-    fn no_arg(&self) {
+    fn no_arg(&self) -> RpcResult<()> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
+        #[cfg(not(feature = "tramp"))]
         let r = self.domain.no_arg();
+        #[cfg(feature = "tramp")]
+        let r = unsafe { no_arg_tramp(&self.domain) };
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };
@@ -799,10 +848,9 @@ impl usr::dom_c::DomC for DomCProxy {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
-        #[cfg(not(feature = "unwind_dom_c"))]
+        #[cfg(not(feature = "tramp"))]
         let r = self.domain.one_arg(x);
-
-        #[cfg(feature = "unwind_dom_c")]
+        #[cfg(feature = "tramp")]
         let r = unsafe { one_arg_tramp(&self.domain, x) };
 
         // move thread back
@@ -811,13 +859,20 @@ impl usr::dom_c::DomC for DomCProxy {
         r
     }
 
-    fn one_rref(&self, x: RRef<usize>) -> RRef<usize> {
+    fn one_rref(&self, x: RRef<usize>) -> RpcResult<RRef<usize>> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
         x.move_to(self.domain_id);
+
+        #[cfg(not(feature = "tramp"))]
         let r = self.domain.one_rref(x);
-        r.move_to(caller_domain);
+        #[cfg(feature = "tramp")]
+        let r = unsafe { one_rref_tramp(&self.domain, x) };
+
+        if let Ok(r) = r.as_ref() {
+            r.move_to(caller_domain);
+        }
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };

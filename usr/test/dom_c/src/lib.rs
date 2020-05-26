@@ -23,7 +23,9 @@ impl DomC {
 }
 
 impl usr::dom_c::DomC for DomC {
-    fn no_arg(&self) {}
+    fn no_arg(&self) -> RpcResult<()> {
+        Ok(())
+    }
 
     fn one_arg(&self, x: usize) -> RpcResult<usize> {
         #[cfg(feature = "unwind")]
@@ -34,9 +36,9 @@ impl usr::dom_c::DomC for DomC {
         Ok(x + 1)
     }
 
-    fn one_rref(&self, mut x: RRef<usize>) -> RRef<usize> {
+    fn one_rref(&self, mut x: RRef<usize>) -> RpcResult<RRef<usize>> {
         *x += 1;
-        x
+        Ok(x)
     }
 }
 

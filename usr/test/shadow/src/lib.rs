@@ -52,7 +52,7 @@ impl Shadow {
 }
 
 impl usr::dom_c::DomC for Shadow {
-    fn no_arg(&self) {
+    fn no_arg(&self) -> RpcResult<()> {
         self.dom.lock().dom_c.no_arg()
     }
 
@@ -76,7 +76,7 @@ impl usr::dom_c::DomC for Shadow {
         }        
     }
 
-    fn one_rref(&self, x: RRef<usize>) -> RRef<usize> {
+    fn one_rref(&self, x: RRef<usize>) -> RpcResult<RRef<usize>> {
         self.dom.lock().dom_c.one_rref(x)
     }
 }
