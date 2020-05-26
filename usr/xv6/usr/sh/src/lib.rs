@@ -37,8 +37,8 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
     println!("Starting rv6 shell with args: {}", args);
 
-    sys_spawn_domain("benchfs", &alloc::format!("benchfs r large {}", 30usize * 1024 * 1024 * 1024), &[Some(0), Some(1), Some(2)]).unwrap().join();
-    sys_spawn_domain("benchfs", &alloc::format!("benchfs w large {}", 4usize * 1024 * 1024 * 1024), &[Some(0), Some(1), Some(2)]).unwrap().join();
+    // sys_spawn_domain("benchfs", &alloc::format!("benchfs r large {}", 30usize * 1024 * 1024 * 1024), &[Some(0), Some(1), Some(2)]).unwrap().join();
+    // sys_spawn_domain("benchfs", &alloc::format!("benchfs w large {}", 4usize * 1024 * 1024 * 1024), &[Some(0), Some(1), Some(2)]).unwrap().join();
 
     const prompt: &'static str = "rv6> ";
     loop {

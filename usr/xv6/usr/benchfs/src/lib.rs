@@ -25,6 +25,10 @@ use syscalls::{Syscall, Heap};
 use usr::xv6::Xv6;
 use usr::vfs::{DirectoryEntry, DirectoryEntryRef, INodeFileType, FileMode};
 
+const ONE_MS: u64 = 2_400_000;
+const TEN_MS: u64 = 10 * ONE_MS;
+const ONE_SEC: u64 = 2_400_000_000;
+
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, rv6: Box<dyn Xv6>, args: &str) {
     libsyscalls::syscalls::init(s);
@@ -49,23 +53,51 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
         let total_size = 4 * 1024 * 1024 * 1024;
         assert!(total_size % bsize == 0);
         if options.contains('w') {
+            println!("begin fs write benchmark");
             let fd = sys_open(file, FileMode::WRITE | FileMode::CREATE).unwrap();
 
             // warm up
             sys_write(fd, buffer.as_slice()).unwrap();
             rv6.sys_seek(fd, 0).unwrap();
 
+            let mut recording: [(u64, f64); 100_000] = [(0, 0.0); 100_000];
+            let mut recording_index = 0;
             let mut curr_size = 0;
             let mut seek_count = 0;
-            let start = rv6.sys_rdtsc();
+            let start = libtime::get_rdtsc();
+            let mut intervel_start = start;
+            let mut interval_read = 0;
             for offset in (bsize..total_size + bsize).step_by(bsize) {
+                let curr_time = libtime::get_rdtsc();
+                if  curr_time >= intervel_start + TEN_MS {
+                    let elapse = curr_time - intervel_start;
+                    // prints bytes per second
+                    recording[recording_index] = (curr_time, interval_read as f64 / elapse as f64 * ONE_SEC as f64);
+                    recording_index += 1;
+                    intervel_start = curr_time;
+                    curr_size += interval_read;
+                    interval_read = 0;
+                }
                 if offset % file_size == 0 {
                     rv6.sys_seek(fd, 0).unwrap();
                     seek_count += 1;
                 }
-                curr_size += sys_write(fd, buffer.as_slice()).unwrap();
+                interval_read += sys_write(fd, buffer.as_slice()).unwrap();
             }
-            let elapse = rv6.sys_rdtsc() - start;
+            let curr_time = libtime::get_rdtsc();
+            let elapse = curr_time - intervel_start;
+            curr_size += interval_read;
+            recording[recording_index] = (curr_time, interval_read as f64 / elapse as f64 * ONE_SEC as f64);
+            let elapse = libtime::get_rdtsc() - start;
+
+            {
+                println!("timestamp(s),throughput(MB/s),");
+                let start = recording[0].0;
+                for (time_stamp, throughput) in &recording[0..recording_index + 1] {
+                    println!("{},{},", (time_stamp - start) as f64 / ONE_SEC as f64, throughput / 1_000_000.0);
+                }
+            }
+
             println!("Write: buffer size: {}, total bytes: {}, cycles: {}, seek count: {}", bsize, total_size, elapse, seek_count);
             assert_eq!(curr_size, total_size);
             
@@ -76,26 +108,54 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
         let total_size = 30 * 1024 * 1024 * 1024;
         assert!(total_size % bsize == 0);
         if options.contains('r') {
+            println!("begin fs read benchmark");
             let fd = sys_open(file, FileMode::READ).unwrap();
 
             // warm up
-            rv6.sys_read(fd, buffer.as_mut_slice()).unwrap();
+            sys_read(fd, buffer.as_mut_slice()).unwrap();
             rv6.sys_seek(fd, 0).unwrap();
 
+            let mut recording: [(u64, f64); 100_000] = [(0, 0.0); 100_000];
+            let mut recording_index = 0;
             let mut curr_size = 0;
             let mut seek_count = 0;
-            let start = rv6.sys_rdtsc();
+            let start = libtime::get_rdtsc();
+            let mut intervel_start = start;
+            let mut interval_read = 0;
             for offset in (bsize..total_size + bsize).step_by(bsize) {
+                let curr_time = libtime::get_rdtsc();
+                if  curr_time >= intervel_start + TEN_MS {
+                    let elapse = curr_time - intervel_start;
+                    // prints bytes per second
+                    recording[recording_index] = (curr_time, interval_read as f64 / elapse as f64 * ONE_SEC as f64);
+                    recording_index += 1;
+                    intervel_start = curr_time;
+                    curr_size += interval_read;
+                    interval_read = 0;
+                }
                 if offset % file_size == 0 {
                     rv6.sys_seek(fd, 0).unwrap();
                     seek_count += 1;
                 }
-                curr_size += rv6.sys_read(fd, buffer.as_mut_slice()).unwrap();
+                interval_read += sys_read(fd, buffer.as_mut_slice()).unwrap();
             }
-            let elapse = rv6.sys_rdtsc() - start;
+            let curr_time = libtime::get_rdtsc();
+            let elapse = curr_time - intervel_start;
+            curr_size += interval_read;
+            recording[recording_index] = (curr_time, interval_read as f64 / elapse as f64 * ONE_SEC as f64);
+            let elapse = libtime::get_rdtsc() - start;
+
+            {
+                println!("timestamp(s),throughput(MB/s),");
+                let start = recording[0].0;
+                for (time_stamp, throughput) in &recording[0..recording_index + 1] {
+                    println!("{},{},", (time_stamp - start) as f64 / ONE_SEC as f64, throughput / 1_000_000.0);
+                }
+            }
+
             println!("Read: buffer size: {}, total bytes: {}, cycles: {}, seek count: {}", bsize, total_size, elapse, seek_count);
             assert_eq!(curr_size, total_size);
-
+            
             sys_close(fd).unwrap();
         }
     }
