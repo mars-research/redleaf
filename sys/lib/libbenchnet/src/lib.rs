@@ -754,6 +754,7 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
     let mut sum: usize = 0;
     let mut fwd_sum: usize = 0;
 
+    println!("======== Starting maglev test ==========");
     let start = rdtsc();
     let end = start + 30 * CPU_MHZ;
 
@@ -786,12 +787,12 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
                 }
             };
 
-            if let Some(_) = backend {
+            //if let Some(_) = backend {
                 unsafe {
                     ptr::copy(our_mac.as_ptr(), pkt.as_mut_ptr().offset(6), our_mac.capacity());
                     ptr::copy(sender_mac.as_ptr(), pkt.as_mut_ptr().offset(0), sender_mac.capacity());
                 }
-            }
+            //}
         }
 
         submit_tx += tx_packets.len();
@@ -1001,8 +1002,8 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
     #[cfg(feature = "noop")]
     return Ok(());
 
-    let mut sender_mac = alloc::vec![0x90, 0xe2, 0xba, 0xb5, 0x13, 0x60];
-    let mut our_mac = alloc::vec![0x90, 0xe2, 0xba, 0xb5, 0x15, 0x74];
+    let mut sender_mac = alloc::vec![ 0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81];
+    let mut our_mac = alloc::vec![0x90, 0xe2, 0xba, 0xb5, 0x14, 0xcd];
 
     let batch_sz = BATCH_SIZE;
     let mut maglev = maglev::Maglev::new(0..3);
@@ -1072,7 +1073,7 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
         for pkt in rx_collect_.iter_mut() {
             let backend = {
                 if let Some(hash) = packettool::get_flowhash(pkt) {
-                    Some(maglev.get_index(&hash))
+                    Some(maglev.get_index_from_hash(hash))
                 } else {
                     None
                 }
