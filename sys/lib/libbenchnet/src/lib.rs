@@ -755,8 +755,15 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
     let mut fwd_sum: usize = 0;
 
     println!("======== Starting maglev test ==========");
+    let stats_start = net.get_stats().unwrap()?;
+
     let start = rdtsc();
     let end = start + 30 * CPU_MHZ;
+
+    let mut alloc_count = 0;
+    let mut alloc_elapsed = 0;
+
+    let mut mswap_elapsed = 0;
 
     let mut tx_elapsed = 0;
     let mut rx_elapsed = 0;
@@ -778,6 +785,7 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
 
         //println!("rx: submitted {} collect {}", ret, tx_packets.len());
 
+        let ms_start = rdtsc();
         for pkt in tx_packets.iter_mut() {
             let backend = {
                 if let Some(hash) = packettool::get_flowhash(&pkt) {
@@ -794,6 +802,7 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
                 }
             //}
         }
+        mswap_elapsed += rdtsc() - ms_start;
 
         submit_tx += tx_packets.len();
         submit_tx_hist.record(tx_packets.len() as u64);
@@ -806,9 +815,11 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
 
         if rx_packets.len() == 0 && tx_packets.len() < batch_sz * 4 {
             //println!("-> Allocating new rx_ptx batch");
+            let alloc_rdstc_start = rdtsc();
             for i in 0..batch_sz {
                 rx_packets.push_front(Vec::with_capacity(2048));
             }
+            alloc_elapsed += rdtsc() - alloc_rdstc_start;
         }
 
         if rdtsc() > end {
@@ -817,25 +828,49 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
     }
 
     let elapsed = rdtsc() - start;
-    for hist in alloc::vec![submit_rx_hist, submit_tx_hist] {
-        println!("hist:");
-        // Iterate buckets that have observations
-        for bucket in hist.iter().filter(|b| b.count > 0) {
-            print!("({:5}, {:5}): {}", bucket.start, bucket.end, bucket.count);
-            print!("\n");
-        }
+
+    let mut stats_end = net.get_stats().unwrap()?;
+
+    stats_end.stats_diff(stats_start);
+
+    let adj_runtime = elapsed as f64 / CPU_MHZ as f64;
+
+    if sum > 0 && fwd_sum > 0 {
+        println!("runtime: {:.2} seconds", adj_runtime);
+
+        println!("Received packets: {} forwarded packets: {}", sum, fwd_sum);
+
+        println!("Rx: {} packets took {} cycles (avg = {})", sum, rx_elapsed, rx_elapsed as f64 / sum as f64);
+
+        println!("mac_swap: {} packets took {} cycles (avg = {})", sum, mswap_elapsed, mswap_elapsed as f64 / sum as f64);
+
+        println!("Tx: {} packets took {} cycles (avg = {})", fwd_sum, tx_elapsed, tx_elapsed  as f64 / fwd_sum as f64);
+
+        println!("magleve_fwd : Forwarding {} packets took {} cycles (avg = {})", fwd_sum, elapsed,
+                                                                        elapsed as f64 / fwd_sum as f64);
+
+        let done_rx = net.poll(&mut rx_packets, false).unwrap()?;
+        let done_tx = net.poll(&mut tx_packets, true).unwrap()?;
+
+        println!("Reaped rx {} packets tx {} packets", done_rx, done_tx);
+
+        println!("Device Stats\n{}", stats_end);
+
+        println!("Tx Pkts/s {:.2}", stats_end.tx_dma_ok as f64 / adj_runtime as f64);
+        println!("Rx Pkts/s {:.2}", stats_end.rx_dma_ok as f64 / adj_runtime as f64);
+
+        println!("Number of new allocations {}, took {} cycles (avg = {})", alloc_count * batch_sz, alloc_elapsed,
+                                                        alloc_elapsed as f64 / (alloc_count * batch_sz) as f64);
+    } else {
+        println!("Test failed! No packets Forwarded! Rxed {}, Txed {}", sum, fwd_sum);
     }
 
-    println!("Received {} forwarded {}", sum, fwd_sum);
-    println!(" ==> submit_rx {} (avg {}) submit_tx {} (avg {}) loop_count {}",
-                        submit_rx, submit_rx / loop_count, submit_tx, submit_tx / loop_count, loop_count);
-    println!(" ==> rx batching {}B: {} packets took {} cycles (avg = {})",
-                        pkt_size, sum, rx_elapsed, rx_elapsed  / core::cmp::max(sum as u64, 1));
-    println!(" ==> tx batching {}B: {} packets took {} cycles (avg = {})",
-                        pkt_size, fwd_sum, tx_elapsed, tx_elapsed   / core::cmp::max(fwd_sum as u64, 1));
-    println!("==> maglev fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_size, fwd_sum, elapsed, elapsed  / core::cmp::max(fwd_sum as u64, 1));
-    // dev.dump_stats();
-    //dev.dump_tx_descs();
+    print_hist!(submit_rx_hist);
+
+    print_hist!(submit_tx_hist);
+
+    println!("+++++++++++++++++++++++++++++++++++++++++++++++++");
+
     Ok(())
 }
 
@@ -1176,7 +1211,7 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
     print_hist!(submit_tx_hist);
 
     println!("+++++++++++++++++++++++++++++++++++++++++++++++++");
-    maglev.dump_stats();
+    //maglev.dump_stats();
 
     Ok(())
 }

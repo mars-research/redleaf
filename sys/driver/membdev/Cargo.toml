@@ -43,6 +43,6 @@ memcpy = false
 
 [features]
 default = [
-    # "default-memdisk"
+    "default-memdisk"
 ]
 default-memdisk = []
