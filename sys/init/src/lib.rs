@@ -217,7 +217,10 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
     let (dom_ahci, bdev) = proxy.as_create_bdev_shadow().create_domain_bdev_shadow(proxy.as_create_membdev());
 
     println!("Creating nvme domain!");
+    #[cfg(not(feature = "shadow"))]
     let (dom_nvme, nvme) = proxy.as_create_nvme().create_domain_nvme(pci.pci_clone());
+    #[cfg(feature = "shadow")]
+    let (dom_nvme, nvme) = proxy.as_create_nvme_shadow().create_domain_nvme_shadow(proxy.as_create_nvme(), pci.pci_clone());
 
     println!("Creating ixgbe");
     #[cfg(not(feature = "shadow"))]
