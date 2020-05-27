@@ -214,67 +214,43 @@ pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
         }
         ixgbe
     };
+
     #[cfg(feature = "nullnet")]
     let mut ixgbe = nullnet::NullNet::new();
 
     println!("Starting tests");
 
-    let payload_sz = alloc::vec![64 - 42, 64, 128, 256, 512, 1470];
-
-    // run_tx_udptest(&ixgbe, 64, false);
-
-    //libbenchnet::run_tx_udptest_rref(&ixgbe, 64, false);
-
-
-/*    libbenchnet::run_tx_udptest(&ixgbe, 64, false);
-    libbenchnet::run_tx_udptest(&ixgbe, 64, false);
-    libbenchnet::run_tx_udptest(&ixgbe, 64, false);
-    libbenchnet::run_tx_udptest(&ixgbe, 64, false);
-    libbenchnet::run_tx_udptest(&ixgbe, 64, false);
-*/
-
+   /* 
+    for _ in 0..5 {
+        libbenchnet::run_tx_udptest_rref(&ixgbe, 64, false);
+    }*/
+    
     /*for _ in 0..5 {
         libbenchnet::run_tx_udptest(&ixgbe, 64, false);
-    }
+    }*/
 
+    /*
     for _ in 0..5 {
-        libbenchnet::run_tx_udptest(&ixgbe, 1514, false);
-    }*/
- 
-    //libbenchnet::run_tx_udptest(&ixgbe, 64, false);
-    //libbenchnet::run_tx_udptest(&ixgbe, 1514, false);
-
-    /*for d in (0..1000).step_by(100) {
-        libbenchnet::run_rx_udptest_with_delay(&ixgbe, 1514, false, d);
+        libbenchnet::run_rx_udptest_with_delay(&ixgbe, 64, false, 0);
     }*/
 
-    for d in (0..1000).step_by(100) {
-        libbenchnet::run_rx_udptest_rref_with_delay(&ixgbe, 1514, false, d);
+    /*for _ in 0..5 {
+        libbenchnet::run_fwd_udptest(&ixgbe, 64);
+    }*/
+    /*
+    for d in (0..=1000).step_by(100) {
+        libbenchnet::run_fwd_udptest_with_delay(&ixgbe, 64, d);
     }
 
     panic!("");
-    libbenchnet::run_rx_udptest_with_delay(&ixgbe, 64, false, 400);
-    libbenchnet::run_rx_udptest_with_delay(&ixgbe, 64, false, 950);
-
-
-    libbenchnet::run_rx_udptest_rref_with_delay(&ixgbe, 64, false, 400);
-
-    libbenchnet::run_rx_udptest_rref_with_delay(&ixgbe, 64, false, 950);
-
-
-    //libbenchnet::run_rx_udptest_rref(&ixgbe, 64, false);
-
-    // // run_fwd_udptest(&ixgbe, 64);
-
-    libbenchnet::run_fwd_udptest(&ixgbe, 64);
-
+    */
     //libbenchnet::run_fwd_udptest_rref(&ixgbe, 1514);
-
-    //panic!();
 
     // libbenchnet::run_maglev_fwd_udptest_rref(&ixgbe, 64);
 
-    /*println!("=> Running tests...");
+    /*
+    let payload_sz = alloc::vec![64 - 42, 64, 128, 256, 512, 1470];
+    println!("=> Running tests...");
 
     for p in payload_sz.iter() {
         println!("running {}B payload test", p);
@@ -286,7 +262,8 @@ pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
 
         println!("Fwd test");
         run_fwd_udptest(&ixgbe, 64 - 42);
-    }*/
+    }
+    */
 
     Box::new(ixgbe)
 }

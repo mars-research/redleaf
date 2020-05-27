@@ -20,10 +20,36 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
 
     println!("Init domain benchnet_inside");
 
+    for _ in 0..5 {
+        libbenchnet::run_tx_udptest_rref(&*net, 64, false);
+    }
+
+    //panic!("");
+    /*for _ in 0..5 {
+        libbenchnet::run_tx_udptest_rref(&*net, 1514, false);
+    }*/
+    /*for d in (0..=1000).step_by(100) {
+        libbenchnet::run_fwd_udptest_rref_with_delay(&*net, 64, d);
+    }*/
+
+    /*for _ in 0..5 {
+        libbenchnet::run_fwd_udptest_rref(&*net, 64);
+    }*/
+
+    /*for _ in 0..5 {
+        // for d in (0..=1000).step_by(100) {
+        libbenchnet::run_rx_udptest_rref_with_delay(&*net, 64, false, 0);
+    }*/
+
+    /*for _ in 0..5 {
+        libbenchnet::run_tx_udptest_rref(&*net, 1514, false);
+    }*/
+
+    /*
     libbenchnet::run_tx_udptest_rref(&*net, 64, false);
     libbenchnet::run_rx_udptest_rref(&*net, 64, false);
     libbenchnet::run_fwd_udptest_rref(&*net, 64);
-    libbenchnet::run_maglev_fwd_udptest_rref(&*net, 64);
+    libbenchnet::run_maglev_fwd_udptest_rref(&*net, 64);*/
 }
 
 // This function is called on panic.
