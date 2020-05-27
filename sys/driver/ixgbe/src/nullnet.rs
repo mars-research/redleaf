@@ -16,7 +16,12 @@ impl NullNet {
 impl usr::net::Net for NullNet {
     fn submit_and_poll(&self, mut packets: &mut VecDeque<Vec<u8>
         >, mut collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
-        unimplemented!()
+
+        let ret = packets.len();
+        while let Some(pkt) = packets.pop_front() {
+            collect.push_back(pkt);
+        }
+        Ok(Ok(ret))
     }
 
     fn submit_and_poll_rref(
@@ -30,11 +35,15 @@ impl usr::net::Net for NullNet {
             RRefDeque<[u8; 1514], 32>
         )>>
     {
-        Ok(Ok((packets.len(), collect, packets)))
+        while let Some(pkt) = packets.pop_front() {
+            collect.push_back(pkt);
+        }
+
+        Ok(Ok((collect.len(), packets, collect)))
     }
 
     fn poll(&self, mut collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
-        unimplemented!()
+        Ok(Ok(0))
     }
 
     fn poll_rref(&self, collect: RRefDeque<[u8; 1514], 512>, tx: bool) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>> {
