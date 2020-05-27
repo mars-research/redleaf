@@ -351,7 +351,19 @@ pub fn run_rx_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, debug: bool
     let mut collect = Some(collect);
     let mut poll = Some(poll);
 
-    println!("======== Starting udp rx test (rrefs) loop_delay: {} ==========", delay);
+
+// pkgten.hz 2590000000 wire_size 704 lk 10000000000 pps 14204545 cpp 182 tx_cycles 11648 tx_rate 100.000000
+    // compute the number of bits on wire for this pkt_len
+
+    let wire_size = (req_pkt_len + 24) * 8;
+    let link_speed = 10_000_000_000_u64;
+    let pps = link_speed as f64 / wire_size as f64;
+    let cpp = CPU_MHZ as f64 / pps;
+    let rx_cycles = (cpp as u64 * batch_sz as u64);
+
+    println!("CPU_MHZ {} wire_size {} link_speed {} pps {} cpp {} rx_cycles {}",
+                        CPU_MHZ, wire_size, link_speed, pps, cpp, rx_cycles);
+    println!("======== Starting udp rx test {}B (rrefs) loop_delay: {} ==========", pkt_len, delay);
 
     let mut sum: usize = 0;
     let mut alloc_count = 0;
@@ -834,7 +846,7 @@ pub fn run_fwd_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, delay: u64
     #[cfg(feature = "noop")]
     return Ok(());
 
-    let batch_sz = BATCH_SIZE / 2;
+    let batch_sz = BATCH_SIZE;
     let mut rx_submit = RRefDeque::<[u8; 1514], 32>::default();
     let mut rx_collect = RRefDeque::<[u8; 1514], 32>::default();
     let mut tx_poll =  RRefDeque::<[u8; 1514], 512>::default();
@@ -895,8 +907,13 @@ pub fn run_fwd_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, delay: u64
 
         let ms_start = rdtsc();
         for pkt in rx_collect_.iter_mut() {
-            for i in 0..6 {
+            /*for i in 0..6 {
                 (pkt).swap(i, 6 + i);
+            }*/
+            //let mut pkt = pkt as *mut [u8; 1514] as *mut u8;
+            unsafe {
+                ptr::copy(our_mac.as_ptr(), pkt.as_mut_ptr().offset(6), our_mac.capacity());
+                ptr::copy(sender_mac.as_ptr(), pkt.as_mut_ptr().offset(0), sender_mac.capacity());
             }
         }
         mswap_elapsed += rdtsc() - ms_start;

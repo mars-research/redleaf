@@ -1024,8 +1024,10 @@ impl IxgbeDevice {
                         }
 
                         //if reap_queue.push_back(RRef::new(buf.take().unwrap())).is_some() {
-                        if reap_queue.push_back(buf).is_some() {
+                        if let Some(buf) = reap_queue.push_back(buf) {
                             println!("tx_sub_and_poll1: Pushing to a full reap queue");
+                            self.transmit_rrefs[tx_index] = Some(buf);
+                            break;
                         }
 
                         tx_clean_index = wrap_ring(tx_clean_index, self.transmit_ring.len());
