@@ -18,6 +18,38 @@ use usr::rpc::RpcResult;
 use create::CreateMemBDev;
 use spin::Mutex;
 
+#[derive(Debug)]
+struct Stats {
+    // Number of restarts
+    restart_count: usize,
+    // Number of runs that there's no restart
+    norestart_count: usize,
+    // Cumulative time of api calls when there's a restart
+    restart_time: usize,
+    // Cumulative time of api cals when there's no-restart
+    norestart_time: usize,
+    // The time of restart itself, excluding unwinding and retrying
+    raw_restart_time: usize,
+}
+
+impl Stats {
+    fn new() -> Self {
+        Self {
+            restart_count: 0,
+            norestart_count: 0,
+            restart_time: 0,
+            norestart_time: 0,
+            raw_restart_time: 0,
+        }
+    }
+}
+
+impl Drop for Stats {
+    fn drop(&mut self) {
+        println!("{:?}", self);
+    }
+}
+
 struct ShadowInternal {
     create: Arc<dyn CreateMemBDev>,
     bdev: Box<dyn BDev>,
