@@ -56,34 +56,53 @@ pub fn fix_udp_checksum(frame: &mut [u8]) {
     frame[ETH_HEADER_LEN + v4len + UDP_CHECKSUM_OFFSET + 1] = 0;
 }
 
+#[inline(always)]
+fn fnv_a(data: &[u8], state: &mut u64) {
+    for byte in data.iter() {
+        *state *= 0x100000001b3;
+        *state ^= u64::from(*byte);
+    }
+}
+
 pub fn get_flowhash(frame: &[u8]) -> Option<usize> {
     // Ugly but fast (supposedly)
-    let h1f: BuildHasherDefault<FnvHasher> = Default::default();
-    let mut h1 = h1f.build_hasher();
+    // let h1f: BuildHasherDefault<FnvHasher> = Default::default();
+    // let mut h1 = h1f.build_hasher();
+    let mut state: u64 = 0xcbf29ce484222325;
 
+    /*
     if frame[ETH_HEADER_LEN] >> 4 != 4 {
         // This shitty implementation can only handle IPv4 :(
         return None
     }
+    */
 
     // Length of IPv4 header
     let v4len = (frame[ETH_HEADER_LEN] & 0b1111) as usize * 4;
 
     // Hash source/destination IP addresses
-    frame[(ETH_HEADER_LEN + IPV4_SRCDST_OFFSET)..(ETH_HEADER_LEN + IPV4_SRCDST_OFFSET + IPV4_SRCDST_LEN)].hash(&mut h1);
+    fnv_a(&frame[(ETH_HEADER_LEN + IPV4_SRCDST_OFFSET)..(ETH_HEADER_LEN + IPV4_SRCDST_OFFSET + IPV4_SRCDST_LEN)], &mut state);
+    // frame[(ETH_HEADER_LEN + IPV4_SRCDST_OFFSET)..(ETH_HEADER_LEN + IPV4_SRCDST_OFFSET + IPV4_SRCDST_LEN)].hash(&mut h1);
 
     // Hash IP protocol number
     let proto = frame[ETH_HEADER_LEN + IPV4_PROTO_OFFSET];
+    /*
     if proto != 6 && proto != 17 {
         // This shitty implementation can only handle TCP and UDP
         return None;
     }
-    proto.hash(&mut h1);
+    */
+    state *= 0x100000001b3;
+    state ^= u64::from(proto);
+
+    // proto.hash(&mut h1);
 
     // Hash source/destination port
-    frame[(ETH_HEADER_LEN + v4len)..(ETH_HEADER_LEN + v4len + 4)].hash(&mut h1);
+    fnv_a(&frame[(ETH_HEADER_LEN + v4len)..(ETH_HEADER_LEN + v4len + 4)], &mut state);
+    // frame[(ETH_HEADER_LEN + v4len)..(ETH_HEADER_LEN + v4len + 4)].hash(&mut h1);
 
-    Some(h1.finish() as usize)
+    // Some(h1.finish() as usize)
+    Some(state as usize)
 }
 
 pub fn get_mut_udp_payload(frame: &mut [u8]) -> Option<(usize, &mut [u8])> {
