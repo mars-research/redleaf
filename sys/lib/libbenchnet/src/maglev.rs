@@ -31,14 +31,23 @@ use core::default::Default;
 
 use hashbrown::HashMap;
 use sashstore_redleaf::indexmap::Index;
-
 use console::println;
 
 const TABLE_SIZE: usize = 65537;
-const CACHE_SIZE: usize = 1 << 24;
+const CACHE_SIZE: usize = 1 << 21;
 
 static mut HIT_COUNT: usize = 0;
 static mut HASHMAP_TOTAL: usize = 0;
+
+/*
+lut (consistent hashing), cache (connection tracking)
+
+- receive the packet
+- generate flowhash from 5-tuple
+- lookup in cache
+- if found in cache: just return
+- if not found: (lut[hash] -> backend number) and insert into cache
+*/
 
 type FnvHashFactory = BuildHasherDefault<FnvHasher>;
 type XxHashFactory = BuildHasherDefault<XxHash>;

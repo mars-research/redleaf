@@ -1080,8 +1080,14 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
 
             /*
             if let Some(_) = backend {
+                /*
                 for i in 0..6 {
                     (pkt).swap(i, 6 + i);
+                }
+                */
+                unsafe {
+                    ptr::copy(our_mac.as_ptr(), pkt.as_mut_ptr().offset(6), our_mac.capacity());
+                    ptr::copy(sender_mac.as_ptr(), pkt.as_mut_ptr().offset(0), sender_mac.capacity());
                 }
             }
             */
@@ -1134,8 +1140,6 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
 
     let adj_runtime = elapsed as f64 / CPU_MHZ as f64;
 
-    maglev.dump_stats();
-
     if sum > 0 && fwd_sum > 0 {
         println!("runtime: {:.2} seconds", adj_runtime);
 
@@ -1171,6 +1175,8 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
     print_hist!(submit_tx_hist);
 
     println!("+++++++++++++++++++++++++++++++++++++++++++++++++");
+    maglev.dump_stats();
+
     Ok(())
 }
 
