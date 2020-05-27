@@ -59,7 +59,7 @@ pub fn fix_udp_checksum(frame: &mut [u8]) {
 #[inline(always)]
 fn fnv_a(data: &[u8], state: &mut u64) {
     for byte in data.iter() {
-        *state *= 0x100000001b3;
+        *state = (*state).wrapping_mul(0x100000001b3);
         *state ^= u64::from(*byte);
     }
 }
@@ -92,7 +92,7 @@ pub fn get_flowhash(frame: &[u8]) -> Option<usize> {
         return None;
     }
     */
-    state *= 0x100000001b3;
+    state = state.wrapping_mul(0x100000001b3);
     state ^= u64::from(proto);
 
     // proto.hash(&mut h1);
