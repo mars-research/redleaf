@@ -33,18 +33,16 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
     println!("Starting rv6 benchnet with args: {}", args);
 
     let mut nvme = rv6.as_nvme();
-    let _ = libbenchnvme::run_blocktest_rref(&mut *nvme, 4096, /*is_write=*/false, /*is_random=*/false);
-    let _ = libbenchnvme::run_blocktest_rref(&mut *nvme, 4096, /*is_write=*/false, /*is_random=*/false);
 
-    let _ = libbenchnvme::run_blocktest_rref(&mut *nvme, 4096, /*is_write=*/false, /*is_random=*/true);
-    let _ = libbenchnvme::run_blocktest_rref(&mut *nvme, 4096, /*is_write=*/false, /*is_random=*/true);
+    for _ in 0..=6 {
+        let _ = libbenchnvme::run_blocktest_rref(&mut *nvme, 4096,
+                                    /*is_write=*/true, /*is_random=*/false);
+    }
 
-
-    let _ = libbenchnvme::run_blocktest_rref(&mut *nvme, 4096, /*is_write=*/true, /*is_random=*/false);
-    let _ = libbenchnvme::run_blocktest_rref(&mut *nvme, 4096, /*is_write=*/true, /*is_random=*/false);
-
-    let _ = libbenchnvme::run_blocktest_rref(&mut *nvme, 4096, /*is_write=*/true, /*is_random=*/true);
-    let _ = libbenchnvme::run_blocktest_rref(&mut *nvme, 4096, /*is_write=*/true, /*is_random=*/true);
+    for _ in 0..=6 {
+        let _ = libbenchnvme::run_blocktest_rref(&mut *nvme, 4096,
+                                    /*is_write=*/false, /*is_random=*/false);
+    }
 }
 
 

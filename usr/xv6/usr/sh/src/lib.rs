@@ -40,6 +40,9 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
     // sys_spawn_domain("benchfs", &alloc::format!("benchfs r large {}", 30usize * 1024 * 1024 * 1024), &[Some(0), Some(1), Some(2)]).unwrap().join();
     // sys_spawn_domain("benchfs", &alloc::format!("benchfs w large {}", 4usize * 1024 * 1024 * 1024), &[Some(0), Some(1), Some(2)]).unwrap().join();
 
+    //sys_spawn_domain("benchnvme", &alloc::format!("benchfs r large {}", 30usize * 1024 * 1024 * 1024), &[Some(0), Some(1), Some(2)]).unwrap().join();
+    //sys_spawn_domain("benchnet", "benchnet", &[Some(0), Some(1), Some(2)]).unwrap();
+
     const prompt: &'static str = "rv6> ";
     loop {
         print!("{}", prompt);

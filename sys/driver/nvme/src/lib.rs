@@ -584,39 +584,17 @@ pub fn nvme_init(s: Box<dyn Syscall + Send + Sync>,
                                         rand_elapsed, rand_elapsed as f64 / num_iter as f64);
     }
 
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/false, /*is_random=*/false);
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/false, /*is_random=*/false);
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/false, /*is_random=*/false);
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/false, /*is_random=*/false);
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/false, /*is_random=*/false);
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/false, /*is_random=*/false);
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/false, /*is_random=*/false);
+    /* println!("write test");
+    for _ in 0..=6 {
+        run_blocktest_raw_with_delay(&nvme, 30, 1, true, false, 0);
+    }
 
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/false, /*is_random=*/true);
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/false, /*is_random=*/true);
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/false, /*is_random=*/true);
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/false, /*is_random=*/true);
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/false, /*is_random=*/true);
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/false, /*is_random=*/true);
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/false, /*is_random=*/true);
+    println!("Read tests!");
 
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/true, /*is_random=*/false);
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/true, /*is_random=*/false);
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/true, /*is_random=*/false);
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/true, /*is_random=*/false);
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/true, /*is_random=*/false);
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/true, /*is_random=*/false);
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/true, /*is_random=*/false);
+    for _ in 0..=6 {
+        run_blocktest_raw_with_delay(&nvme, 30, 1, false, false, 0);
+    }*/
 
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/true, /*is_random=*/true);
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/true, /*is_random=*/true);
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/true, /*is_random=*/true);
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/true, /*is_random=*/true);
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/true, /*is_random=*/true);
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/true, /*is_random=*/true);
-    run_blocktest_raw(&mut nvme, 30, 32, /*is_write=*/true, /*is_random=*/true);
-
-    //run_blocktest_raw(&nvme, 30, 32, true);
     //perf_test_raw(&nvme, 10, 32, false);
 
     Box::new(nvme)
