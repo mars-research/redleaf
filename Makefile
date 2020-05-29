@@ -224,9 +224,13 @@ cloudlab-deps:
 	sudo apt install -y qemu nasm xorriso numactl
 	curl https://sh.rustup.rs -sSf | bash -s -- --default-toolchain nightly-2020-05-15 -y
 	. ~/.cargo/env && \
-	cargo install cargo-xbuild && \
-	cargo install stack-sizes && \
+	cargo install cargo-xbuild stack-sizes && \
 	rustup component add rust-src
+	@echo "To get started you need Cargo's bin directory ('$$HOME/.cargo/bin') in your PATH \
+	environment variable. Next time you log in this will be done \
+	automatically."
+	@echo
+	@echo "To configure your current shell run 'source $$HOME/.cargo/env'"
 
 .PHONY: cloudlab-grub
 cloudlab-grub:

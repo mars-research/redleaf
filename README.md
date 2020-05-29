@@ -1,13 +1,8 @@
 ![](https://github.com/mars-research/redleaf/workflows/build/badge.svg)
 
 ### Development Setup
-```bash
-curl https://sh.rustup.rs -sSf | sh
-rustup override add nightly
-rustup component add llvm-tools-preview
-cargo install cargo-xbuild
-cargo +nightly install stack-sizes
-rustup component add rust-src
+``` bash
+make cloudlab-deps
 ```
 
 ### Benchmark Setup
