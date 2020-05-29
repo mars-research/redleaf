@@ -235,7 +235,7 @@ pub unsafe fn init_global_gdt() {
 
 #[inline]
 pub unsafe fn writefs(fs: u64) {
-    asm!("wrfsbase $0" :: "r"(fs) :: "volatile");
+    llvm_asm!("wrfsbase $0" :: "r"(fs) :: "volatile");
 }
 
 /// Initialize GDT with TLS

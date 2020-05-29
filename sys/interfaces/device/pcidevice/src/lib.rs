@@ -1,8 +1,8 @@
 #![no_std]
 #![feature(
-    asm,
+    llvm_asm,
     allocator_api,
-    )]
+)]
 
 #[macro_use]
 extern crate bitflags;
@@ -188,7 +188,7 @@ fn pci_read(pci: &PciAddress, offset: u8) -> u32 {
     let address = 0x80000000 | ((pci.bus as u32) << 16) | ((pci.dev as u32) << 11) | ((pci.func as u32) << 8) | ((offset as u32) & 0xFC);
     let value: u32;
     unsafe {
-        asm!("mov dx, $2
+        llvm_asm!("mov dx, $2
           out dx, eax
           mov dx, $3
           in eax, dx"
@@ -201,10 +201,10 @@ fn pci_write(pci: &PciAddress, offset: u8, value: u32) {
     let address = 0x80000000 | ((pci.bus as u32) << 16) | ((pci.dev as u32) << 11) | ((pci.func as u32) << 8) | ((offset as u32) & 0xFC);
 
     unsafe {
-        asm!("mov dx, $1
+        llvm_asm!("mov dx, $1
           out dx, eax"
           : : "{eax}"(address), "r"(PCI_ADDR_PORT) : "dx" : "intel", "volatile");
-        asm!("mov dx, $1
+        llvm_asm!("mov dx, $1
           out dx, eax"
           : : "{eax}"(value), "r"(PCI_DATA_PORT) : "dx" : "intel", "volatile");
     }

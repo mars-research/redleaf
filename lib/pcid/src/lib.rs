@@ -2,7 +2,9 @@
 #![crate_name = "pcid"]
 #![crate_type = "lib"]
 
-#![feature( asm)]
+#![feature(
+    llvm_asm,
+)]
 
 #[macro_use] extern crate bitflags;
 extern crate byteorder;

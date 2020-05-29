@@ -543,7 +543,7 @@ extern "C" fn die(/*func: extern fn()*/) {
 
     /* AB: XXX: We assume that the funciton pointer is still in r15 */
     unsafe{
-        asm!("mov $0, r15" : "=r"(func) : : "memory" : "intel", "volatile");
+        llvm_asm!("mov $0, r15" : "=r"(func) : : "memory" : "intel", "volatile");
     };
 
     println!("Starting new thread"); 
@@ -565,42 +565,42 @@ extern "C" fn die(/*func: extern fn()*/) {
 #[inline(never)]
 #[naked]
 pub unsafe fn switch(prev: *mut Thread, next: *mut Thread) {
-    //asm!("fxsave64 [$0]" : : "r"(self.fx) : "memory" : "intel", "volatile");
+    //llvm_asm!("fxsave64 [$0]" : : "r"(self.fx) : "memory" : "intel", "volatile");
     //self.loadable = true;
     //if next.loadable {
-    //    asm!("fxrstor64 [$0]" : : "r"(next.fx) : "memory" : "intel", "volatile");
+    //    llvm_asm!("fxrstor64 [$0]" : : "r"(next.fx) : "memory" : "intel", "volatile");
     //}else{
-    //    asm!("fninit" : : : "memory" : "intel", "volatile");
+    //    llvm_asm!("fninit" : : : "memory" : "intel", "volatile");
     //}
 
-    //asm!("mov $0, cr3" : "=r"(self.cr3) : : "memory" : "intel", "volatile");
+    //llvm_asm!("mov $0, cr3" : "=r"(self.cr3) : : "memory" : "intel", "volatile");
     //if next.cr3 != self.cr3 {
-    //    asm!("mov cr3, $0" : : "r"(next.cr3) : "memory" : "intel", "volatile");
+    //    llvm_asm!("mov cr3, $0" : : "r"(next.cr3) : "memory" : "intel", "volatile");
     //}
 
-    asm!("pushfq ; pop $0" : "=r"((*prev).context.rflags) : : "memory" : "intel", "volatile");
-    asm!("push $0 ; popfq" : : "r"((*next).context.rflags) : "memory" : "intel", "volatile");
+    llvm_asm!("pushfq ; pop $0" : "=r"((*prev).context.rflags) : : "memory" : "intel", "volatile");
+    llvm_asm!("push $0 ; popfq" : : "r"((*next).context.rflags) : "memory" : "intel", "volatile");
 
-    asm!("mov $0, rbx" : "=r"((*prev).context.rbx) : : "memory" : "intel", "volatile");
-    asm!("mov rbx, $0" : : "r"((*next).context.rbx) : "memory" : "intel", "volatile");
+    llvm_asm!("mov $0, rbx" : "=r"((*prev).context.rbx) : : "memory" : "intel", "volatile");
+    llvm_asm!("mov rbx, $0" : : "r"((*next).context.rbx) : "memory" : "intel", "volatile");
 
-    asm!("mov $0, r12" : "=r"((*prev).context.r12) : : "memory" : "intel", "volatile");
-    asm!("mov r12, $0" : : "r"((*next).context.r12) : "memory" : "intel", "volatile");
+    llvm_asm!("mov $0, r12" : "=r"((*prev).context.r12) : : "memory" : "intel", "volatile");
+    llvm_asm!("mov r12, $0" : : "r"((*next).context.r12) : "memory" : "intel", "volatile");
 
-    asm!("mov $0, r13" : "=r"((*prev).context.r13) : : "memory" : "intel", "volatile");
-    asm!("mov r13, $0" : : "r"((*next).context.r13) : "memory" : "intel", "volatile");
+    llvm_asm!("mov $0, r13" : "=r"((*prev).context.r13) : : "memory" : "intel", "volatile");
+    llvm_asm!("mov r13, $0" : : "r"((*next).context.r13) : "memory" : "intel", "volatile");
 
-    asm!("mov $0, r14" : "=r"((*prev).context.r14) : : "memory" : "intel", "volatile");
-    asm!("mov r14, $0" : : "r"((*next).context.r14) : "memory" : "intel", "volatile");
+    llvm_asm!("mov $0, r14" : "=r"((*prev).context.r14) : : "memory" : "intel", "volatile");
+    llvm_asm!("mov r14, $0" : : "r"((*next).context.r14) : "memory" : "intel", "volatile");
 
-    asm!("mov $0, r15" : "=r"((*prev).context.r15) : : "memory" : "intel", "volatile");
-    asm!("mov r15, $0" : : "r"((*next).context.r15) : "memory" : "intel", "volatile");
+    llvm_asm!("mov $0, r15" : "=r"((*prev).context.r15) : : "memory" : "intel", "volatile");
+    llvm_asm!("mov r15, $0" : : "r"((*next).context.r15) : "memory" : "intel", "volatile");
 
-    asm!("mov $0, rsp" : "=r"((*prev).context.rsp) : : "memory" : "intel", "volatile");
-    asm!("mov rsp, $0" : : "r"((*next).context.rsp) : "memory" : "intel", "volatile");
+    llvm_asm!("mov $0, rsp" : "=r"((*prev).context.rsp) : : "memory" : "intel", "volatile");
+    llvm_asm!("mov rsp, $0" : : "r"((*next).context.rsp) : "memory" : "intel", "volatile");
 
-    asm!("mov $0, rbp" : "=r"((*prev).context.rbp) : : "memory" : "intel", "volatile");
-    asm!("mov rbp, $0" : : "r"((*next).context.rbp) : "memory" : "intel", "volatile");
+    llvm_asm!("mov $0, rbp" : "=r"((*prev).context.rbp) : : "memory" : "intel", "volatile");
+    llvm_asm!("mov rbp, $0" : : "r"((*next).context.rbp) : "memory" : "intel", "volatile");
 }
 
 //fn set_idle(t: Arc<Mutex<Thread>>) {

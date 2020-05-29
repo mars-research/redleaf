@@ -60,7 +60,7 @@ impl IOPort {
             Err("Policy forbids writing to port")
         } else {
             unsafe {
-                asm!("cld; rep; outsd"
+                llvm_asm!("cld; rep; outsd"
                      : // output
                      : "{dx}"(self._port), "{esi}"(val as *const _ as *const () as usize), "{ecx}"(val.len() as u32) // input
                      : // clobber
@@ -77,7 +77,7 @@ impl IOPort {
             Err("Policy forbids reading from port")
         } else {
             unsafe {
-                asm!("cld; rep; insd"
+                llvm_asm!("cld; rep; insd"
                      : "={esi}"(val as *const _ as *const () as usize) // output
                      : "{dx}"(self._port), "{ecx}"(val.len() as u32) // input
                      : // clobber

@@ -165,7 +165,7 @@ pub unsafe fn init_cpu(cpu: u32, stack: u32, code: u64) {
     let destination: *mut u8 = 0x7000 as *mut u8;
 
     let mut pgdir: u64;
-    asm!("mov $0, cr3" : "=r"(pgdir) ::: "intel");
+    llvm_asm!("mov $0, cr3" : "=r"(pgdir) ::: "intel");
 
     entryother::copy_binary_to(destination);
     entryother::init_args(destination, stack, pgdir as u32, code);

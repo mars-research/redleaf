@@ -1,6 +1,6 @@
 #![no_std]
 #![feature(
-    asm,
+    llvm_asm,
     core_intrinsics,
 )]
 mod nvme_cmd;

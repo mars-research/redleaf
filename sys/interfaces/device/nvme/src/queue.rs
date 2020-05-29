@@ -407,7 +407,7 @@ impl NvmeCompletionQueue {
             if let Some(some) = self.complete() {
                 return some;
             } else {
-                unsafe { asm!("pause"); }
+                unsafe { llvm_asm!("pause"); }
             }
         }
     }

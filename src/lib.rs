@@ -1,7 +1,6 @@
 #![no_std]
 #![feature(abi_x86_interrupt)]
 #![feature(
-    asm,
     allocator_api,
     alloc_layout_extra,
     alloc_error_handler,
