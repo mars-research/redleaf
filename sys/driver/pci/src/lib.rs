@@ -1,14 +1,8 @@
 #![no_std]
-#![feature(abi_x86_interrupt)]
 #![feature(
-    asm,
-    allocator_api,
-    alloc_layout_extra,
-    alloc_error_handler,
     const_fn,
     const_raw_ptr_to_usize_cast,
     untagged_unions,
-    panic_info_message
 )]
 #![forbid(unsafe_code)]
 

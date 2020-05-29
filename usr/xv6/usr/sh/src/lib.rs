@@ -1,17 +1,11 @@
 #![no_std]
 #![forbid(unsafe_code)]
-#![feature(abi_x86_interrupt)]
 #![feature(
-    asm,
-    allocator_api,
-    alloc_layout_extra,
-    alloc_error_handler,
     box_syntax,
     const_fn,
     const_raw_ptr_to_usize_cast,
     str_strip,
     untagged_unions,
-    panic_info_message
 )]
 
 extern crate malloc;

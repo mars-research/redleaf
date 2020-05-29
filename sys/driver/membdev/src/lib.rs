@@ -1,14 +1,9 @@
 #![no_std]
 #![feature(
-    asm,
-    allocator_api,
-    alloc_layout_extra,
-    alloc_error_handler,
     const_fn,
     const_raw_ptr_to_usize_cast,
     untagged_unions,
-    panic_info_message,
-    maybe_uninit_extra
+        maybe_uninit_extra
 )]
 
 use alloc::boxed::Box;

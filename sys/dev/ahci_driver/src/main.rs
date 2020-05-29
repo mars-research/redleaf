@@ -1,16 +1,10 @@
 #![no_std]
 #![no_main]
-#![feature(abi_x86_interrupt)]
 #![feature(
-    asm,
-    allocator_api,
-    alloc_layout_extra,
-    alloc_error_handler,
     const_fn,
     const_raw_ptr_to_usize_cast,
     option_expect_none,
-    panic_info_message,
-    untagged_unions,
+        untagged_unions,
 )]
 
 #[macro_use]
