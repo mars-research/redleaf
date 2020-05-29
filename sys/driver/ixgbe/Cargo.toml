@@ -60,7 +60,7 @@ default-features = false
 
 [features]
 default = [
-    # "nullnet",
+    "nullnet",
 ]
 
 nullnet = []
