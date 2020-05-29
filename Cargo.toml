@@ -21,7 +21,7 @@ debug = true
 x86 = "0.19.0"
 spin = { path = "./lib/spin-rs" }
 volatile = "0.2.3"
-x86_64 = "0.7.5"
+x86_64 = "0.11.0"
 pc-keyboard = "0.3.1"
 slabmalloc = { path = "./lib/slabmalloc-kernel" }
 backtracer = { git = "https://github.com/gz/backtracer.git" }
