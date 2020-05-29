@@ -7,7 +7,7 @@ use crate::bcache::BufferGuard;
 use crate::log::log::{Log, LogInternal};
 
 pub struct Transaction {
-    log:  Arc<(Mutex<LogInternal>, CondVar)>,
+    log: Arc<(Mutex<LogInternal>, CondVar)>,
 }
 
 impl Transaction {
@@ -22,9 +22,7 @@ impl Transaction {
             cv.sleep();
         }
 
-        Self {
-            log,
-        }
+        Self { log }
     }
 
     pub fn write(&mut self, buffer: &BufferGuard) {

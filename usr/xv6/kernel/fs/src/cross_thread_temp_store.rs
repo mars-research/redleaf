@@ -23,7 +23,7 @@ impl<T> CrossThreadTempStorage<T> {
             Some(id) => {
                 arr[id].replace(val);
                 id
-            },
+            }
             None => {
                 arr.push(Some(val));
                 arr.len() - 1
@@ -31,5 +31,3 @@ impl<T> CrossThreadTempStorage<T> {
         }
     }
 }
-
-

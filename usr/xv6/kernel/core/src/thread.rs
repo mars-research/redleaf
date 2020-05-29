@@ -7,9 +7,8 @@ use spin::Mutex;
 
 use libsyscalls::sync::CondVar;
 use libsyscalls::syscalls::sys_create_thread;
-use usr_interface::xv6::Thread;
 use usr_interface::vfs::VFS;
-
+use usr_interface::xv6::Thread;
 
 lazy_static! {
     static ref thread_queue: Mutex<VecDeque<ThreadContext>> = Default::default();
@@ -51,7 +50,6 @@ impl core::ops::Deref for ThreadHandle {
     }
 }
 
-
 impl core::clone::Clone for ThreadHandle {
     fn clone(&self) -> Self {
         Self(self.0.clone())
@@ -66,7 +64,12 @@ struct ThreadContext {
 }
 
 impl ThreadContext {
-    fn new(fs: Box<dyn VFS>, name: String, entry: Box<dyn FnOnce() + Send>, handle: ThreadHandle) -> Self {
+    fn new(
+        fs: Box<dyn VFS>,
+        name: String,
+        entry: Box<dyn FnOnce() + Send>,
+        handle: ThreadHandle,
+    ) -> Self {
         Self {
             fs,
             name,
@@ -76,7 +79,7 @@ impl ThreadContext {
     }
 }
 
-extern fn thread_entry() {
+extern "C" fn thread_entry() {
     let context = thread_queue.lock().pop_front().unwrap();
     (context.entry)();
     context.fs.sys_thread_exit();
@@ -85,9 +88,18 @@ extern fn thread_entry() {
     console::println!("Thread {} exits", context.name);
 }
 
-pub fn spawn_thread(fs: Box<dyn VFS>, name: &str, func: Box<dyn FnOnce() + Send>) -> Box<dyn Thread> {
+pub fn spawn_thread(
+    fs: Box<dyn VFS>,
+    name: &str,
+    func: Box<dyn FnOnce() + Send>,
+) -> Box<dyn Thread> {
     let handle = ThreadHandle::new();
-    thread_queue.lock().push_back(ThreadContext::new(fs, name.to_string(), func, handle.clone()));
+    thread_queue.lock().push_back(ThreadContext::new(
+        fs,
+        name.to_string(),
+        func,
+        handle.clone(),
+    ));
     sys_create_thread(name, thread_entry);
     box handle
 }

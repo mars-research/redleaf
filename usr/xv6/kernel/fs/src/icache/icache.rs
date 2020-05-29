@@ -8,13 +8,13 @@ use spin::{Mutex, MutexGuard};
 
 use usr_interface::vfs::{ErrorKind, Result};
 
+use super::inode::{DINode, INode, INodeFileType};
+use crate::bcache::BCACHE;
 use crate::cwd::CWD;
-use crate::bcache::{BCACHE};
-use crate::fs::{SUPER_BLOCK, block_num_for_node};
+use crate::fs::{block_num_for_node, SUPER_BLOCK};
 use crate::log::Transaction;
 use crate::params;
 use crate::sysfile::FileStat;
-use super::inode::{INode, DINode, INodeFileType};
 
 pub struct ICache {
     pub inodes: [Arc<INode>; params::NINODE],
@@ -29,10 +29,18 @@ impl ICache {
 
     // Allocate a node on device.
     // Looks for a free inode on disk, marks it as used
-    pub fn alloc(&mut self, trans: &mut Transaction, device: u32, file_type: INodeFileType) -> Result<Arc<INode>> {
+    pub fn alloc(
+        &mut self,
+        trans: &mut Transaction,
+        device: u32,
+        file_type: INodeFileType,
+    ) -> Result<Arc<INode>> {
         let super_block = SUPER_BLOCK.r#try().expect("fs not initialized");
         for inum in 1..super_block.ninodes as u16 {
-            let mut bguard = BCACHE.r#try().unwrap().read(device, block_num_for_node(inum, super_block));
+            let mut bguard = BCACHE
+                .r#try()
+                .unwrap()
+                .read(device, block_num_for_node(inum, super_block));
             let mut buffer = bguard.lock();
 
             // Okay, there're a lot of copying happening here but we don't have time to make it nice.
@@ -64,7 +72,8 @@ impl ICache {
         for inode in self.inodes.iter_mut() {
             if Arc::strong_count(inode) == 1
                 && inode.meta.device == device
-                && inode.meta.inum == inum {
+                && inode.meta.inum == inum
+            {
                 return Ok(inode.clone());
             }
             if free_node.is_none() && Arc::strong_count(inode) == 1 {
@@ -106,13 +115,15 @@ impl ICache {
     // Look up and return the inode for a path.
     // If parent is true, return the inode for the parent and the final path element.
     // Must be called inside a transaction since it calls iput().
-    fn namex<'a, 'b>(trans: &'a mut Transaction, path: &'b str, parent: bool) -> Result<(Arc<INode>, &'b str)> {
+    fn namex<'a, 'b>(
+        trans: &'a mut Transaction,
+        path: &'b str,
+        parent: bool,
+    ) -> Result<(Arc<INode>, &'b str)> {
         let mut inode = if path.starts_with('/') {
             ICACHE.lock().get(params::ROOTDEV, params::ROOTINO)?
         } else {
-            CWD.with(|cwd| {
-                cwd.clone()
-            })
+            CWD.with(|cwd| cwd.clone())
         };
 
         let components: Vec<&str> = path.split('/').filter(|n| !n.is_empty()).collect();
@@ -157,11 +168,20 @@ impl ICache {
         Self::namex(trans, path, false).map(|(inode, _)| inode)
     }
 
-    pub fn nameiparent<'a, 'b>(trans: &'a mut Transaction, path: &'b str) -> Result<(Arc<INode>, &'b str)> {
+    pub fn nameiparent<'a, 'b>(
+        trans: &'a mut Transaction,
+        path: &'b str,
+    ) -> Result<(Arc<INode>, &'b str)> {
         Self::namex(trans, path, true)
     }
 
-    pub fn create(trans: &mut Transaction, path: &str, file_type: INodeFileType, major: i16, minor: i16) -> Result<Arc<INode>> {
+    pub fn create(
+        trans: &mut Transaction,
+        path: &str,
+        file_type: INodeFileType,
+        major: i16,
+        minor: i16,
+    ) -> Result<Arc<INode>> {
         let (dirnode, name) = ICache::nameiparent(trans, path)?;
         // found parent directory
         let mut dirguard = dirnode.lock();
@@ -178,7 +198,10 @@ impl ICache {
         }
 
         // create child
-        let inode = ICACHE.lock().alloc(trans, dirnode.meta.device, file_type).expect("ICache alloc failed");
+        let inode = ICACHE
+            .lock()
+            .alloc(trans, dirnode.meta.device, file_type)
+            .expect("ICache alloc failed");
 
         let mut iguard = inode.lock();
         iguard.data.major = major;

@@ -1,29 +1,30 @@
 use alloc::sync::Arc;
-use core::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use tls::ThreadLocal;
 use usr_interface::vfs::{ErrorKind, Result};
 
-use crate::icache::{ICache, INode};
-use crate::params;
-use crate::sysfile::FileStat;
 use crate::console_device::DEVICES;
-use crate::pipe::Pipe;
+use crate::icache::{ICache, INode};
 use crate::log::LOG;
+use crate::params;
+use crate::pipe::Pipe;
+use crate::sysfile::FileStat;
 
 pub type FDTable = [Option<Arc<OpenedFile>>; params::NFILE];
 
 lazy_static! {
-    pub static ref FD_TABLE: ThreadLocal<FDTable> = ThreadLocal::new(|| array_init::array_init(|_| None));
+    pub static ref FD_TABLE: ThreadLocal<FDTable> =
+        ThreadLocal::new(|| array_init::array_init(|_| None));
 }
 
 // We want to avoid
 #[derive(Debug)]
 pub enum FileType {
-    Pipe { 
-        pipe: Arc<Pipe>
+    Pipe {
+        pipe: Arc<Pipe>,
     },
-    INode { 
+    INode {
         inode: Arc<INode>,
         // Guarded by `ilock`
         offset: AtomicUsize,
@@ -51,9 +52,9 @@ impl Drop for OpenedFile {
             FileType::INode { inode, .. } | FileType::Device { inode, .. } => {
                 let mut trans = LOG.r#try().unwrap().begin_transaction();
                 ICache::put(&mut trans, inode.clone());
-            },
+            }
             // TODO: pipe
-            FileType::Pipe { pipe } => pipe.close(self.writable.load(Ordering::SeqCst))
+            FileType::Pipe { pipe } => pipe.close(self.writable.load(Ordering::SeqCst)),
         }
     }
 }
@@ -73,17 +74,17 @@ impl OpenedFile {
                 let _iguard = inode.lock();
                 offset.store(new_offset, Ordering::SeqCst);
                 Ok(())
-            },
-            _ => {
-                Err(ErrorKind::UnsupportedOperation)
-            },
+            }
+            _ => Err(ErrorKind::UnsupportedOperation),
         }
     }
 
     pub fn stat(&self) -> Result<FileStat> {
         match &self.file_type {
-            FileType::INode { inode, .. } | FileType::Device { inode, .. } => Ok(inode.lock().stat()),
-            _ => Err(ErrorKind::InvalidFileType)
+            FileType::INode { inode, .. } | FileType::Device { inode, .. } => {
+                Ok(inode.lock().stat())
+            }
+            _ => Err(ErrorKind::InvalidFileType),
         }
     }
 
@@ -102,7 +103,7 @@ impl OpenedFile {
                 let bytes = iguard.read(&mut trans, user_buffer, offset.load(Ordering::SeqCst))?;
                 offset.fetch_add(bytes, Ordering::SeqCst);
                 Ok(bytes)
-            },
+            }
             FileType::Device { inode: _, major } => {
                 DEVICES
                     .get(major.load(Ordering::SeqCst))
@@ -111,8 +112,8 @@ impl OpenedFile {
                     .ok_or(ErrorKind::InvalidMajor)?
                     .read(user_buffer);
                 Ok((user_buffer.len()))
-            },
-            FileType::Pipe { pipe } => pipe.read(user_buffer)
+            }
+            FileType::Pipe { pipe } => pipe.read(user_buffer),
         }
     }
 
@@ -126,7 +127,7 @@ impl OpenedFile {
 
         match &self.file_type {
             FileType::INode { inode, offset } => {
-                let max = (params::MAXOPBLOCKS-1-1-2 / 2) * params::BSIZE;
+                let max = (params::MAXOPBLOCKS - 1 - 1 - 2 / 2) * params::BSIZE;
                 let mut i = 0;
                 while i < user_buffer.len() {
                     let bytes_to_write = core::cmp::min(user_buffer.len() - i, max);
@@ -134,14 +135,18 @@ impl OpenedFile {
                     {
                         let mut trans = LOG.r#try().unwrap().begin_transaction();
                         let mut iguard = inode.lock();
-                        let bytes = iguard.write(&mut trans, &user_buffer[i..i+bytes_to_write], offset.load(Ordering::SeqCst))?;
+                        let bytes = iguard.write(
+                            &mut trans,
+                            &user_buffer[i..i + bytes_to_write],
+                            offset.load(Ordering::SeqCst),
+                        )?;
                         offset.fetch_add(bytes, Ordering::SeqCst);
                         i += bytes;
                     }
                 }
                 assert!(i == user_buffer.len());
                 Ok(i)
-            },
+            }
             FileType::Device { inode: _, major } => {
                 DEVICES
                     .get(major.load(Ordering::SeqCst))
@@ -150,9 +155,8 @@ impl OpenedFile {
                     .ok_or(ErrorKind::InvalidMajor)?
                     .write(user_buffer);
                 Ok((user_buffer.len()))
-            },
-            FileType::Pipe { pipe } => pipe.write(user_buffer)
+            }
+            FileType::Pipe { pipe } => pipe.write(user_buffer),
         }
     }
 }
-

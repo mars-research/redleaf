@@ -1,30 +1,31 @@
 #![no_std]
 #![forbid(unsafe_code)]
-#![feature(
-    const_fn,
-    const_raw_ptr_to_usize_cast,
-    untagged_unions,
-)]
+#![feature(const_fn, const_raw_ptr_to_usize_cast, untagged_unions)]
 
-extern crate malloc;
 extern crate alloc;
+extern crate malloc;
 use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::string::ToString;
 use core::panic::PanicInfo;
 
-use usrlib::println;
-use usrlib::syscalls::{sys_open, sys_fstat, sys_read, sys_write, sys_close};
-use syscalls::{Syscall, Heap};
+use syscalls::{Heap, Syscall};
+use usr::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usr::xv6::Xv6;
-use usr::vfs::{DirectoryEntry, DirectoryEntryRef, INodeFileType, FileMode};
+use usrlib::println;
+use usrlib::syscalls::{sys_close, sys_fstat, sys_open, sys_read, sys_write};
 
 const ONE_MS: u64 = 2_400_000;
 const TEN_MS: u64 = 10 * ONE_MS;
 const ONE_SEC: u64 = 2_400_000_000;
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, rv6: Box<dyn Xv6>, args: &str) {
+pub fn init(
+    s: Box<dyn Syscall + Send + Sync>,
+    heap: Box<dyn Heap + Send + Sync>,
+    rv6: Box<dyn Xv6>,
+    args: &str,
+) {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
     usrlib::init(rv6.clone());
@@ -63,10 +64,13 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
             let mut interval_read = 0;
             for offset in (bsize..total_size + bsize).step_by(bsize) {
                 let curr_time = libtime::get_rdtsc();
-                if  curr_time >= intervel_start + TEN_MS {
+                if curr_time >= intervel_start + TEN_MS {
                     let elapse = curr_time - intervel_start;
                     // prints bytes per second
-                    recording[recording_index] = (curr_time, interval_read as f64 / elapse as f64 * ONE_SEC as f64);
+                    recording[recording_index] = (
+                        curr_time,
+                        interval_read as f64 / elapse as f64 * ONE_SEC as f64,
+                    );
                     recording_index += 1;
                     intervel_start = curr_time;
                     curr_size += interval_read;
@@ -81,20 +85,30 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
             let curr_time = libtime::get_rdtsc();
             let elapse = curr_time - intervel_start;
             curr_size += interval_read;
-            recording[recording_index] = (curr_time, interval_read as f64 / elapse as f64 * ONE_SEC as f64);
+            recording[recording_index] = (
+                curr_time,
+                interval_read as f64 / elapse as f64 * ONE_SEC as f64,
+            );
             let elapse = libtime::get_rdtsc() - start;
 
             {
                 println!("timestamp(s),throughput(MB/s),");
                 let start = recording[0].0;
                 for (time_stamp, throughput) in &recording[0..recording_index + 1] {
-                    println!("{},{},", (time_stamp - start) as f64 / ONE_SEC as f64, throughput / 1_000_000.0);
+                    println!(
+                        "{},{},",
+                        (time_stamp - start) as f64 / ONE_SEC as f64,
+                        throughput / 1_000_000.0
+                    );
                 }
             }
 
-            println!("Write: buffer size: {}, total bytes: {}, cycles: {}, seek count: {}", bsize, total_size, elapse, seek_count);
+            println!(
+                "Write: buffer size: {}, total bytes: {}, cycles: {}, seek count: {}",
+                bsize, total_size, elapse, seek_count
+            );
             assert_eq!(curr_size, total_size);
-            
+
             sys_close(fd).unwrap();
         }
 
@@ -118,10 +132,13 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
             let mut interval_read = 0;
             for offset in (bsize..total_size + bsize).step_by(bsize) {
                 let curr_time = libtime::get_rdtsc();
-                if  curr_time >= intervel_start + TEN_MS {
+                if curr_time >= intervel_start + TEN_MS {
                     let elapse = curr_time - intervel_start;
                     // prints bytes per second
-                    recording[recording_index] = (curr_time, interval_read as f64 / elapse as f64 * ONE_SEC as f64);
+                    recording[recording_index] = (
+                        curr_time,
+                        interval_read as f64 / elapse as f64 * ONE_SEC as f64,
+                    );
                     recording_index += 1;
                     intervel_start = curr_time;
                     curr_size += interval_read;
@@ -136,25 +153,34 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
             let curr_time = libtime::get_rdtsc();
             let elapse = curr_time - intervel_start;
             curr_size += interval_read;
-            recording[recording_index] = (curr_time, interval_read as f64 / elapse as f64 * ONE_SEC as f64);
+            recording[recording_index] = (
+                curr_time,
+                interval_read as f64 / elapse as f64 * ONE_SEC as f64,
+            );
             let elapse = libtime::get_rdtsc() - start;
 
             {
                 println!("timestamp(s),throughput(MB/s),");
                 let start = recording[0].0;
                 for (time_stamp, throughput) in &recording[0..recording_index + 1] {
-                    println!("{},{},", (time_stamp - start) as f64 / ONE_SEC as f64, throughput / 1_000_000.0);
+                    println!(
+                        "{},{},",
+                        (time_stamp - start) as f64 / ONE_SEC as f64,
+                        throughput / 1_000_000.0
+                    );
                 }
             }
 
-            println!("Read: buffer size: {}, total bytes: {}, cycles: {}, seek count: {}", bsize, total_size, elapse, seek_count);
+            println!(
+                "Read: buffer size: {}, total bytes: {}, cycles: {}, seek count: {}",
+                bsize, total_size, elapse, seek_count
+            );
             assert_eq!(curr_size, total_size);
-            
+
             sys_close(fd).unwrap();
         }
     }
 }
-
 
 // This function is called on panic.
 #[panic_handler]

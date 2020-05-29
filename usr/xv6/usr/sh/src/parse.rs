@@ -3,9 +3,9 @@ use alloc::collections::LinkedList;
 use alloc::string::{String, ToString};
 use core::cell::RefCell;
 
-use usrlib::syscalls::{sys_close, sys_spawn_domain, sys_open};
-use usr_interfaces::xv6::Thread;
 use usr_interfaces::vfs::FileMode;
+use usr_interfaces::xv6::Thread;
+use usrlib::syscalls::{sys_close, sys_open, sys_spawn_domain};
 
 #[derive(Debug)]
 pub struct Redir {
@@ -31,7 +31,6 @@ impl Redir {
         }
     }
 }
-
 
 pub trait Command: core::fmt::Debug {
     fn run(&self, redir: Redir) -> LinkedList<Box<dyn Thread>>;
@@ -70,7 +69,7 @@ impl ExecCommand {
         let line = line.strip_suffix(char::is_whitespace).unwrap_or(line);
 
         if line.is_empty() {
-            return (box NoopCommand{}, line);
+            return (box NoopCommand {}, line);
         }
 
         assert!(line.find(&['|', '<', '>'][..]).is_none());
@@ -80,7 +79,11 @@ impl ExecCommand {
 
 impl Command for ExecCommand {
     fn run(&self, redir: Redir) -> LinkedList<Box<dyn Thread>> {
-        let result = sys_spawn_domain(&self.cmd, &self.args, &[Some(redir.stdin), Some(redir.stdout), Some(redir.stderr)]);
+        let result = sys_spawn_domain(
+            &self.cmd,
+            &self.args,
+            &[Some(redir.stdin), Some(redir.stdout), Some(redir.stderr)],
+        );
         let mut ll = LinkedList::new();
         ll.push_back(result.unwrap());
         ll
@@ -95,10 +98,7 @@ pub struct PipeCommand {
 
 impl PipeCommand {
     fn new(left: Box<dyn Command>, right: Box<dyn Command>) -> Self {
-        Self {
-            left,
-            right,
-        }
+        Self { left, right }
     }
 
     fn parse(line: &str) -> (Box<dyn Command>, &str) {
@@ -106,13 +106,13 @@ impl PipeCommand {
 
         let (left_cmd, left_leftover) = RedirCommand::parse(left_str);
         assert!(left_leftover.is_empty());
-        
+
         match right_str.is_empty() {
             false => {
                 let (right_cmd, right_leftover) = Self::parse(&right_str[1..]);
                 (box Self::new(left_cmd, right_cmd), right_leftover)
-            },
-            true => (left_cmd, left_leftover)
+            }
+            true => (left_cmd, left_leftover),
         }
     }
 }
@@ -161,7 +161,8 @@ impl RedirCommand {
     // For example, `ls -a > foo` is allowed but `ls > foo -a' is not allowed
     fn parse(line: &str) -> (Box<dyn Command>, &str) {
         // Split the redir part from the reset of the string
-        let (exec_str, mut redir_str) = line.split_at(line.find(&['<', '>'][..]).unwrap_or(line.len()));
+        let (exec_str, mut redir_str) =
+            line.split_at(line.find(&['<', '>'][..]).unwrap_or(line.len()));
 
         // Parse the possible exec cmd
         let (mut subcmd, exec_left_over) = ExecCommand::parse(exec_str);
@@ -170,20 +171,27 @@ impl RedirCommand {
         // Process the redir_str
         while !redir_str.is_empty() {
             // Strip leading whitespaces
-            redir_str = redir_str.strip_prefix(char::is_whitespace).unwrap_or(redir_str);
+            redir_str = redir_str
+                .strip_prefix(char::is_whitespace)
+                .unwrap_or(redir_str);
 
             // Get redir token
-            let (redir_token, left_over_redir) = redir_str.split_at(redir_str.find(char::is_whitespace).unwrap());
-            redir_str = &left_over_redir[1..];  // Skip the first char, which is the whitespace
-            
+            let (redir_token, left_over_redir) =
+                redir_str.split_at(redir_str.find(char::is_whitespace).unwrap());
+            redir_str = &left_over_redir[1..]; // Skip the first char, which is the whitespace
+
             // Get redir file
-            let (redir_file, left_over_redir) = redir_str.split_at(redir_str.find(char::is_whitespace).unwrap_or(redir_str.len())); 
+            let (redir_file, left_over_redir) = redir_str.split_at(
+                redir_str
+                    .find(char::is_whitespace)
+                    .unwrap_or(redir_str.len()),
+            );
             redir_str = left_over_redir;
-    
+
             // Generate a redir_cmd
             let redir_cmd = match redir_token {
                 "<" => box Self::new(subcmd, redir_file, FileMode::READ, 0),
-                ">" => box Self::new(subcmd, redir_file, FileMode::WRITE|FileMode::CREATE, 1),
+                ">" => box Self::new(subcmd, redir_file, FileMode::WRITE | FileMode::CREATE, 1),
                 c => panic!("unknown redir token: {}", c),
             };
 

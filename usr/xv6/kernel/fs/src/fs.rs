@@ -4,9 +4,9 @@ use spin::Once;
 
 use usr_interface::bdev::BDev;
 
-use crate::params;
+use crate::bcache::{BufferCache, BCACHE};
 use crate::log::{Log, LOG};
-use crate::bcache::{BCACHE, BufferCache};
+use crate::params;
 
 pub static SUPER_BLOCK: Once<SuperBlock> = Once::new();
 
@@ -41,12 +41,11 @@ impl SuperBlock {
     }
 }
 
-
 // TODO: load super block from disk
 fn read_superblock(dev: u32) -> SuperBlock {
     let mut buffer = BCACHE.r#try().unwrap().read(dev, 1);
     let superblock = SuperBlock::from_bytes(&***buffer.lock());
-        console::println!("Superblock read from disk: {:?}", superblock);
+    console::println!("Superblock read from disk: {:?}", superblock);
     superblock
 }
 
@@ -57,8 +56,6 @@ pub fn block_num_for_node(inum: u16, super_block: &SuperBlock) -> u32 {
 
 pub fn fsinit(dev_no: u32, dev: Box<dyn BDev>) {
     BCACHE.call_once(|| BufferCache::new(dev));
-    SUPER_BLOCK.call_once(|| read_superblock(dev_no));	
-    LOG.call_once(|| {	
-        Log::new(dev_no, SUPER_BLOCK.r#try().unwrap())	
-    });	
-} 
+    SUPER_BLOCK.call_once(|| read_superblock(dev_no));
+    LOG.call_once(|| Log::new(dev_no, SUPER_BLOCK.r#try().unwrap()));
+}

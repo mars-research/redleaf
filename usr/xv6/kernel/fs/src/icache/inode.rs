@@ -6,13 +6,13 @@ use core::sync::atomic::{AtomicBool, Ordering};
 use num_traits::FromPrimitive;
 use spin::{Mutex, MutexGuard};
 
-pub use usr_interface::vfs::{INodeFileType, DirectoryEntryRef, DirectoryEntry};
+pub use usr_interface::vfs::{DirectoryEntry, DirectoryEntryRef, INodeFileType};
 use usr_interface::vfs::{ErrorKind, Result};
 
 use crate::bcache::BCACHE;
 use crate::block;
-use crate::fs::{SUPER_BLOCK, block_num_for_node};
-use crate::icache::{ICACHE, ICache};
+use crate::fs::{block_num_for_node, SUPER_BLOCK};
+use crate::icache::{ICache, ICACHE};
 use crate::log::Transaction;
 use crate::params;
 use crate::sysfile::FileStat;
@@ -65,7 +65,7 @@ impl INodeData {
 
         self.major = LittleEndian::read_i16(&bytes[offset..]);
         offset += mem::size_of_val(&self.major);
-        
+
         self.minor = LittleEndian::read_i16(&bytes[offset..]);
         offset += mem::size_of_val(&self.minor);
 
@@ -94,7 +94,7 @@ impl INodeData {
 
         LittleEndian::write_i16(&mut bytes[offset..], self.major);
         offset += mem::size_of_val(&self.major);
-        
+
         LittleEndian::write_i16(&mut bytes[offset..], self.minor);
         offset += mem::size_of_val(&self.minor);
 
@@ -119,7 +119,6 @@ pub struct INodeDataGuard<'a> {
     pub data: MutexGuard<'a, INodeData>,
 }
 
-
 impl<'a> Drop for INodeDataGuard<'a> {
     fn drop<'b>(&'b mut self) {
         // TODO: any cleanup needed?
@@ -142,7 +141,8 @@ impl INodeDataGuard<'_> {
 
         const DINODE_SIZE: usize = mem::size_of::<DINode>();
         let dinode_offset = (self.node.meta.inum as usize % params::IPB) * DINODE_SIZE;
-        self.data.to_bytes(&mut buffer[dinode_offset..dinode_offset + DINODE_SIZE]);
+        self.data
+            .to_bytes(&mut buffer[dinode_offset..dinode_offset + DINODE_SIZE]);
 
         trans.write(&bguard);
 
@@ -161,8 +161,10 @@ impl INodeDataGuard<'_> {
         }
 
         if self.data.addresses[params::NDIRECT] != 0 {
-            let mut bguard =
-                BCACHE.r#try().unwrap().read(self.node.meta.device, self.data.addresses[params::NDIRECT]);
+            let mut bguard = BCACHE
+                .r#try()
+                .unwrap()
+                .read(self.node.meta.device, self.data.addresses[params::NDIRECT]);
             let buffer = bguard.lock();
 
             let mut chunks_iter = buffer.chunks_exact(core::mem::size_of::<u32>());
@@ -171,10 +173,10 @@ impl INodeDataGuard<'_> {
                 let block = u32::from_ne_bytes(chunk.try_into().unwrap());
                 if block != 0 {
                     block::free(trans, self.node.meta.device, block);
-                } 
+                }
             }
             drop(buffer);
-            
+
             self.data.addresses[params::NDIRECT] = 0;
         }
 
@@ -207,7 +209,8 @@ impl INodeDataGuard<'_> {
         if block_number < params::NDIRECT {
             let mut address = self.data.addresses[block_number];
             if address == 0 {
-                address = block::alloc(trans, self.node.meta.device).expect("block::alloc out of blocks");
+                address =
+                    block::alloc(trans, self.node.meta.device).expect("block::alloc out of blocks");
                 self.data.addresses[block_number] = address;
             }
             return address;
@@ -215,11 +218,15 @@ impl INodeDataGuard<'_> {
 
         // From a 2-layer indirect table
         let block_number = block_number - params::NDIRECT;
-        assert!(block_number < params::NINDIRECT * params::NINDIRECT, "bmap: out of range");
+        assert!(
+            block_number < params::NINDIRECT * params::NINDIRECT,
+            "bmap: out of range"
+        );
         // Load level 1 indirect block, allocating if necessary.
         let mut address = self.data.addresses[params::NDIRECT];
         if address == 0 {
-            address = block::alloc(trans, self.node.meta.device).expect("block::alloc out of blocks");
+            address =
+                block::alloc(trans, self.node.meta.device).expect("block::alloc out of blocks");
             self.data.addresses[params::NDIRECT] = address;
         }
 
@@ -237,12 +244,13 @@ impl INodeDataGuard<'_> {
         };
 
         if address == 0 {
-            address = block::alloc(trans, self.node.meta.device).expect("block::alloc out of blocks");
+            address =
+                block::alloc(trans, self.node.meta.device).expect("block::alloc out of blocks");
             trans.write(&bguard);
         }
 
         drop(buffer);
-        
+
         // Load level 2 indirect block, allocating if necessary.
         let mut bguard = BCACHE.r#try().unwrap().read(self.node.meta.device, address);
         let buffer = bguard.lock();
@@ -258,12 +266,13 @@ impl INodeDataGuard<'_> {
         };
 
         if address == 0 {
-            address = block::alloc(trans, self.node.meta.device).expect("block::alloc out of blocks");
+            address =
+                block::alloc(trans, self.node.meta.device).expect("block::alloc out of blocks");
             trans.write(&bguard);
         }
 
         drop(buffer);
-        
+
         address
     }
 
@@ -326,7 +335,12 @@ impl INodeDataGuard<'_> {
     // Read data from inode
     // Returns number of bytes read, or None upon overflow
     // xv6 equivalent: readi
-    pub fn read(&mut self, trans: &mut Transaction, user_buffer: &mut [u8], mut offset: usize) -> Result<usize> {
+    pub fn read(
+        &mut self,
+        trans: &mut Transaction,
+        user_buffer: &mut [u8],
+        mut offset: usize,
+    ) -> Result<usize> {
         let mut bytes_to_read = user_buffer.len();
 
         // We ask Rust to always check overflow so we don't need to check it manually
@@ -347,10 +361,11 @@ impl INodeDataGuard<'_> {
             let start = offset % params::BSIZE;
             let bytes_read = core::cmp::min(bytes_to_read - total, params::BSIZE - start);
 
-            user_buffer[user_offset..(user_offset + bytes_read)].copy_from_slice(&buffer[start..(start + bytes_read)]);
+            user_buffer[user_offset..(user_offset + bytes_read)]
+                .copy_from_slice(&buffer[start..(start + bytes_read)]);
 
             drop(buffer);
-            
+
             total += bytes_read;
             offset += bytes_read;
             user_offset += bytes_read;
@@ -362,7 +377,12 @@ impl INodeDataGuard<'_> {
     // Write data to inode
     // Returns number of bytes written, or None upon overflow
     // xv6 equivalent: writei
-    pub fn write(&mut self, trans: &mut Transaction, user_buffer: &[u8], mut offset: usize) -> Result<usize> {
+    pub fn write(
+        &mut self,
+        trans: &mut Transaction,
+        user_buffer: &[u8],
+        mut offset: usize,
+    ) -> Result<usize> {
         let bytes_to_write = user_buffer.len();
         let mut total = 0usize;
         let mut user_offset = 0usize;
@@ -377,12 +397,12 @@ impl INodeDataGuard<'_> {
             let start = offset % params::BSIZE;
             let bytes_written = core::cmp::min(bytes_to_write - total, params::BSIZE - start);
 
-            buffer[start..start+bytes_written]
+            buffer[start..start + bytes_written]
                 .copy_from_slice(&user_buffer[user_offset..(user_offset + bytes_written)]);
 
             trans.write(&bguard);
             drop(buffer);
-            
+
             total += bytes_written;
             offset += bytes_written;
             user_offset += bytes_written;
@@ -399,43 +419,65 @@ impl INodeDataGuard<'_> {
     }
 
     pub fn print(&mut self, trans: &mut Transaction, ident: usize) {
-        use console::println;
         use alloc::string::String;
+        use console::println;
 
         let block_number = self.data.addresses[params::NDIRECT];
-        println!("{}inum:{} indirect: {}", core::iter::repeat(" ").take(ident).collect::<String>(), self.node.meta.inum, block_number);
+        println!(
+            "{}inum:{} indirect: {}",
+            core::iter::repeat(" ").take(ident).collect::<String>(),
+            self.node.meta.inum,
+            block_number
+        );
 
         // From layer 1 indirect
-        let mut bguard = BCACHE.r#try().unwrap().read(self.node.meta.device, block_number);
+        let mut bguard = BCACHE
+            .r#try()
+            .unwrap()
+            .read(self.node.meta.device, block_number);
         let buffer = bguard.lock();
         for block_number in buffer.chunks(mem::size_of::<u32>()) {
             let block_number = u32::from_ne_bytes(block_number.try_into().unwrap());
             let ident = ident + 2;
-             println!("{}indirect: {}", core::iter::repeat(" ").take(ident).collect::<String>(), block_number);
+            println!(
+                "{}indirect: {}",
+                core::iter::repeat(" ").take(ident).collect::<String>(),
+                block_number
+            );
             if block_number == 0 {
                 break;
             }
 
             // From layer 2 indirect
-            let mut bguard = BCACHE.r#try().unwrap().read(self.node.meta.device, block_number);
+            let mut bguard = BCACHE
+                .r#try()
+                .unwrap()
+                .read(self.node.meta.device, block_number);
             let buffer = bguard.lock();
             for block_number in buffer.chunks(mem::size_of::<u32>()) {
                 let block_number = u32::from_ne_bytes(block_number.try_into().unwrap());
                 let ident = ident + 2;
-                 println!("{}direct: {}", core::iter::repeat(" ").take(ident).collect::<String>(), block_number);
+                println!(
+                    "{}direct: {}",
+                    core::iter::repeat(" ").take(ident).collect::<String>(),
+                    block_number
+                );
                 if block_number == 0 {
                     break;
                 }
             }
             drop(buffer);
-                    }
+        }
         drop(buffer);
-        
+
         if self.data.file_type != INodeFileType::Directory {
             return;
         }
 
-        println!("{}showing directory:", core::iter::repeat(" ").take(ident).collect::<String>());
+        println!(
+            "{}showing directory:",
+            core::iter::repeat(" ").take(ident).collect::<String>()
+        );
         const SIZE_OF_DIRENT: usize = core::mem::size_of::<DirectoryEntry>();
         for offset in (0usize..self.data.size as usize).step_by(SIZE_OF_DIRENT) {
             let ident = ident + 2;
@@ -451,11 +493,18 @@ impl INodeDataGuard<'_> {
                 continue;
             }
             let dirent_name = dirent_name.unwrap();
-            println!("{}link: {}", core::iter::repeat(" ").take(ident).collect::<String>(), dirent_name);
+            println!(
+                "{}link: {}",
+                core::iter::repeat(" ").take(ident).collect::<String>(),
+                dirent_name
+            );
             if dirent_name == "." || dirent_name == ".." {
                 continue;
             }
-            let inode = ICACHE.lock().get(self.node.meta.device, dirent.inum).unwrap();
+            let inode = ICACHE
+                .lock()
+                .get(self.node.meta.device, dirent.inum)
+                .unwrap();
             inode.lock().print(trans, ident + 2);
         }
     }
@@ -512,7 +561,7 @@ impl INode {
             data.copy_from_bytes(&buffer[dinode_offset..dinode_offset + DINODE_SIZE]);
 
             drop(buffer);
-            
+
             self.meta.valid.store(true, Ordering::Relaxed);
 
             if data.file_type == INodeFileType::Unitialized {
@@ -522,9 +571,6 @@ impl INode {
         }
 
         // console::println!("ilock inode#{}: {:?}", self.meta.inum, data);
-        INodeDataGuard {
-            node: &self,
-            data,
-        }
+        INodeDataGuard { node: &self, data }
     }
 }

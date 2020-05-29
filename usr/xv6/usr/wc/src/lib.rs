@@ -1,26 +1,27 @@
 #![no_std]
 #![forbid(unsafe_code)]
-#![feature(
-    const_fn,
-    const_raw_ptr_to_usize_cast,
-    untagged_unions,
-)]
+#![feature(const_fn, const_raw_ptr_to_usize_cast, untagged_unions)]
 
-extern crate malloc;
 extern crate alloc;
-use core::panic::PanicInfo;
+extern crate malloc;
 use alloc::boxed::Box;
 use alloc::string::String;
+use core::panic::PanicInfo;
 
-use usrlib::println;
-use usrlib::syscalls::{sys_open, sys_fstat, sys_read, sys_write, sys_close};
-use syscalls::{Syscall, Heap};
 use libsyscalls::syscalls::sys_println;
+use syscalls::{Heap, Syscall};
+use usr::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usr::xv6::Xv6;
-use usr::vfs::{DirectoryEntry, DirectoryEntryRef, INodeFileType, FileMode};
+use usrlib::println;
+use usrlib::syscalls::{sys_close, sys_fstat, sys_open, sys_read, sys_write};
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, rv6: Box<dyn Xv6>, args: &str) {
+pub fn init(
+    s: Box<dyn Syscall + Send + Sync>,
+    heap: Box<dyn Heap + Send + Sync>,
+    rv6: Box<dyn Xv6>,
+    args: &str,
+) {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
     usrlib::init(rv6.clone());
@@ -40,7 +41,6 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
         sys_close(fd);
     }
 }
-
 
 fn wc(fd: usize, name: &str) -> Result<(), &'static str> {
     let mut line_cnt = 0;
@@ -70,7 +70,10 @@ fn wc(fd: usize, name: &str) -> Result<(), &'static str> {
         }
     }
 
-    println!("wc: line:{} word:{} char:{} name:{}", line_cnt, word_cnt, char_cnt, name);
+    println!(
+        "wc: line:{} word:{} char:{} name:{}",
+        line_cnt, word_cnt, char_cnt, name
+    );
     Ok(())
 }
 

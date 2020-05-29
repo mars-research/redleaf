@@ -1,18 +1,18 @@
-use alloc::vec::Vec;
 use alloc::boxed::Box;
+use alloc::vec::Vec;
 use spin::Mutex;
 
 use pc_keyboard::DecodedKey;
 
-use usr_interface::xv6::Device;
-use libsyscalls::syscalls::{sys_readch_kbd, sys_yield};
 use console::{print, println};
+use libsyscalls::syscalls::{sys_readch_kbd, sys_yield};
+use usr_interface::xv6::Device;
 
 pub struct ConsoleDevice;
 
 impl ConsoleDevice {
     pub fn new() -> Self {
-        Self{}
+        Self {}
     }
 }
 
@@ -25,7 +25,7 @@ impl Device for ConsoleDevice {
                         // println!("{}", e);
                         sys_yield();
                         continue;
-                    },
+                    }
                     Ok(key) => key,
                 };
                 match key {
@@ -37,7 +37,7 @@ impl Device for ConsoleDevice {
                     Some(DecodedKey::RawKey(key)) => {
                         console::println!("Skipping raw key {:?}", key);
                         continue;
-                    },
+                    }
                 }
                 break;
             }

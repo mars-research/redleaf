@@ -6,7 +6,6 @@ use crate::syscalls::sys_write;
 
 use error::{ErrorKind, Result};
 
-
 pub static STDIN_FD: usize = 0;
 pub static STDOUT_FD: usize = 1;
 pub static STDERR_FD: usize = 2;

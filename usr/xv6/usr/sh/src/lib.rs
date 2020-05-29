@@ -5,27 +5,32 @@
     const_fn,
     const_raw_ptr_to_usize_cast,
     str_strip,
-    untagged_unions,
+    untagged_unions
 )]
 
-extern crate malloc;
 extern crate alloc;
 extern crate core;
-use core::panic::PanicInfo;
+extern crate malloc;
 use alloc::boxed::Box;
 use alloc::string::String;
+use core::panic::PanicInfo;
 
-use syscalls::{Syscall, Heap};
-use usrlib::{print, println};
-use usrlib::syscalls::{sys_read, sys_spawn_domain};
+use syscalls::{Heap, Syscall};
 use usr_interfaces::xv6::Xv6;
+use usrlib::syscalls::{sys_read, sys_spawn_domain};
+use usrlib::{print, println};
 
 mod parse;
 
 use crate::parse::{Command, Redir};
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, rv6: Box<dyn Xv6>, args: &str) {
+pub fn init(
+    s: Box<dyn Syscall + Send + Sync>,
+    heap: Box<dyn Heap + Send + Sync>,
+    rv6: Box<dyn Xv6>,
+    args: &str,
+) {
     libsyscalls::syscalls::init(s);
     usrlib::init(rv6.clone());
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
@@ -44,7 +49,11 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
         let trimmed_line = line.trim();
         if !trimmed_line.is_empty() {
             let (cmd, leftover) = Command::parse(trimmed_line);
-            assert!(leftover.is_empty(), "Leftover after parsing: <{}>", leftover);
+            assert!(
+                leftover.is_empty(),
+                "Leftover after parsing: <{}>",
+                leftover
+            );
             println!("Parsed command: {:?}", cmd);
             cmd.run(Redir::new()).iter().for_each(|t| t.join());
         }
@@ -55,14 +64,13 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
 fn read_until(c: char) -> String {
     let mut buff = [0u8; 1024];
     for i in 0..buff.len() {
-        sys_read(1, &mut buff[i..i+1]).unwrap();
+        sys_read(1, &mut buff[i..i + 1]).unwrap();
         if buff[i] == c as u8 {
-            return String::from_utf8(buff[..i+1].to_vec()).unwrap();
+            return String::from_utf8(buff[..i + 1].to_vec()).unwrap();
         }
     }
     panic!("read_until");
 }
-
 
 // This function is called on panic.
 #[panic_handler]

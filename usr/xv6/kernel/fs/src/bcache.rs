@@ -2,7 +2,7 @@
 // The entire ownership system is a mess and error-prone(no one is the owner).
 // Need to revisit this and fix it one day.
 
-use crate::params::{NBUF, BSIZE, SECTOR_SIZE};
+use crate::params::{BSIZE, NBUF, SECTOR_SIZE};
 
 use alloc::boxed::Box;
 use alloc::string::String;
@@ -13,9 +13,9 @@ use core::ops::{Deref, DerefMut};
 use hashbrown::HashMap;
 use spin::{Mutex, Once};
 
-use utils::list2;
 use rref::RRef;
 use usr_interface::bdev::BDev;
+use utils::list2;
 
 pub static BCACHE: Once<BufferCache> = Once::new();
 
@@ -51,7 +51,7 @@ pub struct BufferGuard {
 }
 
 impl BufferGuard {
-    pub fn dev(&self) -> u32{
+    pub fn dev(&self) -> u32 {
         self.dev
     }
 
@@ -100,12 +100,12 @@ struct Buffer {
 impl core::fmt::Debug for Buffer {
     fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
         fmt.debug_struct("BufferBlock")
-           .field("prev", &self.prev)
-           .field("next", &self.next)
-           .field("dev", &self.dev)
-           .field("block_number", &self.block_number)
-           .field("reference_count", &self.reference_count)
-           .finish()
+            .field("prev", &self.prev)
+            .field("next", &self.next)
+            .field("dev", &self.dev)
+            .field("block_number", &self.block_number)
+            .field("reference_count", &self.reference_count)
+            .finish()
     }
 }
 
@@ -117,7 +117,9 @@ impl Buffer {
             reference_count: 0,
             prev: index as i32 - 1,
             next: index as i32 + 1,
-            data: Arc::new(Mutex::new(BufferBlockWrapper(Some(RRef::new([0u8; BSIZE]))))),
+            data: Arc::new(Mutex::new(BufferBlockWrapper(Some(RRef::new(
+                [0u8; BSIZE],
+            ))))),
         }
     }
 }
@@ -149,25 +151,33 @@ impl BufferCacheInternal {
     // look through buffer cache, return the buffer
     // If the block does not exist, we preempt a not-in-use one
     // We let the caller to lock the buffer when they need to use it
-    fn get(&mut self, dev: u32, block_number: u32) -> (bool, usize, Arc<Mutex<BufferBlockWrapper>>) {
-        #[cfg(feature = "hashmap")] 
+    fn get(
+        &mut self,
+        dev: u32,
+        block_number: u32,
+    ) -> (bool, usize, Arc<Mutex<BufferBlockWrapper>>) {
+        #[cfg(feature = "hashmap")]
         let index = self.map.get(&(dev, block_number)).map(|index| *index);
         // TODO: change this to iter_mut
-        #[cfg(not(feature = "hashmap"))] 
-        let index = self.iter()
-                         .find(|buffer| buffer.dev == dev && buffer.block_number == block_number)
-                         .map(|buffer| (buffer as *const Buffer).wrapping_offset_from(self.buffers.as_ptr()) as usize);
-                
+        #[cfg(not(feature = "hashmap"))]
+        let index = self
+            .iter()
+            .find(|buffer| buffer.dev == dev && buffer.block_number == block_number)
+            .map(|buffer| {
+                (buffer as *const Buffer).wrapping_offset_from(self.buffers.as_ptr()) as usize
+            });
+
         match index {
             Some(index) => {
                 let buffer = &mut self.buffers[index];
-                #[cfg(feature = "hashmap")]  {
+                #[cfg(feature = "hashmap")]
+                {
                     assert!(buffer.dev == dev);
                     assert!(buffer.block_number == block_number);
                 }
                 buffer.reference_count += 1;
                 (true, index, buffer.data.clone())
-            },
+            }
             None => {
                 // Not cached; recycle an unused buffer.
                 let mut curr = self.buffers[self.head].prev;
@@ -177,7 +187,10 @@ impl BufferCacheInternal {
                         // Move it out from the map
                         #[cfg(feature = "hashmap")]
                         if buffer.block_number != 0 {
-                            assert!(self.map.remove(&(buffer.dev, buffer.block_number)).is_some());
+                            assert!(self
+                                .map
+                                .remove(&(buffer.dev, buffer.block_number))
+                                .is_some());
                         }
 
                         // Clear the buffer and return it
@@ -185,14 +198,17 @@ impl BufferCacheInternal {
                         buffer.block_number = block_number;
                         buffer.reference_count = 1;
                         #[cfg(feature = "hashmap")]
-                        assert!(self.map.insert((dev, block_number), curr as usize).is_none());
-                        return (false, curr as usize, buffer.data.clone())
+                        assert!(self
+                            .map
+                            .insert((dev, block_number), curr as usize)
+                            .is_none());
+                        return (false, curr as usize, buffer.data.clone());
                     }
                     curr = buffer.prev;
                 }
                 println!("{:?}", self);
                 panic!("No free block in bcache");
-            },
+            }
         }
     }
 
@@ -312,7 +328,7 @@ impl BufferCache {
         }
     }
 
-    // Write b's contents to disk 
+    // Write b's contents to disk
     // Return a locked buf with the contents of the indicated block.
     // This is not very safe since the user could pass in a `block_number` that
     // doesn't match with the `buffer_data`.

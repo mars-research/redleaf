@@ -1,8 +1,8 @@
-use spin::Once;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-use usr_interface::xv6::{Thread, Xv6, FileMode, FileStat, Result};
+use spin::Once;
 use usr_interface::vfs::NFILE;
+use usr_interface::xv6::{FileMode, FileStat, Result, Thread, Xv6};
 
 static SYSCALL: Once<Box<dyn Xv6>> = Once::new();
 
@@ -18,7 +18,6 @@ pub fn sys_spawn_domain(path: &str, args: &str, fds: &[Option<usize>]) -> Result
     rv6.sys_spawn_domain(rv6.clone(), path, args, arr)
 }
 
-
 pub fn sys_open(path: &str, mode: FileMode) -> Result<usize> {
     SYSCALL.r#try().unwrap().sys_open(path, mode)
 }
@@ -27,7 +26,7 @@ pub fn sys_close(fd: usize) -> Result<()> {
     SYSCALL.r#try().unwrap().sys_close(fd)
 }
 
-pub fn sys_read(fd: usize, buffer: &mut[u8]) -> Result<usize> {
+pub fn sys_read(fd: usize, buffer: &mut [u8]) -> Result<usize> {
     SYSCALL.r#try().unwrap().sys_read(fd, buffer)
 }
 
@@ -47,6 +46,6 @@ pub fn sys_dup(fd: usize) -> Result<usize> {
     SYSCALL.r#try().unwrap().sys_dup(fd)
 }
 
-pub fn sys_pipe() -> Result<(usize, usize)>{
+pub fn sys_pipe() -> Result<(usize, usize)> {
     SYSCALL.r#try().unwrap().sys_pipe()
 }

@@ -37,7 +37,6 @@ use core::fmt;
 /// ```
 pub type Result<T> = core::result::Result<T, ErrorKind>;
 
-
 /// A list specifying general categories of I/O error.
 ///
 /// This list is intended to grow over time and it is not recommended to
@@ -144,4 +143,3 @@ impl ErrorKind {
         }
     }
 }
-

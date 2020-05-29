@@ -1,13 +1,9 @@
 #![no_std]
 #![forbid(unsafe_code)]
-#![feature(
-    const_fn,
-    const_raw_ptr_to_usize_cast,
-    untagged_unions,
-)]
+#![feature(const_fn, const_raw_ptr_to_usize_cast, untagged_unions)]
 
-extern crate malloc;
 extern crate alloc;
+extern crate malloc;
 
 #[macro_use]
 use alloc::boxed::Box;
@@ -15,21 +11,26 @@ use alloc::string::String;
 use alloc::string::ToString;
 use core::panic::PanicInfo;
 
-use syscalls::{Syscall, Heap};
-use usrlib::{println, print};
-use usrlib::syscalls::{sys_open, sys_fstat, sys_read, sys_write, sys_close};
+use syscalls::{Heap, Syscall};
+use usr::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usr::xv6::Xv6;
-use usr::vfs::{DirectoryEntry, DirectoryEntryRef, INodeFileType, FileMode};
+use usrlib::syscalls::{sys_close, sys_fstat, sys_open, sys_read, sys_write};
+use usrlib::{print, println};
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, rv6: Box<dyn Xv6>, args: &str) {
+pub fn init(
+    s: Box<dyn Syscall + Send + Sync>,
+    heap: Box<dyn Heap + Send + Sync>,
+    rv6: Box<dyn Xv6>,
+    args: &str,
+) {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
     usrlib::init(rv6.clone());
     println!("Starting rv6 benchnet with args: {}", args);
 
     let net = rv6.as_net();
-    
+
     for _ in 0..5 {
         libbenchnet::run_tx_udptest_rref(&*net, 64, false);
     }
@@ -57,7 +58,6 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
     libbenchnet::run_fwd_udptest_rref(&*net, 64);
     libbenchnet::run_maglev_fwd_udptest_rref(&*net, 64);
 }
-
 
 // This function is called on panic.
 #[panic_handler]

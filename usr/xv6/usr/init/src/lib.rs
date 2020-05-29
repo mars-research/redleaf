@@ -1,29 +1,30 @@
 #![no_std]
 #![forbid(unsafe_code)]
-#![feature(
-    const_fn,
-    const_raw_ptr_to_usize_cast,
-    untagged_unions,
-)]
+#![feature(const_fn, const_raw_ptr_to_usize_cast, untagged_unions)]
 
-extern crate malloc;
 extern crate alloc;
-use core::panic::PanicInfo;
+extern crate malloc;
 use alloc::boxed::Box;
+use core::panic::PanicInfo;
 
-use usrlib::{dbg, println};
-use usrlib::syscalls::{sys_spawn_domain};
-use syscalls::{Syscall, Heap};
-use usr_interface::xv6::Xv6;
+use syscalls::{Heap, Syscall};
 use usr_interface::vfs::FileMode;
+use usr_interface::xv6::Xv6;
+use usrlib::syscalls::sys_spawn_domain;
+use usrlib::{dbg, println};
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, rv6: Box<dyn Xv6>, args: &str) {
+pub fn init(
+    s: Box<dyn Syscall + Send + Sync>,
+    heap: Box<dyn Heap + Send + Sync>,
+    rv6: Box<dyn Xv6>,
+    args: &str,
+) {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
     usrlib::init(rv6.clone());
 
-    // stdout not initialized yet so we can't print it there yet 
+    // stdout not initialized yet so we can't print it there yet
     console::println!("Rv6 init");
 
     // Create console device if it not there yet
@@ -32,12 +33,12 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
             console::println!("/console doesnt exist; creating a new one.");
             rv6.sys_mknod("/console", 1, 1).unwrap();
             assert_eq!(rv6.sys_open("/console", FileMode::READWRITE).unwrap(), 0);
-        },
+        }
         Ok(fd) => {
             console::println!("/console already exists; reusing the old one.");
             assert_eq!(fd, 0);
             console::println!("{:?}", rv6.sys_fstat(fd).unwrap());
-        },
+        }
     }
     // Dup stdin to stdout and stderr
     assert_eq!(rv6.sys_dup(0).unwrap(), 1);
