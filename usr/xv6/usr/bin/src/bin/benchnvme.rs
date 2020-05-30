@@ -1,4 +1,5 @@
 #![no_std]
+#![no_main]
 #![forbid(unsafe_code)]
 #![feature(const_fn, const_raw_ptr_to_usize_cast, untagged_unions)]
 
@@ -12,7 +13,7 @@ use alloc::string::ToString;
 use core::panic::PanicInfo;
 
 use syscalls::{Heap, Syscall};
-use usr::xv6::Xv6;
+use usr_interfaces::xv6::Xv6;
 use usrlib::{print, println};
 
 #[no_mangle]

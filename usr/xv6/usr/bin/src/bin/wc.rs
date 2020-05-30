@@ -1,4 +1,5 @@
 #![no_std]
+#![no_main]
 #![forbid(unsafe_code)]
 #![feature(const_fn, const_raw_ptr_to_usize_cast, untagged_unions)]
 
@@ -10,8 +11,8 @@ use core::panic::PanicInfo;
 
 use libsyscalls::syscalls::sys_println;
 use syscalls::{Heap, Syscall};
-use usr::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
-use usr::xv6::Xv6;
+use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
+use usr_interfaces::xv6::Xv6;
 use usrlib::println;
 use usrlib::syscalls::{sys_close, sys_fstat, sys_open, sys_read, sys_write};
 

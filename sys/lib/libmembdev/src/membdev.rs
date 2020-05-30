@@ -1,6 +1,4 @@
-use alloc::boxed::Box;
 use spin::Mutex;
-use core::sync::atomic::{AtomicBool, Ordering};
 
 use rref::RRef;
 use usr::bdev::{BDev, BSIZE};

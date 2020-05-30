@@ -1,4 +1,5 @@
 #![no_std]
+#![no_main]
 #![forbid(unsafe_code)]
 #![feature(
     box_syntax,
