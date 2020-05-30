@@ -5,6 +5,7 @@
 
 extern crate alloc;
 extern crate malloc;
+extern crate memcpy;
 use alloc::boxed::Box;
 use core::panic::PanicInfo;
 

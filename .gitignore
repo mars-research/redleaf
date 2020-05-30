@@ -9,7 +9,8 @@ disk.img
 sata.img
 .gdb_history
 
-/interface.fingerprint
+*.fingerprint
+**/linker.ld
 /redleaf.key
 /redleaf.pub
 

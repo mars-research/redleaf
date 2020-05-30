@@ -7,7 +7,7 @@ target := $(arch)-redleaf-domain
 bin := target/$(target)/$(TARGET_SUB_DIR)/$(bin_name)
 
 .PHONY: all
-all: $(bin) checkstack
+all: bin checkstack
 
 .PHONY: release
 release: $(releaseinit)
@@ -17,8 +17,8 @@ clean:
 	rm -rf build
 	cargo clean
 
-.PHONY: $(bin)
-$(bin):
+.PHONY: bin
+bin:
 	@REDLEAF_ROOT=$(shell realpath $(root)) cargo ${CARGO_COMMAND} ${CARGO_FLAGS} $(FEATURES)
 
 include $(root)/checkstack.mk

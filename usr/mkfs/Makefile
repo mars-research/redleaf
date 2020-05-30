@@ -13,12 +13,11 @@ ASFLAGS = -m32 -gdwarf-2 -Wa,-divide
 LDFLAGS += -m $(shell $(LD) -V | grep elf_i386 2>/dev/null | head -n 1)
 arch ?= x86_64
 target := $(arch)-redleaf-domain
-BUILD_DIR = build/
 
-all: $(BUILD_DIR)/fs.img
+all: build/fs.img
 	
-$(BUILD_DIR)/mkfs: mkfs.c fs.h param.h stat.h types.h
-	mkdir $(BUILD_DIR)
+build/mkfs: mkfs.c fs.h param.h stat.h types.h
+	mkdir build
 	gcc -Werror -Wall -g -o $@ mkfs.c
 
 # Prevent deletion of intermediate files, e.g. cat.o, after first build, so
@@ -40,23 +39,23 @@ BINS=\
 	benchnet\
 	benchnvme\
 
-$(BUILD_DIR)/fs.img: $(BUILD_DIR)/mkfs $(FILES) $(BINS) Makefile
+build/fs.img: build/mkfs $(FILES) $(BINS) Makefile
 	mkdir -p build
-	cd $(BUILD_DIR) && ./mkfs fs.img $(FILES) $(BINS)
+	cd build/ && ./mkfs fs.img $(FILES) $(BINS)
 
-$(BUILD_DIR)/fs.o: $(BUILD_DIR)/fs.img
-	objcopy -I binary -O elf64-x86-64 -B i386 $(BUILD_DIR)/fs.img $(BUILD_DIR)/fs.o
+build/fs.o: build/fs.img
+	objcopy -I binary -O elf64-x86-64 -B i386 build/fs.img build/fs.o
 
-$(BUILD_DIR)/libfs.a: $(BUILD_DIR)/fs.o
-	ar cr --target elf64-x86-64 $(BUILD_DIR)/libfs.a $(BUILD_DIR)/fs.o
+build/libfs.a: build/fs.o
+	ar cr --target elf64-x86-64 build/libfs.a build/fs.o
 
 .PHONY: README
 README:
-	cp README $(BUILD_DIR)/
+	cp README build/
 
 .PHONY: large
 large:
-	echo "hello" > $(BUILD_DIR)/$@
+	echo "hello" > build/$@
  	# wget https://ocw.mit.edu/ans7870/6/6.006/s08/lecturenotes/files/t8.shakespeare.txt -O $@
 	# fallocate -l 128M $@
 
@@ -66,7 +65,7 @@ bin:
 
 .PHONY: $(BINS)
 $(BINS): bin
-	cp ../xv6/usr/bin/target/$(target)/$(TARGET_SUB_DIR)/$@ $(BUILD_DIR) -f
+	cp ../xv6/usr/bin/target/$(target)/$(TARGET_SUB_DIR)/$@ build/ -f
 
 .PHONY: clean
 clean: 

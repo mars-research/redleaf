@@ -1,9 +1,10 @@
 #![no_std]
+#![no_main]
 #![feature(
     const_fn,
     const_raw_ptr_to_usize_cast,
     untagged_unions,
-        maybe_uninit_extra
+    maybe_uninit_extra,
 )]
 
 use alloc::boxed::Box;

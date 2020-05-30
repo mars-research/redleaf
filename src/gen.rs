@@ -360,31 +360,59 @@ pub fn create_domain_nvme(pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Dom
 }
 
 pub fn create_domain_membdev(memdisk: &'static mut [u8]) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev>) {
+    #[cfg(debug_assertions)]
+    let binary_range  = {
+        extern "C" {
+            fn _binary_sys_driver_membdev_target_x86_64_redleaf_domain_debug_membdev_start();
+            fn _binary_sys_driver_membdev_target_x86_64_redleaf_domain_debug_membdev_end();
+        }
 
-    extern "C" {
-        fn _binary_sys_driver_membdev_build_membdev_start();
-        fn _binary_sys_driver_membdev_build_membdev_end();
-    }
+        (
+            _binary_sys_driver_membdev_target_x86_64_redleaf_domain_debug_membdev_start as *const u8,
+            _binary_sys_driver_membdev_target_x86_64_redleaf_domain_debug_membdev_end as *const u8
+        )
+    };
+    #[cfg(not(debug_assertions))]
+    let binary_range  = {
+        extern "C" {
+            fn _binary_sys_driver_membdev_target_x86_64_redleaf_domain_release_membdev_start();
+            fn _binary_sys_driver_membdev_target_x86_64_redleaf_domain_release_membdev_end();
+        }
 
-    let binary_range = (
-        _binary_sys_driver_membdev_build_membdev_start as *const u8,
-        _binary_sys_driver_membdev_build_membdev_end as *const u8
-    );
+        (
+            _binary_sys_driver_membdev_target_x86_64_redleaf_domain_release_membdev_start as *const u8,
+            _binary_sys_driver_membdev_target_x86_64_redleaf_domain_release_membdev_end as *const u8
+        )
+    };
 
     create_domain_bdev_mem("membdev", binary_range, memdisk)
 }
 
 pub fn create_domain_bdev_shadow(create: Arc<dyn create::CreateMemBDev>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev>) {
+    #[cfg(debug_assertions)]
+    let binary_range  = {
+        extern "C" {
+            fn _binary_usr_shadow_bdev_target_x86_64_redleaf_domain_debug_bdev_shadow_start();
+            fn _binary_usr_shadow_bdev_target_x86_64_redleaf_domain_debug_bdev_shadow_end();
+        }
 
-    extern "C" {
-        fn _binary_usr_shadow_bdev_build_bdev_shadow_start();
-        fn _binary_usr_shadow_bdev_build_bdev_shadow_end();
-    }
+        (
+            _binary_usr_shadow_bdev_target_x86_64_redleaf_domain_debug_bdev_shadow_start as *const u8,
+            _binary_usr_shadow_bdev_target_x86_64_redleaf_domain_debug_bdev_shadow_end as *const u8
+        )
+    };
+    #[cfg(not(debug_assertions))]
+    let binary_range  = {
+        extern "C" {
+            fn _binary_usr_shadow_bdev_target_x86_64_redleaf_domain_release_bdev_shadow_start();
+            fn _binary_usr_shadow_bdev_target_x86_64_redleaf_domain_release_bdev_shadow_end();
+        }
 
-    let binary_range = (
-        _binary_usr_shadow_bdev_build_bdev_shadow_start as *const u8,
-        _binary_usr_shadow_bdev_build_bdev_shadow_end as *const u8
-    );
+        (
+            _binary_usr_shadow_bdev_target_x86_64_redleaf_domain_release_bdev_shadow_start as *const u8,
+            _binary_usr_shadow_bdev_target_x86_64_redleaf_domain_release_bdev_shadow_end as *const u8
+        )
+    };
 
     create_domain_bdev_shadow_helper("bdev_shadow", binary_range, create)
 }

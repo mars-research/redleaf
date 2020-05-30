@@ -3,6 +3,8 @@ name = "bin"
 version = "0.1.0"
 authors = ["RedLeaf Team"]
 edition = "2018"
+build = "../../../../src/targets/x86_64-redleaf-domain/build.rs"
+#autobins = false
 
 [lib]
 crate-type = ["staticlib"]
@@ -27,4 +29,7 @@ libbenchnvme = { path = "../../../../sys/lib/libbenchnvme", version = "0.1.0" }
 libbenchnet = { path = "../../../../sys/lib/libbenchnet", version = "0.1.0" }
 libtime = { path = "../../../../sys/lib/libtime", version = "0.1.0" }
 utils = { path = "../../../../lib/utils", version = "0.1.0" }
+memcpy = { path = "../../../../lib/memcpy", version = "0.1.0" }
 
+[package.metadata.cargo-xbuild]
+memcpy = false

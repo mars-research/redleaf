@@ -3,9 +3,10 @@ name = "bdev_shadow"
 version = "0.1.0"
 authors = ["RedLeaf Team"]
 edition = "2018"
+build = "../../../src/targets/x86_64-redleaf-domain/build.rs"
 
-[lib]
-crate-type = ["staticlib"]
+[[bin]]
+name = "bdev_shadow"
 test = false
 bench = false
 

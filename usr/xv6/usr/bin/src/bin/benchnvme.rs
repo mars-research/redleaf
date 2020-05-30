@@ -5,6 +5,7 @@
 
 extern crate alloc;
 extern crate malloc;
+extern crate memcpy;
 
 #[macro_use]
 use alloc::boxed::Box;

@@ -3,17 +3,19 @@ use std::process::Command;
 use std::io::{self, Write};
 
 fn main() {
-    let output = Command::new("make")
+    let manifest_dir = var("CARGO_MANIFEST_DIR").unwrap();
+    
+    let mut command = Command::new("make");
+    command
         .arg("-C")
-        .arg("../../../usr/mkfs")
-        .arg("build/libfs.a")
+        .arg(format!("{}/../../../usr/mkfs", manifest_dir))
+        .arg("build/libfs.a");
+    let output = command
         .output()
         .unwrap();
 
-    io::stdout().write_all(&output.stdout).unwrap();
-    io::stderr().write_all(&output.stderr).unwrap();
+    assert!(output.status.success(), "Command failed:\n{:?}\n{}", command, String::from_utf8_lossy(&output.stderr));
 
-    let manifest_dir = var("CARGO_MANIFEST_DIR").unwrap();
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed={}/../../../usr/", manifest_dir);
     println!("cargo:rustc-link-search=native={}/../../../usr/mkfs/build", manifest_dir);

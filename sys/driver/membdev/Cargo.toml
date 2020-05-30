@@ -3,9 +3,10 @@ name = "membdev"
 version = "0.1.0"
 authors = ["RedLeaf Team"]
 edition = "2018"
+build = "../../../src/targets/x86_64-redleaf-domain/build.rs"
 
-[lib]
-crate-type = ["staticlib"]
+[[bin]]
+name = "membdev"
 test = false
 bench = false
 

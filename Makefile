@@ -55,8 +55,8 @@ domain_list := sys/init/build/init \
 ifeq ($(MEMBDEV),false)
 domain_list += sys/dev/ahci_driver/build/ahci_drive
 else
-domain_list += sys/driver/membdev/build/membdev
-domain_list += usr/shadow/bdev/build/bdev_shadow
+domain_list += sys/driver/membdev/target/x86_64-redleaf-domain/$(TARGET_SUB_DIR)/membdev
+domain_list += usr/shadow/bdev/target/x86_64-redleaf-domain/$(TARGET_SUB_DIR)/bdev_shadow
 endif
 
 qemu_common := ${MEM} -vga std -s
