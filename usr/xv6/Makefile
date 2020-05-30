@@ -1,7 +1,9 @@
 .PHONY: all
 all: 
 	make -C kernel
-	make -C usr
+	# Invoke by mkfs
+	# make -C usr
+
 .PHONY: clean
 clean:
 	make -C kernel clean
