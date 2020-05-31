@@ -2,7 +2,7 @@
 
 ### Development Setup
 ``` bash
-make cloudlab-deps
+make install-deps
 ```
 
 ### Benchmark Setup

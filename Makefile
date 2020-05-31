@@ -218,19 +218,21 @@ entryother: src/entryother.asm
 	ld -N -e start_others16 -Ttext 0x7000 -o build/entryother.out build/entryother.o
 	objcopy -S -O binary -j .text build/entryother.out build/entryother.bin
 
-.PHONY: cloudlab-deps
-cloudlab-deps:
+.PHONY: install-deps
+install-deps:
+	git submodule init
+	git submodule update
 	sudo apt update
 	sudo apt install -y qemu nasm xorriso numactl
 	curl https://sh.rustup.rs -sSf | bash -s -- --default-toolchain nightly-2020-05-15 -y
-	. ~/.cargo/env && \
+	. ${CARGO_HOME}/env && \
 	cargo install cargo-xbuild stack-sizes && \
 	rustup component add rust-src
-	@echo "To get started you need Cargo's bin directory ('$$HOME/.cargo/bin') in your PATH \
+	@echo "To get started you need Cargo's bin directory ('$$CARGO_HOME/bin') in your PATH \
 	environment variable. Next time you log in this will be done \
 	automatically."
 	@echo
-	@echo "To configure your current shell run 'source $$HOME/.cargo/env'"
+	@echo "To configure your current shell run 'source $$CARGO_HOME/env'"
 
 .PHONY: cloudlab-grub
 cloudlab-grub:
