@@ -35,8 +35,59 @@ pub fn init(
 
     let mut args = args.split_whitespace();
     args.next().unwrap();
-    let options = args.next().unwrap_or("rw");
+    let test = args.next().unwrap_or("throughput");
+    let options = args.next().unwrap_or("r");
     let file = args.next().unwrap_or("large");
+
+    match test {
+        "throughput" => bench_throughput(&*rv6, options, file),
+        "restart" => bench_restart(&*rv6, options, file),
+        _ => panic!("{}", test),
+    }
+}
+
+fn bench_throughput(rv6: &dyn Xv6, options: &str, file: &str) {
+    let sizes = [512, 1024, 4096, 8192, 16 * 1024, 256 * 1024, 1024 * 1024, 4 * 1024 * 1024, 16 * 1024 * 1024, 64 * 1024 * 1024];
+
+    for bsize in sizes.iter() {
+        let mut buffer = alloc::vec![123u8; *bsize];
+
+        if options.contains('w') {
+            let fd = sys_open(file, FileMode::WRITE | FileMode::CREATE).unwrap();
+
+            // warm up
+            sys_write(fd, buffer.as_slice()).unwrap();
+
+            let start = libtime::get_rdtsc();
+            let mut total_size = 0;
+            for _ in 0..1024 {
+                if total_size > 64 * 1024 * 1024  { break; }
+                let size = sys_write(fd, buffer.as_slice()).unwrap();
+                total_size += size;
+            }
+            println!("Write: buffer size: {}, total bytes: {}, cycles: {}", bsize, total_size, libtime::get_rdtsc() - start);
+            
+            sys_close(fd).unwrap();
+        }
+
+        if options.contains('r') {
+            let fd = sys_open(file, FileMode::READ).unwrap();
+
+            let start = libtime::get_rdtsc();
+            let mut total_size = 0;
+            loop {
+                let size = sys_read(fd, buffer.as_mut_slice()).unwrap();
+                if size == 0 { break; }
+                total_size += size;
+            }
+            println!("Read: buffer size: {}, total bytes: {}, cycles: {}", bsize, total_size, libtime::get_rdtsc() - start);
+
+            sys_close(fd).unwrap();
+        }
+    }
+}
+
+fn bench_restart(rv6: &dyn Xv6, options: &str, file: &str) {
     let file_size = 128 * 1024 * 1024;
 
     // let buffer_sizes = [512, 1024, 4096, 8192, 16 * 1024, 256 * 1024, 1024 * 1024, 4 * 1024 * 1024, 16 * 1024 * 1024, 64 * 1024 * 1024];
