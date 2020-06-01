@@ -40,6 +40,87 @@ Recovery/shadows
   the BAR capability. So the BAR has to be on the shared heap and we should call its
   destructor.  
 
+Rv6 [Tian] 
+
+- Proxy for the rv6 kernel -- we need a full proxy, but also need some support from RRefs
+
+- thread support for rv6 and SMP
+
+- FS write is 5x slower than read 
+
+- Moving to NVMe ... to make sure that FS is ruuning on top of NVMe 
+
+
+RRefs [Dan]
+
+- Type registry for "drop" 
+
+- immutable borrows (add tests to C and D domains) 
+
+- TLS (performance degradation because of current)
+
+Maglev [Zhaofang]
+
+- Booting on baremetal (Redleaf)
+
+- Build system 
+
+Signing and fingerprinting [Zhaofeng]
+
+- Analysis of what can bring non-determinism
+- Compiler flags (fingerprint)
+
+Thesis/performance analysis [Zhaofeng]
+
+- Port Sashstore to DPDK 
+
+IDL [David]
+
+- 
+
+Sockets [Tian]
+
+- Network subsystem for rv6
+- Socket support for rv6
+- TCP (smoltcp) [Zhaofeng/Tian]
+
+Memory management [Vikram]
+
+- Dropping
+
+NVMe [Vikram]
+
+- Synchronous interface
+ 
+Domain recovery
+
+- Ixgbe and NVMe [Tian/Vikram]
+ 
+- Fast recover of the data section [Vikram]
+
+Multi-queue support for devices [Vikram]
+
+- 
+
+
+SIMD [Anton]
+
+- SIMD support
+- Fast get_current()
+- Domain alive
+- Linked list for continuations 
+- memcpy [Anton/Tian]
+ 
+
+Bugs
+
+ - get_current () --- linear increase from 100 to 10,000 -- Tian has a test to reproduce
+
+ - Maglev is extremely slow in rv6() --- rpc calls
+
+ - 
+
+
 -------------------------------------------------------------------------------
 --
 -- OLD (possibly irrelevant)
