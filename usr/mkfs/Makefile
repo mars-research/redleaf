@@ -17,7 +17,7 @@ target := $(arch)-redleaf-domain
 all: build/fs.img
 	
 build/mkfs: mkfs.c fs.h param.h stat.h types.h
-	mkdir build
+	mkdir -p build
 	gcc -Werror -Wall -g -o $@ mkfs.c
 
 # Prevent deletion of intermediate files, e.g. cat.o, after first build, so
