@@ -3,27 +3,20 @@
 
 /*
 use lazy_static::lazy_static;
-use x86_64::structures::gdt::{Descriptor, GlobalDescriptorTable, SegmentSelector};
-use x86_64::structures::tss::TaskStateSegment;
 */
 
 use x86_64::VirtAddr;
+use x86_64::structures::gdt::Descriptor;
 
 use core::mem;
-//use x86::current::segmentation::set_cs;
 use x86::current::task::TaskStateSegment;
 use x86::dtables::{DescriptorTablePointer};
-use x86_64::structures::gdt::{Descriptor, SegmentSelector};
 use x86::task;
 
-use x86_64::instructions::segmentation;
-use x86_64::instructions::segmentation::set_cs;
-use x86_64::instructions::segmentation::load_ds;
-use x86_64::instructions::segmentation::load_es;
-use x86_64::instructions::segmentation::load_fs;
-use x86_64::instructions::segmentation::load_gs;
-use x86_64::instructions::segmentation::load_ss;
-use x86_64::PrivilegeLevel::{Ring0};
+use x86::bits64::segmentation::load_cs;
+use x86::segmentation::{SegmentSelector, load_ds, load_es, load_fs, load_gs, load_ss};
+
+use x86::Ring::Ring0;
 
 use x86::controlregs;
 
@@ -102,12 +95,10 @@ struct Selectors {
 }
 
 pub fn init() {
-    use x86_64::instructions::segmentation::set_cs;
-    use x86_64::instructions::tables::load_tss;
 
     GDT.0.load();
     unsafe {
-        set_cs(GDT.1.code_selector);
+        load_cs(GDT.1.code_selector);
         load_tss(GDT.1.tss_selector);
     }
 }
@@ -225,7 +216,7 @@ pub unsafe fn init_global_gdt() {
     x86::dtables::lgdt(&INIT_GDT_DESC);
 
     // Load the segment descriptors
-    set_cs(SegmentSelector::new(GDT_KERNEL_CODE as u16, Ring0));
+    load_cs(SegmentSelector::new(GDT_KERNEL_CODE as u16, Ring0));
     load_ds(SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring0));
     load_es(SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring0));
     load_fs(SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring0));
@@ -297,11 +288,11 @@ pub unsafe fn init_percpu_gdt(tcb_offset: u64) {
     x86::dtables::lgdt(&GDT_DESC);
 
     // Reload the segment descriptors
-    set_cs(SegmentSelector::new(GDT_KERNEL_CODE as u16, Ring0));
-    segmentation::load_ds(SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring0));
-    segmentation::load_es(SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring0));
-    segmentation::load_gs(SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring0));
-    segmentation::load_ss(SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring0));
+    load_cs(SegmentSelector::new(GDT_KERNEL_CODE as u16, Ring0));
+    load_ds(SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring0));
+    load_es(SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring0));
+    load_gs(SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring0));
+    load_ss(SegmentSelector::new(GDT_KERNEL_DATA as u16, Ring0));
 
     //#[cfg(not(feature = "large_mem"))]
     //segmentation::load_fs(SegmentSelector::new(GDT_KERNEL_TLS as u16, Ring0));

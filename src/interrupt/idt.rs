@@ -9,7 +9,8 @@
 
 //! Provides types for the Interrupt Descriptor Table and its entries.
 
-use x86_64::{PrivilegeLevel, VirtAddr};
+use x86_64::VirtAddr;
+use x86::Ring;
 use bit_field::BitField;
 use bitflags::bitflags;
 use core::fmt;
@@ -514,11 +515,11 @@ impl InterruptDescriptorTable {
     /// Loads the IDT in the CPU using the `lidt` command.
     #[cfg(target_arch = "x86_64")]
     pub fn load(&'static self) {
-        use x86_64::instructions::tables::{lidt, DescriptorTablePointer};
+        use x86::dtables::{lidt, DescriptorTablePointer};
         use core::mem::size_of;
 
         let ptr = DescriptorTablePointer {
-            base: self as *const _ as u64,
+            base: self as *const _,
             limit: (size_of::<Self>() - 1) as u16,
         };
 
@@ -688,13 +689,13 @@ impl<F> Entry<F> {
     /// further customization.
     #[cfg(target_arch = "x86_64")]
     fn set_handler_addr(&mut self, addr: u64) -> &mut EntryOptions {
-        use x86_64::instructions::segmentation;
+        use x86::segmentation;
 
         self.pointer_low = addr as u16;
         self.pointer_middle = (addr >> 16) as u16;
         self.pointer_high = (addr >> 32) as u32;
 
-        self.gdt_selector = segmentation::cs().0;
+        self.gdt_selector = segmentation::cs().bits();
 
         self.options.set_present(true);
         &mut self.options
@@ -752,7 +753,7 @@ impl EntryOptions {
     /// or 3, the default is 0. If CPL < DPL, a general protection fault occurs.
     ///
     /// This function panics for a DPL > 3.
-    pub fn set_privilege_level(&mut self, dpl: PrivilegeLevel) -> &mut Self {
+    pub fn set_privilege_level(&mut self, dpl: Ring) -> &mut Self {
         self.0.set_bits(13..15, dpl as u16);
         self
     }

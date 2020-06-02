@@ -354,10 +354,10 @@ extern fn do_general_protection(pt_regs: &mut PtRegs, error_code: isize) {
 #[no_mangle]
 extern fn do_page_fault(pt_regs: &mut PtRegs, error_code: isize) {
     unlock_console(); 
-    use x86_64::registers::control::Cr2;
+    use x86::controlregs::cr2;
 
     println!("EXCEPTION: PAGE FAULT");
-    println!("Accessed Address: {:?}", Cr2::read());
+    println!("Accessed Address: {:?}", unsafe { cr2() });
     println!("Error Code: {:x}", error_code);
     println!("{:#?}", pt_regs);
 
@@ -517,11 +517,15 @@ extern fn sync_regs(pt_regs: &mut PtRegs) -> u64 {
 
 #[inline(always)]
 pub fn disable_irq() {
-    x86_64::instructions::interrupts::disable();
+    unsafe {
+        x86::irq::disable();
+    }
 }
 
 #[inline(always)]
 pub fn enable_irq() {
-    x86_64::instructions::interrupts::enable();
+    unsafe {
+        x86::irq::enable();
+    }
 }
 
