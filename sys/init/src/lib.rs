@@ -109,6 +109,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
             create_dom_b: Arc<dyn create::CreateDomB>,
             create_dom_c: Arc<dyn create::CreateDomC>,
             create_dom_d: Arc<dyn create::CreateDomD>,
+            create_hashstore: Arc<dyn create::CreateHashStore>,
             create_shadow: Arc<dyn create::CreateShadow>) {
     libsyscalls::syscalls::init(s);
 
@@ -195,6 +196,8 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
     );
     println!("created proxy");
 
+    #[cfg(feature="hashbench")]
+    let dom_hashstore = create_hashstore.create_domain_hashstore();
 
     println!("Creating pci");
     let (dom_pci, pci) = proxy.as_create_pci().create_domain_pci();

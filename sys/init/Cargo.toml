@@ -43,7 +43,8 @@ default = [
     # "test_cd",
     "shadow",
     # "benchnet",
-    # "benchnvme"
+    # "benchnvme",
+    "hashbench"
 ]
 
 test_sleep = [ ]
@@ -55,6 +56,8 @@ test_cd = []
 benchnet =[]
 membdev = []
 benchnvme = []
+# for testing hashtable
+hashbench = []
 # Bring up shadow domains for restart.
 # Use with `tramp` feature, otherwise the stack won't unwind properly
 # Also, turn the `default-memdisk` feature on in `sys/driver/membdev`.

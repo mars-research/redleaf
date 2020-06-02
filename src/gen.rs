@@ -207,6 +207,15 @@ impl create::CreateBenchnvme for PDomain {
     }
 }
 
+impl create::CreateHashStore for PDomain {
+    fn create_domain_hashstore(&self) -> Box<dyn syscalls::Domain> {
+        disable_irq();
+        let r = create_domain_hashstore();
+        enable_irq();
+        r
+    }
+}
+
 impl proxy::CreateProxy for PDomain {
     fn create_domain_proxy(
         &self,
@@ -436,6 +445,7 @@ pub fn create_domain_xv6kernel(ints: Box<dyn syscalls::Interrupt>,
     build_domain_xv6kernel("xv6kernel", binary_range, ints, create_xv6fs, create_xv6usr, bdev, net, nvme)
 }
 
+
 pub fn create_domain_xv6fs(bdev: Box<dyn usr::bdev::BDev>) ->(Box<dyn syscalls::Domain>, Box<dyn usr::vfs::VFS>) {
 
     extern "C" {
@@ -573,6 +583,21 @@ pub fn create_domain_benchnvme(nvme: Box<dyn usr::bdev::NvmeBDev>) -> Box<dyn sy
 
     build_domain_benchnvme("benchnvme", binary_range, nvme)
 }
+
+pub fn create_domain_hashstore() -> Box<dyn syscalls::Domain> {
+    extern "C" {
+        fn _binary_usr_test_benchhash_build_benchhash_start();
+        fn _binary_usr_test_benchhash_build_benchhash_end();
+    }
+
+    let binary_range = (
+        _binary_usr_test_benchhash_build_benchhash_start as *const u8,
+        _binary_usr_test_benchhash_build_benchhash_end as *const u8
+    );
+
+    build_domain_hashstore("benchhash", binary_range)
+}
+
 
 pub fn create_domain_proxy(
     create_pci: Arc<dyn create::CreatePCI>,
@@ -966,6 +991,7 @@ pub fn build_domain_init(name: &str,
                        Arc<dyn create::CreateDomB>,
                        Arc<dyn create::CreateDomC>,
                        Arc<dyn create::CreateDomD>,
+                       Arc<dyn create::CreateHashStore>,
                        Arc<dyn create::CreateShadow>);
 
     let (dom, entry) = unsafe {
@@ -990,6 +1016,7 @@ pub fn build_domain_init(name: &str,
     user_ep(Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(Interrupt::new()),
             Box::new(PDomain::new(Arc::clone(&dom))),
+            Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
@@ -1514,6 +1541,44 @@ pub fn build_domain_benchnvme(name: &str,
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     let shadow = user_ep(pdom, pheap, nvme);
+    disable_irq();
+
+    // change domain id back
+    {
+        thread.lock().current_domain_id = old_id;
+    }
+
+    println!("domain/{}: returned from entry point", name);
+    Box::new(PDomain::new(Arc::clone(&dom)))
+}
+
+pub fn build_domain_hashstore(name: &str,
+                          binary_range: (*const u8, *const u8)) -> Box<dyn syscalls::Domain> {
+    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>);
+
+    let (dom, entry) = unsafe {
+        load_domain(name, binary_range)
+    };
+
+    let user_ep: UserInit = unsafe {
+        core::mem::transmute::<*const(), UserInit>(entry)
+    };
+
+    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pheap = Box::new(PHeap::new());
+
+    // update current domain id
+    let thread = thread::get_current_ref();
+    let old_id = {
+        let mut thread = thread.lock();
+        let old_id = thread.current_domain_id;
+        thread.current_domain_id = dom.lock().id;
+        old_id
+    };
+
+    // Enable interrupts on exit to user so it can be preempted
+    enable_irq();
+    let shadow = user_ep(pdom, pheap);
     disable_irq();
 
     // change domain id back

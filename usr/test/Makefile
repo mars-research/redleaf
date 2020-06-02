@@ -7,6 +7,7 @@ all:
 	make -C shadow
 	make -C benchnet_inside
 	make -C benchnvme
+	make -C benchhash
 
 .PHONY: clean
 clean:
@@ -17,3 +18,4 @@ clean:
 	make -C shadow clean
 	make -C benchnet_inside clean
 	make -C benchnvme clean
+	make -C benchhash clean

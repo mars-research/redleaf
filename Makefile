@@ -50,7 +50,8 @@ domain_list := sys/init/build/init \
 	usr/shadow/net/build/net_shadow \
 	usr/shadow/nvme/build/nvme_shadow \
 	usr/test/benchnet_inside/build/benchnet_inside \
-	usr/test/benchnvme/build/benchnvme
+	usr/test/benchnvme/build/benchnvme \
+	usr/test/benchhash/build/benchhash
 
 ifeq ($(MEMBDEV),false)
 domain_list += sys/dev/ahci_driver/build/ahci_drive

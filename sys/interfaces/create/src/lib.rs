@@ -88,3 +88,7 @@ pub trait CreateBenchnet: Send + Sync {
 pub trait CreateBenchnvme: Send + Sync {
     fn create_domain_benchnvme(&self, nvme: Box<dyn NvmeBDev>) -> Box<dyn Domain>;
 }
+
+pub trait CreateHashStore: Send + Sync {
+    fn create_domain_hashstore(&self) -> Box<dyn Domain>;
+}
