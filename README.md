@@ -20,7 +20,7 @@ Then, disable Hyper Threading and fix CPU frequency to a constant by running
 ./disable_hyperthreading.sh && ./constant_freq.sh
 ```
 
-To use your eyeballs to confirm that we have a stable frequency, run `watch -n.1 "cat /proc/cpuinfo | grep \"^[c]pu MHz\""` and watch
+To use your eyeballs to confirm that we have a stable frequency, run `watch -n1 grep MHz /proc/cpuinfo`.
 
 
 ### Prerequisites
