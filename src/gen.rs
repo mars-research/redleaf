@@ -216,6 +216,15 @@ impl create::CreateHashStore for PDomain {
     }
 }
 
+impl create::CreateTpm for PDomain {
+    fn create_domain_tpm(&self) -> (Box<dyn syscalls::Domain>, Box<dyn usr::tpm::TpmDev>) {
+        disable_irq();
+        let r = create_domain_tpm();
+        enable_irq();
+        r
+    }
+}
+
 impl proxy::CreateProxy for PDomain {
     fn create_domain_proxy(
         &self,
@@ -598,6 +607,20 @@ pub fn create_domain_hashstore() -> Box<dyn syscalls::Domain> {
     build_domain_hashstore("benchhash", binary_range)
 }
 
+pub fn create_domain_tpm() -> (Box<dyn syscalls::Domain>, Box<dyn usr::tpm::TpmDev>) {
+
+    extern "C" {
+        fn _binary_sys_driver_tpm_build_tpm_start();
+        fn _binary_sys_driver_tpm_build_tpm_end();
+    }
+
+    let binary_range = (
+        _binary_sys_driver_tpm_build_tpm_start as *const u8,
+        _binary_sys_driver_tpm_build_tpm_end as *const u8
+    );
+
+    build_domain_tpm("tpm_driver", binary_range)
+}
 
 pub fn create_domain_proxy(
     create_pci: Arc<dyn create::CreatePCI>,
@@ -992,6 +1015,7 @@ pub fn build_domain_init(name: &str,
                        Arc<dyn create::CreateDomC>,
                        Arc<dyn create::CreateDomD>,
                        Arc<dyn create::CreateHashStore>,
+                       Arc<dyn create::CreateTpm>,
                        Arc<dyn create::CreateShadow>);
 
     let (dom, entry) = unsafe {
@@ -1016,6 +1040,7 @@ pub fn build_domain_init(name: &str,
     user_ep(Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(Interrupt::new()),
             Box::new(PDomain::new(Arc::clone(&dom))),
+            Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
@@ -1588,4 +1613,42 @@ pub fn build_domain_hashstore(name: &str,
 
     println!("domain/{}: returned from entry point", name);
     Box::new(PDomain::new(Arc::clone(&dom)))
+}
+
+pub fn build_domain_tpm(name: &str,
+                        binary_range: (*const u8, *const u8)) -> (Box<dyn syscalls::Domain>, Box<dyn usr::tpm::TpmDev>) {
+    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>) -> Box<dyn usr::tpm::TpmDev>;
+
+    let (dom, entry) = unsafe {
+        load_domain(name, binary_range)
+    };
+
+    let user_ep: UserInit = unsafe {
+        core::mem::transmute::<*const(), UserInit>(entry)
+    };
+
+    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pheap = Box::new(PHeap::new());
+
+    // update current domain id
+    let thread = thread::get_current_ref();
+    let old_id = {
+        let mut thread = thread.lock();
+        let old_id = thread.current_domain_id;
+        thread.current_domain_id = dom.lock().id;
+        old_id
+    };
+
+    // Enable interrupts on exit to user so it can be preempted
+    enable_irq();
+    let tpmdev = user_ep(pdom, pheap);
+    disable_irq();
+
+    // change domain id back
+    {
+        thread.lock().current_domain_id = old_id;
+    }
+
+    println!("domain/{}: returned from entry point", name);
+    (Box::new(PDomain::new(Arc::clone(&dom))), tpmdev)
 }

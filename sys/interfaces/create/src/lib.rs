@@ -92,3 +92,7 @@ pub trait CreateBenchnvme: Send + Sync {
 pub trait CreateHashStore: Send + Sync {
     fn create_domain_hashstore(&self) -> Box<dyn Domain>;
 }
+
+pub trait CreateTpm: Send + Sync {
+    fn create_domain_tpm(&self) -> (Box<dyn Domain>, Box<dyn usr::tpm::TpmDev>);
+}

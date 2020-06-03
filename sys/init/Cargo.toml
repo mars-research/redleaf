@@ -56,6 +56,7 @@ test_cd = []
 benchnet =[]
 membdev = []
 benchnvme = []
+tpm = []
 # for testing hashtable
 hashbench = []
 # Bring up shadow domains for restart.

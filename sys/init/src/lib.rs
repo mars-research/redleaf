@@ -110,6 +110,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
             create_dom_c: Arc<dyn create::CreateDomC>,
             create_dom_d: Arc<dyn create::CreateDomD>,
             create_hashstore: Arc<dyn create::CreateHashStore>,
+            create_tpm: Arc<dyn create::CreateTpm>,
             create_shadow: Arc<dyn create::CreateShadow>) {
     libsyscalls::syscalls::init(s);
 
@@ -195,6 +196,9 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
         create_shadow,
     );
     println!("created proxy");
+
+    #[cfg(feature="tpm")]
+    let (dom_tpm, tpmdev) = create_tpm.create_domain_tpm();
 
     #[cfg(feature="hashbench")]
     let dom_hashstore = create_hashstore.create_domain_hashstore();

@@ -47,6 +47,7 @@ domain_list := sys/init/build/init \
 	sys/driver/pci/build/pci \
 	sys/driver/ixgbe/build/ixgbe \
 	sys/driver/nvme/build/nvme \
+	sys/driver/tpm/build/tpm \
 	usr/shadow/net/build/net_shadow \
 	usr/shadow/nvme/build/nvme_shadow \
 	usr/test/benchnet_inside/build/benchnet_inside \
@@ -72,6 +73,11 @@ qemu_common += -cpu 'Haswell,pdpe1gb' -machine q35
 #qemu_common += -device vfio-pci,romfile=,host=06:00.1
 #qemu_common += -vnc :0,password
 
+ifeq ($(TPM),true)
+qemu_common += -chardev socket,id=chrtpm,path=/tmp/mytpm1/swtpm-sock
+qemu_common += -tpmdev emulator,id=tpm0,chardev=chrtpm
+qemu_common += -device tpm-tis,tpmdev=tpm0
+endif
 
 QEMU := qemu-system-x86_64
 QEMU_KVM := sudo numactl -C 4 ${QEMU}
