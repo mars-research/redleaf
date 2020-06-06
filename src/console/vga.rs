@@ -61,13 +61,19 @@ pub struct Writer {
     column_position: usize,
     color_code: ColorCode,
     buffer: &'static mut Buffer,
+    cnt: usize,
 }
 
 impl Writer {
     pub fn write_byte(&mut self, byte: u8) {
         match byte {
             b'\n' => self.new_line(),
+            b'\x08' => self.backspace(),
             byte => {
+                if (byte as char).is_ascii_control() {
+                    self.cnt += 1;
+                    assert!(self.cnt < 20, "can't print 0x{:X}", byte);
+                }
                 if self.column_position >= BUFFER_WIDTH {
                     self.new_line();
                 }
@@ -106,11 +112,27 @@ impl Writer {
         }
     }
 
+    fn backspace(&mut self) {
+        if self.column_position == 0 {
+            self.clear_row(BUFFER_HEIGHT - 1);
+        } else {
+            self.column_position -= 1;
+
+            let row = BUFFER_HEIGHT - 1;
+            let col = self.column_position;
+
+            self.buffer.chars[row][col].write(ScreenChar {
+                ascii_character: b' ',
+                color_code: self.color_code,
+            });
+        }
+    }
+
     pub fn write_string(&mut self, s: &str) {
         for byte in s.bytes() {
             match byte {
-                // printable ASCII byte or newline
-                0x20..=0x7e | b'\n' => self.write_byte(byte),
+                // printable ASCII byte or newline or backspace
+                0x20..=0x7e | b'\n' | b'\x08' => self.write_byte(byte),
                 // not part of printable ASCII range
                 _ => self.write_byte(0xfe),
             }
@@ -131,6 +153,7 @@ lazy_static! {
         column_position: 0,
         color_code: ColorCode::new(Color::Yellow, Color::Black),
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
+        cnt: 0,
     });
 }
 
