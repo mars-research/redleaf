@@ -15,7 +15,6 @@ use spin::{Mutex, Once};
 
 use rref::RRef;
 use usr_interface::bdev::BDev;
-use utils::list2;
 
 pub static BCACHE: Once<BufferCache> = Once::new();
 

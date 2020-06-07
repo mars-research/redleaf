@@ -2,11 +2,9 @@
 // Based on https://rust-unofficial.github.io/too-many-lists/fourth-final.html
 // list2 but not synced
 // A doubly-linked-list with the ability to remove a node from the list in O(1).
-use alloc::sync::Arc;
 use alloc::rc::Rc;
 use core::cell::RefCell;
 use core::ops::{Deref, DerefMut};
-use spin::Mutex;
 
 
 pub struct List<T> {

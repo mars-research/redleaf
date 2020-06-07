@@ -124,14 +124,14 @@ impl<T> List<T> {
         match &prev {
             Some(prev) => prev.lock().next = next.clone(),
             None => {
-                core::mem::replace(&mut self.head, next.clone());
+                self.head = next.clone();
             },
         }
 
         match &next {
             Some(next) => next.lock().prev = prev.clone(),
             None => {
-                core::mem::replace(&mut self.tail, prev.clone());
+                self.tail = prev.clone();
             },
         }
     }
