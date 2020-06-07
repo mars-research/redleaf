@@ -14,7 +14,7 @@ LDFLAGS += -m $(shell $(LD) -V | grep elf_i386 2>/dev/null | head -n 1)
 arch ?= x86_64
 target := $(arch)-redleaf-domain
 
-all: build/fs.img
+all: build/libfs.a
 	
 build/mkfs: mkfs.c fs.h param.h stat.h types.h
 	mkdir -p build
@@ -57,7 +57,7 @@ README:
 large:
 	echo "hello" > build/$@
  	# wget https://ocw.mit.edu/ans7870/6/6.006/s08/lecturenotes/files/t8.shakespeare.txt -O $@
-	# fallocate -l 128M $@
+	# fallocate -l 128M build/$@
 
 .PHONY: bin
 bin:

@@ -46,4 +46,5 @@ memcpy = false
 default = [
     "default-memdisk"
 ]
+# Supply a default memdisk if an empty memdisk is given
 default-memdisk = []

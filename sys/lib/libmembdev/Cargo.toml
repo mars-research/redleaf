@@ -13,3 +13,4 @@ rref = { path = "../../../sys/lib/rref", version = "0.1.0" }
 console = { path = "../../../sys/lib/console", version = "0.1.0" }
 spin = { path = "../../../lib/spin-rs" }
 libtime = { path = "../../../sys/lib/libtime", version = "0.1.0" }
+bin = { path = "../../../usr/xv6/usr/bin" }
