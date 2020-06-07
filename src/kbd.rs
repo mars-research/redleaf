@@ -119,7 +119,11 @@ impl Kbd_ctrlr {
                     if let Some(key) = self.kbd.process_keyevent(key_event) {
                         // Echo back to user
                         match key {
-                            DecodedKey::Unicode(key) => print!("{}", key),
+                            DecodedKey::Unicode(key) => {
+                                if !key.is_control() {
+                                    print!("{}", key)
+                                }
+                            },
                             _ => (),
                         };
                         Ok(Some(key))

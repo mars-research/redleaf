@@ -19,8 +19,8 @@ pub trait Xv6: Send + Sync + UsrVFS + Net {
 }
 
 pub trait Device: Send {
-    fn read(&self, data: &mut [u8]);
-    fn write(&self, data: &[u8]);
+    fn read(&self, data: &mut [u8]) -> usize;
+    fn write(&self, data: &[u8]) -> usize;
 }
 
 pub trait Thread: Send {
