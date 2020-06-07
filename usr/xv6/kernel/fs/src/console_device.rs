@@ -71,11 +71,9 @@ impl ConsoleDeviceInternal {
     // TODO: use cv to reduce spinning
     fn read(&mut self, data: &mut [u8]) -> usize {
         if !self.reached_eol {
-            println!("please wait");
             self.populate_buffer_until_eol();
         }
 
-        println!("you got this");
         for (i, d) in data.iter_mut().enumerate() {
             match self.buffer.pop_front() {
                 Some(c) => *d = c,
