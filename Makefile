@@ -71,7 +71,7 @@ qemu_common += -device ide-drive,drive=satadisk,bus=ahci.0
 qemu_common += -monitor telnet:127.0.0.1:55555,server,nowait
 qemu_common += -cpu 'Haswell,pdpe1gb' -machine q35
 #qemu_common += -device vfio-pci,romfile=,host=06:00.1
-#qemu_common += -vnc :0,password
+#qemu_common += -vnc 127.0.0.1:0
 
 ifeq ($(TPM),true)
 qemu_common += -chardev socket,id=chrtpm,path=/tmp/mytpm1/swtpm-sock
