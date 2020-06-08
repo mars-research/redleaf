@@ -44,7 +44,8 @@ default = [
     "shadow",
     # "benchnet",
     # "benchnvme",
-    "hashbench"
+    #"hashbench",
+    "tpm",
 ]
 
 test_sleep = [ ]

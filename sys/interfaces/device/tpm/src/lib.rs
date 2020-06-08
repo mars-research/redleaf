@@ -26,21 +26,35 @@ impl TpmDevice {
         }
     }
 
-    pub fn read_reg(&self, locality: u32, reg: TpmRegs, buf: &mut Vec<u8>) {
+    #[inline(always)]
+    pub fn read_u8(&self, locality: u32, reg: TpmRegs) -> u8 {
         assert!(locality <= 4);
-        unsafe {
-            for i in 0..buf.len() {
-                    buf[i] = ptr::read_volatile((self.mmio.get_base() + locality * 4096 + reg as u32 + i as u32) as *const u8);
-            }
+        unsafe {    
+            ptr::read_volatile((self.mmio.get_base() + locality * 4096 + reg as u32) as *const u8)
         }
     }
 
-    pub fn write_reg(&self, locality: u32, reg: TpmRegs, buf: &Vec<u8>) {
+    #[inline(always)]
+    pub fn write_u8(&self, locality: u32, reg: TpmRegs, val: u8) {
         assert!(locality <= 4);
         unsafe {
-            for (i, byte) in buf.iter().enumerate() {
-                    ptr::write_volatile((self.mmio.get_base() + locality * 4096 + reg as u32 + i as u32) as *mut u8, *byte);
-            }
+            ptr::write_volatile((self.mmio.get_base() + locality * 4096 + reg as u32) as *mut u8, val);
+        }
+    }
+
+    #[inline(always)]
+    pub fn read_u32(&self, locality: u32, reg: TpmRegs) -> u32 {
+        assert!(locality <= 4);
+        unsafe {    
+            ptr::read_volatile((self.mmio.get_base() + locality * 4096 + reg as u32) as *const u32)
+        }
+    }
+
+    #[inline(always)]
+    pub fn write_u32(&self, locality: u32, reg: TpmRegs, val: u32) {
+        assert!(locality <= 4);
+        unsafe {
+            ptr::write_volatile((self.mmio.get_base() + locality * 4096 + reg as u32) as *mut u32, val);
         }
     }
 }

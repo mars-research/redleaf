@@ -15,7 +15,9 @@ pub enum TpmRegs {
 }
 
 pub trait TpmDev: Send {
-    fn read_reg(&self, locality: u32, reg: TpmRegs, buf: &mut Vec<u8>);
+    fn read_u8(&self, locality: u32, reg: TpmRegs) -> u8;
+    fn write_u8(&self, locality: u32, reg: TpmRegs, val: u8);
 
-    fn write_reg(&self, locality: u32, reg: TpmRegs, buf: &Vec<u8>);
+    fn read_u32(&self, locality: u32, reg: TpmRegs) -> u32;
+    fn write_u32(&self, locality: u32, reg: TpmRegs, val: u32);
 }

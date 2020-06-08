@@ -11,10 +11,9 @@ bitfield! {
 }
 
 bitfield! {
-    pub struct TpmStatus([u8]);
+    pub struct TpmStatus(u8);
     impl Debug;
     u8;
-    pub u16, burst_count, _: 23, 8;
     pub sts_valid, _: 7;
     pub command_ready, set_command_ready: 6;
     pub tpm_go, set_tpm_go: 5;
