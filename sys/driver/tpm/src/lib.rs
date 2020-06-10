@@ -146,8 +146,6 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
     println!("burst_count {}", tpm_get_burst(&tpm));
     println!("validate {}", tpm_validate_locality(&tpm, 0));
 
-    panic!("");
-
     Box::new(tpm)
 }
 
