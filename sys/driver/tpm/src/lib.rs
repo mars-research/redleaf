@@ -6,8 +6,6 @@
 )]
 #![forbid(unsafe_code)]
 
-mod libtpm;
-
 extern crate malloc;
 extern crate alloc;
 extern crate b2histogram;
@@ -17,6 +15,7 @@ extern crate bitflags;
 #[macro_use]
 extern crate bitfield;
 
+use libtpm::*;
 use bitfield::BitRange;
 
 #[macro_use]
@@ -113,132 +112,6 @@ impl usr::tpm::TpmDev for Tpm {
 
     fn write_u32(&self, locality: u32, reg: TpmRegs, val: u32) {
         self.device.write_u32(locality, reg, val);
-    }
-}
-
-fn read_tpm_id(tpm: &Tpm, locality: u32) {
-    let did_vid = tpm.read_u32(locality, TpmRegs::TPM_DID_VID);
-
-    let did = (did_vid >> 16) & 0xFFFF;
-    let vid = u16::from_be(did_vid as u16);
-    println!("Locality {} => VID_DID: 0x{:x}", locality, vid);
-}
-
-fn tpm_validate_locality(tpm: &Tpm, locality: u32) -> bool {
-    let timeout = 100;
-    for i in (0..timeout).rev() {
-        let reg = tpm.read_u8(locality, TpmRegs::TPM_ACCESS);
-        let mut reg_acc = TpmAccess(reg);
-        if reg_acc.tpm_reg_validsts() && !reg_acc.seize() {
-            return true;
-        }
-        unsafe { asm!("pause"); }
-    }
-
-    return false;
-}
-
-fn relinquish_locality(tpm: &Tpm, locality: u32) -> bool {
-    let mut reg_acc = TpmAccess(0);
-    reg_acc.set_active_locality(true);
-
-    tpm.write_u8(locality, TpmRegs::TPM_ACCESS, reg_acc.bit_range(7, 0));
-
-    for i in (0..tpm.timeout_a).rev() {
-        let reg = tpm.read_u8(locality, TpmRegs::TPM_ACCESS);
-        let mut reg_acc = TpmAccess(reg);
-        if reg_acc.tpm_reg_validsts() && !reg_acc.active_locality() {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-fn request_locality(tpm: &Tpm, locality: u32) -> bool {
-    let reg = tpm.read_u8(locality, TpmRegs::TPM_ACCESS);
-    let mut reg_acc = TpmAccess(reg);
-
-    if !reg_acc.tpm_reg_validsts() {
-        return false;
-    }
-
-    if reg_acc.active_locality() {
-        return true;
-    }
-
-    let mut reg_acc = TpmAccess(0);
-    reg_acc.set_request_use(true);
-
-    tpm.write_u8(locality, TpmRegs::TPM_ACCESS, reg_acc.bit_range(7, 0));
-
-    for i in (0..tpm.timeout_a).rev() {
-        let reg = tpm.read_u8(locality, TpmRegs::TPM_ACCESS);
-        let mut reg_acc = TpmAccess(reg);
-        if reg_acc.tpm_reg_validsts() && reg_acc.active_locality() {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-fn tpm_get_burst(tpm: &Tpm) -> u16 {
-    let reg_sts = tpm.read_u32(0, TpmRegs::TPM_STS);
-    println!("{:x?}", u32::to_le_bytes(reg_sts));
-    (reg_sts >> 8) as u16 & 0xFFFF
-}
-
-fn tpm_write_data(tpm: &Tpm, locality: u32, data: &[u8]) {
-    let burst_count = tpm_get_burst(tpm) as usize;
-
-    let mut data = data;
-
-    while data.len() > burst_count {
-        let (data0, data1) = data.split_at(burst_count);
-        tpm.write_data(locality, TpmRegs::TPM_DATA_FIFO, data0); 
-        data = data1;
-    }
-
-    // data is written to the FIFO
-    let mut reg_sts = TpmStatus(0);
-    reg_sts.set_tpm_go(true);
-
-    // Execute the command using TPM.go
-    tpm.write_u8(locality, TpmRegs::TPM_STS, reg_sts.bit_range(7, 0));
-}
-
-fn is_data_available(tpm: &Tpm, locality: u32) -> bool {
-    let reg_sts = tpm.read_u8(0, TpmRegs::TPM_STS);
-    let status = libtpm::TpmStatus(reg_sts);
-
-    for _ in (0..tpm.timeout_a).rev() {
-        if status.sts_valid() && status.data_avail() {
-            return true;
-        }
-    }
-    return false;
-}
-
-fn tpm_read_data(tpm: &Tpm, locality: u32, data: &mut [u8]) {
-
-    if is_data_available(tpm, locality) {
-        let burst_count = tpm_get_burst(tpm) as usize;
-
-        let mut data = data;
-
-        while data.len() > burst_count {
-            let (data0, data1) = data.split_at_mut(burst_count);
-            tpm.read_data(locality, TpmRegs::TPM_DATA_FIFO, data0); 
-            data = data1;
-        }
-
-        // data is written to the FIFO
-        let mut reg_sts = TpmStatus(0);
-        reg_sts.set_command_ready(true);
-
-        // Execute the command using TPM.go
-        tpm.write_u8(locality, TpmRegs::TPM_STS, reg_sts.bit_range(7, 0));
     }
 }
 
