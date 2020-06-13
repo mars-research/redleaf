@@ -8,6 +8,7 @@ all:
 	make -C benchnet_inside
 	make -C benchnvme
 	make -C benchhash
+	make -C testtpm
 
 .PHONY: clean
 clean:
@@ -19,3 +20,4 @@ clean:
 	make -C benchnet_inside clean
 	make -C benchnvme clean
 	make -C benchhash clean
+	make -C testtpm clean

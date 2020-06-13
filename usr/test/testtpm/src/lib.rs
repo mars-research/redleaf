@@ -1,11 +1,16 @@
 #![no_std]
 extern crate malloc;
 extern crate alloc;
+use alloc::boxed::Box;
 use libsyscalls;
 use usr::tpm::TpmDev;
 use libtpm::*;
 
 use syscalls::{Syscall, Heap};
+use core::panic::PanicInfo;
+use console::println;
+
+const DOMAIN_NAME: &str = "testtpm";
 
 #[no_mangle]
 pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, tpm: Box<dyn TpmDev + Send + Sync>) {
@@ -15,7 +20,7 @@ pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>
 
     println!("Initalizing domain: {}", DOMAIN_NAME);
 
-    /// Add TPM2 functions here!
+    // Add TPM2 functions here!
     // tpm_test_read_pcr(tpm);
 }
 

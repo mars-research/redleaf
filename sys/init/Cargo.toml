@@ -41,11 +41,12 @@ default-features = false
 default = [
     # "test_ab",
     # "test_cd",
-    "shadow",
+    # "shadow",
     # "benchnet",
     # "benchnvme",
-    #"hashbench",
+    # "hashbench",
     "tpm",
+    "testtpm",
 ]
 
 test_sleep = [ ]
@@ -58,6 +59,7 @@ benchnet =[]
 membdev = []
 benchnvme = []
 tpm = []
+testtpm = []
 # for testing hashtable
 hashbench = []
 # Bring up shadow domains for restart.
