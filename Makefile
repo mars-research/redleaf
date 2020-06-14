@@ -52,7 +52,8 @@ domain_list := sys/init/build/init \
 	usr/shadow/nvme/build/nvme_shadow \
 	usr/test/benchnet_inside/build/benchnet_inside \
 	usr/test/benchnvme/build/benchnvme \
-	usr/test/benchhash/build/benchhash
+	usr/test/benchhash/build/benchhash \
+	usr/test/testtpm/build/testtpm
 
 ifeq ($(MEMBDEV),false)
 domain_list += sys/dev/ahci_driver/build/ahci_drive

@@ -111,6 +111,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
             create_dom_d: Arc<dyn create::CreateDomD>,
             create_hashstore: Arc<dyn create::CreateHashStore>,
             create_tpm: Arc<dyn create::CreateTpm>,
+            create_testtpm: Arc<dyn create::CreateTestTpm>,
             create_shadow: Arc<dyn create::CreateShadow>) {
     libsyscalls::syscalls::init(s);
 
@@ -199,6 +200,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
 
     #[cfg(feature="tpm")]
     let (dom_tpm, tpmdev) = create_tpm.create_domain_tpm();
+    let dom_testtpm = create_testtpm.create_domain_testtpm(tpmdev);
 
     #[cfg(feature="hashbench")]
     let dom_hashstore = create_hashstore.create_domain_hashstore();
