@@ -133,7 +133,7 @@ impl INodeDataGuard<'_> {
         // TODO: global superblock
         let super_block = SUPER_BLOCK.r#try().expect("fs not initialized");
 
-        let mut bguard = BCACHE.r#try().unwrap().read(
+        let bguard = BCACHE.r#try().unwrap().read(
             self.node.meta.device,
             block_num_for_node(self.node.meta.inum, &super_block),
         );
@@ -161,7 +161,7 @@ impl INodeDataGuard<'_> {
         }
 
         if self.data.addresses[params::NDIRECT] != 0 {
-            let mut bguard = BCACHE
+            let bguard = BCACHE
                 .r#try()
                 .unwrap()
                 .read(self.node.meta.device, self.data.addresses[params::NDIRECT]);
@@ -230,7 +230,7 @@ impl INodeDataGuard<'_> {
             self.data.addresses[params::NDIRECT] = address;
         }
 
-        let mut bguard = BCACHE.r#try().unwrap().read(self.node.meta.device, address);
+        let bguard = BCACHE.r#try().unwrap().read(self.node.meta.device, address);
         let buffer = bguard.lock();
 
         // The index of the level 1 table entry that this block belongs to
@@ -252,7 +252,7 @@ impl INodeDataGuard<'_> {
         drop(buffer);
 
         // Load level 2 indirect block, allocating if necessary.
-        let mut bguard = BCACHE.r#try().unwrap().read(self.node.meta.device, address);
+        let bguard = BCACHE.r#try().unwrap().read(self.node.meta.device, address);
         let buffer = bguard.lock();
 
         // The index of the level 1 table entry that this block belongs to
@@ -352,7 +352,7 @@ impl INodeDataGuard<'_> {
         let mut user_offset = 0usize;
 
         while total < bytes_to_read {
-            let mut bguard = BCACHE.r#try().unwrap().read(
+            let bguard = BCACHE.r#try().unwrap().read(
                 self.node.meta.device,
                 self.block_map(trans, (offset / params::BSIZE) as u32),
             );
@@ -388,7 +388,7 @@ impl INodeDataGuard<'_> {
         let mut user_offset = 0usize;
 
         while total < bytes_to_write {
-            let mut bguard = BCACHE.r#try().unwrap().read(
+            let bguard = BCACHE.r#try().unwrap().read(
                 self.node.meta.device,
                 self.block_map(trans, (offset / params::BSIZE) as u32),
             );
@@ -431,7 +431,7 @@ impl INodeDataGuard<'_> {
         );
 
         // From layer 1 indirect
-        let mut bguard = BCACHE
+        let bguard = BCACHE
             .r#try()
             .unwrap()
             .read(self.node.meta.device, block_number);
@@ -449,7 +449,7 @@ impl INodeDataGuard<'_> {
             }
 
             // From layer 2 indirect
-            let mut bguard = BCACHE
+            let bguard = BCACHE
                 .r#try()
                 .unwrap()
                 .read(self.node.meta.device, block_number);
@@ -550,7 +550,7 @@ impl INode {
 
         if !self.meta.valid.load(Ordering::Relaxed) {
             // if not valid, load from disk
-            let mut bguard = BCACHE.r#try().unwrap().read(
+            let bguard = BCACHE.r#try().unwrap().read(
                 self.meta.device,
                 block_num_for_node(self.meta.inum, super_block),
             );

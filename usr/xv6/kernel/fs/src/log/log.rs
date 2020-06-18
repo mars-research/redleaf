@@ -68,11 +68,11 @@ impl LogInternal {
     fn install_trans(&mut self) {
         for tail in 0..self.logheader.n {
             // console::println!("committing {} to {}", self.start + tail + 1, self.logheader.block_nums[tail as usize]);
-            let mut lbuf = BCACHE
+            let lbuf = BCACHE
                 .r#try()
                 .unwrap()
                 .read(self.dev, self.start + tail + 1);
-            let mut dbuf = BCACHE
+            let dbuf = BCACHE
                 .r#try()
                 .unwrap()
                 .read(self.dev, self.logheader.block_nums[tail as usize]);
@@ -90,7 +90,7 @@ impl LogInternal {
 
     // Read the log header from disk into the in-memory log header
     fn read_head(&mut self) {
-        let mut buf = BCACHE.r#try().unwrap().read(self.dev, self.start);
+        let buf = BCACHE.r#try().unwrap().read(self.dev, self.start);
         self.logheader.from_buffer_block(&buf.lock());
         console::println!("Log::read_head: {:?}", self);
     }
@@ -99,7 +99,7 @@ impl LogInternal {
     // This is the true point at which the
     // current transaction commits.
     fn write_head(&self) {
-        let mut buf = BCACHE.r#try().unwrap().read(self.dev, self.start);
+        let buf = BCACHE.r#try().unwrap().read(self.dev, self.start);
         {
             let mut locked_buf = buf.lock();
             self.logheader.to_buffer_block(&mut locked_buf);
@@ -162,11 +162,11 @@ impl LogInternal {
     fn write_log(&mut self) {
         for tail in 0..self.logheader.n {
             // console::println!("logging {} to {}", self.logheader.block_nums[tail as usize], self.start + tail + 1);
-            let mut to = BCACHE
+            let to = BCACHE
                 .r#try()
                 .unwrap()
                 .read(self.dev, self.start + tail + 1); // log block
-            let mut from = BCACHE
+            let from = BCACHE
                 .r#try()
                 .unwrap()
                 .read(self.dev, self.logheader.block_nums[tail as usize]); // cache block

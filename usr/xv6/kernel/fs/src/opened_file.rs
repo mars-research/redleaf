@@ -111,7 +111,7 @@ impl OpenedFile {
                     .as_ref()
                     .ok_or(ErrorKind::InvalidMajor)?
                     .read(user_buffer);
-                Ok((user_buffer.len()))
+                Ok(user_buffer.len())
             }
             FileType::Pipe { pipe } => pipe.read(user_buffer),
         }
@@ -154,7 +154,7 @@ impl OpenedFile {
                     .as_ref()
                     .ok_or(ErrorKind::InvalidMajor)?
                     .write(user_buffer);
-                Ok((user_buffer.len()))
+                Ok(user_buffer.len())
             }
             FileType::Pipe { pipe } => pipe.write(user_buffer),
         }

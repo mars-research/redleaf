@@ -1,8 +1,6 @@
 use alloc::sync::Arc;
 use alloc::vec::Vec;
-use core::convert::TryInto;
 use core::mem;
-use core::ops::Drop;
 use core::sync::atomic::Ordering;
 use spin::{Mutex, MutexGuard};
 
@@ -14,7 +12,6 @@ use crate::cwd::CWD;
 use crate::fs::{block_num_for_node, SUPER_BLOCK};
 use crate::log::Transaction;
 use crate::params;
-use crate::sysfile::FileStat;
 
 pub struct ICache {
     pub inodes: [Arc<INode>; params::NINODE],
@@ -37,7 +34,7 @@ impl ICache {
     ) -> Result<Arc<INode>> {
         let super_block = SUPER_BLOCK.r#try().expect("fs not initialized");
         for inum in 1..super_block.ninodes as u16 {
-            let mut bguard = BCACHE
+            let bguard = BCACHE
                 .r#try()
                 .unwrap()
                 .read(device, block_num_for_node(inum, super_block));
@@ -226,5 +223,5 @@ impl ICache {
 }
 
 lazy_static! {
-    pub static ref ICACHE: Mutex<ICache> = { Mutex::new(ICache::new()) };
+    pub static ref ICACHE: Mutex<ICache> = Mutex::new(ICache::new());
 }

@@ -5,12 +5,10 @@
 use crate::params::{BSIZE, NBUF, SECTOR_SIZE};
 
 use alloc::boxed::Box;
-use alloc::string::String;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use console::println;
 use core::ops::{Deref, DerefMut};
-use hashbrown::HashMap;
 use spin::{Mutex, Once};
 
 use rref::RRef;

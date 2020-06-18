@@ -26,7 +26,7 @@ impl ConsoleDeviceInternal {
     fn populate_buffer_until_eol(&mut self) {
         loop {
            let key = match sys_readch_kbd() {
-                Err(e) => {
+                Err(_e) => {
                     // println!("{}", e);
                     sys_yield();
                     continue;

@@ -1,5 +1,4 @@
 #![no_std]
-// #![no_builtins]
 #![forbid(unsafe_code)]
 #![feature(
     box_syntax,
@@ -14,22 +13,16 @@
 extern crate alloc;
 extern crate core;
 extern crate malloc;
-extern crate spin;
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
 extern crate byteorder;
 extern crate memcpy;
-extern crate syscalls;
-extern crate tls;
 
 use alloc::boxed::Box;
-use alloc::string::String;
-use alloc::vec::Vec;
 use console::println;
 use core::panic::PanicInfo;
 
-use libtime::get_rdtsc;
 use rref;
 use syscalls::{Heap, Syscall};
 use sysfile::{FileMode, FileStat};
