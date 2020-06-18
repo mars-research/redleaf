@@ -1,9 +1,9 @@
-use std::env::var;
-use std::process::Command;
 
 fn main() {
     #[cfg(feature = "musl")]
     {
+        use std::env::var;
+        use std::process::Command;
         let mut command = Command::new("make");
         let output = command
             .args(&["-C", "musl"])

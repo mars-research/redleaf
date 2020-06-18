@@ -1,6 +1,5 @@
 use std::env::var;
 use std::process::Command;
-use std::io::{self, Write};
 
 fn main() {
     let manifest_dir = var("CARGO_MANIFEST_DIR").unwrap();
