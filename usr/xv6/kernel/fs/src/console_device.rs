@@ -7,7 +7,7 @@ use pc_keyboard::DecodedKey;
 
 use console::{print, println};
 use libsyscalls::syscalls::{sys_readch_kbd, sys_yield};
-use usr_interface::xv6::Device;
+use usr_interface::xv6::File;
 
 struct ConsoleDeviceInternal {
     // The buffer is supposed be in the driver. I'm just too lazy to do the refactoring.
@@ -107,7 +107,7 @@ impl ConsoleDevice {
     }
 }
 
-impl Device for ConsoleDevice {
+impl File for ConsoleDevice {
     fn read(&self, data: &mut [u8]) -> usize {
         self.0.lock().read(data)
     }
@@ -119,5 +119,5 @@ impl Device for ConsoleDevice {
 
 lazy_static! {
     // xv6 equivalent: devsw
-    pub static ref DEVICES: Vec<Option<Box<dyn Device + Send + Sync>>> = alloc::vec![None, Some(box ConsoleDevice::new())];
+    pub static ref DEVICES: Vec<Option<Box<dyn File + Send + Sync>>> = alloc::vec![None, Some(box ConsoleDevice::new())];
 }

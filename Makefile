@@ -70,6 +70,7 @@ qemu_common += -device ide-drive,drive=satadisk,bus=ahci.0
 #qemu_common += -smp 4
 qemu_common += -monitor telnet:127.0.0.1:55555,server,nowait
 qemu_common += -cpu 'Haswell,pdpe1gb' -machine q35
+qemu_common += -net nic,model=virtio
 #qemu_common += -device vfio-pci,romfile=,host=06:00.1
 #qemu_common += -vnc 127.0.0.1:0
 
@@ -81,7 +82,7 @@ endif
 
 QEMU := qemu-system-x86_64
 QEMU_KVM := sudo numactl -C 4 ${QEMU}
-qemu_kvm_args := $(qemu_common) --enable-kvm
+qemu_kvm_args := $(qemu_common) -enable-kvm
 
 # https://superuser.com/a/1412150
 # We set the first serial to /dev/null because we want to always use COM2

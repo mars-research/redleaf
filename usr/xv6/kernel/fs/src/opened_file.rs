@@ -10,6 +10,7 @@ use crate::log::LOG;
 use crate::params;
 use crate::pipe::Pipe;
 use crate::sysfile::FileStat;
+use crate::net::Socket;
 
 pub type FDTable = [Option<Arc<OpenedFile>>; params::NFILE];
 
@@ -34,6 +35,9 @@ pub enum FileType {
         // Set once then read-only
         major: AtomicUsize,
     },
+    // Socket {
+    //     socket: Option<Socket>,
+    // },
 }
 
 #[derive(Debug)]

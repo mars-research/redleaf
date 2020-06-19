@@ -18,7 +18,7 @@ pub trait Xv6: Send + Sync + UsrVFS + Net {
     fn sys_rdtsc(&self) -> u64;
 }
 
-pub trait Device: Send {
+pub trait File: Send {
     fn read(&self, data: &mut [u8]) -> usize;
     fn write(&self, data: &[u8]) -> usize;
 }
