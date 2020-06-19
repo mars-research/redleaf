@@ -54,8 +54,10 @@ fn tpm_buf_append(buf: &mut Vec<u8>, data: &Vec <u8>) {
 }
 /// ## Locality related functions
 ///
+/// Locality tells the TPM where the command originated.
 /// Validates the TPM locality, basically means that TPM is ready to listen for commands and
-/// perform operation in this locality
+/// perform operation in this locality.
+/// Ref: https://ebrary.net/24811/computer_science/locality_command
 pub fn tpm_validate_locality(tpm: &dyn TpmDev, locality: u32) -> bool {
     let timeout = 100;
     for i in (0..timeout).rev() {
@@ -203,41 +205,49 @@ fn tpm_read_data(tpm: &dyn TpmDev, locality: u32, data: &mut [u8]) -> usize {
         return 0;
     }
 
-    let burst_count = tpm_get_burst(tpm) as usize;
-
     let mut data = data;
+    let mut size = 0;
+    let mut burst_count = 0;
 
-    if data.len() > burst_count {
-        println!("Data size > burst_count! not supported yet");
-        return 0;
+    loop {
+        burst_count = tpm_get_burst(tpm) as usize;
+
+        if burst_count > (data.len() - size) {
+            burst_count = data.len() - size;
+        }
+        for i in (0..burst_count) {
+            data[i + size] = tpm.read_u8(locality, TpmRegs::TPM_DATA_FIFO);
+        }
+        size = size + burst_count;
+        if size >= data.len() {
+            break;
+        }
     }
 
-    for byte in data.iter_mut() {
-        *byte = tpm.read_u8(locality, TpmRegs::TPM_DATA_FIFO);
-    }
     return data.len();
 }
 
 /// Wrapper for `tpm_read_data`
 /// This function first tries to read TPM_HEADER_SIZE bytes from the TPM to determine the length of
 /// payload data.
-/// Then it issues a second read for the length of payload data
+/// Then it issues a second read for the length of payload data subtract TPM_HEADER_SIZE
 fn tpm_recv_data(tpm: &TpmDev, locality: u32, buf: &mut Vec<u8>) -> usize {
     let size = buf.len();
 
     buf.clear();
-    buf.extend([0].repeat(core::mem::size_of::<TpmHeader>()));
+    buf.extend([0].repeat(TPM_HEADER_SIZE));
 
     tpm_read_data(tpm, locality, buf.as_mut_slice());
 
     let hdr = TpmHeader::from_vec(buf);
 
-    if hdr.length as usize > size {
+    if hdr.length as usize <= size {
         println!("Expected len {} > buf size {}", hdr.length, size);
         return 0;
     }
 
-    buf.extend([0].repeat(size - core::mem::size_of::<TpmHeader>()));
+    buf.clear();
+    buf.extend([0].repeat(hdr.length as usize - TPM_HEADER_SIZE));
 
     let ret = tpm_read_data(tpm, locality, buf.as_mut_slice());
 
@@ -281,4 +291,22 @@ fn tpm_transmit_cmd(tpm: &TpmDev, locality: u32, buf: &mut Vec<u8>) {
     let rx_bytes = tpm_recv_data(tpm, locality, buf);
 
     println!("Received {} bytes", rx_bytes);
+}
+
+/// Ensure that all self tests have passed
+pub fn tpm_getrandom(tpm: &TpmDev, num_octets: usize) -> bool {
+    let mut buf: Vec<u8>;
+    let data_size = 2; // bytesRequested: u16 from TCG specification
+    let command_len = TPM_HEADER_SIZE + data_size;
+    let mut hdr: TpmHeader = TpmHeader::new(
+        (Tpm2Structures::TPM2_ST_NO_SESSIONS as u16).swap_bytes(),
+        (command_len as u32).swap_bytes(),
+        (Tpm2Commands::TPM2_CC_GET_RANDOM as u32).swap_bytes()
+    );
+    buf = TpmHeader::to_vec(&hdr);
+    buf.extend_from_slice(&(num_octets as u16).to_be_bytes());
+    println!("presend: {:x?}", buf);
+    tpm_transmit_cmd(tpm, 0, &mut buf);
+    println!("postsend: {:x?}", buf);
+    true
 }

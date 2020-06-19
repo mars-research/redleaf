@@ -83,7 +83,7 @@ bitfield! {
 }
 
 // Generously borrowed from linux/drivers/char/tpm/tpm.h
-enum Tpm2Commands {
+pub enum Tpm2Commands {
     TPM2_CC_FIRST		        = 0x011F,
     TPM2_CC_HIERARCHY_CONTROL       = 0x0121,
     TPM2_CC_HIERARCHY_CHANGE_AUTH   = 0x0129,
@@ -111,6 +111,25 @@ enum Tpm2Commands {
     TPM2_CC_LAST		        = 0x0193,
 }
 
+// Generously borrowed from linux/drivers/char/tpm/tpm.h
+pub enum Tpm2ReturnCodes {
+    TPM2_RC_SUCCESS		= 0x0000,
+    TPM2_RC_HASH		= 0x0083, /* RC_FMT1 */
+    TPM2_RC_HANDLE		= 0x008B,
+    TPM2_RC_INITIALIZE	= 0x0100, /* RC_VER1 */
+    TPM2_RC_FAILURE		= 0x0101,
+    TPM2_RC_DISABLED	= 0x0120,
+    TPM2_RC_COMMAND_CODE    = 0x0143,
+    TPM2_RC_TESTING		= 0x090A, /* RC_WARN */
+    TPM2_RC_REFERENCE_H0	= 0x0910,
+    TPM2_RC_RETRY		= 0x0922,
+}
+
+// Generously borrowed from linux/drivers/char/tpm/tpm.h
+pub enum Tpm2Structures {
+    TPM2_ST_NO_SESSIONS	= 0x8001,
+    TPM2_ST_SESSIONS	= 0x8002,
+}
 
 pub const TIMEOUT_A: usize = 750;
 pub const TIMEOUT_B: usize = 2000;
@@ -124,21 +143,31 @@ pub struct TpmHeader {
 	pub ordinal: u32,
 }
 
+pub const TPM_HEADER_SIZE: usize = 10;
+
 impl TpmHeader {
     pub fn from_vec(buf: &Vec <u8>) -> TpmHeader {
         let slice = buf.as_slice();
         TpmHeader {
-            tag: BigEndian::read_u16(&slice[0..2]),
-            length: BigEndian::read_u32(&slice[2..6]),
+            tag:     BigEndian::read_u16(&slice[0..2]),
+            length:  BigEndian::read_u32(&slice[2..6]),
             ordinal: BigEndian::read_u32(&slice[6..10]),
         }
+    }
+
+    pub fn to_vec(hdr: &TpmHeader) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(10);
+        buf.extend_from_slice(&u16::to_be_bytes(hdr.tag));
+        buf.extend_from_slice(&u32::to_be_bytes(hdr.length));
+        buf.extend_from_slice(&u32::to_be_bytes(hdr.ordinal));
+        buf
     }
 
     pub fn new(tag: u16, length: u32, ordinal: u32) -> Self {
         Self {
             tag: u16::to_be(tag),
             length: u32::to_be(length),
-            ordinal: u32::to_be(length),
+            ordinal: u32::to_be(ordinal),
         }
     }
 }
