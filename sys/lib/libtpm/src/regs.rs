@@ -165,9 +165,12 @@ impl TpmHeader {
 
     pub fn new(tag: u16, length: u32, ordinal: u32) -> Self {
         Self {
-            tag: u16::to_be(tag),
-            length: u32::to_be(length),
-            ordinal: u32::to_be(ordinal),
+            // tag: u16::to_be(tag),
+            // length: u32::to_be(length),
+            // ordinal: u32::to_be(ordinal),
+            tag:     tag.swap_bytes().to_be(),
+            length:  length.swap_bytes().to_be(),
+            ordinal: ordinal.swap_bytes().to_be(),
         }
     }
 }

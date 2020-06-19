@@ -231,6 +231,7 @@ fn tpm_read_data(tpm: &dyn TpmDev, locality: u32, data: &mut [u8]) -> usize {
 /// This function first tries to read TPM_HEADER_SIZE bytes from the TPM to determine the length of
 /// payload data.
 /// Then it issues a second read for the length of payload data subtract TPM_HEADER_SIZE
+/// Payload consists of the argument that was sent to the TPM during tpm_send_data and the response
 fn tpm_recv_data(tpm: &TpmDev, locality: u32, buf: &mut Vec<u8>) -> usize {
     let size = buf.len();
 
@@ -299,9 +300,9 @@ pub fn tpm_getrandom(tpm: &TpmDev, num_octets: usize) -> bool {
     let data_size = 2; // bytesRequested: u16 from TCG specification
     let command_len = TPM_HEADER_SIZE + data_size;
     let mut hdr: TpmHeader = TpmHeader::new(
-        (Tpm2Structures::TPM2_ST_NO_SESSIONS as u16).swap_bytes(),
-        (command_len as u32).swap_bytes(),
-        (Tpm2Commands::TPM2_CC_GET_RANDOM as u32).swap_bytes()
+        Tpm2Structures::TPM2_ST_NO_SESSIONS as u16,
+        command_len as u32,
+        Tpm2Commands::TPM2_CC_GET_RANDOM as u32
     );
     buf = TpmHeader::to_vec(&hdr);
     buf.extend_from_slice(&(num_octets as u16).to_be_bytes());
