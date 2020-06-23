@@ -15,6 +15,7 @@ use console::{print, println};
 use libtime::sys_ns_loopsleep;
 use usr::tpm::{TpmDev, TpmRegs};
 pub use regs::*;
+use byteorder::{ByteOrder, BigEndian};
 
 pub const ONE_MS_IN_NS: u64 = 1000 * 1000;
 
@@ -294,8 +295,9 @@ fn tpm_transmit_cmd(tpm: &TpmDev, locality: u32, buf: &mut Vec<u8>) {
     println!("Received {} bytes", rx_bytes);
 }
 
-/// Ensure that all self tests have passed
-pub fn tpm_getrandom(tpm: &TpmDev, num_octets: usize) -> bool {
+/// Get a random number from TPM. 
+/// `num_octets` represents the length of the random number in bytes
+pub fn tpm_get_random(tpm: &TpmDev, num_octets: usize) -> bool {
     let mut buf: Vec<u8>;
     let data_size = 2; // bytesRequested: u16 from TCG specification
     let command_len = TPM_HEADER_SIZE + data_size;
@@ -309,5 +311,40 @@ pub fn tpm_getrandom(tpm: &TpmDev, num_octets: usize) -> bool {
     println!("presend: {:x?}", buf);
     tpm_transmit_cmd(tpm, 0, &mut buf);
     println!("postsend: {:x?}", buf);
+    true
+}
+
+/// Read a PCR register
+pub fn tpm_pcr_read(tpm: &TpmDev, pcr_idx: usize, hash: TpmAlgorithms, digest_size: &mut u16, digest: &mut Vec<u8>) -> bool {
+    // Size of individual parameters: 
+    // count: u32, 
+    // hash: u16, 
+    // sizeOfSelection: u8, 
+    // pcrSelection: TPM_PCR_SELECT_MIN (= 3) Bytes
+    let mut buf: Vec<u8>;
+    let mut pcr_select: Vec<u8>;
+    pcr_select = Vec::with_capacity(TPM_PCR_SELECT_MIN);
+    pcr_select.resize(TPM_PCR_SELECT_MIN, 0 as u8);
+    pcr_select[pcr_idx >> 3] = 1 << (pcr_idx & 0x7);
+    let data_size = 10;
+    let command_len = TPM_HEADER_SIZE + data_size;
+    let mut hdr: TpmHeader = TpmHeader::new(
+        Tpm2Structures::TPM2_ST_NO_SESSIONS as u16,
+        command_len as u32,
+        Tpm2Commands::TPM2_CC_PCR_READ as u32
+    );
+    buf = TpmHeader::to_vec(&hdr);
+    buf.extend_from_slice(&(1 as u32).to_be_bytes()); // count
+    buf.extend_from_slice(&(hash as u16).to_be_bytes()); // hash
+    buf.extend_from_slice(&(TPM_PCR_SELECT_MIN as u8).to_be_bytes()); // sizeOfSelection
+    buf.extend_from_slice(&pcr_select); // pcr_select
+    println!("presend: {:x?}", buf);
+    tpm_transmit_cmd(tpm, 0, &mut buf);
+    println!("postsend: {:x?}", buf);
+    let mut slice = buf.as_slice();
+    *digest_size = BigEndian::read_u16(&slice[18..20]);
+    println!("digest_size: {}", digest_size);
+    digest.resize(*digest_size as usize, 0 as u8);
+    digest.copy_from_slice(&slice[20..(20 + *digest_size as usize)]);
     true
 }

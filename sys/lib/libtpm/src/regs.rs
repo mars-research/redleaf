@@ -5,6 +5,10 @@
 use alloc::vec::Vec;
 use byteorder::{ByteOrder, BigEndian};
 
+pub const TPM_HEADER_SIZE: usize = 10;
+pub const TPM_PLATRFORM_PCR: usize = 24;
+pub const TPM_PCR_SELECT_MIN: usize = (TPM_PLATRFORM_PCR + 7) / 8;
+
 bitfield! {
     pub struct TpmAccess(u8);
     impl Debug;
@@ -136,14 +140,24 @@ pub const TIMEOUT_B: usize = 2000;
 pub const TIMEOUT_C: usize = 750;
 pub const TIMEOUT_D: usize = 750;
 
+// Generously borrowed from linux/drivers/char/tpm/tpm.h
+pub enum TpmAlgorithms {
+    TPM_ALG_ERROR		= 0x0000,
+    TPM_ALG_SHA1		= 0x0004,
+    TPM_ALG_KEYEDHASH	= 0x0008,
+    TPM_ALG_SHA256		= 0x000B,
+    TPM_ALG_SHA384		= 0x000C,
+    TPM_ALG_SHA512		= 0x000D,
+    TPM_ALG_NULL		= 0x0010,
+    TPM_ALG_SM3_256		= 0x0012,
+}
+
 #[repr(packed)]
 pub struct TpmHeader {
 	pub tag: u16,
 	pub length: u32,
 	pub ordinal: u32,
 }
-
-pub const TPM_HEADER_SIZE: usize = 10;
 
 impl TpmHeader {
     pub fn from_vec(buf: &Vec <u8>) -> TpmHeader {
@@ -165,9 +179,6 @@ impl TpmHeader {
 
     pub fn new(tag: u16, length: u32, ordinal: u32) -> Self {
         Self {
-            // tag: u16::to_be(tag),
-            // length: u32::to_be(length),
-            // ordinal: u32::to_be(ordinal),
             tag:     tag.swap_bytes().to_be(),
             length:  length.swap_bytes().to_be(),
             ordinal: ordinal.swap_bytes().to_be(),

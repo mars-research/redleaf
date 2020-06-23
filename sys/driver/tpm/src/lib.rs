@@ -146,7 +146,12 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
     println!("burst_count {}", tpm_get_burst(&tpm));
     println!("validate {}", tpm_validate_locality(&tpm, 0));
 
-    println!("random {}", tpm_getrandom(&tpm, 1));
+    println!("random {}", tpm_get_random(&tpm, 1));
+    let mut pcr_size: u16 = 0 as u16;
+    let mut pcr: Vec<u8> = Vec::new();
+    tpm_pcr_read(&tpm, 1, TpmAlgorithms::TPM_ALG_SHA256, &mut pcr_size, &mut pcr);
+    println!("pcr {:x?}", pcr);
+    println!("pcr_size {}", pcr_size);
 
     Box::new(tpm)
 }
