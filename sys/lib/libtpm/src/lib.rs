@@ -247,6 +247,11 @@ fn tpm_recv_data(tpm: &TpmDev, locality: u32, buf: &mut Vec<u8>) -> usize {
         println!("Expected len {} > buf size {}", hdr.length, size);
         return 0;
     }
+    // Check whether TPM Return Code is TPM_SUCCESS
+    if hdr.ordinal != (Tpm2ReturnCodes::TPM2_RC_SUCCESS as u32) {
+        println!("TPM returned with error {}", hdr.ordinal);
+        return 0;
+    }
 
     buf.clear();
     buf.extend([0].repeat(hdr.length as usize - TPM_HEADER_SIZE));
