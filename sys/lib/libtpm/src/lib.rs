@@ -324,7 +324,7 @@ pub fn tpm_pcr_read(tpm: &TpmDev, pcr_idx: usize, hash: TpmAlgorithms, digest_si
     let mut buf: Vec<u8>;
     let mut pcr_select: Vec<u8>;
     pcr_select = Vec::with_capacity(TPM_PCR_SELECT_MIN);
-    pcr_select.resize(TPM_PCR_SELECT_MIN, 0 as u8);
+    pcr_select.extend([0].repeat(TPM_PCR_SELECT_MIN));
     pcr_select[pcr_idx >> 3] = 1 << (pcr_idx & 0x7);
     let data_size = 10;
     let command_len = TPM_HEADER_SIZE + data_size;
@@ -344,7 +344,7 @@ pub fn tpm_pcr_read(tpm: &TpmDev, pcr_idx: usize, hash: TpmAlgorithms, digest_si
     let mut slice = buf.as_slice();
     *digest_size = BigEndian::read_u16(&slice[18..20]);
     println!("digest_size: {}", digest_size);
-    digest.resize(*digest_size as usize, 0 as u8);
+    digest.extend([0].repeat(*digest_size as usize));
     digest.copy_from_slice(&slice[20..(20 + *digest_size as usize)]);
     true
 }
