@@ -65,6 +65,7 @@ pub fn tpm_validate_locality(tpm: &dyn TpmDev, locality: u32) -> bool {
         let reg = tpm.read_u8(locality, TpmRegs::TPM_ACCESS);
         let mut reg_acc = TpmAccess(reg);
         if reg_acc.tpm_reg_validsts() && !reg_acc.seize() {
+            println!("Validate locality access {:x?}", reg_acc);
             return true;
         }
     }
@@ -94,9 +95,10 @@ fn relinquish_locality(tpm: &dyn TpmDev, locality: u32) -> bool {
 
 /// Requests the TPM to switch to the locality we choose and wait for TPM to acknowledge our
 /// request
-fn request_locality(tpm: &dyn TpmDev, locality: u32) -> bool {
+pub fn tpm_request_locality(tpm: &dyn TpmDev, locality: u32) -> bool {
     let reg = tpm.read_u8(locality, TpmRegs::TPM_ACCESS);
     let mut reg_acc = TpmAccess(reg);
+    println!("Request locality access {:x?}", reg_acc);
 
     if !reg_acc.tpm_reg_validsts() {
         return false;
@@ -115,6 +117,7 @@ fn request_locality(tpm: &dyn TpmDev, locality: u32) -> bool {
         let reg = tpm.read_u8(locality, TpmRegs::TPM_ACCESS);
         let mut reg_acc = TpmAccess(reg);
         if reg_acc.tpm_reg_validsts() && reg_acc.active_locality() {
+            println!("Request locality access {:x?}", reg_acc);
             return true;
         }
         sys_ns_loopsleep(ONE_MS_IN_NS);
@@ -243,13 +246,10 @@ fn tpm_recv_data(tpm: &TpmDev, locality: u32, buf: &mut Vec<u8>) -> usize {
 
     let hdr = TpmHeader::from_vec(buf);
 
-    if hdr.length as usize <= size {
-        println!("Expected len {} > buf size {}", hdr.length, size);
-        return 0;
-    }
     // Check whether TPM Return Code is TPM_SUCCESS
     if hdr.ordinal != (Tpm2ReturnCodes::TPM2_RC_SUCCESS as u32) {
-        println!("TPM returned with error {}", hdr.ordinal);
+        println!("TPM returned with error {:x?}", hdr.ordinal);
+        buf.clear();
         return 0;
     }
 
@@ -320,12 +320,12 @@ pub fn tpm_get_random(tpm: &TpmDev, num_octets: usize) -> bool {
 }
 
 /// Read a PCR register
-pub fn tpm_pcr_read(tpm: &TpmDev, pcr_idx: usize, hash: TpmAlgorithms, digest_size: &mut u16, digest: &mut Vec<u8>) -> bool {
+pub fn tpm_pcr_read(tpm: &TpmDev, pcr_idx: usize, hash: u16, digest_size: &mut u16, digest: &mut Vec<u8>) -> bool {
     // Size of individual parameters: 
-    // count: u32, 
-    // hash: u16, 
-    // sizeOfSelection: u8, 
-    // pcrSelection: TPM_PCR_SELECT_MIN (= 3) Bytes
+    // count: u32 (TPML_PCR_SELECTIONS), 
+    // hash: u16 (TPMS_PCR_SELECTION), 
+    // sizeOfSelection: u8 (TPMS_PCR_SELECTION), 
+    // pcrSelection: TPM_PCR_SELECT_MIN (= 3) Bytes (TPMS_PCR_SELECTION)
     let mut buf: Vec<u8>;
     let mut pcr_select: Vec<u8>;
     pcr_select = Vec::with_capacity(TPM_PCR_SELECT_MIN);
@@ -340,16 +340,107 @@ pub fn tpm_pcr_read(tpm: &TpmDev, pcr_idx: usize, hash: TpmAlgorithms, digest_si
     );
     buf = TpmHeader::to_vec(&hdr);
     buf.extend_from_slice(&(1 as u32).to_be_bytes()); // count
-    buf.extend_from_slice(&(hash as u16).to_be_bytes()); // hash
+    buf.extend_from_slice(&hash.to_be_bytes()); // hash
     buf.extend_from_slice(&(TPM_PCR_SELECT_MIN as u8).to_be_bytes()); // sizeOfSelection
     buf.extend_from_slice(&pcr_select); // pcr_select
     println!("presend: {:x?}", buf);
     tpm_transmit_cmd(tpm, 0, &mut buf);
     println!("postsend: {:x?}", buf);
+    if buf.len() > 0 {
+        let mut slice = buf.as_slice();
+        *digest_size = BigEndian::read_u16(&slice[18..20]);
+        digest.extend([0].repeat(*digest_size as usize));
+        digest.copy_from_slice(&slice[20..(20 + *digest_size as usize)]);
+    } else {
+        println!("Didn't receive any response from TPM!");
+        return false;
+    }
+    true
+}
+
+fn tpm_init_bank_info(tpm: &TpmDev, hash_alg: u16) -> TpmBankInfo {
+    // Determine crypto_id and digest_size from hash_alg without calling tpm2_pcr_read
+    let (mut crypto_id, mut digest_size) = match hash_alg {
+        hash_alg if hash_alg == TpmAlgorithms::TPM_ALG_SHA1 as u16 => 
+            (HashAlgorithms::HASH_ALGO_SHA1 as u16, 20 as u16),
+        hash_alg if hash_alg == TpmAlgorithms::TPM_ALG_SHA256 as u16 => 
+            (HashAlgorithms::HASH_ALGO_SHA256 as u16, 32 as u16),
+        hash_alg if hash_alg == TpmAlgorithms::TPM_ALG_SHA384 as u16 => 
+            (HashAlgorithms::HASH_ALGO_SHA384 as u16, 48 as u16),
+        hash_alg if hash_alg == TpmAlgorithms::TPM_ALG_SHA512 as u16 => 
+            (HashAlgorithms::HASH_ALGO_SHA512 as u16, 64 as u16),
+        hash_alg if hash_alg == TpmAlgorithms::TPM_ALG_SM3_256 as u16 => 
+            (HashAlgorithms::HASH_ALGO_SM3_256 as u16, 32 as u16),
+        _ => {
+            // Determine crypto_id and digest_size from hash_alg by calling tpm2_pcr_read
+            let mut size: u16 = 0;
+            let mut digest: Vec<u8> = Vec::new();
+            tpm_pcr_read(tpm, 0, hash_alg as u16, &mut size, &mut digest);
+            (HashAlgorithms::HASH_ALGO__LAST as u16, size)
+        },
+    };
+    TpmBankInfo::new(hash_alg as u16, digest_size, crypto_id)
+}
+
+pub fn tpm_get_pcr_allocation(tpm: &TpmDev) -> TpmDevInfo {
+    let mut buf: Vec<u8>;
+    let data_size = 12;
+    let command_len = TPM_HEADER_SIZE + data_size;
+    let mut hdr: TpmHeader = TpmHeader::new(
+        Tpm2Structures::TPM2_ST_NO_SESSIONS as u16,
+        command_len as u32,
+        Tpm2Commands::TPM2_CC_GET_CAPABILITY as u32
+    );
+    buf = TpmHeader::to_vec(&hdr);
+    buf.extend_from_slice(&(Tpm2Capabilities::TPM2_CAP_PCRS as u32).to_be_bytes());
+    buf.extend_from_slice(&(0 as u32).to_be_bytes());
+    buf.extend_from_slice(&(1 as u32).to_be_bytes());
+    println!("presend: {:x?}", buf);
+    tpm_transmit_cmd(tpm, 0, &mut buf);
+    println!("postsend: {:x?}", buf);
     let mut slice = buf.as_slice();
-    *digest_size = BigEndian::read_u16(&slice[18..20]);
-    println!("digest_size: {}", digest_size);
-    digest.extend([0].repeat(*digest_size as usize));
-    digest.copy_from_slice(&slice[20..(20 + *digest_size as usize)]);
+    let nr_possible_banks = BigEndian::read_u32(&slice[5..9]);
+    println!("nr_possible_banks: {}", nr_possible_banks);
+    let mut marker = 9;
+    let mut allocated_banks: Vec<TpmBankInfo> = Vec::new();
+    for i in 0..nr_possible_banks {
+        let hash_alg: u16 = BigEndian::read_u16(&slice[marker..(marker + 2)]);
+        let mut tpm_bank = tpm_init_bank_info(tpm, hash_alg);
+        println!("hash_alg: {:x?}, digest_size: {:x?}, crypto_id: {:x?}", tpm_bank.alg_id, tpm_bank.digest_size, tpm_bank.crypto_id);
+        allocated_banks.push(tpm_bank);
+        marker = marker + 6;
+    }
+    TpmDevInfo::new(nr_possible_banks, allocated_banks)
+}
+
+/// Extend PCR register
+pub fn tpm_pcr_extend(tpm: &TpmDev, tpm_info: &TpmDevInfo, pcr_idx: usize, digests: Vec<TpmDigest>) -> bool {
+    let mut buf: Vec<u8>;
+    let mut data_size = 21;
+    for i in 0..(tpm_info.nr_allocated_banks as usize) {
+        data_size = data_size + 2 + tpm_info.allocated_banks[i].digest_size as usize;
+    }
+    let command_len = TPM_HEADER_SIZE + data_size;
+    let mut hdr: TpmHeader = TpmHeader::new(
+        Tpm2Structures::TPM2_ST_SESSIONS as u16,
+        command_len as u32,
+        Tpm2Commands::TPM2_CC_PCR_EXTEND as u32
+    );
+    buf = TpmHeader::to_vec(&hdr);
+    buf.extend_from_slice(&(pcr_idx as u32).to_be_bytes()); // pcr_idx
+    buf.extend_from_slice(&(9 as u32).to_be_bytes()); // sizeof pcrHandle
+    buf.extend_from_slice(&(TPM_RS_PW).to_be_bytes()); // pcrHandle.handle
+    buf.extend_from_slice(&(0 as u16).to_be_bytes()); // pcrHandle.nonce_size
+    buf.extend_from_slice(&(0 as u8).to_be_bytes()); // pcrHandle.attributes
+    buf.extend_from_slice(&(0 as u16).to_be_bytes()); // pcrHandle.auth_size
+    // TODO: Change the allocated_banks to correct number collected with init_bank_info
+    buf.extend_from_slice(&(tpm_info.nr_allocated_banks as u32).to_be_bytes()); // sizeof allocated_banks
+    for i in 0..(tpm_info.nr_allocated_banks as usize) {
+        buf.extend_from_slice(&(digests[i].alg_id as u16).to_be_bytes()); // hash algorithm
+        buf.extend_from_slice(&digests[i].digest); // value used to extend PCR
+    }
+    println!("presend: {:x?}", buf);
+    tpm_transmit_cmd(tpm, 0, &mut buf);
+    println!("postsend: {:x?}", buf);
     true
 }

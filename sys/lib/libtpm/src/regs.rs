@@ -8,6 +8,7 @@ use byteorder::{ByteOrder, BigEndian};
 pub const TPM_HEADER_SIZE: usize = 10;
 pub const TPM_PLATRFORM_PCR: usize = 24;
 pub const TPM_PCR_SELECT_MIN: usize = (TPM_PLATRFORM_PCR + 7) / 8;
+pub const TPM_RS_PW: u32 = 0x40000009;
 
 bitfield! {
     pub struct TpmAccess(u8);
@@ -141,6 +142,7 @@ pub const TIMEOUT_C: usize = 750;
 pub const TIMEOUT_D: usize = 750;
 
 // Generously borrowed from linux/drivers/char/tpm/tpm.h
+#[derive(Copy, Clone)]
 pub enum TpmAlgorithms {
     TPM_ALG_ERROR		= 0x0000,
     TPM_ALG_SHA1		= 0x0004,
@@ -150,6 +152,56 @@ pub enum TpmAlgorithms {
     TPM_ALG_SHA512		= 0x000D,
     TPM_ALG_NULL		= 0x0010,
     TPM_ALG_SM3_256		= 0x0012,
+}
+
+// Generously borrowed from include/uapi/linux/hash_info.h
+pub enum HashAlgorithms {
+	HASH_ALGO_MD4 = 0,
+	HASH_ALGO_MD5,
+	HASH_ALGO_SHA1,
+	HASH_ALGO_RIPE_MD_160,
+	HASH_ALGO_SHA256,
+	HASH_ALGO_SHA384,
+	HASH_ALGO_SHA512,
+	HASH_ALGO_SHA224,
+	HASH_ALGO_RIPE_MD_128,
+	HASH_ALGO_RIPE_MD_256,
+	HASH_ALGO_RIPE_MD_320,
+	HASH_ALGO_WP_256,
+	HASH_ALGO_WP_384,
+	HASH_ALGO_WP_512,
+	HASH_ALGO_TGR_128,
+	HASH_ALGO_TGR_160,
+	HASH_ALGO_TGR_192,
+	HASH_ALGO_SM3_256,
+	HASH_ALGO_STREEBOG_256,
+	HASH_ALGO_STREEBOG_512,
+	HASH_ALGO__LAST
+}
+
+// Generously borrowed from linux/drivers/char/tpm/tpm.h
+pub enum Tpm2Capabilities {
+    TPM2_CAP_HANDLES	= 1,
+    TPM2_CAP_COMMANDS	= 2,
+    TPM2_CAP_PCRS		= 5,
+    TPM2_CAP_TPM_PROPERTIES = 6,
+}
+
+#[repr(packed)]
+pub struct TpmBankInfo {
+    pub alg_id: u16,
+    pub digest_size: u16,
+    pub crypto_id: u16,
+}
+
+impl TpmBankInfo {
+    pub fn new(alg_id: u16, digest_size: u16, crypto_id: u16) -> Self {
+        Self {
+            alg_id:      alg_id.swap_bytes().to_be(),
+            digest_size: digest_size.swap_bytes().to_be(),
+            crypto_id:   crypto_id.swap_bytes().to_be(),
+        }
+    }
 }
 
 #[repr(packed)]
@@ -182,6 +234,34 @@ impl TpmHeader {
             tag:     tag.swap_bytes().to_be(),
             length:  length.swap_bytes().to_be(),
             ordinal: ordinal.swap_bytes().to_be(),
+        }
+    }
+}
+
+pub struct TpmDigest {
+    pub alg_id: u16,
+    pub digest: Vec<u8>,
+}
+
+impl TpmDigest {
+    pub fn new(alg_id: u16, digest: Vec<u8>) -> Self {
+        Self {
+            alg_id: alg_id,
+            digest: digest,
+        }
+    }
+}
+
+pub struct TpmDevInfo {
+    pub nr_allocated_banks: u32,
+    pub allocated_banks: Vec<TpmBankInfo>,
+}
+
+impl TpmDevInfo {
+    pub fn new(nr_allocated_banks: u32, allocated_banks: Vec<TpmBankInfo>) -> Self {
+        Self {
+            nr_allocated_banks: nr_allocated_banks,
+            allocated_banks: allocated_banks,
         }
     }
 }
