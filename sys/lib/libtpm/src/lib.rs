@@ -440,7 +440,7 @@ pub fn tpm_pcr_extend(tpm: &TpmDev, tpm_info: &TpmDevInfo, pcr_idx: usize, diges
         buf.extend_from_slice(&digests[i].digest); // value used to extend PCR
     }
     println!("presend: {:x?}", buf);
-    tpm_transmit_cmd(tpm, 0, &mut buf);
+    tpm_transmit_cmd(tpm, 4, &mut buf);
     println!("postsend: {:x?}", buf);
     true
 }
