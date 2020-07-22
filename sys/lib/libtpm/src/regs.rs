@@ -105,6 +105,7 @@ pub enum Tpm2Commands {
     TPM2_CC_CONTEXT_LOAD	        = 0x0161,
     TPM2_CC_CONTEXT_SAVE	        = 0x0162,
     TPM2_CC_FLUSH_CONTEXT	        = 0x0165,
+    TPM2_CC_POLICY_LOCALITY         = 0x016F,
     TPM2_CC_VERIFY_SIGNATURE        = 0x0177,
     TPM2_CC_GET_CAPABILITY	        = 0x017A,
     TPM2_CC_GET_RANDOM	        = 0x017B,

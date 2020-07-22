@@ -143,14 +143,20 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
 
     println!("STS {:x?}", reg_sts);
 
-    println!("burst_count {}", tpm_get_burst(&tpm));
-    println!("request locality {}", tpm_request_locality(&tpm, 0));
-    println!("validate locality {}", tpm_validate_locality(&tpm, 0));
-    println!("request locality {}", tpm_request_locality(&tpm, 4));
-    println!("validate locality {}", tpm_validate_locality(&tpm, 4));
+    let mut locality = 0;
+    println!("burst_count {}", tpm_get_burst(&tpm, locality));
+    // Initially we have locality 0
+    println!("request locality {}", tpm_request_locality(&tpm, locality));
+    println!("validate locality {}", tpm_validate_locality(&tpm, locality));
+    // Deactivate all localities
+    tpm_deactivate_all_localities(&tpm);
+    let mut locality = 2;
+    // Then request target localities
+    println!("request locality {}", tpm_request_locality(&tpm, locality));
+    println!("validate locality {}", tpm_validate_locality(&tpm, locality));
 
-    println!("random {}", tpm_get_random(&tpm, 1));
-    let tpm_info = tpm_get_pcr_allocation(&tpm);
+    println!("random {}", tpm_get_random(&tpm, locality, 1));
+    let tpm_info = tpm_get_pcr_allocation(&tpm, locality);
     let mut digests: Vec<TpmDigest> = Vec::new();
     for i in 0..(tpm_info.nr_allocated_banks as usize) {
         let mut digest: Vec<u8> = Vec::new();
@@ -161,13 +167,13 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
     let mut pcr_size: u16 = 0 as u16;
     let mut pcr: Vec<u8> = Vec::new();
     let pcr_idx = 17;
-    tpm_pcr_read(&tpm, pcr_idx, TpmAlgorithms::TPM_ALG_SHA256 as u16, &mut pcr_size, &mut pcr);
+    tpm_pcr_read(&tpm, locality, pcr_idx, TpmAlgorithms::TPM_ALG_SHA256 as u16, &mut pcr_size, &mut pcr);
     println!("pre-extend pcr {:x?}", pcr);
     println!("pcr_size {}", pcr_size);
-    tpm_pcr_extend(&tpm, &tpm_info, pcr_idx, digests);
+    tpm_pcr_extend(&tpm, locality, &tpm_info, pcr_idx, digests);
     pcr_size = 0 as u16;
     pcr.clear();
-    tpm_pcr_read(&tpm, pcr_idx, TpmAlgorithms::TPM_ALG_SHA256 as u16, &mut pcr_size, &mut pcr);
+    tpm_pcr_read(&tpm, locality, pcr_idx, TpmAlgorithms::TPM_ALG_SHA256 as u16, &mut pcr_size, &mut pcr);
     println!("post-extend pcr {:x?}", pcr);
     println!("pcr_size {}", pcr_size);
 
