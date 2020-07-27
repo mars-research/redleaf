@@ -143,6 +143,7 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
 
     println!("STS {:x?}", reg_sts);
 
+    // Changing locality
     let mut locality = 0;
     println!("burst_count {}", tpm_get_burst(&tpm, locality));
     // Initially we have locality 0
@@ -155,7 +156,12 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
     println!("request locality {}", tpm_request_locality(&tpm, locality));
     println!("validate locality {}", tpm_validate_locality(&tpm, locality));
 
+    // Get 1 byte of random value
     println!("random {}", tpm_get_random(&tpm, locality, 1));
+
+    // PCR extend
+    // First we obtain "banks" that are allocated in the TPM.
+    // In TPM2, there can be multiple banks, each implementing different hash algorithms.
     let tpm_info = tpm_get_pcr_allocation(&tpm, locality);
     let mut digests: Vec<TpmDigest> = Vec::new();
     for i in 0..(tpm_info.nr_allocated_banks as usize) {
@@ -167,12 +173,15 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
     let mut pcr_size: u16 = 0 as u16;
     let mut pcr: Vec<u8> = Vec::new();
     let pcr_idx = 17;
+    // Read the initial value of the PCR that we want to extend
     tpm_pcr_read(&tpm, locality, pcr_idx, TpmAlgorithms::TPM_ALG_SHA256 as u16, &mut pcr_size, &mut pcr);
     println!("pre-extend pcr {:x?}", pcr);
     println!("pcr_size {}", pcr_size);
+    // Then extend the PCR
     tpm_pcr_extend(&tpm, locality, &tpm_info, pcr_idx, digests);
     pcr_size = 0 as u16;
     pcr.clear();
+    // Check the value of the PCR after extending
     tpm_pcr_read(&tpm, locality, pcr_idx, TpmAlgorithms::TPM_ALG_SHA256 as u16, &mut pcr_size, &mut pcr);
     println!("post-extend pcr {:x?}", pcr);
     println!("pcr_size {}", pcr_size);
