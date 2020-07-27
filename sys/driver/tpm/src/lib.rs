@@ -186,6 +186,16 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
     println!("post-extend pcr {:x?}", pcr);
     println!("pcr_size {}", pcr_size);
 
+    // Sealing Data
+    // Create Primary key (a.k.a. Storate Root Key)
+    // Create Child key wrapped with SRK
+    // Load Child key to TPM
+    // Seal data under PCR 17 using Child key
+
+    // Unsealing Data
+    // Unseal data under PCR 17 using Child key (should succeed)
+    // Unseal data under different PCR (should fail)
+
     Box::new(tpm)
 }
 
