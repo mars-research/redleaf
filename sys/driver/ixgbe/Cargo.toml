@@ -58,9 +58,9 @@ default-features = false
 path = "../../lib/httparse"
 default-features = false
 
-[features]
-default = [
-    "nullnet",
-]
+#[features]
+#default = [
+#    "nullnet",
+#]
 
-nullnet = []
+#nullnet = []

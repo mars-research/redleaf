@@ -344,10 +344,9 @@ pub fn ixgbe_init(s: Box<dyn Syscall + Send + Sync>,
 
     println!("Starting tests");
 
-   /* 
     for _ in 0..5 {
         libbenchnet::run_tx_udptest_rref(&ixgbe, 64, false);
-    }*/
+    }
     
     /*for _ in 0..5 {
         libbenchnet::run_tx_udptest(&ixgbe, 64, false);
