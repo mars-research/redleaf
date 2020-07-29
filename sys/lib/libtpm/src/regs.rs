@@ -239,20 +239,6 @@ impl TpmHeader {
     }
 }
 
-pub struct TpmDigest {
-    pub alg_id: u16,
-    pub digest: Vec<u8>,
-}
-
-impl TpmDigest {
-    pub fn new(alg_id: u16, digest: Vec<u8>) -> Self {
-        Self {
-            alg_id: alg_id,
-            digest: digest,
-        }
-    }
-}
-
 pub struct TpmDevInfo {
     pub nr_allocated_banks: u32,
     pub allocated_banks: Vec<TpmBankInfo>,

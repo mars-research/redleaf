@@ -8,6 +8,7 @@ extern crate byteorder;
 extern crate bitfield;
 
 mod regs;
+mod datastructure;
 
 use alloc::vec::Vec;
 use bitfield::BitRange;
@@ -15,6 +16,7 @@ use console::{print, println};
 use libtime::sys_ns_loopsleep;
 use usr::tpm::{TpmDev, TpmRegs};
 pub use regs::*;
+pub use datastructure::*;
 use byteorder::{ByteOrder, BigEndian};
 
 pub const ONE_MS_IN_NS: u64 = 1000 * 1000;
@@ -332,28 +334,31 @@ pub fn tpm_get_random(tpm: &TpmDev, locality: u32, num_octets: usize) -> bool {
 
 /// Read a PCR register
 pub fn tpm_pcr_read(tpm: &TpmDev, locality: u32, pcr_idx: usize, hash: u16, digest_size: &mut u16, digest: &mut Vec<u8>) -> bool {
-    // Size of individual parameters: 
-    // count: u32 (TPML_PCR_SELECTIONS), 
-    // hash: u16 (TPMS_PCR_SELECTION), 
-    // sizeOfSelection: u8 (TPMS_PCR_SELECTION), 
-    // pcrSelection: TPM_PCR_SELECT_MIN (= 3) Bytes (TPMS_PCR_SELECTION)
     let mut buf: Vec<u8>;
     let mut pcr_select: Vec<u8>;
     pcr_select = Vec::with_capacity(TPM_PCR_SELECT_MIN);
     pcr_select.extend([0].repeat(TPM_PCR_SELECT_MIN));
     pcr_select[pcr_idx >> 3] = 1 << (pcr_idx & 0x7);
-    let data_size = 10;
-    let command_len = TPM_HEADER_SIZE + data_size;
+    let mut sPcrSelection: TpmSPcrSelection = TpmSPcrSelection::new(
+        hash, // hash
+        TPM_PCR_SELECT_MIN as u8, // size_of_select
+        pcr_select // pcr_select
+    );
+    let count: u32 = 1;
+    let mut sPcrSelections: Vec<TpmSPcrSelection> = Vec::with_capacity(count as usize);
+    sPcrSelections.push(sPcrSelection);
+    let mut lPcrSelection: TpmLPcrSelection = TpmLPcrSelection::new(
+        count, // count,
+        sPcrSelections // TpmSPcrSelection
+    );
+    let command_len = TPM_HEADER_SIZE + lPcrSelection.size();
     let mut hdr: TpmHeader = TpmHeader::new(
         Tpm2Structures::TPM2_ST_NO_SESSIONS as u16,
         command_len as u32,
         Tpm2Commands::TPM2_CC_PCR_READ as u32
     );
     buf = TpmHeader::to_vec(&hdr);
-    buf.extend_from_slice(&(1 as u32).to_be_bytes()); // count
-    buf.extend_from_slice(&hash.to_be_bytes()); // hash
-    buf.extend_from_slice(&(TPM_PCR_SELECT_MIN as u8).to_be_bytes()); // sizeOfSelection
-    buf.extend_from_slice(&pcr_select); // pcr_select
+    buf.extend_from_slice(&lPcrSelection.to_vec());
     println!("presend: {:x?}", buf);
     tpm_transmit_cmd(tpm, locality, &mut buf);
     println!("postsend: {:x?}", buf);
@@ -427,29 +432,18 @@ pub fn tpm_get_pcr_allocation(tpm: &TpmDev, locality: u32) -> TpmDevInfo {
 /// Extend PCR register
 pub fn tpm_pcr_extend(tpm: &TpmDev, locality: u32, tpm_info: &TpmDevInfo, pcr_idx: usize, digests: Vec<TpmDigest>) -> bool {
     let mut buf: Vec<u8>;
-    let mut data_size = 21;
-    for i in 0..(tpm_info.nr_allocated_banks as usize) {
-        data_size = data_size + 2 + tpm_info.allocated_banks[i].digest_size as usize;
-    }
-    let command_len = TPM_HEADER_SIZE + data_size;
+    let mut pcrHandle: TpmPcrHandle = TpmPcrHandle::new(TPM_RS_PW, 0 as u16, 0 as u8, 0 as u16);
+    let mut iDhPcr: TpmIDhPcr = TpmIDhPcr::new(pcr_idx as u32, pcrHandle);
+    let mut lDigestValues: TpmLDigestValues = TpmLDigestValues::new(tpm_info.nr_allocated_banks, digests);
+    let command_len = TPM_HEADER_SIZE + iDhPcr.size() + lDigestValues.size();
     let mut hdr: TpmHeader = TpmHeader::new(
         Tpm2Structures::TPM2_ST_SESSIONS as u16,
         command_len as u32,
         Tpm2Commands::TPM2_CC_PCR_EXTEND as u32
     );
     buf = TpmHeader::to_vec(&hdr);
-    buf.extend_from_slice(&(pcr_idx as u32).to_be_bytes()); // pcr_idx
-    buf.extend_from_slice(&(9 as u32).to_be_bytes()); // sizeof pcrHandle
-    buf.extend_from_slice(&(TPM_RS_PW).to_be_bytes()); // pcrHandle.handle
-    buf.extend_from_slice(&(0 as u16).to_be_bytes()); // pcrHandle.nonce_size
-    buf.extend_from_slice(&(0 as u8).to_be_bytes()); // pcrHandle.attributes
-    buf.extend_from_slice(&(0 as u16).to_be_bytes()); // pcrHandle.auth_size
-    // TODO: Change the allocated_banks to correct number collected with init_bank_info
-    buf.extend_from_slice(&(tpm_info.nr_allocated_banks as u32).to_be_bytes()); // sizeof allocated_banks
-    for i in 0..(tpm_info.nr_allocated_banks as usize) {
-        buf.extend_from_slice(&(digests[i].alg_id as u16).to_be_bytes()); // hash algorithm
-        buf.extend_from_slice(&digests[i].digest); // value used to extend PCR
-    }
+    buf.extend_from_slice(&iDhPcr.to_vec());
+    buf.extend_from_slice(&lDigestValues.to_vec());
     println!("presend: {:x?}", buf);
     tpm_transmit_cmd(tpm, locality, &mut buf);
     println!("postsend: {:x?}", buf);
