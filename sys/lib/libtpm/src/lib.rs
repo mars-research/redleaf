@@ -450,6 +450,54 @@ pub fn tpm_pcr_extend(tpm: &TpmDev, locality: u32, tpm_info: &TpmDevInfo, pcr_id
     true
 }
 
+/// Create Primary Key
+// pub fn tpm_create_primary(tpm: &TpmDev, locality: u32, /* PCR to bind key against */ pcr_index: usize) -> bool {
+pub fn tpm_create_primary(tpm: &TpmDev, locality: u32) -> bool {
+    let data_size: usize = 89;
+    let command_len = TPM_HEADER_SIZE + data_size;
+    let mut hdr: TpmHeader = TpmHeader::new(
+        Tpm2Structures::TPM2_ST_SESSIONS as u16,
+        command_len as u32,
+        Tpm2Commands::TPM2_CC_CREATE_PRIMARY as u32
+    );
+    let mut buf: Vec<u8>;
+    // header: TpmHeader
+    buf = TpmHeader::to_vec(&hdr);
+    // primaryHandle: TpmIRhHierarchy
+    buf.extend_from_slice(&u32::to_be_bytes(TPM_RH_OWNER));
+    // handle (required whenever header.tag is TPM2_ST_SESSIONS)
+    let tpmHandle = TpmHandle::new(TPM_RS_PW, 0 as u16, 0 as u8, 0 as u16);
+    buf.extend_from_slice(&tpmHandle.to_vec());
+    // inSensitive: Tpm2BSensitiveCreate
+    buf.extend_from_slice(&u16::to_be_bytes(4 as u16));
+    buf.extend_from_slice(&u16::to_be_bytes(0 as u16));
+    buf.extend_from_slice(&u16::to_be_bytes(0 as u16));
+    // inPublic: Tpm2BPublic
+    buf.extend_from_slice(&u16::to_be_bytes(58 as u16));
+    buf.extend_from_slice(&u16::to_be_bytes(1 as u16));
+    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_SHA256 as u16));
+    let objectAttributes = TpmAObject::new(false, true, true, false, false, false, true, true, false, true);
+    buf.extend_from_slice(&objectAttributes.to_vec());
+    buf.extend_from_slice(&u16::to_be_bytes(0 as u16));
+    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_AES as u16));
+    buf.extend_from_slice(&u16::to_be_bytes(128 as u16));
+    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_CFB as u16));
+    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_NULL as u16));
+    buf.extend_from_slice(&u16::to_be_bytes(2048 as u16));
+    buf.extend_from_slice(&u32::to_be_bytes(0 as u32));
+    buf.extend_from_slice(&u16::to_be_bytes(32 as u16));
+    let mut hash: Vec<u8> = alloc::vec![0x2c, 0xf2 , 0x4d , 0xba , 0x5f , 0xb0 , 0xa3 , 0x0e , 0x26 , 0xe8 , 0x3b , 0x2a , 0xc5 , 0xb9 , 0xe2 , 0x9e , 0x1b , 0x16 , 0x1e , 0x5c , 0x1f , 0xa7 , 0x42 , 0x5e , 0x73 , 0x04 , 0x33 , 0x62 , 0x93 , 0x8b , 0x98 , 0x24];
+    buf.extend_from_slice(&hash);
+    // outsideInfo: Tpm2BData
+    buf.extend_from_slice(&u16::to_be_bytes(0 as u16));
+    // creationPcr: TpmLPcrSelection
+    buf.extend_from_slice(&u32::to_be_bytes(0 as u32));
+    println!("presend: {:x?}", buf);
+    tpm_transmit_cmd(tpm, locality, &mut buf);
+    println!("postsend: {:x?}", buf);
+    true
+}
+
 /// Set Locality Policy
 pub fn tpm_policy_locality(tpm: &TpmDev) -> bool {
     let mut buf: Vec<u8>;
