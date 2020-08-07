@@ -1,0 +1,6 @@
+The TPM uses Hashes to conduct various hash calculations, as it is faster to do large hashing in the CPU.
+However, when introducing Hashes to redleaf, we got the following error during build:
+``LLVM ERROR: Do not know how to split the result of this operator!''
+Based on this Github issue (https://github.com/rust-lang/rust/issues/61721), `soft-float` seemed to be cause of the error.
+As an temporary solution, we have removed the `soft-float` from `x86_64-tpm.json`.
+In the future, we should move the tpm_driver domain somewhere else.
