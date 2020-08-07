@@ -1,7 +1,8 @@
 use std::env;
 use std::fs;
 
-use ed25519_dalek::{Keypair, Signature, PublicKey};
+use ed25519_dalek::Keypair;
+use signature::Signer;
 
 const MAGIC_NUMBER: &'static str = "Hi, I'm an ELF virus! Please help me take over the world by passing me around. Your cooperation is appreciated.";
 
