@@ -10,3 +10,6 @@
 [submodule "lib/memcpy/musl"]
 	path = lib/memcpy/musl
 	url = git://git.musl-libc.org/musl
+[submodule "sys/lib/hashes"]
+	path = sys/lib/hashes
+	url = https://github.com/RustCrypto/hashes.git
