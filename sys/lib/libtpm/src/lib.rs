@@ -321,7 +321,7 @@ pub fn tpm_get_random(tpm: &TpmDev, locality: u32, num_octets: usize) -> bool {
     let data_size = 2; // bytesRequested: u16 from TCG specification
     let command_len = TPM_HEADER_SIZE + data_size;
     let mut hdr: TpmHeader = TpmHeader::new(
-        Tpm2Structures::TPM2_ST_NO_SESSIONS as u16,
+        TpmStructures::TPM_ST_NO_SESSIONS as u16,
         command_len as u32,
         Tpm2Commands::TPM2_CC_GET_RANDOM as u32
     );
@@ -354,7 +354,7 @@ pub fn tpm_pcr_read(tpm: &TpmDev, locality: u32, pcr_idx: usize, hash: u16, dige
     );
     let command_len = TPM_HEADER_SIZE + lPcrSelection.size();
     let mut hdr: TpmHeader = TpmHeader::new(
-        Tpm2Structures::TPM2_ST_NO_SESSIONS as u16,
+        TpmStructures::TPM_ST_NO_SESSIONS as u16,
         command_len as u32,
         Tpm2Commands::TPM2_CC_PCR_READ as u32
     );
@@ -404,7 +404,7 @@ pub fn tpm_get_pcr_allocation(tpm: &TpmDev, locality: u32) -> TpmDevInfo {
     let data_size = 12;
     let command_len = TPM_HEADER_SIZE + data_size;
     let mut hdr: TpmHeader = TpmHeader::new(
-        Tpm2Structures::TPM2_ST_NO_SESSIONS as u16,
+        TpmStructures::TPM_ST_NO_SESSIONS as u16,
         command_len as u32,
         Tpm2Commands::TPM2_CC_GET_CAPABILITY as u32
     );
@@ -433,12 +433,12 @@ pub fn tpm_get_pcr_allocation(tpm: &TpmDev, locality: u32) -> TpmDevInfo {
 /// Extend PCR register
 pub fn tpm_pcr_extend(tpm: &TpmDev, locality: u32, tpm_info: &TpmDevInfo, pcr_idx: usize, digests: Vec<TpmDigest>) -> bool {
     let mut buf: Vec<u8>;
-    let mut pcrHandle: TpmPcrHandle = TpmPcrHandle::new(TPM_RS_PW, 0 as u16, 0 as u8, 0 as u16);
+    let mut pcrHandle: TpmHandle = TpmHandle::new(TpmRH::TPM_RS_PW as u32, 0 as u16, 0 as u8, 0 as u16);
     let mut iDhPcr: TpmIDhPcr = TpmIDhPcr::new(pcr_idx as u32, pcrHandle);
     let mut lDigestValues: TpmLDigestValues = TpmLDigestValues::new(tpm_info.nr_allocated_banks, digests);
     let command_len = TPM_HEADER_SIZE + iDhPcr.size() + lDigestValues.size();
     let mut hdr: TpmHeader = TpmHeader::new(
-        Tpm2Structures::TPM2_ST_SESSIONS as u16,
+        TpmStructures::TPM_ST_SESSIONS as u16,
         command_len as u32,
         Tpm2Commands::TPM2_CC_PCR_EXTEND as u32
     );
@@ -451,13 +451,179 @@ pub fn tpm_pcr_extend(tpm: &TpmDev, locality: u32, tpm_info: &TpmDevInfo, pcr_id
     true
 }
 
+/// Conduct hash calculation in TPM
+pub fn tpm_hash_sequence_start(tpm: &TpmDev, locality: u32, hash_alg: TpmAlgorithms, tpm_i_dh_object: &mut u32) -> bool {
+    let data_size: usize = 4;
+    let command_len = TPM_HEADER_SIZE + data_size;
+    let mut hdr: TpmHeader = TpmHeader::new(
+        TpmStructures::TPM_ST_NO_SESSIONS as u16,
+        command_len as u32,
+        Tpm2Commands::TPM2_CC_HASH_SEQUENCE_START as u32
+    );
+    let mut buf: Vec<u8>;
+    // header: TpmHeader
+    buf = TpmHeader::to_vec(&hdr);
+    // auth: Tpm2BAuth
+    buf.extend_from_slice(&u16::to_be_bytes(0 as u16)); // auth.size
+    // hashAlg: TpmIAlgHash
+    buf.extend_from_slice(&u16::to_be_bytes(hash_alg as u16));
+
+    println!("presend: {:x?}", buf);
+    tpm_transmit_cmd(tpm, locality, &mut buf);
+    println!("postsend: {:x?}", buf);
+    if buf.len() > 0 {
+        let mut slice = buf.as_slice();
+        *tpm_i_dh_object = BigEndian::read_u32(&slice);
+    } else {
+        println!("Didn't receive any response from TPM!");
+        return false;
+    }
+    true
+}
+
+/// Update hash calculation in TPM
+pub fn tpm_update_sequence(tpm: &TpmDev, locality: u32, tpm_i_dh_object: u32, buffer: Vec<u8>) -> bool {
+    let tpmHandle = TpmHandle::new(TpmRH::TPM_RS_PW as u32, 0 as u16, 0 as u8, 0 as u16);
+    let data_size: usize = 4 + tpmHandle.size() + 2 + buffer.len();
+    let command_len = TPM_HEADER_SIZE + data_size;
+    let mut hdr: TpmHeader = TpmHeader::new(
+        TpmStructures::TPM_ST_SESSIONS as u16,
+        command_len as u32,
+        Tpm2Commands::TPM2_CC_SEQUENCE_UPDATE as u32
+    );
+    let mut buf: Vec<u8>;
+    // header: TpmHeader
+    buf = TpmHeader::to_vec(&hdr);
+    // sequenceHandle: TpmIDhObject
+    buf.extend_from_slice(&u32::to_be_bytes(tpm_i_dh_object));
+    // handle (required whenever header.tag is TPM_ST_SESSIONS)
+    buf.extend_from_slice(&tpmHandle.to_vec());
+    // buffer: Tpm2BMaxBuffer
+    let buffer_size: u16 = buffer.len() as u16;
+    buf.extend_from_slice(&u16::to_be_bytes(buffer_size));
+    buf.extend_from_slice(&buffer);
+
+    println!("presend: {:x?}", buf);
+    tpm_transmit_cmd(tpm, locality, &mut buf);
+    println!("postsend: {:x?}", buf);
+    true
+}
+
+/// Finalize hash calculation in TPM
+pub fn tpm_sequence_complete(tpm: &TpmDev, locality: u32, tpm_i_dh_object: u32, buffer: Vec<u8>, hash_size: &mut u16, hash: &mut Vec<u8>) -> bool {
+    let tpmHandle = TpmHandle::new(TpmRH::TPM_RS_PW as u32, 0 as u16, 0 as u8, 0 as u16);
+    let data_size: usize = 4 + tpmHandle.size() + 2 + buffer.len() + 4;
+    let command_len = TPM_HEADER_SIZE + data_size;
+    let mut hdr: TpmHeader = TpmHeader::new(
+        TpmStructures::TPM_ST_SESSIONS as u16,
+        command_len as u32,
+        Tpm2Commands::TPM2_CC_SEQUENCE_COMPLETE as u32
+    );
+    let mut buf: Vec<u8>;
+    // header: TpmHeader
+    buf = TpmHeader::to_vec(&hdr);
+    // sequenceHandle: TpmIDhObject
+    buf.extend_from_slice(&u32::to_be_bytes(tpm_i_dh_object));
+    // handle (required whenever header.tag is TPM_ST_SESSIONS)
+    buf.extend_from_slice(&tpmHandle.to_vec());
+    // buffer: Tpm2BMaxBuffer
+    let buffer_size: u16 = buffer.len() as u16;
+    buf.extend_from_slice(&u16::to_be_bytes(buffer_size));
+    buf.extend_from_slice(&buffer);
+    // hierarchy: TpmIRhHierarchy
+    buf.extend_from_slice(&u32::to_be_bytes(TpmRH::TPM_RH_OWNER as u32));
+
+    println!("presend: {:x?}", buf);
+    tpm_transmit_cmd(tpm, locality, &mut buf);
+    println!("postsend: {:x?}", buf);
+    if buf.len() > 0 {
+        let mut slice = buf.as_slice();
+        let mut th = 0;
+        let response_size = BigEndian::read_u32(&slice[th..(th + 4)]);
+        th += 4;
+        println!("response_size: {}", response_size as usize);
+        *hash_size = BigEndian::read_u16(&slice[th..(th + 2)]);
+        th += 2;
+        println!("hash_size: {}", *hash_size as usize);
+        hash.extend([0].repeat(*hash_size as usize));
+        hash.copy_from_slice(&slice[th..(th + *hash_size as usize)]);
+        th += *hash_size as usize;
+        let ticket = BigEndian::read_u16(&slice[th..(th + 2)]);
+        th += 2;
+        assert!(ticket == TpmStructures::TPM_ST_HASHCHECK as u16);
+        let hierarchy = BigEndian::read_u32(&slice[th..(th + 4)]);
+        th += 4;
+        assert!(hierarchy == TpmRH::TPM_RH_OWNER as u32);
+        // let hmac_size = BigEndian::read_u16(&slice[th..(th + 2)]);
+        // th += 2;
+        // println!("hmac_size: {}", hmac_size as usize);
+        // let hmac = Vec::with_capacity(hmac_size);
+        // hmac.copy_from_slice(&slice[th..(th + *hash_size as usize)]);
+    } else {
+        println!("Didn't receive any response from TPM!");
+        return false;
+    }
+    true
+}
+
+/// Generic hash calculation in TPM when data size is known
+pub fn tpm_hash(tpm: &TpmDev, locality: u32, hash_alg: TpmAlgorithms, buffer: Vec<u8>, hash_size: &mut u16, hash: &mut Vec<u8>) -> bool {
+    let data_size: usize = 2 + buffer.len() + 2 + 4;
+    let command_len = TPM_HEADER_SIZE + data_size;
+    let mut hdr: TpmHeader = TpmHeader::new(
+        TpmStructures::TPM_ST_NO_SESSIONS as u16,
+        command_len as u32,
+        Tpm2Commands::TPM2_CC_HASH as u32
+    );
+    let mut buf: Vec<u8>;
+    // header: TpmHeader
+    buf = TpmHeader::to_vec(&hdr);
+    // buffer: Tpm2BMaxBuffer
+    let buffer_size: u16 = buffer.len() as u16;
+    buf.extend_from_slice(&u16::to_be_bytes(buffer_size));
+    buf.extend_from_slice(&buffer);
+    // hashAlg: TpmIAlgHash
+    buf.extend_from_slice(&u16::to_be_bytes(hash_alg as u16));
+    // hierarchy: TpmIRhHierarchy
+    buf.extend_from_slice(&u32::to_be_bytes(TpmRH::TPM_RH_OWNER as u32));
+
+    println!("presend: {:x?}", buf);
+    tpm_transmit_cmd(tpm, locality, &mut buf);
+    println!("postsend: {:x?}", buf);
+    if buf.len() > 0 {
+        let mut slice = buf.as_slice();
+        let mut th = 0;
+        *hash_size = BigEndian::read_u16(&slice[th..(th + 2)]);
+        th += 2;
+        println!("hash_size: {}", *hash_size as usize);
+        hash.extend([0].repeat(*hash_size as usize));
+        hash.copy_from_slice(&slice[th..(th + *hash_size as usize)]);
+        th += *hash_size as usize;
+        let ticket = BigEndian::read_u16(&slice[th..(th + 2)]);
+        th += 2;
+        assert!(ticket == TpmStructures::TPM_ST_HASHCHECK as u16);
+        let hierarchy = BigEndian::read_u32(&slice[th..(th + 4)]);
+        th += 4;
+        assert!(hierarchy == TpmRH::TPM_RH_OWNER as u32);
+        // let hmac_size = BigEndian::read_u16(&slice[th..(th + 2)]);
+        // th += 2;
+        // println!("hmac_size: {}", hmac_size as usize);
+        // let hmac = Vec::with_capacity(hmac_size);
+        // hmac.copy_from_slice(&slice[th..(th + *hash_size as usize)]);
+    } else {
+        println!("Didn't receive any response from TPM!");
+        return false;
+    }
+    true
+}
+
 /// Create Primary Key
 // pub fn tpm_create_primary(tpm: &TpmDev, locality: u32, /* PCR to bind key against */ pcr_index: usize) -> bool {
-pub fn tpm_create_primary(tpm: &TpmDev, locality: u32) -> bool {
+pub fn tpm_create_primary(tpm: &TpmDev, locality: u32, unique: &[u8]) -> bool {
     let data_size: usize = 89;
     let command_len = TPM_HEADER_SIZE + data_size;
     let mut hdr: TpmHeader = TpmHeader::new(
-        Tpm2Structures::TPM2_ST_SESSIONS as u16,
+        TpmStructures::TPM_ST_SESSIONS as u16,
         command_len as u32,
         Tpm2Commands::TPM2_CC_CREATE_PRIMARY as u32
     );
@@ -465,9 +631,9 @@ pub fn tpm_create_primary(tpm: &TpmDev, locality: u32) -> bool {
     // header: TpmHeader
     buf = TpmHeader::to_vec(&hdr);
     // primaryHandle: TpmIRhHierarchy
-    buf.extend_from_slice(&u32::to_be_bytes(TPM_RH_OWNER));
-    // handle (required whenever header.tag is TPM2_ST_SESSIONS)
-    let tpmHandle = TpmHandle::new(TPM_RS_PW, 0 as u16, 0 as u8, 0 as u16);
+    buf.extend_from_slice(&u32::to_be_bytes(TpmRH::TPM_RH_OWNER as u32));
+    // handle (required whenever header.tag is TPM_ST_SESSIONS)
+    let tpmHandle = TpmHandle::new(TpmRH::TPM_RS_PW as u32, 0 as u16, 0 as u8, 0 as u16);
     buf.extend_from_slice(&tpmHandle.to_vec());
     // inSensitive: Tpm2BSensitiveCreate
     buf.extend_from_slice(&u16::to_be_bytes(4 as u16));
@@ -487,15 +653,7 @@ pub fn tpm_create_primary(tpm: &TpmDev, locality: u32) -> bool {
     buf.extend_from_slice(&u16::to_be_bytes(2048 as u16));
     buf.extend_from_slice(&u32::to_be_bytes(0 as u32));
     buf.extend_from_slice(&u16::to_be_bytes(32 as u16));
-    let mut hasher = Sha256::new();
-    let unique = "hello";
-    hasher.update(unique);
-    let res = hasher.finalize();
-    for byte in res {
-        print!("{:02x}", byte);
-    }
-    println!("\t{}", unique);
-    let mut hash: Vec<u8> = alloc::vec![0x2c, 0xf2 , 0x4d , 0xba , 0x5f , 0xb0 , 0xa3 , 0x0e , 0x26 , 0xe8 , 0x3b , 0x2a , 0xc5 , 0xb9 , 0xe2 , 0x9e , 0x1b , 0x16 , 0x1e , 0x5c , 0x1f , 0xa7 , 0x42 , 0x5e , 0x73 , 0x04 , 0x33 , 0x62 , 0x93 , 0x8b , 0x98 , 0x24];
+    let mut hash: Vec<u8> = Sha256::digest(unique).to_vec();
     buf.extend_from_slice(&hash);
     // outsideInfo: Tpm2BData
     buf.extend_from_slice(&u16::to_be_bytes(0 as u16));
@@ -513,7 +671,7 @@ pub fn tpm_policy_locality(tpm: &TpmDev) -> bool {
     let mut data_size = 1;
     let command_len = TPM_HEADER_SIZE + data_size;
     let mut hdr: TpmHeader = TpmHeader::new(
-        Tpm2Structures::TPM2_ST_SESSIONS as u16,
+        TpmStructures::TPM_ST_SESSIONS as u16,
         command_len as u32,
         Tpm2Commands::TPM2_CC_POLICY_LOCALITY as u32
     );

@@ -8,7 +8,6 @@ use byteorder::{ByteOrder, BigEndian};
 pub const TPM_HEADER_SIZE: usize = 10;
 pub const TPM_PLATRFORM_PCR: usize = 24;
 pub const TPM_PCR_SELECT_MIN: usize = (TPM_PLATRFORM_PCR + 7) / 8;
-pub const TPM_RS_PW: u32 = 0x40000009;
 
 bitfield! {
     pub struct TpmAccess(u8);
@@ -109,6 +108,7 @@ pub enum Tpm2Commands {
     TPM2_CC_VERIFY_SIGNATURE        = 0x0177,
     TPM2_CC_GET_CAPABILITY	        = 0x017A,
     TPM2_CC_GET_RANDOM	        = 0x017B,
+    TPM2_CC_HASH	        = 0x017D,
     TPM2_CC_PCR_READ	        = 0x017E,
     TPM2_CC_PCR_EXTEND	        = 0x0182,
     TPM2_CC_EVENT_SEQUENCE_COMPLETE = 0x0185,
@@ -132,9 +132,42 @@ pub enum Tpm2ReturnCodes {
 }
 
 // Generously borrowed from linux/drivers/char/tpm/tpm.h
-pub enum Tpm2Structures {
-    TPM2_ST_NO_SESSIONS	= 0x8001,
-    TPM2_ST_SESSIONS	= 0x8002,
+pub enum TpmStructures {
+    TPM_ST_RSP_COMMAND           = 0x00C4,
+    TPM_ST_NULL                  = 0x8000,
+    TPM_ST_NO_SESSIONS           = 0x8001,
+    TPM_ST_SESSIONS	             = 0x8002,
+    TPM_ST_ATTEST_NV             = 0x8014,
+    TPM_ST_ATTEST_COMMAND_AUDIT  = 0x8015,
+    TPM_ST_ATTEST_SESSION_AUDIT  = 0x8016,
+    TPM_ST_ATTEST_CERTIFY        = 0x8017,
+    TPM_ST_ATTEST_QUOTE          = 0x8018,
+    TPM_ST_ATTEST_TIME           = 0x8019,
+    TPM_ST_ATTEST_CREATION       = 0x801A,
+    TPM_ST_ATTEST_NV_DIGEST      = 0x801C,
+    TPM_ST_CREATION              = 0x8021,
+    TPM_ST_VERIFIED              = 0x8022,
+    TPM_ST_AUTH_SECRET           = 0x8023,
+    TPM_ST_HASHCHECK             = 0x8024,
+    TPM_ST_AUTH_SIGNED           = 0x8025,
+    TPM_ST_FU_MANIFEST           = 0x8029,
+}
+
+pub enum TpmRH {
+    TPM_RH_FIRST       = 0x40000000,
+    TPM_RH_OWNER       = 0x40000001,
+    TPM_RH_NULL        = 0x40000007,
+    TPM_RH_UNASSIGNED  = 0x40000008,
+    TPM_RS_PW          = 0x40000009,
+    TPM_RS_LOCKOUT     = 0x4000000A,
+    TPM_RS_ENDORSEMENT = 0x4000000B,
+    TPM_RS_PLATFORM    = 0x4000000C,
+    TPM_RS_PLATFORM_NV = 0x4000000D,
+    TPM_RS_AUTH_00     = 0x40000010,
+    TPM_RS_AUTH_FF     = 0x4000010F,
+    TPM_RS_ACT_0       = 0x40000110,
+    TPM_RS_ACT_F       = 0x4000011F,
+    // TPM_RS_LAST        = 0x4000011F,
 }
 
 pub const TIMEOUT_A: usize = 750;
@@ -146,13 +179,24 @@ pub const TIMEOUT_D: usize = 750;
 #[derive(Copy, Clone)]
 pub enum TpmAlgorithms {
     TPM_ALG_ERROR		= 0x0000,
+    TPM_ALG_RSA		    = 0x0001,
     TPM_ALG_SHA1		= 0x0004,
+    TPM_ALG_HMAC		= 0x0005,
+    TPM_ALG_AES		    = 0x0006,
     TPM_ALG_KEYEDHASH	= 0x0008,
+    TPM_ALG_XOR		    = 0x000A,
     TPM_ALG_SHA256		= 0x000B,
     TPM_ALG_SHA384		= 0x000C,
     TPM_ALG_SHA512		= 0x000D,
     TPM_ALG_NULL		= 0x0010,
     TPM_ALG_SM3_256		= 0x0012,
+    TPM_ALG_ECC		    = 0x0023,
+    TPM_ALG_SYMCIPHER   = 0x0025,
+    TPM_ALG_CTR		    = 0x0040,
+    TPM_ALG_OFB		    = 0x0041,
+    TPM_ALG_CBC		    = 0x0042,
+    TPM_ALG_CFB		    = 0x0043,
+    TPM_ALG_ECB		    = 0x0044,
 }
 
 // Generously borrowed from include/uapi/linux/hash_info.h

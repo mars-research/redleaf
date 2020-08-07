@@ -188,7 +188,8 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
 
     // Sealing Data
     // Create Primary key (a.k.a. Storate Root Key)
-    tpm_create_primary(&tpm, locality);
+    let unique = b"hello";
+    tpm_create_primary(&tpm, locality, unique);
     // Create Child key wrapped with SRK
     // Load Child key to TPM
     // Seal data under PCR 17 using Child key
