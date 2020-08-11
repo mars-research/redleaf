@@ -618,8 +618,7 @@ pub fn tpm_hash(tpm: &TpmDev, locality: u32, hash_alg: TpmAlgorithms, buffer: Ve
 }
 
 /// Create Primary Key
-// pub fn tpm_create_primary(tpm: &TpmDev, locality: u32, /* PCR to bind key against */ pcr_index: usize) -> bool {
-pub fn tpm_create_primary(tpm: &TpmDev, locality: u32, unique: &[u8]) -> bool {
+pub fn tpm_create_primary(tpm: &TpmDev, locality: u32, pcr_index: u32, unique: &[u8], parent_handle: &mut u32, pubkey_size: &mut usize, pubkey: &mut Vec<u8>) -> bool {
     let data_size: usize = 89;
     let command_len = TPM_HEADER_SIZE + data_size;
     let mut hdr: TpmHeader = TpmHeader::new(
@@ -658,10 +657,59 @@ pub fn tpm_create_primary(tpm: &TpmDev, locality: u32, unique: &[u8]) -> bool {
     // outsideInfo: Tpm2BData
     buf.extend_from_slice(&u16::to_be_bytes(0 as u16));
     // creationPcr: TpmLPcrSelection
-    buf.extend_from_slice(&u32::to_be_bytes(0 as u32));
+    buf.extend_from_slice(&u32::to_be_bytes(pcr_index));
     println!("presend: {:x?}", buf);
     tpm_transmit_cmd(tpm, locality, &mut buf);
     println!("postsend: {:x?}", buf);
+    if buf.len() > 0 {
+        // objectHandle
+        let th = 0;
+        let object_handle: u32 = BigEndian::read_u32(&slice[th..(th + 4)]);
+        *parent_handle = object_handle;
+        th += 4;
+        // bodySize
+        th += 4; // let body_size: u32 = BigEndian::read_u32(&slice[th..(th + 4)]);
+        // outPublic
+        th += 2; // let size: u16 = BigEndian::read_u16(&slice[th..(th + 2)]);
+        // outPublic.publicArea
+        let type: u16 = BigEndian::read_u16(&slice[th..(th + 2)]);
+        th += 2;
+        assert!(type == TpmAlgorithms::TPM_ALG_RSA as u16);
+        let namealg: u16 = BigEndian::read_u16(&slice[th..(th + 2)]);
+        th += 2;
+        assert!(namealg == TpmAlgorithms::TPM_ALG_SHA256 as u16);
+        th += 4; // let objectattributes: u32 = BigEndian::read_u32(&slice[th..(th + 4)]);
+        th += 2; // let authpolicy_size: u16 = BigEndian::read_u16(&slice[th..(th + 2)]);
+        // outPublic.publicArea.paramers.rsaDetail.symmetric
+        let algorithm: u16 = BigEndian::read_u16(&slice[th..(th + 2)]);
+        th += 2;
+        assert!(algorithm == TpmAlgorithms::TPM_ALG_AES as u16);
+        let keybits_aes_keysizesbits: u16 = BigEndian::read_u16(&slice[th..(th + 2)]);
+        th += 2;
+        assert!(keybits_aes_keysizesbits == 128 as u16);
+        let mode_aes_mode: u16 = BigEndian::read_u16(&slice[th..(th + 2)]);
+        th += 2;
+        assert!(mode_aes_mode == TpmAlgorithms::TPM_ALG_CFB as u16);
+        let scheme_scheme: u16 = BigEndian::read_u16(&slice[th..(th + 2)]);
+        th += 2;
+        assert!(scheme_scheme == TpmAlgorithms::TPM_ALG_NULL as u16);
+        let keybits: u16 = BigEndian::read_u16(&slice[th..(th + 2)]);
+        th += 2;
+        assert!(keybits == 2048 as u16);
+        let exponent: u32 = BigEndian::read_u32(&slice[th..(th + 4)]);
+        th += 4;
+        assert!(exponent == 0 as u32);
+        // outPublic.publicArea.unique
+        let rsa_size: u16 = BigEndian::read_u16(&slice[th..(th + 2)]);
+        th += 2;
+        *pubkey_size = rsa_size as usize;
+        pubkey.extend([0].repeat(*pubkey_size));
+        pubkey.copy_from_slice(&slice[th..(th + *pubkey_size)]);
+        // Ignoring the rest of the parsing...
+    } else {
+        println!("Didn't receive any response from TPM!");
+        return false;
+    }
     true
 }
 

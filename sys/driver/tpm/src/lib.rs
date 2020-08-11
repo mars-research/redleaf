@@ -189,7 +189,10 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
     // Sealing Data
     // Create Primary key (a.k.a. Storate Root Key)
     let unique = b"hello";
-    tpm_create_primary(&tpm, locality, unique);
+    let mut primary_pubkey_size: usize = 0;
+    let mut primary_pubkey: Vec<u8> = Vec::new();
+    let mut parent_handle: u32 = 0 as u32;
+    tpm_create_primary(&tpm, locality, unique, pcr_idx as u32, parent_handle, primary_pubkey_size, primary_pubkey);
     // Create Child key wrapped with SRK
     // Load Child key to TPM
     // Seal data under PCR 17 using Child key
