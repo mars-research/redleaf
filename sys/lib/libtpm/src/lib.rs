@@ -759,7 +759,7 @@ pub fn tpm_create_primary(tpm: &TpmDev, locality: u32, pcr_index: u32, unique: &
 }
 
 /// Create child key
-pub fn tpm_create(tpm: &TpmDev, locality: u32, parent_handle: u32, child_handle: &mut u32) -> bool {
+pub fn tpm_create(tpm: &TpmDev, locality: u32, parent_handle: u32, out_private: &mut Vec<u8>, out_public: &mut Vec<u8>) -> bool {
     let data_size: usize = 49;
     let command_len = TPM_HEADER_SIZE + data_size;
     let mut hdr: TpmHeader = TpmHeader::new(
@@ -795,6 +795,55 @@ pub fn tpm_create(tpm: &TpmDev, locality: u32, parent_handle: u32, child_handle:
     buf.extend_from_slice(&u16::to_be_bytes(0 as u16));
     // creationPCR: TpmLPcrSelection
     buf.extend_from_slice(&u32::to_be_bytes(0 as u32));
+    println!("presend: {:x?}", buf);
+    tpm_transmit_cmd(tpm, locality, &mut buf);
+    println!("postsend: {:x?}", buf);
+    if buf.len() > 0 {
+        let mut slice = buf.as_slice();
+        let mut th = 0;
+        th += 4; // Length of entire response body
+        // outPrivate
+        let out_private_size: usize = BigEndian::read_u16(&slice[th..(th + 2)]) as usize;
+        out_private.clear();
+        out_private.extend([0].repeat(out_private_size + 2));
+        out_private.copy_from_slice(&slice[th..(th + out_private_size + 2)]);
+        th =  th + out_private_size + 2;
+        // outPublic
+        let out_public_size: usize = BigEndian::read_u16(&slice[th..(th + 2)]) as usize;
+        out_public.clear();
+        out_public.extend([0].repeat(out_public_size + 2));
+        out_public.copy_from_slice(&slice[th..(th + out_public_size + 2)]);
+        th =  th + out_public_size + 2;
+    } else {
+        println!("Didn't receive any response from TPM!");
+        return false;
+    }
+    true
+}
+
+/// Load objects into the TPM
+/// Both TPM2B_PUBLIC and TPM2B_PRIVATE are to be loaded
+pub fn tpm_load(tpm: &TpmDev, locality: u32, parent_handle: u32, in_private: Vec<u8>, in_public: Vec<u8>) -> bool {
+    let data_size: usize = 4 + 13 + in_private.len() + in_public.len();
+    let command_len = TPM_HEADER_SIZE + data_size;
+    let mut hdr: TpmHeader = TpmHeader::new(
+        TpmStructures::TPM_ST_SESSIONS as u16,
+        command_len as u32,
+        Tpm2Commands::TPM2_CC_LOAD as u32
+    );
+    let mut buf: Vec<u8>;
+    // header: TpmHeader
+    buf = TpmHeader::to_vec(&hdr);
+    // parentHandle: TpmIDhParent
+    buf.extend_from_slice(&u32::to_be_bytes(parent_handle));
+    // handle (required whenever header.tag is TPM_ST_SESSIONS)
+    let tpmHandle = TpmHandle::new(TpmRH::TPM_RS_PW as u32, 0 as u16, 0 as u8, 0 as u16);
+    buf.extend_from_slice(&tpmHandle.to_vec());
+    // inPrivate
+    buf.extend_from_slice(&in_private);
+    // inPublic
+    buf.extend_from_slice(&in_public);
+    // Send
     println!("presend: {:x?}", buf);
     tpm_transmit_cmd(tpm, locality, &mut buf);
     println!("postsend: {:x?}", buf);

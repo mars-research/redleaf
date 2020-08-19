@@ -198,8 +198,10 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
     println!("parent_handle {:x?}", parent_handle);
     // Create Child key wrapped with SRK
     // Load Child key to TPM
-    let mut child_handle: u32 = 0 as u32;
-    tpm_create(&tpm, locality, parent_handle, &mut child_handle);
+    let mut create_out_private: Vec<u8> = Vec::new();
+    let mut create_out_public: Vec<u8> = Vec::new();
+    tpm_create(&tpm, locality, parent_handle, &mut create_out_private, &mut create_out_public);
+    tpm_load(&tpm, locality, parent_handle, create_out_private, create_out_public);
     // Seal data under PCR 17 using Child key
 
     // Unsealing Data
