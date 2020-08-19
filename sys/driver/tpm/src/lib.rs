@@ -42,6 +42,8 @@ use usr::tpm::TpmRegs;
 use libtime::get_rdtsc as rdtsc;
 use libtpm::*;
 
+pub const ONE_MS_IN_NS: u64 = 1000 * 1000;
+
 struct Tpm {
     device: TpmDevice,
     device_initialized: bool,
@@ -188,13 +190,16 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
 
     // Sealing Data
     // Create Primary key (a.k.a. Storate Root Key)
-    let unique = b"hello";
+    let primary_unique = b"hello";
     let mut primary_pubkey_size: usize = 0;
     let mut primary_pubkey: Vec<u8> = Vec::new();
     let mut parent_handle: u32 = 0 as u32;
-    tpm_create_primary(&tpm, locality, unique, pcr_idx as u32, parent_handle, primary_pubkey_size, primary_pubkey);
+    tpm_create_primary(&tpm, locality, 0 as u32, primary_unique, &mut parent_handle, &mut primary_pubkey_size, &mut primary_pubkey);
+    println!("parent_handle {:x?}", parent_handle);
     // Create Child key wrapped with SRK
     // Load Child key to TPM
+    let mut child_handle: u32 = 0 as u32;
+    tpm_create(&tpm, locality, parent_handle, &mut child_handle);
     // Seal data under PCR 17 using Child key
 
     // Unsealing Data

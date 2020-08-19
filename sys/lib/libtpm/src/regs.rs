@@ -129,6 +129,7 @@ pub enum Tpm2ReturnCodes {
     TPM2_RC_TESTING		= 0x090A, /* RC_WARN */
     TPM2_RC_REFERENCE_H0	= 0x0910,
     TPM2_RC_RETRY		= 0x0922,
+    TPM2_RC_NOT_USED		= 0x097F,
 }
 
 // Generously borrowed from linux/drivers/char/tpm/tpm.h
@@ -170,10 +171,13 @@ pub enum TpmRH {
     // TPM_RS_LAST        = 0x4000011F,
 }
 
-pub const TIMEOUT_A: usize = 750;
-pub const TIMEOUT_B: usize = 2000;
-pub const TIMEOUT_C: usize = 750;
-pub const TIMEOUT_D: usize = 750;
+pub const TIMEOUT_A:       usize = 750;
+pub const TIMEOUT_B:       usize = 2000;
+pub const TIMEOUT_C:       usize = 200;
+pub const TIMEOUT_D:       usize = 30;
+pub const DURATION_SHORT:  usize = 20;
+pub const DURATION_MEDIUM: usize = 750;
+pub const DURATION_LONG:   usize = 2000;
 
 // Generously borrowed from linux/drivers/char/tpm/tpm.h
 #[derive(Copy, Clone)]
