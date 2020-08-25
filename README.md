@@ -2,6 +2,8 @@
 
 ### Development Setup
 ``` bash
+git clone --recursive git@github.com:mars-research/redleaf.git
+cd redleaf
 make install-deps
 ```
 
