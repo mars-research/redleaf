@@ -1,7 +1,9 @@
 ![](https://github.com/mars-research/redleaf/workflows/build/badge.svg)
 
 ### Development Setup
-``` bash
+```bash
+echo "export CARGO_HOME=$(pwd)/.cargo" | tee -a ~/.bashrc
+echo "export RUSTUP_HOME=$(pwd)/.rustup" | tee -a ~/.bashrc
 git clone --recursive git@github.com:mars-research/redleaf.git
 cd redleaf
 make install-deps
