@@ -234,7 +234,8 @@ install-deps:
 	sudo apt install -y qemu nasm xorriso numactl
 	curl https://sh.rustup.rs -sSf | bash -s -- --default-toolchain nightly-2020-05-15 -y
 	. ${CARGO_HOME}/env && \
-	cargo install cargo-xbuild stack-sizes && \
+	cargo install cargo-xbuild --version=0.5.32 && \
+	cargo install stack-sizes && \
 	rustup component add rust-src
 	@echo "To get started you need Cargo's bin directory ('$$CARGO_HOME/bin') in your PATH \
 	environment variable. Next time you log in this will be done \
