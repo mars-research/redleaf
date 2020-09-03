@@ -2,20 +2,40 @@
 // Taken from TPM2.0 Specification Part 2
 // (https://trustedcomputinggroup.org/wp-content/uploads/TCG_TPM2_r1p59_Part2_Structures_pub.pdf)
 
+// // Template
+// impl {
+//     pub fn new() -> Self {
+//         Self {
+//             : .swap_bytes().to_be(),
+//         }
+//     }
+
+//     pub fn size(&self) -> usize {
+//         let ret: usize = ;
+//         ret
+//     }
+
+//     pub fn to_vec(&self) -> Vec<u8> {
+//         let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+//         buf.extend_from_slice(::to_be_bytes());
+//         buf
+//     }
+// }
+
 use alloc::vec::Vec;
 use core::mem;
 use byteorder::{ByteOrder, BigEndian};
 
 pub struct TpmSPcrSelection {
-    pub hash:           u16,
+    pub hash_alg:           u16,
     pub size_of_select: u8,
     pub pcr_select:     Vec<u8>,
 }
 
 impl TpmSPcrSelection {
-    pub fn new(hash: u16, size_of_select: u8, pcr_select: Vec<u8>) -> Self {
+    pub fn new(hash_alg: u16, size_of_select: u8, pcr_select: Vec<u8>) -> Self {
         Self {
-            hash: hash.swap_bytes().to_be(),
+            hash_alg: hash_alg.swap_bytes().to_be(),
             size_of_select: size_of_select.swap_bytes().to_be(),
             pcr_select: pcr_select,
         }
@@ -28,7 +48,7 @@ impl TpmSPcrSelection {
 
     pub fn to_vec(&self) -> Vec<u8> {
         let mut buf: Vec<u8> = Vec::with_capacity(self.size());
-        buf.extend_from_slice(&u16::to_be_bytes(self.hash));
+        buf.extend_from_slice(&u16::to_be_bytes(self.hash_alg));
         buf.extend_from_slice(&u8::to_be_bytes(self.size_of_select));
         buf.extend_from_slice(&self.pcr_select);
         buf
@@ -66,15 +86,17 @@ impl TpmLPcrSelection {
     }
 }
 
+/// TpmHandle is required when tag of a command or response is
+/// TPM_ST_SESSIONS (c.f., Part 3, Section 4.4)
 #[repr(packed)]
-pub struct TpmPcrHandle {
+pub struct TpmHandle {
     pub handle: u32,
     pub nonce_size: u16,
     pub attributes: u8,
     pub auth_size: u16,
 }
 
-impl TpmPcrHandle {
+impl TpmHandle {
     pub fn new(handle: u32, nonce_size: u16, attributes: u8, auth_size: u16) -> Self {
         Self {
             handle: handle.swap_bytes().to_be(),
@@ -85,13 +107,13 @@ impl TpmPcrHandle {
     }
 
     pub fn size(&self) -> usize {
-        let mut ret: usize = mem::size_of::<u32>() + mem::size_of::<TpmPcrHandle>();
+        let mut ret: usize = mem::size_of::<u32>() + mem::size_of::<TpmHandle>();
         ret
     }
 
     pub fn to_vec(&self) -> Vec<u8> {
         let mut buf: Vec<u8> = Vec::with_capacity(self.size());
-        buf.extend_from_slice(&u32::to_be_bytes(mem::size_of::<TpmPcrHandle>() as u32));
+        buf.extend_from_slice(&u32::to_be_bytes(mem::size_of::<TpmHandle>() as u32));
         buf.extend_from_slice(&u32::to_be_bytes(self.handle));
         buf.extend_from_slice(&u16::to_be_bytes(self.nonce_size));
         buf.extend_from_slice(&u8::to_be_bytes(self.attributes));
@@ -102,11 +124,11 @@ impl TpmPcrHandle {
 
 pub struct TpmIDhPcr {
     pub pcr_idx: u32,
-    pub pcr_handle: TpmPcrHandle,
+    pub pcr_handle: TpmHandle,
 }
 
 impl TpmIDhPcr {
-    pub fn new(pcr_idx: u32, pcr_handle: TpmPcrHandle) -> Self {
+    pub fn new(pcr_idx: u32, pcr_handle: TpmHandle) -> Self {
         Self {
             pcr_idx: pcr_idx.swap_bytes().to_be(),
             pcr_handle: pcr_handle,
@@ -121,20 +143,20 @@ impl TpmIDhPcr {
     pub fn to_vec(&self) -> Vec<u8> {
         let mut buf: Vec<u8> = Vec::with_capacity(self.size());
         buf.extend_from_slice(&u32::to_be_bytes(self.pcr_idx));
-        buf.extend_from_slice(&TpmPcrHandle::to_vec(&self.pcr_handle));
+        buf.extend_from_slice(&TpmHandle::to_vec(&self.pcr_handle));
         buf
     }
 }
 
 pub struct TpmDigest {
-    pub hash: u16,
+    pub hash_alg: u16,
     pub digest: Vec<u8>,
 }
 
 impl TpmDigest {
-    pub fn new(hash: u16, digest: Vec<u8>) -> Self {
+    pub fn new(hash_alg: u16, digest: Vec<u8>) -> Self {
         Self {
-            hash: hash.swap_bytes().to_be(),
+            hash_alg: hash_alg.swap_bytes().to_be(),
             digest: digest,
         }
     }
@@ -146,7 +168,7 @@ impl TpmDigest {
 
     pub fn to_vec(&self) -> Vec<u8> {
         let mut buf: Vec<u8> = Vec::with_capacity(self.size());
-        buf.extend_from_slice(&u16::to_be_bytes(self.hash));
+        buf.extend_from_slice(&u16::to_be_bytes(self.hash_alg));
         buf.extend_from_slice(&self.digest);
         buf
     }

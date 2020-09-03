@@ -196,16 +196,33 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
     let mut parent_handle: u32 = 0 as u32;
     tpm_create_primary(&tpm, locality, 0 as u32, primary_unique, &mut parent_handle, &mut primary_pubkey_size, &mut primary_pubkey);
     println!("parent_handle {:x?}", parent_handle);
+    // Start authenticated session
+    let mut session_handle: u32 = 0 as u32;
+    tpm_start_auth_session(&tpm, locality, TpmSE::TPM_SE_TRIAL, &mut session_handle);
+    // Tie session to PCR 17
+    tpm_policy_pcr(&tpm, locality, session_handle, b"".to_vec(), pcr_idx);
+    // Get digest of authenticated session
+    let mut policy_digest: Vec<u8> = Vec::new();
+    tpm_policy_get_digest(&tpm, locality, session_handle, &mut policy_digest);
     // Create Child key wrapped with SRK
     // Load Child key to TPM
+    // Seal data under PCR 17 using Child key
     let mut create_out_private: Vec<u8> = Vec::new();
     let mut create_out_public: Vec<u8> = Vec::new();
-    tpm_create(&tpm, locality, parent_handle, &mut create_out_private, &mut create_out_public);
-    tpm_load(&tpm, locality, parent_handle, create_out_private, create_out_public);
-    // Seal data under PCR 17 using Child key
+    let in_sensitive: Vec<u8> = b"horizon".to_vec();
+    tpm_create(&tpm, locality, parent_handle, policy_digest, in_sensitive, &mut create_out_private, &mut create_out_public);
+    let mut item_handle: u32 = 0 as u32;
+    tpm_load(&tpm, locality, parent_handle, create_out_private, create_out_public, &mut item_handle);
 
     // Unsealing Data
+    // Start authenticated session
+    let mut unseal_session_handle: u32 = 0 as u32;
+    tpm_start_auth_session(&tpm, locality, TpmSE::TPM_SE_POLICY, &mut unseal_session_handle);
+    // Tie session to PCR 17
+    tpm_policy_pcr(&tpm, locality, unseal_session_handle, b"".to_vec(), pcr_idx);
     // Unseal data under PCR 17 using Child key (should succeed)
+    let mut out_data: Vec<u8> = Vec::new();
+    tpm_unseal(&tpm, locality, unseal_session_handle, item_handle, &mut out_data);
     // Unseal data under different PCR (should fail)
 
     Box::new(tpm)

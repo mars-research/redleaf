@@ -86,6 +86,29 @@ bitfield! {
     pub sirqvec, _: 3, 0;
 }
 
+bitfield! {
+    pub struct TpmAObject(u32);
+    impl Debug;
+    u32;
+    pub rsvd_31, _: 31, 20;
+    pub x509sign, set_x509sign: 19;
+    pub sign, set_sign: 18;
+    pub decrypt, set_decrypt: 17;
+    pub restricted, set_restricted: 16;
+    pub rsvd_15, _: 15, 12;
+    pub encrypted_duplication, set_encrypted_duplication: 11;
+    pub no_da, set_no_da: 10;
+    pub rsvd_9, _: 9, 8;
+    pub admin_with_policy, set_admin_with_policy: 7;
+    pub user_with_auth, set_user_with_auth: 6;
+    pub sensitive_data_origin, set_sensitive_data_origin: 5;
+    pub fixed_parent, set_fixed_parent: 4;
+    pub rsvd_3, _: 3;
+    pub st_clear, set_st_clear: 2;
+    pub fixed_tpm, set_fixed_tpm: 1;
+    pub rsvd, _: 0;
+}
+
 // Generously borrowed from linux/drivers/char/tpm/tpm.h
 pub enum Tpm2Commands {
     TPM2_CC_FIRST		        = 0x011F,
@@ -105,14 +128,17 @@ pub enum Tpm2Commands {
     TPM2_CC_CONTEXT_SAVE	        = 0x0162,
     TPM2_CC_FLUSH_CONTEXT	        = 0x0165,
     TPM2_CC_POLICY_LOCALITY         = 0x016F,
+    TPM2_CC_START_AUTH_SESSION        = 0x0176,
     TPM2_CC_VERIFY_SIGNATURE        = 0x0177,
     TPM2_CC_GET_CAPABILITY	        = 0x017A,
     TPM2_CC_GET_RANDOM	        = 0x017B,
     TPM2_CC_HASH	        = 0x017D,
     TPM2_CC_PCR_READ	        = 0x017E,
+    TPM2_CC_POLICY_PCR         = 0x017F,
     TPM2_CC_PCR_EXTEND	        = 0x0182,
     TPM2_CC_EVENT_SEQUENCE_COMPLETE = 0x0185,
     TPM2_CC_HASH_SEQUENCE_START     = 0x0186,
+    TPM2_CC_POLICY_GET_DIGEST     = 0x0189,
     TPM2_CC_CREATE_LOADED           = 0x0191,
     TPM2_CC_LAST		        = 0x0193,
 }
@@ -169,6 +195,12 @@ pub enum TpmRH {
     TPM_RS_ACT_0       = 0x40000110,
     TPM_RS_ACT_F       = 0x4000011F,
     // TPM_RS_LAST        = 0x4000011F,
+}
+
+pub enum TpmSE {
+    TPM_SE_HMAC   = 0x00,
+    TPM_SE_POLICY = 0x01,
+    TPM_SE_TRIAL  = 0x03,
 }
 
 pub const TIMEOUT_A:       usize = 750;

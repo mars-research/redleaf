@@ -337,7 +337,8 @@ fn tpm_transmit_cmd(tpm: &TpmDev, locality: u32, buf: &mut Vec<u8>) {
             let rx_bytes = tpm_recv_data(tpm, locality, buf, &mut rc);
 
             println!("Received {} bytes", rx_bytes);
-            if rc == Tpm2ReturnCodes::TPM2_RC_FAILURE as u32 {
+            if !(rc == Tpm2ReturnCodes::TPM2_RC_SUCCESS as u32 ||
+                 rc == Tpm2ReturnCodes::TPM2_RC_RETRY as u32) {
                 println!("TPM failed to respond to command");
                 break;
             }
@@ -685,9 +686,14 @@ pub fn tpm_create_primary(tpm: &TpmDev, locality: u32, pcr_index: u32, unique: &
     buf.extend_from_slice(&u16::to_be_bytes(58 as u16));
     buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_RSA as u16));
     buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_SHA256 as u16));
-    // let objectAttributes = TpmAObject::new(false, true, true, false, true, false, true, true, false, true);
-    // buf.extend_from_slice(&objectAttributes.to_vec());
-    buf.extend_from_slice(&u32::to_be_bytes(0x00030072 as u32));
+    let mut objectAttributes = TpmAObject(0);
+    objectAttributes.set_decrypt(true);
+    objectAttributes.set_restricted(true);
+    objectAttributes.set_user_with_auth(true);
+    objectAttributes.set_sensitive_data_origin(true);
+    objectAttributes.set_fixed_parent(true);
+    objectAttributes.set_fixed_tpm(true);
+    buf.extend_from_slice(&u32::to_be_bytes(objectAttributes.bit_range(31, 0)));
     buf.extend_from_slice(&u16::to_be_bytes(0 as u16));
     buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_AES as u16));
     buf.extend_from_slice(&u16::to_be_bytes(128 as u16));
@@ -695,8 +701,8 @@ pub fn tpm_create_primary(tpm: &TpmDev, locality: u32, pcr_index: u32, unique: &
     buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_NULL as u16));
     buf.extend_from_slice(&u16::to_be_bytes(2048 as u16));
     buf.extend_from_slice(&u32::to_be_bytes(0 as u32));
-    buf.extend_from_slice(&u16::to_be_bytes(32 as u16));
     let mut hash: Vec<u8> = Sha256::digest(unique).to_vec();
+    buf.extend_from_slice(&u16::to_be_bytes(hash.len() as u16));
     buf.extend_from_slice(&hash);
     // outsideInfo: Tpm2BData
     buf.extend_from_slice(&u16::to_be_bytes(0 as u16));
@@ -758,9 +764,154 @@ pub fn tpm_create_primary(tpm: &TpmDev, locality: u32, pcr_index: u32, unique: &
     true
 }
 
-/// Create child key
-pub fn tpm_create(tpm: &TpmDev, locality: u32, parent_handle: u32, out_private: &mut Vec<u8>, out_public: &mut Vec<u8>) -> bool {
+/// Start Authenticated Session
+pub fn tpm_start_auth_session(tpm: &TpmDev, locality: u32, session_type: TpmSE, session_handle: &mut u32) -> bool {
     let data_size: usize = 49;
+    let command_len = TPM_HEADER_SIZE + data_size;
+    let mut hdr: TpmHeader = TpmHeader::new(
+        TpmStructures::TPM_ST_NO_SESSIONS as u16,
+        command_len as u32,
+        Tpm2Commands::TPM2_CC_START_AUTH_SESSION as u32
+    );
+    let mut buf: Vec<u8>;
+    // header: TpmHeader
+    buf = TpmHeader::to_vec(&hdr);
+    // tpmKey: TPMI_DH_OBJECT
+    buf.extend_from_slice(&u32::to_be_bytes(TpmRH::TPM_RH_NULL as u32));
+    // bind: TPMI_DH_ENTITY
+    buf.extend_from_slice(&u32::to_be_bytes(TpmRH::TPM_RH_NULL as u32));
+    // nonceCaller: TPM2B_NONCE
+    let nonce = alloc::vec![0; 32];
+    buf.extend_from_slice(&u16::to_be_bytes(nonce.len() as u16));
+    buf.extend_from_slice(&nonce);
+    // encryptedSalt: TPM2B_ENCRYPTED_SECRET
+    buf.extend_from_slice(&u16::to_be_bytes(0));
+    // sessionType: TPM_SE (= u8)
+    buf.extend_from_slice(&u8::to_be_bytes(session_type as u8));
+    // symmetric: TPMT_SYM_DEF
+    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_NULL as u16));
+    // authHash: TPMI_ALG_HASH
+    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_SHA256 as u16));
+    println!("presend: {:x?}", buf);
+    tpm_transmit_cmd(tpm, locality, &mut buf);
+    println!("postsend: {:x?}", buf);
+    if buf.len() > 0 {
+        let mut slice = buf.as_slice();
+        // sessionHandle
+        let mut th = 0;
+        *session_handle = BigEndian::read_u32(&slice[th..(th + 4)]);
+    } else {
+        println!("StartAuthSession Failed");
+    }
+    true
+}
+
+/// Bind a policy to a particular PCR
+pub fn tpm_policy_pcr(tpm: &TpmDev, locality: u32, session_handle: u32, pcr_digest: Vec<u8>, pcr_idx: usize) -> bool {
+    let data_size: usize = 16 + pcr_digest.len();
+    let command_len = TPM_HEADER_SIZE + data_size;
+    let mut hdr: TpmHeader = TpmHeader::new(
+        TpmStructures::TPM_ST_NO_SESSIONS as u16,
+        command_len as u32,
+        Tpm2Commands::TPM2_CC_POLICY_PCR as u32
+    );
+    let mut buf: Vec<u8>;
+    // header: TpmHeader
+    buf = TpmHeader::to_vec(&hdr);
+    // policySession: TPMI_SH_POLICY
+    buf.extend_from_slice(&u32::to_be_bytes(session_handle));
+    // pcrDigest: TPM2B_DIGEST
+    buf.extend_from_slice(&u16::to_be_bytes(pcr_digest.len() as u16));
+    if pcr_digest.len() > 0 {
+        buf.extend_from_slice(&pcr_digest);
+    }
+    // pcrs: TPML_PCR_SELECTION
+    let hashAlg: u16 = TpmAlgorithms::TPM_ALG_SHA256 as u16;
+    let mut pcr_select: Vec<u8>;
+    pcr_select = Vec::with_capacity(TPM_PCR_SELECT_MIN);
+    pcr_select.extend([0].repeat(TPM_PCR_SELECT_MIN));
+    pcr_select[pcr_idx >> 3] = 1 << (pcr_idx & 0x7);
+    let mut sPcrSelection: TpmSPcrSelection = TpmSPcrSelection::new(
+        hashAlg, // hash_alg
+        TPM_PCR_SELECT_MIN as u8, // size_of_select
+        pcr_select // pcr_select
+    );
+    let count: u32 = 1;
+    let mut sPcrSelections: Vec<TpmSPcrSelection> = Vec::with_capacity(count as usize);
+    sPcrSelections.push(sPcrSelection);
+    let mut lPcrSelection: TpmLPcrSelection = TpmLPcrSelection::new(
+        count, // count,
+        sPcrSelections // TpmSPcrSelection
+    );
+    buf.extend_from_slice(&lPcrSelection.to_vec());
+    println!("presend: {:x?}", buf);
+    tpm_transmit_cmd(tpm, locality, &mut buf);
+    println!("postsend: {:x?}", buf);
+    true
+}
+
+/// Get Policy digest from current policy
+pub fn tpm_policy_get_digest(tpm: &TpmDev, locality: u32, session_handle: u32, policy_digest: &mut Vec<u8>) -> bool {
+    let data_size: usize = 4;
+    let command_len = TPM_HEADER_SIZE + data_size;
+    let mut hdr: TpmHeader = TpmHeader::new(
+        TpmStructures::TPM_ST_NO_SESSIONS as u16,
+        command_len as u32,
+        Tpm2Commands::TPM2_CC_POLICY_GET_DIGEST as u32
+    );
+    let mut buf: Vec<u8>;
+    // header: TpmHeader
+    buf = TpmHeader::to_vec(&hdr);
+    // policySession: TPMI_SH_POLICY
+    buf.extend_from_slice(&u32::to_be_bytes(session_handle));
+    println!("presend: {:x?}", buf);
+    tpm_transmit_cmd(tpm, locality, &mut buf);
+    println!("postsend: {:x?}", buf);
+    if buf.len() > 0 {
+        let mut slice = buf.as_slice();
+        // policyDigest
+        let mut th = 0;
+        let size: usize = BigEndian::read_u16(&slice[th..(th + 2)]) as usize;
+        th += 2;
+        policy_digest.clear();
+        policy_digest.extend([0].repeat(size));
+        policy_digest.copy_from_slice(&slice[th..(th + size)]);
+    } else {
+        println!("PolicyGetDigest Failed");
+    }
+    true
+}
+
+fn create_symcipher(auth_policy: Vec<u8>) -> Vec<u8> {
+    let mut buf: Vec<u8> = Vec::new();
+    // inSensitive: Tpm2BSensitiveCreate
+    buf.extend_from_slice(&u16::to_be_bytes(4 as u16));
+    buf.extend_from_slice(&u16::to_be_bytes(0));
+    buf.extend_from_slice(&u16::to_be_bytes(0));
+    // inPublic: Tpm2BPublic
+    buf.extend_from_slice(&u16::to_be_bytes(18 + auth_policy.len() as u16));
+    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_SYMCIPHER as u16));
+    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_SHA256 as u16));
+    let mut objectAttributes = TpmAObject(0);
+    objectAttributes.set_decrypt(true);
+    objectAttributes.set_restricted(true);
+    objectAttributes.set_sensitive_data_origin(true);
+    objectAttributes.set_fixed_parent(true);
+    objectAttributes.set_fixed_tpm(true);
+    buf.extend_from_slice(&u32::to_be_bytes(objectAttributes.bit_range(31, 0)));
+    buf.extend_from_slice(&u16::to_be_bytes(auth_policy.len() as u16));
+    buf.extend_from_slice(&auth_policy);
+    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_AES as u16)); // TPMU_PUBLIC_PARMS (TPMS_SYMCIPHER_PARMS = TPMT_SYM_DEF_OBJECT)
+    buf.extend_from_slice(&u16::to_be_bytes(128 as u16));
+    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_CFB as u16));
+    buf.extend_from_slice(&u16::to_be_bytes(0 as u16)); // TPMU_PUBLIC_ID (TPM2B_DIGEST)
+    buf
+}
+
+/// Create child key
+pub fn tpm_create(tpm: &TpmDev, locality: u32, parent_handle: u32, auth_policy: Vec<u8>, in_sensitive: Vec<u8>,
+                  out_private: &mut Vec<u8>, out_public: &mut Vec<u8>) -> bool {
+    let data_size: usize = 45 + auth_policy.len() + in_sensitive.len();
     let command_len = TPM_HEADER_SIZE + data_size;
     let mut hdr: TpmHeader = TpmHeader::new(
         TpmStructures::TPM_ST_SESSIONS as u16,
@@ -776,20 +927,23 @@ pub fn tpm_create(tpm: &TpmDev, locality: u32, parent_handle: u32, out_private: 
     let tpmHandle = TpmHandle::new(TpmRH::TPM_RS_PW as u32, 0 as u16, 0 as u8, 0 as u16);
     buf.extend_from_slice(&tpmHandle.to_vec());
     // inSensitive: Tpm2BSensitiveCreate
-    buf.extend_from_slice(&u16::to_be_bytes(4 as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(0 as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(0 as u16));
+    buf.extend_from_slice(&u16::to_be_bytes((4 + in_sensitive.len()) as u16));
+    buf.extend_from_slice(&u16::to_be_bytes(0));
+    buf.extend_from_slice(&u16::to_be_bytes(in_sensitive.len() as u16));
+    if in_sensitive.len() > 0 {
+        buf.extend_from_slice(&in_sensitive.to_vec());
+    }
     // inPublic: Tpm2BPublic
-    buf.extend_from_slice(&u16::to_be_bytes(18 as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_SYMCIPHER as u16));
+    buf.extend_from_slice(&u16::to_be_bytes(14 + auth_policy.len() as u16));
+    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_KEYEDHASH as u16));
     buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_SHA256 as u16));
-    // let objectAttributes = TpmAObject::new(false, true, true, false, true, false, true, true, false, true);
-    // buf.extend_from_slice(&objectAttributes.to_vec());
-    buf.extend_from_slice(&u32::to_be_bytes(0x00030072 as u32)); // TPMA_OBJECT
-    buf.extend_from_slice(&u16::to_be_bytes(0 as u16)); // TPM2B_DIGEST
-    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_AES as u16)); // TPMU_PUBLIC_PARMS (TPMS_SYMCIPHER_PARMS = TPMT_SYM_DEF_OBJECT)
-    buf.extend_from_slice(&u16::to_be_bytes(128 as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_CFB as u16));
+    let mut objectAttributes = TpmAObject(0);
+    objectAttributes.set_fixed_parent(true);
+    objectAttributes.set_fixed_tpm(true);
+    buf.extend_from_slice(&u32::to_be_bytes(objectAttributes.bit_range(31, 0)));
+    buf.extend_from_slice(&u16::to_be_bytes(auth_policy.len() as u16));
+    buf.extend_from_slice(&auth_policy);
+    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_NULL as u16)); // TPMU_PUBLIC_PARMS (TPMS_SYMCIPHER_PARMS = TPMT_SYM_DEF_OBJECT)
     buf.extend_from_slice(&u16::to_be_bytes(0 as u16)); // TPMU_PUBLIC_ID (TPM2B_DIGEST)
     // outsideInfo: Tpm2BData
     buf.extend_from_slice(&u16::to_be_bytes(0 as u16));
@@ -823,7 +977,8 @@ pub fn tpm_create(tpm: &TpmDev, locality: u32, parent_handle: u32, out_private: 
 
 /// Load objects into the TPM
 /// Both TPM2B_PUBLIC and TPM2B_PRIVATE are to be loaded
-pub fn tpm_load(tpm: &TpmDev, locality: u32, parent_handle: u32, in_private: Vec<u8>, in_public: Vec<u8>) -> bool {
+pub fn tpm_load(tpm: &TpmDev, locality: u32, parent_handle: u32, in_private: Vec<u8>, in_public: Vec<u8>,
+                item_handle: &mut u32) -> bool {
     let data_size: usize = 4 + 13 + in_private.len() + in_public.len();
     let command_len = TPM_HEADER_SIZE + data_size;
     let mut hdr: TpmHeader = TpmHeader::new(
@@ -847,6 +1002,15 @@ pub fn tpm_load(tpm: &TpmDev, locality: u32, parent_handle: u32, in_private: Vec
     println!("presend: {:x?}", buf);
     tpm_transmit_cmd(tpm, locality, &mut buf);
     println!("postsend: {:x?}", buf);
+    if buf.len() > 0 {
+        let mut slice = buf.as_slice();
+        let mut th = 0;
+        *item_handle = BigEndian::read_u32(&slice[th..(th + 4)]);
+        th += 4; // Length of entire response body
+    } else {
+        println!("Didn't receive any response from TPM!");
+        return false;
+    }
     true
 }
 
@@ -892,6 +1056,43 @@ pub fn tpm_create_loaded(tpm: &TpmDev, locality: u32, unique: &[u8], parent_hand
     println!("presend: {:x?}", buf);
     tpm_transmit_cmd(tpm, locality, &mut buf);
     println!("postsend: {:x?}", buf);
+    true
+}
+
+/// Unseal sealed blob or key via TPM_CC_CREATE
+pub fn tpm_unseal(tpm: &TpmDev, locality: u32, session_handle: u32, item_handle: u32,
+                  &mut out_data: Vec<u8>) -> bool {
+    let data_size: usize = 17;
+    let command_len = TPM_HEADER_SIZE + data_size;
+    let mut hdr: TpmHeader = TpmHeader::new(
+        TpmStructures::TPM_ST_SESSIONS as u16,
+        command_len as u32,
+        Tpm2Commands::TPM2_CC_UNSEAL as u32
+    );
+    let mut buf: Vec<u8>;
+    // header: TpmHeader
+    buf = TpmHeader::to_vec(&hdr);
+    // itemHandle: TPMI_DH_OBJECT
+    buf.extend_from_slice(&u32::to_be_bytes(item_handle));
+    // handle (required whenever header.tag is TPM_ST_SESSIONS)
+    let tpmHandle = TpmHandle::new(session_handle, 0 as u16, 1 as u8, 0 as u16);
+    buf.extend_from_slice(&tpmHandle.to_vec());
+    println!("presend: {:x?}", buf);
+    tpm_transmit_cmd(tpm, locality, &mut buf);
+    println!("postsend: {:x?}", buf);
+    if buf.len() > 0 {
+        let mut slice = buf.as_slice();
+        let mut th = 0;
+        th += 4; // Length of entire response body
+        let out_data_size: usize = BigEndian::read_u16(&slice[th..(th + 2)]) as usize;
+        th += 2;
+        out_data.extend([0].repeat(out_data_size));
+        out_data.copy_from_slice(&slice[th..(th + out_data_size)]);
+        th += out_data_size;
+    } else {
+        println!("Didn't receive any response from TPM!");
+        return false;
+    }
     true
 }
 
