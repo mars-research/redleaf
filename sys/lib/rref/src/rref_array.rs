@@ -1,6 +1,5 @@
 use crate::rref::RRef;
 use crate::traits::{RRefable, CustomCleanup};
-use console::println;
 
 pub struct RRefArray<T: RRefable, const N: usize> where T: 'static {
     arr: RRef<[Option<RRef<T>>; N]>

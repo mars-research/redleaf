@@ -1,7 +1,6 @@
 use crate::rref_array::RRefArray;
 use crate::rref::RRef;
 use crate::traits::{RRefable, CustomCleanup};
-use console::println;
 
 pub struct RRefDeque<T: RRefable, const N: usize> where T: 'static {
     arr: RRefArray<T, N>,
