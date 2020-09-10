@@ -1,24 +1,14 @@
 use alloc::vec::Vec;
-use alloc::sync::Arc;
 use core::alloc::{GlobalAlloc, Layout};
 use spin::Mutex;
 use crate::interrupt::{disable_irq, enable_irq};
 use crate::memory::MEM_PROVIDER;
 use hashbrown::HashMap;
-
-#[derive(Copy, Clone)]
-struct SharedHeapAllocation {
-    ptr: *mut u8, // *mut T
-    domain_id_ptr: *mut u64,
-    borrow_count_ptr: *mut u64,
-    layout: Layout,
-    drop_fn: extern fn(*mut u8) -> (), // semantically Drop::<T>::drop
-}
-
-unsafe impl Send for SharedHeapAllocation {}
-unsafe impl Sync for SharedHeapAllocation {}
+use crate::dropper::DROPPER;
+use syscalls::SharedHeapAllocation;
 
 lazy_static! {
+    // key of this HashMap is SharedHeapAllocation.ptr
     static ref allocations: Mutex<HashMap<usize, SharedHeapAllocation>> = Mutex::new(HashMap::new());
 }
 
@@ -31,11 +21,11 @@ impl PHeap {
 }
 
 impl syscalls::Heap for PHeap {
-    unsafe fn alloc(&self, layout: Layout, drop_fn: extern fn(*mut u8) -> ()) -> (*mut u64, *mut u64, *mut u8) {
+    unsafe fn alloc(&self, layout: Layout, type_hash: u64) -> SharedHeapAllocation {
         disable_irq();
-        let ptrs = alloc_heap(layout, drop_fn);
+        let allocation = alloc_heap(layout, type_hash);
         enable_irq();
-        ptrs
+        allocation
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8) {
@@ -45,50 +35,61 @@ impl syscalls::Heap for PHeap {
     }
 }
 
-unsafe fn alloc_heap(layout: Layout, drop_fn: extern fn(*mut u8) -> ()) -> (*mut u64, *mut u64, *mut u8) {
-    let domain_id_ptr = MEM_PROVIDER.alloc(Layout::new::<u64>()) as *mut u64;
-    let borrow_count_ptr = MEM_PROVIDER.alloc(Layout::new::<u64>()) as *mut u64;
-    let ptr = MEM_PROVIDER.alloc(layout);
+unsafe fn alloc_heap(layout: Layout, type_hash: u64) -> SharedHeapAllocation {
+    let domain_id_pointer = MEM_PROVIDER.alloc(Layout::new::<u64>()) as *mut u64;
+    let borrow_count_pointer = MEM_PROVIDER.alloc(Layout::new::<u64>()) as *mut u64;
+    let value_pointer = MEM_PROVIDER.alloc(layout);
 
-    unsafe { &mut allocations.lock() }.insert(ptr as usize, SharedHeapAllocation {
-        ptr,
-        domain_id_ptr,
-        borrow_count_ptr,
+    let allocation = SharedHeapAllocation {
+        value_pointer,
+        domain_id_pointer,
+        borrow_count_pointer,
         layout,
-        drop_fn,
-    });
+        type_hash,
+    };
+    unsafe { &mut allocations.lock() }.insert(value_pointer as usize, allocation);
 
-    (domain_id_ptr, borrow_count_ptr, ptr)
+    allocation
 }
 
 unsafe fn dealloc_heap(ptr: *mut u8) {
     if let Some(allocation) = unsafe { &mut allocations.lock() }.remove(&(ptr as usize)) {
+        // recursively invoke the cleanup methods
+        DROPPER.drop(allocation.type_hash, allocation.value_pointer);
+
         unsafe {
-            MEM_PROVIDER.dealloc(ptr, allocation.layout);
-            MEM_PROVIDER.dealloc(allocation.domain_id_ptr as *mut u8, Layout::new::<u64>());
-            MEM_PROVIDER.dealloc(allocation.borrow_count_ptr as *mut u8, Layout::new::<u64>());
+            MEM_PROVIDER.dealloc(allocation.value_pointer, allocation.layout);
+            MEM_PROVIDER.dealloc(allocation.domain_id_pointer as *mut u8, Layout::new::<u64>());
+            MEM_PROVIDER.dealloc(allocation.borrow_count_pointer as *mut u8, Layout::new::<u64>());
         }
+    } else {
+        println!("Already deallocated shared heap value at address {}", ptr as u64);
     }
 }
 
 pub unsafe fn drop_domain(domain_id: u64) {
-    // remove all allocations from list that belong to the exited domain
-    let mut alloc_maps = allocations.lock();
+
+    // the list of allocations belonging to the domain
     let mut queue = Vec::<SharedHeapAllocation>::new();
-    for key in alloc_maps.keys() {
-        let allocation = alloc_maps.get(key).unwrap();
-        if *(allocation.domain_id_ptr) == domain_id {
+
+    // remove all allocations from list that belong to the exited domain
+    allocations.lock().retain(|_, allocation| {
+        if *(allocation.domain_id_pointer) == domain_id {
             queue.push(*allocation);
+            false
+        } else {
+            true
         }
-    }
-    drop(alloc_maps);
-    for allocation in queue.iter() {
-        (allocation.drop_fn)(allocation.ptr);
+    });
+
+    for allocation in queue {
+        // recursively invoke the cleanup methods
+        DROPPER.drop(allocation.type_hash, allocation.value_pointer);
 
         unsafe {
-            MEM_PROVIDER.dealloc(allocation.ptr, allocation.layout);
-            MEM_PROVIDER.dealloc(allocation.domain_id_ptr as *mut u8, Layout::new::<u64>());
-            MEM_PROVIDER.dealloc(allocation.borrow_count_ptr as *mut u8, Layout::new::<u64>());
+            MEM_PROVIDER.dealloc(allocation.value_pointer, allocation.layout);
+            MEM_PROVIDER.dealloc(allocation.domain_id_pointer as *mut u8, Layout::new::<u64>());
+            MEM_PROVIDER.dealloc(allocation.borrow_count_pointer as *mut u8, Layout::new::<u64>());
         }
     }
 }

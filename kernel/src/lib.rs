@@ -38,6 +38,7 @@ mod entryother;
 mod redsys;
 mod drivers;
 mod heap;
+mod dropper;
 mod buildinfo;
 mod kbd;
 mod cb;

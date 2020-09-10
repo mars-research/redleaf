@@ -3,7 +3,7 @@
 
 extern crate alloc;
 use alloc::boxed::Box;
-
+use core::any::TypeId;
 use spin::{MutexGuard};
 use core::alloc::Layout;
 extern crate platform;
@@ -93,8 +93,19 @@ pub trait Domain: Send {
 }
 
 /// Shared heap interface
+#[derive(Copy, Clone)]
+pub struct SharedHeapAllocation {
+    pub value_pointer: *mut u8, // *mut T
+    pub domain_id_pointer: *mut u64,
+    pub borrow_count_pointer: *mut u64,
+    pub layout: Layout,
+    pub type_hash: u64,
+}
+
+unsafe impl Send for SharedHeapAllocation {}
+
 pub trait Heap {
-    unsafe fn alloc(&self, layout: Layout, drop_fn: extern fn(*mut u8) -> ()) -> (*mut u64, *mut u64, *mut u8);
+    unsafe fn alloc(&self, layout: Layout, type_hash: u64) -> SharedHeapAllocation;
     unsafe fn dealloc(&self, ptr: *mut u8);
 }
 

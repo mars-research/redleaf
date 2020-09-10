@@ -6,9 +6,9 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-spin = { path = "../spin-rs" }
-libsyscalls = { path = "../libsyscalls" }
-syscalls = { path = "../interfaces/syscalls" }
+spin = { path = "../../../lib/spin-rs" }
+libsyscalls = { path = "../libsyscalls", version = "0.1.0"}
+syscalls = { path = "../../interfaces/syscalls", version = "0.1.0"}
 console = { path = "../console" }
 
 [dev-dependencies]

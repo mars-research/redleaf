@@ -18,6 +18,15 @@ pub use self::rref::RRef as RRef;
 pub use self::rref_array::RRefArray as RRefArray;
 pub use self::rref_deque::RRefDeque as RRefDeque;
 
+pub fn type_hash<T>() -> u64 {
+    let type_str = core::any::type_name::<T>();
+    let mut hash = 5381u64;
+    for byte in type_str.bytes() {
+        hash = hash * 33 ^ (byte as u64);
+    }
+    hash
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -44,17 +53,23 @@ mod tests {
     }
 
     impl syscalls::Heap for TestHeap {
-        unsafe fn alloc(&self, layout: Layout, drop_fn: extern fn(*mut u8) -> ()) -> (*mut u64, *mut u64, *mut u8) {
-            let domain_id_ptr = Box::into_raw(Box::<u64>::new(0));
-            let borrow_count_ptr = Box::into_raw(Box::<u64>::new(0));
+        unsafe fn alloc(&self, layout: Layout, type_hash: u64) -> syscalls::SharedHeapAllocation {
+            let domain_id_pointer = Box::into_raw(Box::<u64>::new(0));
+            let borrow_count_pointer = Box::into_raw(Box::<u64>::new(0));
 
             let mut buf = Vec::with_capacity(layout.size());
-            let ptr = buf.as_mut_ptr();
+            let value_pointer = buf.as_mut_ptr();
             mem::forget(buf);
 
             self.map.lock().insert(ptr as usize, drop_fn);
 
-            (domain_id_ptr, borrow_count_ptr, ptr)
+            syscalls::SharedHeapAllocation {
+                value_pointer,
+                domain_id_pointer,
+                borrow_count_pointer,
+                layout,
+                type_hash
+            }
         }
 
         unsafe fn dealloc(&self, ptr: *mut u8) {

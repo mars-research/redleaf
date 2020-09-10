@@ -1,12 +1,12 @@
 // although unsafe function's don't need unsafe blocks, it helps readability
 #![allow(unused_unsafe)]
 use crate::traits::{RRefable, CustomCleanup};
+use crate::type_hash;
 
 use alloc::boxed::Box;
 use core::ops::{Deref, DerefMut, Drop};
 use core::alloc::Layout;
 use spin::Once;
-use console::println;
 
 static HEAP: Once<Box<dyn syscalls::Heap + Send + Sync>> = Once::new();
 static CRATE_DOMAIN_ID: Once<u64> = Once::new();
@@ -30,44 +30,34 @@ pub struct RRef<T> where T: 'static + RRefable {
 unsafe impl<T: RRefable> RRefable for RRef<T> {}
 unsafe impl<T: RRefable> Send for RRef<T> where T: Send {}
 
-// pass this function pointer to shared heap
-extern fn drop_t<T: RRefable>(t: *mut T) {
-    unsafe {
-        (&mut *t).cleanup();
-    }
-}
-
 impl<T: RRefable> RRef<T> {
     fn new_with_layout(value: T, layout: Layout) -> RRef<T> {
         // We allocate the shared heap memory by hand. It will be deallocated in one of two cases:
         //   1. RRef<T> gets dropped, and so the memory under it should be freed.
         //   2. The domain owning the RRef dies, and so the shared heap gets cleaned,
         //        and the memory under this RRef is wiped.
-        //  to support both cases, we define the drop here, and pass a pointer to this
-        //    drop function to the shared heap, which then calls it prior to deallocating an rref
-        let drop_fn = unsafe {
-            core::mem::transmute::<extern fn(*mut T) -> (), extern fn(*mut u8) -> ()>(drop_t::<T>)
-        };
+        let type_hash = type_hash::<T>();
 
         // the heap interface allocates both a pointer to T, and a pointer to the domain id
         // when we move the rref, we change the value of the domain id pointer
         // when we modify the rref, we dereference the value pointer
-        let (domain_id_pointer, borrow_count_pointer, value_memory) = unsafe { HEAP.force_get().alloc(layout, drop_fn) };
+        let allocation = unsafe { HEAP.force_get().alloc(layout, type_hash) };
+
         // the memory we get back has size and alignment of T, so this cast is safe
-        let value_pointer = value_memory as *mut T;
+        let value_pointer = allocation.value_pointer as *mut T;
 
         unsafe {
             // set initial domain id
-            *domain_id_pointer = *CRATE_DOMAIN_ID.force_get();
-            // borrow count starts at zero
-            *borrow_count_pointer = 0;
+            *allocation.domain_id_pointer = *CRATE_DOMAIN_ID.force_get();
+            // borrow count to 0
+            *allocation.borrow_count_pointer = 0;
             // copy value to shared heap
             core::ptr::write(value_pointer, value);
         }
 
         RRef {
-            domain_id_pointer,
-            borrow_count_pointer,
+            domain_id_pointer: allocation.domain_id_pointer,
+            borrow_count_pointer: allocation.borrow_count_pointer,
             value_pointer
         }
     }
@@ -133,7 +123,7 @@ impl<T: 'static + RRefable> CustomCleanup for RRef<T> {
             #[cfg(features = "rref_dbg")]
             println!("CustomCleanup::{}::cleanup()", core::any::type_name_of_val(self));
             // "drop" the contents, only interesting for recursive cases
-            self.ptr_mut().cleanup();
+            // self.ptr_mut().cleanup();
             HEAP.force_get().dealloc(self.value_pointer as *mut u8);
         }
     }

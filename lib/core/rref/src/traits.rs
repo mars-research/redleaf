@@ -13,7 +13,6 @@ pub trait CustomCleanup: RRefable {
 impl<T: RRefable> CustomCleanup for T {
     default fn cleanup(&mut self) {
         // no-op by default
-        // println!("CustomCleanup::{}::cleanup()", core::any::type_name_of_val(self));
     }
 }
 
@@ -21,9 +20,7 @@ impl<T: RRefable> CustomCleanup for T {
 
 impl<T: RRefable> CustomCleanup for Option<T> {
     fn cleanup(&mut self) {
-        // println!("CustomCleanup::{}::cleanup()", core::any::type_name_of_val(self));
         if let Some(val) = self {
-            // println!("is some, calling cleanup on {}", core::any::type_name_of_val(val));
             val.cleanup();
         }
     }
@@ -31,7 +28,6 @@ impl<T: RRefable> CustomCleanup for Option<T> {
 
 impl<T: RRefable, const N: usize> CustomCleanup for [T; N] {
     fn cleanup(&mut self) {
-        // println!("CustomCleanup::{}::cleanup()", core::any::type_name_of_val(self));
         for el in self.iter_mut() {
             el.cleanup();
         }
