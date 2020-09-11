@@ -49,3 +49,7 @@ pub fn sys_dup(fd: usize) -> Result<usize> {
 pub fn sys_pipe() -> Result<(usize, usize)> {
     SYSCALL.r#try().unwrap().sys_pipe()
 }
+
+pub fn sys_mkdir(path: &str) -> Result<()> {
+    SYSCALL.r#try().unwrap().sys_mkdir(path)
+}

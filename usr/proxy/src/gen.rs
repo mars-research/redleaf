@@ -1000,6 +1000,9 @@ impl UsrVFS for Rv6Proxy {
     fn sys_pipe(&self) -> Result<(usize, usize)> {
         self.domain.sys_pipe()
     }
+    fn sys_mkdir(&self, path: &str) -> Result<()> {
+        self.domain.sys_mkdir(path)
+    }
     fn sys_dump_inode(&self) {
         self.domain.sys_dump_inode()
     }

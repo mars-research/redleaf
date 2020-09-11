@@ -195,6 +195,14 @@ pub fn sys_pipe() -> Result<(usize, usize)> {
     Ok((fd0, fd1))
 }
 
+pub fn sys_mkdir(path: &str) -> Result<()> {
+    console::println!("sys_mkdir {}", path);
+    let mut trans = LOG.r#try().unwrap().begin_transaction();
+    let inode = ICache::create(&mut trans, path, INodeFileType::Directory, 0, 0)?;
+    ICache::put(&mut trans, inode);
+    Ok(())
+}
+
 //------------------------------------
 // fork related stuff
 //------------------------------------

@@ -97,6 +97,9 @@ impl UsrVFS for Rv6FS {
     fn sys_pipe(&self) -> Result<(usize, usize)> {
         sysfile::sys_pipe()
     }
+    fn sys_mkdir(&self, path: &str) -> Result<()> {
+        sysfile::sys_mkdir(path)
+    }
     fn sys_dump_inode(&self) {
         let inode = icache::ICACHE
             .lock()

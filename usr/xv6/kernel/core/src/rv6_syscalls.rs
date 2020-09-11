@@ -133,6 +133,9 @@ impl UsrVFS for Rv6Syscalls {
     fn sys_pipe(&self) -> Result<(usize, usize)> {
         self.fs.sys_pipe()
     }
+    fn sys_mkdir(&self, path: &str) -> Result<()> {
+        self.fs.sys_mkdir(path)
+    }
     fn sys_dump_inode(&self) {
         self.fs.sys_dump_inode()
     }

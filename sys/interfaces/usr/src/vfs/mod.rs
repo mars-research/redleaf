@@ -22,6 +22,7 @@ pub trait UsrVFS: Send + Sync {
     fn sys_mknod(&self, path: &str, major: i16, minor: i16) -> Result<()>;
     fn sys_dup(&self, fd: usize) -> Result<usize>;
     fn sys_pipe(&self) -> Result<(usize, usize)>;
+    fn sys_mkdir(&self, path: &str) -> Result<()>;
     fn sys_dump_inode(&self);
 }
 
