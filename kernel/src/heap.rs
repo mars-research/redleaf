@@ -53,17 +53,23 @@ unsafe fn alloc_heap(layout: Layout, type_hash: u64) -> SharedHeapAllocation {
 }
 
 unsafe fn dealloc_heap(ptr: *mut u8) {
-    if let Some(allocation) = unsafe { &mut allocations.lock() }.remove(&(ptr as usize)) {
-        // recursively invoke the cleanup methods
-        DROPPER.drop(allocation.type_hash, allocation.value_pointer);
+    let allocation = {
+        allocations.lock().remove(&(ptr as usize))
+    };
 
-        unsafe {
-            MEM_PROVIDER.dealloc(allocation.value_pointer, allocation.layout);
-            MEM_PROVIDER.dealloc(allocation.domain_id_pointer as *mut u8, Layout::new::<u64>());
-            MEM_PROVIDER.dealloc(allocation.borrow_count_pointer as *mut u8, Layout::new::<u64>());
+    match allocation {
+        None => println!("Already deallocated shared heap value at address {}", ptr as u64),
+        Some(allocation) => {
+
+            // recursively invoke the cleanup methods
+            DROPPER.drop(allocation.type_hash, allocation.value_pointer);
+
+            unsafe {
+                MEM_PROVIDER.dealloc(allocation.value_pointer, allocation.layout);
+                MEM_PROVIDER.dealloc(allocation.domain_id_pointer as *mut u8, Layout::new::<u64>());
+                MEM_PROVIDER.dealloc(allocation.borrow_count_pointer as *mut u8, Layout::new::<u64>());
+            }
         }
-    } else {
-        println!("Already deallocated shared heap value at address {}", ptr as u64);
     }
 }
 

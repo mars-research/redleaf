@@ -8,6 +8,9 @@ use core::ops::{Deref, DerefMut, Drop};
 use core::alloc::Layout;
 use spin::Once;
 
+// #[cfg(features = "rref_dbg")]
+use console::println;
+
 static HEAP: Once<Box<dyn syscalls::Heap + Send + Sync>> = Once::new();
 static CRATE_DOMAIN_ID: Once<u64> = Once::new();
 
@@ -120,8 +123,8 @@ impl<T: RRefable> Drop for RRef<T> {
 impl<T: 'static + RRefable> CustomCleanup for RRef<T> {
     fn cleanup(&mut self) {
         unsafe {
-            #[cfg(features = "rref_dbg")]
-            println!("CustomCleanup::{}::cleanup()", core::any::type_name_of_val(self));
+            // #[cfg(features = "rref_dbg")]
+            println!("CustomCleanup::{}::cleanup() dom id {:?} heap? {:?}", core::any::type_name_of_val(self), CRATE_DOMAIN_ID.r#try(), HEAP.r#try().is_some());
             // "drop" the contents, only interesting for recursive cases
             // self.ptr_mut().cleanup();
             HEAP.force_get().dealloc(self.value_pointer as *mut u8);

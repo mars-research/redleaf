@@ -14,6 +14,10 @@ use spin::Mutex;
 use spin::Once;
 use crate::{round_up, is_page_aligned};
 use core::sync::atomic::{AtomicU64, Ordering};
+use alloc::boxed::Box;
+use crate::syscalls::PDomain;
+use crate::heap::PHeap;
+use libsyscalls;
 
 
 /// This should be a cryptographically secure number, for now
@@ -86,7 +90,10 @@ impl Domain {
 /// created) 
 pub fn init_domains() {
     let kernel = Arc::new(Mutex::new(Domain::new("kernel")));
-    KERNEL_DOMAIN.call_once(|| kernel); 
+    libsyscalls::syscalls::init(Box::new(PDomain::new(Arc::clone(&kernel))));
+    KERNEL_DOMAIN.call_once(|| kernel);
+    // init global references to syscalls (mostly for RRef deallocation)
+    rref::init(Box::new(PHeap::new()), 0);
 }
 
 
