@@ -6,6 +6,7 @@ use rref::type_hash;
 use rref::{RRef, RRefArray, RRefDeque, traits::CustomCleanup};
 use usr;
 
+/// GEN
 lazy_static! {
     pub static ref DROPPER: Dropper = {
 
@@ -20,6 +21,16 @@ lazy_static! {
     };
 }
 
+// fn type_id<T>() -> u64 {
+//
+//     match T {
+//         usize => 1,
+//         RRef<usize> => 2,
+//     }
+// }
+/// END GEN
+
+// TODO: comment
 fn drop_t<T: CustomCleanup>(ptr: *mut u8) {
     println!("DROPPING {}", core::any::type_name::<T>());
     unsafe {

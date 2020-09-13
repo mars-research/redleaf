@@ -76,6 +76,7 @@ use crate::arch::memory::BASE_PAGE_SIZE;
 use crate::arch::{KERNEL_END, kernel_end};
 use crate::panic::{init_backtrace, init_backtrace_context};
 use crate::multibootv2::BootInformation;
+use alloc::boxed::Box;
 
 pub static mut ap_entry_running: bool = true;
 pub const MAX_CPUS: u32 = 4;

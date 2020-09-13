@@ -22,7 +22,7 @@ pub fn type_hash<T>() -> u64 {
     let type_str = core::any::type_name::<T>();
     let mut hash = 5381u64;
     for byte in type_str.bytes() {
-        hash = hash * 33 ^ (byte as u64);
+        hash = hash.wrapping_mul(33) ^ (byte as u64);
     }
     hash
 }
