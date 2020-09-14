@@ -37,7 +37,6 @@ slabmalloc = { path = "./lib/slabmalloc-kernel" }
 
 # Shared
 spin = { path = "../lib-trusted/spin-rs" }
-memcpy = { path = "../lib-trusted/memcpy" }
 unwind = { path = "../lib-trusted/unwind" }
 
 # Interfaces

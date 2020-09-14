@@ -331,10 +331,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60302e4db3a61da70c0cb7991976248362f30319e88850c487b9b95bbf059e00"
 
 [[package]]
-name = "memcpy"
-version = "0.1.0"
-
-[[package]]
 name = "nodrop"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -503,7 +499,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "redleaf"
+name = "redleaf-kernel"
 version = "0.1.0"
 dependencies = [
  "addr2line",
@@ -519,7 +515,6 @@ dependencies = [
  "hashbrown",
  "lazy_static",
  "log",
- "memcpy",
  "num-traits",
  "pc-keyboard",
  "pcid",
