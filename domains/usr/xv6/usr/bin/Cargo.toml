@@ -1,0 +1,34 @@
+[package]
+name = "bin"
+version = "0.1.0"
+authors = ["RedLeaf Team"]
+edition = "2018"
+#autobins = false
+
+[lib]
+crate-type = ["staticlib"]
+test = false
+bench = false
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+debug = true
+
+[dependencies]
+libsyscalls = { path = "../../../../../lib-trusted/libsyscalls" }
+malloc = { path = "../../../../../lib-trusted/malloc" }
+usrlib = { package = "lib", path = "../lib" }
+rref = { path = "../../../../../lib-trusted/rref" }
+libbenchnvme = { path = "../../../../../lib-trusted/libbenchnvme" }
+libbenchnet = { path = "../../../../../lib-trusted/libbenchnet" }
+libtime = { path = "../../../../../lib-trusted/libtime" }
+utils = { path = "../../../../../lib-trusted/utils" }
+
+syscalls = { path = "../../../../../lib-trusted/interfaces/syscalls" }
+usr_interfaces = { package = "usr", path = "../../../../../lib-trusted/interfaces/usr" }
+
+[package.metadata.cargo-xbuild]
+memcpy = false

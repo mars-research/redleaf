@@ -1,0 +1,69 @@
+[package]
+name = "ixgbe"
+version = "0.1.0"
+authors = ["RedLeaf Team"]
+edition = "2018"
+
+#[lib]
+#crate-type = ["staticlib"]
+#test = false
+#bench = false
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+debug = true
+lto = false
+
+[dependencies]
+bitflags = "1.0.4"
+b2histogram = "1.0"
+byteorder = { version = "1.3.4", default-features = false }
+
+libsyscalls = { path = "../../../../lib-trusted/libsyscalls" }
+libtime = { path = "../../../../lib-trusted/libtime" }
+console = { path = "../../../../lib-trusted/console" }
+malloc = { path = "../../../../lib-trusted/malloc" }
+rref = { path = "../../../../lib-trusted/rref" }
+spin = { path = "../../../../lib-trusted/spin-rs" }
+sashstore-redleaf = { path = "../../../../lib-trusted/sashstore" }
+libbenchnet = { path = "../../../../lib-trusted/libbenchnet" }
+
+# Interfaces
+syscalls = { path = "../../../../lib-trusted/interfaces/syscalls" }
+ixgbe_device = { path = "../../../../lib-trusted/interfaces/device/ixgbe" }
+pci_driver = { path = "../../../../lib-trusted/interfaces/dev/pci/pci_driver" }
+protocol = { path = "../../../../lib-trusted/interfaces/protocol" }
+platform = { path = "../../../../lib-trusted/interfaces/platform" }
+usr = { path = "../../../../lib-trusted/interfaces/usr" }
+
+[dependencies.lazy_static]
+version = "1.3.0"
+features = ["spin_no_std"]
+
+[dependencies.num-traits]
+version = "0.2.8"
+default-features = false
+
+
+[dependencies.smoltcp]
+path = "../../../../lib-trusted/smoltcp"
+default-features = false
+features = ["alloc", "proto-ipv4", "socket-tcp", "socket-icmp", "ethernet"]
+
+[dependencies.arrayvec]
+version = "0.5.1"
+default-features = false
+
+[dependencies.httparse]
+path = "../../../../lib-trusted/httparse"
+default-features = false
+
+[features]
+default = [
+    #"nullnet",
+]
+
+nullnet = []

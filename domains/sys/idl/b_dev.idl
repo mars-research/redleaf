@@ -1,0 +1,19 @@
+use foo_sys;
+
+#[derive(Copy, Clone)]
+pub struct FooStruct {
+    a: u32,
+    b: bool
+}
+
+pub struct Node {
+    next: OptRRef<Node>,
+    item: OptRRef<FooStruct>
+}
+
+pub trait BDev {
+    fn add_sys(&self, sys: &'static dyn foo_sys::Syscalls);
+    fn read(&self, block: u32, data: FooStruct) -> FooStruct;
+    fn write(&self, block: u32, data: FooStruct);
+    fn foo(&mut self, head: RRef<Node>);
+}

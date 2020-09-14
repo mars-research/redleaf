@@ -1,0 +1,6 @@
+[build]
+target = "../src/targets/x86_64-redleaf-domain/x86_64-redleaf-domain.json"
+rustflags = [
+    "-Z",
+    "emit-stack-sizes",
+]

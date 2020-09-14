@@ -1,0 +1,16 @@
+[package]
+name = "tls"
+version = "0.1.0"
+authors = ["Dan Appel <appeld@uci.edu>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+libsyscalls = { path = "../libsyscalls", version = "0.1.0" }
+spin = { path = "../spin-rs" }
+hashbrown = "0.6"
+
+[dependencies.lazy_static]
+version = "1.3.0"
+features = ["spin_no_std"]

@@ -3,7 +3,6 @@
 **/*.rs.bk
 *.swp
 *.sw*
-Cargo.lock
 serial.log
 disk.img
 sata.img
@@ -11,8 +10,6 @@ sata.img
 
 *.fingerprint
 **/linker.ld
-/redleaf.key
-/redleaf.pub
 
 **/*.o
 **/*.pyc

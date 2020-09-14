@@ -1,0 +1,49 @@
+[package]
+name = "membdev"
+version = "0.1.0"
+authors = ["RedLeaf Team"]
+edition = "2018"
+
+[[bin]]
+name = "membdev"
+test = false
+bench = false
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+debug = true
+
+[dependencies]
+libsyscalls = { path = "../../../../lib-trusted/libsyscalls" }
+libtime = { path = "../../../../lib-trusted/libtime" }
+console = { path = "../../../../lib-trusted/console" }
+malloc = { path = "../../../../lib-trusted/malloc" }
+spin = { path = "../../../../lib-trusted/spin-rs" }
+bitflags = "1.0.4"
+rref = { path = "../../../../lib-trusted/rref" }
+libmembdev = { path = "../../../../lib-trusted/libmembdev" }
+
+syscalls = { path = "../../../../lib-trusted/interfaces/syscalls" }
+usr = { path = "../../../../lib-trusted/interfaces/usr" }
+
+[dependencies.lazy_static]
+version = "1.3.0"
+features = ["spin_no_std"]
+
+[dependencies.num-traits]
+version = "0.2.8"
+default-features = false
+
+[package.metadata.cargo-xbuild]
+memcpy = false
+
+
+[features]
+default = [
+    "default-memdisk"
+]
+# Supply a default memdisk if an empty memdisk is given
+default-memdisk = []

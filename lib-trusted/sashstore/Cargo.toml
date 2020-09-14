@@ -1,0 +1,35 @@
+[package]
+name = "sashstore-redleaf"
+version = "0.1.0"
+authors = ["Gerd Zellweger <gzellweger@vmware.com>"]
+edition = "2018"
+
+[dependencies]
+log = "0.4"
+b2histogram = "1.0.0"
+console = { path = "../console" }
+syscalls = { path = "../interfaces/syscalls" }
+libsyscalls = { path = "../libsyscalls" }
+
+[dependencies.fnv]
+git = "https://github.com/servo/rust-fnv"
+default-features = false
+
+[dependencies.arrayvec]
+version = "0.5.1"
+default-features = false
+features = ["array-sizes-129-255"]
+
+[dependencies.lazy_static]
+version = "1.3.0"
+features = ["spin_no_std"]
+
+# Add debug symbols on the release build so that we can debug performance issues
+[profile.release]
+debug = true
+incremental = false
+lto = true
+codegen-units = 1
+
+[profile.bench]
+debug = true

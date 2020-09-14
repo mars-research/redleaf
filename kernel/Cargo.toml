@@ -1,0 +1,94 @@
+[package]
+name = "redleaf-kernel"
+version = "0.1.0"
+authors = ["RedLeaf Team"]
+edition = "2018"
+
+[lib]
+crate-type = ["staticlib"]
+test = false
+bench = false
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+debug = true
+
+[dependencies]
+# Remote
+x86 = "0.33.0"
+volatile = "0.2.3"
+x86_64 = "0.11.0"
+pc-keyboard = "0.3.1"
+backtracer = { git = "https://github.com/gz/backtracer.git" }
+addr2line = { git = "https://github.com/gz/addr2line.git", branch = "patch-1", default-features = false, features = ["alloc", "rustc-demangle"] }
+bit_field = "0.9.0"
+bitflags = "1.0.4"
+log = "0.4"
+custom_error = { git = "https://github.com/gz/custom_error.git" }
+hashbrown = "0.6"
+
+# Local
+elfloader = { path = "./lib/rust-elfloader" }
+pcid = { path = "./lib/pcid" }
+slabmalloc = { path = "./lib/slabmalloc-kernel" }
+
+# Shared
+spin = { path = "../lib-trusted/spin-rs" }
+memcpy = { path = "../lib-trusted/memcpy" }
+unwind = { path = "../lib-trusted/unwind" }
+
+# Interfaces
+syscalls = { path = "../lib-trusted/interfaces/syscalls" }
+create = { path = "../lib-trusted/interfaces/create" }
+usr = { path = "../lib-trusted/interfaces/usr" }
+proxy = { path = "../lib-trusted/interfaces/proxy" }
+# ixgbe = { path = "../lib-trusted/interfaces/dev/ixgbe" }
+ahci = { path = "../lib-trusted/interfaces/dev/ahci" }
+platform = { path = "../lib-trusted/interfaces/platform" }
+# pci_driver = { path = "../lib-trusted/interfaces/dev/pci/pci_driver" }
+
+[dependencies.lazy_static]
+version = "1.3.0"
+features = ["spin_no_std"]
+
+[dependencies.num-traits]
+version = "0.2.8"
+default-features = false
+
+[dependencies.ed25519-dalek]
+version = "=1.0.0-pre.4"
+default-features = false
+features = ["alloc"]
+
+[dependencies.signature]
+version = "1.2.2"
+default-features = false
+
+[dependencies.curve25519-dalek]
+version = "2.0.0"
+default-features = false
+features = ["u64_backend"] # maybe simd_backend?
+
+# Build Script Dependencies
+#
+# A nightly toolchain newer than 2020-02-23 is required
+# - https://github.com/rust-lang/cargo/issues/5730
+# - https://github.com/rust-lang/cargo/issues/7915
+[build-dependencies]
+rand = "0.7"
+ed25519-dalek = "1.0.0-pre.3"
+
+[package.metadata.cargo-xbuild]
+memcpy = false
+
+[features]
+smp = [ ]
+trace_alloc = [ ]
+trace_vspace = []
+page_fault_on_ist = []
+large_mem = []
+c220g2_ixgbe = []
+trace_sched = []

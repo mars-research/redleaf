@@ -1,0 +1,6 @@
+[workspace]
+members = [
+	"sys/driver/ixgbe",
+	"sys/driver/membdev",
+	"usr/xv6/usr/bin",
+]

@@ -1,0 +1,17 @@
+[package]
+name = "libbenchnvme"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+crate-type = ["lib"]
+
+
+[dependencies]
+b2histogram = "1.0"
+byteorder = { version = "1.2", default-features = false }
+libsyscalls = { path = "../libsyscalls" }
+libtime = { path = "../libtime" }
+rref = { path = "../rref" }
+usr = { path = "../interfaces/usr" }
+console = { path = "../console" }
