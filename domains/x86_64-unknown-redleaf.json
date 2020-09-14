@@ -20,7 +20,7 @@
 	  "--no-dynamic-linker",
       "--gc-sections",
 	  "-T./x86_64-unknown-redleaf.ld",
-	  "../lib-trusted/polylibc/musl/lib/meow.a"
+	  "../lib-trusted/polylibc/libpolylibc.a"
     ]
   },
   "stack-probes": true
