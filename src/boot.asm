@@ -1,4 +1,5 @@
 global start
+global start_others
 global _bootinfo
 global start64
 extern rust_main
@@ -36,6 +37,28 @@ start:
 
     hlt ; Halt the processor.
 
+start_others:
+    ; entryother.asm code jumps here after switching to 32-bit mode
+    ; set up temporary stack
+    mov esp, stack_top_others
+
+    ; start_others32 passed all our args pointer to ebx
+    ; Let's preserve it until we restore them
+    push ebx
+
+    ; just enable paging. pagetables are already setup for us by the
+    ; boot cpu
+    call enable_paging 
+
+    ; load the 64-bit GDT
+    lgdt [gdt64.pointer]
+
+    ; jump to long mode / replaces OK code.
+    jmp gdt64.code:start64_others
+
+    hlt ; Halt the processor.
+
+
 bits 64
 start64:
     ; load 0 into all data segment registers
@@ -51,6 +74,33 @@ start64:
     ; mov qword [0xb8000], rax
 
     call rust_main
+    hlt
+
+start64_others:
+    ; load 0 into all data segment registers
+    mov ax, 0
+    mov ss, ax
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+
+    ; Restore the args pointer
+    pop rbx
+    ; we pushed 32-bit and popped 64-bit, so shave off the top 32-bits
+    mov rax, 0xFFFFFFFF
+    and rbx, rax
+
+    ; populate ap_stack
+    mov rsp, [rbx - 8]
+
+    ; populate new_pgdir
+    mov rax, [rbx - 16]
+    mov cr3, rax
+
+    ; Jump to start_ap_routine
+    call [rbx - 24]
+
     hlt
 
 bits 32
@@ -199,6 +249,10 @@ p3_table:
 stack_bottom:
     resb 4096 * 4096 ; Reserve this many bytes
 stack_top:
+
+stack_others:
+    resb 4096 ; Reserve this many bytes
+stack_top_others:
 
 _bootinfo:
     resb 8 ; Place holder to save bootinfo entry

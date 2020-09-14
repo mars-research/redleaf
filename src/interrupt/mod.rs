@@ -161,14 +161,15 @@ lazy_static! {
     };
 }
 
-pub unsafe fn init_cpu(cpu: u32, stack: u32, code: u64) {
+pub unsafe fn init_cpu(cpu: u32, stack: u64, code: u64) {
     let destination: *mut u8 = 0x7000 as *mut u8;
 
     let mut pgdir: u64;
     llvm_asm!("mov $0, cr3" : "=r"(pgdir) ::: "intel");
 
+    println!("Cr3 {:x}", pgdir);
     entryother::copy_binary_to(destination);
-    entryother::init_args(destination, stack, pgdir as u32, code);
+    entryother::init_args(destination, stack, pgdir, code);
 
     println!("Starting CPU wth eip:{:x}, stack:{:x}", code, stack); 
 
