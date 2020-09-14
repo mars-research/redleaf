@@ -50,22 +50,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4bc3421af11761afa13950268aa670cc75fc6c2668fabf789e8e4dba5d0c9137"
 
 [[package]]
-name = "bin"
-version = "0.1.0"
-dependencies = [
- "lib",
- "libbenchnet",
- "libbenchnvme",
- "libsyscalls",
- "libtime",
- "malloc",
- "rref",
- "syscalls",
- "usr",
- "utils",
-]
-
-[[package]]
 name = "bitfield"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -209,15 +193,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lib"
-version = "0.1.0"
-dependencies = [
- "array-init",
- "spin 0.5.2",
- "usr",
-]
-
-[[package]]
 name = "libbenchnet"
 version = "0.1.0"
 dependencies = [
@@ -236,19 +211,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "libbenchnvme"
-version = "0.1.0"
-dependencies = [
- "b2histogram",
- "byteorder",
- "console",
- "libsyscalls",
- "libtime",
- "rref",
- "usr",
-]
-
-[[package]]
 name = "libc"
 version = "0.2.77"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -259,18 +221,6 @@ name = "libdma"
 version = "0.1.0"
 dependencies = [
  "libsyscalls",
-]
-
-[[package]]
-name = "libmembdev"
-version = "0.1.0"
-dependencies = [
- "bin",
- "console",
- "libtime",
- "rref",
- "spin 0.5.3",
- "usr",
 ]
 
 [[package]]
@@ -322,24 +272,6 @@ name = "managed"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c75de51135344a4f8ed3cfe2720dc27736f7711989703a0b43aadf3753c55577"
-
-[[package]]
-name = "membdev"
-version = "0.1.0"
-dependencies = [
- "bitflags",
- "console",
- "lazy_static",
- "libmembdev",
- "libsyscalls",
- "libtime",
- "malloc",
- "num-traits",
- "rref",
- "spin 0.5.3",
- "syscalls",
- "usr",
-]
 
 [[package]]
 name = "num-derive"
@@ -504,13 +436,6 @@ dependencies = [
  "pci_driver",
  "rref",
  "syscalls",
-]
-
-[[package]]
-name = "utils"
-version = "0.1.0"
-dependencies = [
- "spin 0.5.3",
 ]
 
 [[package]]
