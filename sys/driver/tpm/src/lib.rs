@@ -227,7 +227,12 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
     // Unseal data under PCR 17 using Child key (should succeed)
     let mut out_data: Vec<u8> = Vec::new();
     tpm_unseal(&tpm, locality, unseal_session_handle, item_handle, &mut out_data);
-    // Unseal data under different PCR (should fail)
+
+    // Unload all objects from TPM memory
+    tpm_flush_context(&tpm, locality, parent_handle);
+    tpm_flush_context(&tpm, locality, session_handle);
+    tpm_flush_context(&tpm, locality, item_handle);
+    tpm_flush_context(&tpm, locality, unseal_session_handle);
 
     Box::new(tpm)
 }

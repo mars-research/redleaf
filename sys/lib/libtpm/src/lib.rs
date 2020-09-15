@@ -1116,7 +1116,7 @@ pub fn tpm_quote(tpm: &TpmDev, locality: u32, sign_handle: u32, hash: u16,
     let mut hdr: TpmHeader = TpmHeader::new(
         TpmStructures::TPM_ST_SESSIONS as u16,
         0 as u32,
-        Tpm2Commands::TPM2_CC_UNSEAL as u32
+        Tpm2Commands::TPM2_CC_QUOTE as u32
     );
     let mut buf: Vec<u8>;
     // header: TpmHeader
@@ -1151,6 +1151,28 @@ pub fn tpm_quote(tpm: &TpmDev, locality: u32, sign_handle: u32, hash: u16,
         sPcrSelections // TpmSPcrSelection
     );
     buf.extend_from_slice(&lPcrSelection.to_vec());
+    // Change the size of command in header
+    buf.splice(2..6, (buf.len() as u32).to_be_bytes().into_iter().cloned());
+
+    println!("presend: {:x?}", buf);
+    tpm_transmit_cmd(tpm, locality, &mut buf);
+    println!("postsend: {:x?}", buf);
+    true
+}
+
+/// Remove loaded objects, sequence objects, and/or sessions
+/// from TPM memory
+pub fn tpm_flush_context(tpm: &TpmDev, locality: u32, flush_handle: u32) -> bool {
+    let mut hdr: TpmHeader = TpmHeader::new(
+        TpmStructures::TPM_ST_NO_SESSIONS as u16,
+        0 as u32,
+        Tpm2Commands::TPM2_CC_FLUSH_CONTEXT as u32
+    );
+    let mut buf: Vec<u8>;
+    // header: TpmHeader
+    buf = TpmHeader::to_vec(&hdr);
+    // flushHandle: TPMI_DH_CONTEXT
+    buf.extend_from_slice(&u32::to_be_bytes(flush_handle));
     // Change the size of command in header
     buf.splice(2..6, (buf.len() as u32).to_be_bytes().into_iter().cloned());
 
