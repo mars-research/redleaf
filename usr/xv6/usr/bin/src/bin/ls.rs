@@ -67,7 +67,7 @@ fn ls(path: &str) -> Result<(), String> {
                 let file_stat = sys_fstat(file_fd)
                     .map_err(|e| alloc::format!("ls: cannot stat {} {:?}", file_path, e))?;
                 sys_close(file_fd)
-                    .map_err(|e| alloc::format!("ls: cannot close {} {}", file_path, fd))?;
+                    .map_err(|e| alloc::format!("ls: cannot close {} {} {:?}", file_path, fd, e))?;
                 println!(
                     "ls: path:{} type:{:?} inum:{} size:{}",
                     file_path, file_stat.file_type, file_stat.inum, file_stat.size

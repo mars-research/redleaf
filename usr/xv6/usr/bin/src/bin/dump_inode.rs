@@ -14,7 +14,7 @@ use libsyscalls::syscalls::sys_println;
 use syscalls::{Heap, Syscall};
 use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usr_interfaces::xv6::Xv6;
-use usrlib::syscalls::sys_mkdir;
+use usrlib::syscalls::sys_dump_inode;
 use usrlib::{eprintln, println};
 
 #[no_mangle]
@@ -27,25 +27,20 @@ pub fn init(
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
     usrlib::init(rv6.clone());
-    println!("Starting rv6 mkdir with args: {}", args);
+    println!("Starting rv6 dump_inode with args: {}", args);
 
-    let mut args = args.split_whitespace();
-    assert!(args.next().is_some());
-    let path = args.next().or(Some("")).unwrap();
-
-    mkdir(path).unwrap();
+    dump_inode().unwrap();
 }
 
-fn mkdir(path: &str) -> Result<(), String> {
-    println!("mkdir <{}>", path);
-    sys_mkdir(path).map_err(|e| alloc::format!("mkdir: cannot mkdir {}. {:?}", path, e))?;
+fn dump_inode() -> Result<(), String> {
+    sys_dump_inode().map_err(|e| alloc::format!("dump_inode failed {:?}", e))?;
     Ok(())
 }
 
 // This function is called on panic.
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    eprintln!("mkdir panic: {:?}", info);
+    eprintln!("dump_inode panic: {:?}", info);
     libsyscalls::syscalls::sys_backtrace();
     loop {}
 }

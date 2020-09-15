@@ -53,3 +53,7 @@ pub fn sys_pipe() -> Result<(usize, usize)> {
 pub fn sys_mkdir(path: &str) -> Result<()> {
     SYSCALL.r#try().unwrap().sys_mkdir(path)
 }
+
+pub fn sys_dump_inode() -> Result<()> {
+    SYSCALL.r#try().unwrap().sys_dump_inode()
+}

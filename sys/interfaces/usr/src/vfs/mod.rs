@@ -23,7 +23,7 @@ pub trait UsrVFS: Send + Sync {
     fn sys_dup(&self, fd: usize) -> Result<usize>;
     fn sys_pipe(&self) -> Result<(usize, usize)>;
     fn sys_mkdir(&self, path: &str) -> Result<()>;
-    fn sys_dump_inode(&self);
+    fn sys_dump_inode(&self) -> Result<()>;
 }
 
 // syscalls that are only exposed to the kernel

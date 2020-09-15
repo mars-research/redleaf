@@ -35,6 +35,8 @@ BINS=\
 	sh\
 	ls\
 	wc\
+	mkdir\
+	dump_inode\
 	benchfs\
 	benchnet\
 	benchnvme\
