@@ -194,7 +194,9 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
     let mut primary_pubkey_size: usize = 0;
     let mut primary_pubkey: Vec<u8> = Vec::new();
     let mut parent_handle: u32 = 0 as u32;
-    tpm_create_primary(&tpm, locality, 0 as u32, primary_unique, &mut parent_handle, &mut primary_pubkey_size, &mut primary_pubkey);
+    tpm_create_primary(&tpm, locality, 0 as u32, primary_unique,
+                       /*restricted=*/true, /*decrypt=*/true, /*sign=*/false,
+                       &mut parent_handle, &mut primary_pubkey_size, &mut primary_pubkey);
     println!("parent_handle {:x?}", parent_handle);
     // Start authenticated session
     let mut session_handle: u32 = 0 as u32;
@@ -210,7 +212,9 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
     let mut create_out_private: Vec<u8> = Vec::new();
     let mut create_out_public: Vec<u8> = Vec::new();
     let in_sensitive: Vec<u8> = b"horizon".to_vec();
-    tpm_create(&tpm, locality, parent_handle, policy_digest, in_sensitive, &mut create_out_private, &mut create_out_public);
+    tpm_create(&tpm, locality, parent_handle, policy_digest, in_sensitive,
+               /*restricted=*/false, /*decrypt=*/false, /*sign=*/false,
+               &mut create_out_private, &mut create_out_public);
     let mut item_handle: u32 = 0 as u32;
     tpm_load(&tpm, locality, parent_handle, create_out_private, create_out_public, &mut item_handle);
 
