@@ -973,37 +973,37 @@ impl Net for Rv6Proxy {
 use usr::vfs::{NFILE, FileStat, FileMode};
 
 impl UsrVFS for Rv6Proxy {
-    fn sys_open(&self, path: &str, mode: FileMode) -> Result<usize> {
+    fn sys_open(&self, path: &str, mode: FileMode) -> RpcResult<Result<usize>> {
         self.domain.sys_open(path, mode)
     }
-    fn sys_close(&self, fd: usize) -> Result<()> {
+    fn sys_close(&self, fd: usize) -> RpcResult<Result<()>> {
         self.domain.sys_close(fd)
     }
-    fn sys_read(&self, fd: usize, buffer: &mut[u8]) -> Result<usize> {
+    fn sys_read(&self, fd: usize, buffer: &mut[u8]) -> RpcResult<Result<usize>> {
         self.domain.sys_read(fd, buffer)
     }
-    fn sys_write(&self, fd: usize, buffer: &[u8]) -> Result<usize> {
+    fn sys_write(&self, fd: usize, buffer: &[u8]) -> RpcResult<Result<usize>> {
         self.domain.sys_write(fd, buffer)
     }
-    fn sys_seek(&self, fd: usize, offset: usize) -> Result<()> {
+    fn sys_seek(&self, fd: usize, offset: usize) -> RpcResult<Result<()>> {
         self.domain.sys_seek(fd, offset)
     }
-    fn sys_fstat(&self, fd: usize) -> Result<FileStat> {
+    fn sys_fstat(&self, fd: usize) -> RpcResult<Result<FileStat>> {
         self.domain.sys_fstat(fd)
     }
-    fn sys_mknod(&self, path: &str, major: i16, minor: i16) -> Result<()> {
+    fn sys_mknod(&self, path: &str, major: i16, minor: i16) -> RpcResult<Result<()>> {
         self.domain.sys_mknod(path, major, minor)
     }
-    fn sys_dup(&self, fd: usize) -> Result<usize> {
+    fn sys_dup(&self, fd: usize) -> RpcResult<Result<usize>> {
         self.domain.sys_dup(fd)
     }
-    fn sys_pipe(&self) -> Result<(usize, usize)> {
+    fn sys_pipe(&self) -> RpcResult<Result<(usize, usize)>> {
         self.domain.sys_pipe()
     }
-    fn sys_mkdir(&self, path: &str) -> Result<()> {
+    fn sys_mkdir(&self, path: &str) -> RpcResult<Result<()>> {
         self.domain.sys_mkdir(path)
     }
-    fn sys_dump_inode(&self) -> Result<()> {
+    fn sys_dump_inode(&self) -> RpcResult<Result<()>> {
         self.domain.sys_dump_inode()
     }
 }

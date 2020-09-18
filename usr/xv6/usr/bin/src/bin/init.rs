@@ -12,7 +12,7 @@ use core::panic::PanicInfo;
 use syscalls::{Heap, Syscall};
 use usr_interfaces::vfs::FileMode;
 use usr_interfaces::xv6::Xv6;
-use usrlib::syscalls::sys_spawn_domain;
+use usrlib::syscalls::{sys_spawn_domain, sys_open, sys_mknod, sys_dup};
 use usrlib::{dbg, println};
 
 #[no_mangle]
@@ -29,18 +29,18 @@ pub fn init(
     // stdout not initialized yet so we can't print it there yet
 
     // Create console device if it not there yet
-    match rv6.sys_open("/console", FileMode::READWRITE) {
+    match sys_open("/console", FileMode::READWRITE) {
         Err(_) => {
-            rv6.sys_mknod("/console", 1, 1).unwrap();
-            assert_eq!(rv6.sys_open("/console", FileMode::READWRITE).unwrap(), 0);
+            sys_mknod("/console", 1, 1).unwrap();
+            assert_eq!(sys_open("/console", FileMode::READWRITE).unwrap(), 0);
         }
         Ok(fd) => {
             assert_eq!(fd, 0);
         }
     }
     // Dup stdin to stdout and stderr
-    assert_eq!(rv6.sys_dup(0).unwrap(), 1);
-    assert_eq!(rv6.sys_dup(0).unwrap(), 2);
+    assert_eq!(sys_dup(0).unwrap(), 1);
+    assert_eq!(sys_dup(0).unwrap(), 2);
 
     dbg!("Init finished");
     sys_spawn_domain("/sh", "", &[Some(0), Some(1), Some(2)]).unwrap();

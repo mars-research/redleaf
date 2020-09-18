@@ -86,10 +86,10 @@ impl Xv6 for Rv6Syscalls {
         Ok((|| {
             // Load bin into memory
             println!("sys_spawn_domain {} {}", path, args);
-            let fd = self.fs.sys_open(path, FileMode::READ)?;
-            let size = self.fs.sys_fstat(fd)?.size; // fstat will filter out non INode files
+            let fd = self.fs.sys_open(path, FileMode::READ)??;
+            let size = self.fs.sys_fstat(fd)??.size; // fstat will filter out non INode files
             let mut blob = alloc::vec![0; size as usize];
-            assert_eq!(self.fs.sys_read(fd, blob.as_mut_slice())?, size as usize);
+            assert_eq!(self.fs.sys_read(fd, blob.as_mut_slice())??, size as usize);
 
             // Create a seperate copy of all the objects we want to pass to the new thread
             // and transfer the ownership over
@@ -110,37 +110,37 @@ impl Xv6 for Rv6Syscalls {
 }
 
 impl UsrVFS for Rv6Syscalls {
-    fn sys_open(&self, path: &str, mode: FileMode) -> Result<usize> {
+    fn sys_open(&self, path: &str, mode: FileMode) -> RpcResult<Result<usize>> {
         self.fs.sys_open(path, mode)
     }
-    fn sys_close(&self, fd: usize) -> Result<()> {
+    fn sys_close(&self, fd: usize) -> RpcResult<Result<()>> {
         self.fs.sys_close(fd)
     }
-    fn sys_read(&self, fd: usize, buffer: &mut [u8]) -> Result<usize> {
+    fn sys_read(&self, fd: usize, buffer: &mut [u8]) -> RpcResult<Result<usize>> {
         self.fs.sys_read(fd, buffer)
     }
-    fn sys_write(&self, fd: usize, buffer: &[u8]) -> Result<usize> {
+    fn sys_write(&self, fd: usize, buffer: &[u8]) -> RpcResult<Result<usize>> {
         self.fs.sys_write(fd, buffer)
     }
-    fn sys_seek(&self, fd: usize, offset: usize) -> Result<()> {
+    fn sys_seek(&self, fd: usize, offset: usize) -> RpcResult<Result<()>> {
         self.fs.sys_seek(fd, offset)
     }
-    fn sys_fstat(&self, fd: usize) -> Result<FileStat> {
+    fn sys_fstat(&self, fd: usize) -> RpcResult<Result<FileStat>> {
         self.fs.sys_fstat(fd)
     }
-    fn sys_mknod(&self, path: &str, major: i16, minor: i16) -> Result<()> {
+    fn sys_mknod(&self, path: &str, major: i16, minor: i16) -> RpcResult<Result<()>> {
         self.fs.sys_mknod(path, major, minor)
     }
-    fn sys_dup(&self, fd: usize) -> Result<usize> {
+    fn sys_dup(&self, fd: usize) -> RpcResult<Result<usize>> {
         self.fs.sys_dup(fd)
     }
-    fn sys_pipe(&self) -> Result<(usize, usize)> {
+    fn sys_pipe(&self) -> RpcResult<Result<(usize, usize)>> {
         self.fs.sys_pipe()
     }
-    fn sys_mkdir(&self, path: &str) -> Result<()> {
+    fn sys_mkdir(&self, path: &str) -> RpcResult<Result<()>> {
         self.fs.sys_mkdir(path)
     }
-    fn sys_dump_inode(&self) -> Result<()> {
+    fn sys_dump_inode(&self) -> RpcResult<Result<()>> {
         self.fs.sys_dump_inode()
     }
 }
