@@ -1,4 +1,5 @@
 #![no_std]
+#![no_main]
 extern crate malloc;
 extern crate alloc;
 use libsyscalls;
@@ -70,7 +71,7 @@ fn bench_tls() {
 }
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>) -> Box<dyn usr::dom_a::DomA> {
+pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>) -> Box<dyn usr::dom_a::DomA> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 

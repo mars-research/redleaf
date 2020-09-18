@@ -2,68 +2,68 @@ arch ?= x86_64
 bin := build/kernel.bin
 iso := build/redleaf.iso
 root := ./
-include $(root)/common_flags.mk
 
 linker_script := linker.ld
 grub_cfg := boot/grub.cfg
-#assembly_source_files := $(wildcard src/*.asm)
-#assembly_object_files := $(patsubst src/%.asm, build/%.o, $(assembly_source_files))
 
-FEATURES =
-#FEATURES += --features "trace_alloc"
-#FEATURES += --features "smp"
-FEATURES += --features "trace_vspace"
-FEATURES += --features "page_fault_on_ist"
-#FEATURES += --features "trace_sched"
-#FEATURES += --features "test_shadow"
+CARGO_FLAGS     =
+DOMAIN_FEATURES =
+
+KERNEL_FEATURES =
+#KERNEL_FEATURES += --features "trace_alloc"
+#KERNEL_FEATURES += --features "smp"
+KERNEL_FEATURES += --features "trace_vspace"
+KERNEL_FEATURES += --features "page_fault_on_ist"
+#KERNEL_FEATURES += --features "trace_sched"
+
+ifeq ($(DEBUG),false)
+	CARGO_FLAGS += --release
+	TARGET_SUB_DIR = release
+endif
 
 ifeq ($(LARGE_MEM),true)
-FEATURES += --features "large_mem"
+KERNEL_FEATURES += --features "large_mem"
 MEM = -m 10240M
 else
 MEM = -m 2048M
 endif
 
 ifeq ($(IXGBE),true)
-FEATURES += --features "c220g2_ixgbe"
-PCI_FEATURES += --features "c220g2_ixgbe"
+DOMAIN_FEATURES += --features "c220g2_ixgbe"
+KERNEL_FEATURES += --features "c220g2_ixgbe"
 endif
 
-export PCI_FEATURES
+export CARGO_FLAGS
+export DOMAIN_FEATURES
+export KERNEL_FEATURES
 
-target ?= $(arch)-redleaf
-rust_os := target/$(target)/$(TARGET_SUB_DIR)/libredleaf.a
-xv6fs_img = usr/mkfs/build/fs.img
+xv6fs_img = domains/usr/mkfs/build/fs.img
 root := ./
-domain_list := sys/init/build/init \
-	usr/proxy/build/dom_proxy \
-	usr/test/dom_a/build/dom_a \
-	usr/test/dom_b/build/dom_b \
-	usr/test/dom_c/build/dom_c \
-	usr/test/dom_d/build/dom_d \
-	usr/test/shadow/build/shadow \
-	usr/xv6/kernel/core/build/xv6kernel \
-	usr/xv6/kernel/fs/build/xv6fs \
-	sys/driver/pci/build/pci \
-	sys/driver/ixgbe/build/ixgbe \
-	sys/driver/nvme/build/nvme \
-	sys/driver/tpm/build/tpm \
-	usr/shadow/net/build/net_shadow \
-	usr/shadow/nvme/build/nvme_shadow \
-	usr/test/benchnet_inside/build/benchnet_inside \
-	usr/test/benchnvme/build/benchnvme \
-	usr/test/benchhash/build/benchhash
-
-ifeq ($(MEMBDEV),false)
-domain_list += sys/dev/ahci_driver/build/ahci_drive
-else
-domain_list += sys/driver/membdev/target/x86_64-redleaf-domain/$(TARGET_SUB_DIR)/membdev
-domain_list += usr/shadow/bdev/target/x86_64-redleaf-domain/$(TARGET_SUB_DIR)/bdev_shadow
-endif
+domain_list := $(addprefix domains/build/, \
+	init \
+	dom_proxy \
+	dom_a \
+	dom_b \
+	dom_c \
+	dom_d \
+	shadow \
+	xv6kernel \
+	xv6fs \
+	pci \
+	ixgbe \
+	nvme \
+	tpm \
+	bdev_shadow \
+	net_shadow \
+	nvme_shadow \
+	membdev \
+	benchnet_inside \
+	benchnvme \
+	benchhash)
 
 qemu_common := ${MEM} -vga std -s
 qemu_common += -cdrom $(iso)
-qemu_common += -no-reboot -no-shutdown -d int,cpu_reset
+#qemu_common += -no-reboot -no-shutdown -d int,cpu_reset
 qemu_common += -drive id=satadisk,file=$(xv6fs_img),format=raw,if=none
 qemu_common += -device ahci,id=ahci
 qemu_common += -device ide-hd,drive=satadisk,bus=ahci.0
@@ -101,14 +101,9 @@ release: $(releaseKernel)
 
 .PHONY: clean
 clean:
-	-make -C sys clean
-	-make -C usr/xv6 clean
+	-cargo clean --manifest-path=domains/Cargo.toml
+	-cargo clean --manifest-path=kernel/Cargo.toml
 	-rm -rf build
-	-cargo clean
-	-make -C usr/mkfs clean
-	-make -C usr/proxy clean
-	-make -C usr/test clean
-	-make -C usr/shadow clean
 
 .PHONY: clean-keys
 clean-keys:
@@ -140,7 +135,6 @@ qemu-gdb: $(iso) $(xv6fs_img)
 qemu-kvm-gdb: $(iso) $(xv6fs_img)
 	${QEMU_KVM} $(qemu_kvm_args) $(qemu_nox) -S
 
-
 .PHONY: qemu-gdb-nox
 qemu-gdb-nox: $(iso) $(xv6fs_img)
 	$(QEMU) $(qemu_common) $(qemu_nox) -S
@@ -161,10 +155,7 @@ qemu-efi-nox: $(iso) $(xv6fs_img) ovmf-code
 # always build this target
 .PHONY: $(xv6fs_img)
 $(xv6fs_img):
-	make -C usr/mkfs 
-
-ovmf-code:
-	echo "Getting OVMF_CODE.fd is not implemented..."
+	make -C domains/usr/mkfs 
 
 .PHONY: iso
 iso: $(iso)
@@ -177,73 +168,30 @@ $(iso): $(bin) $(grub_cfg)
 	grub-mkrescue -o $(iso) build/isofiles #2> /dev/null
 	@rm -r build/isofiles
 
-$(bin): kernel $(rust_os) bootblock entryother entry $(linker_script) init signer
-	for elf in $(domain_list); do \
-	    signer/signer redleaf.key $$elf; \
-	done
-	ld -n --gc-sections -T $(linker_script) -o $(bin) build/entry.o build/boot.o build/multiboot_header.o $(rust_os) -b binary build/entryother.bin $(domain_list) 
+$(bin): kernel domains memops $(linker_script)
+	ld -n --gc-sections -T $(linker_script) -o $(bin) \
+		kernel/build/entry.o \
+		kernel/build/boot.o \
+		kernel/build/multiboot_header.o \
+		kernel/build/libredleaf_kernel.a \
+		lib/external/memops/libmemops.a \
+		-b binary \
+		kernel/build/entryother.bin \
+		$(domain_list) 
 
 include $(root)/checkstack.mk
 
-.PHONY: init
-init:
-	make -C usr/proxy
-	make -C usr/test
-	make -C usr/xv6
-	make -C usr/shadow
-	make -C sys
-
-.PHONY: signer
-signer:
-	make -C signer
-
 .PHONY: kernel
 kernel:
-	@BUILD_VERSION="$(shell date) ($(shell whoami)@$(shell hostname))" RUST_TARGET_PATH="$(shell pwd)" RUSTFLAGS="-Z emit-stack-sizes" cargo ${CARGO_COMMAND} ${CARGO_FLAGS} -Z features=host_dep --target x86_64-redleaf.json $(FEATURES)
+	make -C kernel
 
-interface-fingerprint: $(shell find sys/interfaces -type f -name "*.rs")
-	$(shell sha512sum sys/interfaces/**.rs | cut -d' ' -f1 | sha512sum | cut -d ' ' -f1 > interface.fingerprint)
+.PHONY: domains
+domains:
+	make -C domains
 
-# compile assembly files for the exception entry code
-.PHONY: entry
-entry: src/arch/entry_64.S 
-	@mkdir -p build
-	gcc -fno-builtin -fno-strict-aliasing -Wall -MD -ggdb -fno-pic -nostdinc -I. -o build/entry.o -c src/arch/entry_64.S
+.PHONY: memops
+memops:
+	make -C lib/external/memops
 
-
-# compile assembly files
-.PHONY: bootblock
-bootblock: src/boot.asm src/multiboot_header.asm
-	@mkdir -p build
-	nasm -felf64 src/boot.asm -o build/boot.o
-	nasm -felf64 src/multiboot_header.asm -o build/multiboot_header.o
-
-# compile assembly files
-.PHONY: entryother
-entryother: src/entryother.asm
-	@mkdir -p build
-	nasm -felf64 src/entryother.asm -o build/entryother.o
-	ld -N -e start_others16 -Ttext 0x7000 -o build/entryother.out build/entryother.o
-	objcopy -S -O binary -j .text build/entryother.out build/entryother.bin
-
-.PHONY: install-deps
-install-deps:
-	git submodule init
-	git submodule update
-	sudo apt update
-	sudo apt install -y qemu nasm xorriso numactl
-	curl https://sh.rustup.rs -sSf | bash -s -- --default-toolchain nightly-2020-05-15 -y
-	. ${CARGO_HOME}/env && \
-	cargo install cargo-xbuild --version=0.5.32 && \
-	cargo install stack-sizes && \
-	rustup component add rust-src
-	@echo "To get started you need Cargo's bin directory ('$$CARGO_HOME/bin') in your PATH \
-	environment variable. Next time you log in this will be done \
-	automatically."
-	@echo
-	@echo "To configure your current shell run 'source $$CARGO_HOME/env'"
-
-.PHONY: cloudlab-grub
-cloudlab-grub:
-	cat cloudlab-grub.template | envsubst '$$PWD' | sudo tee /etc/grub.d/40_custom
-	sudo update-grub2
+#interface-fingerprint: $(shell find sys/interfaces -type f -name "*.rs")
+#	$(shell sha512sum sys/interfaces/**.rs | cut -d' ' -f1 | sha512sum | cut -d ' ' -f1 > interface.fingerprint)

@@ -1,4 +1,5 @@
 #![no_std]
+#![no_main]
 extern crate malloc;
 extern crate alloc;
 use syscalls::{Syscall, Heap};
@@ -50,7 +51,7 @@ fn test_submit_and_poll(dom_a: &mut Box<dyn DomA>) {
 }
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, dom_a: Box<dyn DomA>) {
+pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, dom_a: Box<dyn DomA>) {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 

@@ -1,4 +1,5 @@
 #![no_std]
+#![no_main]
 extern crate malloc;
 extern crate alloc;
 use libsyscalls;
@@ -99,7 +100,7 @@ fn test_hashmap() {
 }
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>) {
+pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>) {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 

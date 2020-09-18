@@ -273,13 +273,13 @@ impl proxy::CreateProxy for PDomain {
 
 pub fn create_domain_init() -> Box<dyn syscalls::Domain> {
     extern "C" {
-        fn _binary_sys_init_build_init_start();
-        fn _binary_sys_init_build_init_end();
+        fn _binary_domains_build_init_start();
+        fn _binary_domains_build_init_end();
     }
 
     let binary_range = (
-        _binary_sys_init_build_init_start as *const u8,
-        _binary_sys_init_build_init_end as *const u8
+        _binary_domains_build_init_start as *const u8,
+        _binary_domains_build_init_end as *const u8
     );
 
     return build_domain_init("sys_init", binary_range);
@@ -289,13 +289,13 @@ pub fn create_domain_pci() -> (Box<dyn syscalls::Domain>,
                                Box<dyn usr::pci::PCI>) {
 
     extern "C" {
-        fn _binary_sys_driver_pci_build_pci_start();
-        fn _binary_sys_driver_pci_build_pci_end();
+        fn _binary_domains_build_pci_start();
+        fn _binary_domains_build_pci_end();
     }
 
     let binary_range = (
-        _binary_sys_driver_pci_build_pci_start as *const u8,
-        _binary_sys_driver_pci_build_pci_end as *const u8
+        _binary_domains_build_pci_start as *const u8,
+        _binary_domains_build_pci_end as *const u8
     );
 
     create_domain_pci_bus("pci", binary_range)
@@ -304,13 +304,13 @@ pub fn create_domain_pci() -> (Box<dyn syscalls::Domain>,
 pub fn create_domain_ahci(pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev>) {
 
     // extern "C" {
-    //     fn _binary_sys_dev_ahci_driver_build_ahci_driver_start();
-    //     fn _binary_sys_dev_ahci_driver_build_ahci_driver_end();
+    //     fn _binary_domains_build_ahci_driver_start();
+    //     fn _binary_domains_build_ahci_driver_end();
     // }
 
     // let binary_range = (
-    //     _binary_sys_dev_ahci_driver_build_ahci_driver_start as *const u8,
-    //     _binary_sys_dev_ahci_driver_build_ahci_driver_end as *const u8
+    //     _binary_domains_build_ahci_driver_start as *const u8,
+    //     _binary_domains_build_ahci_driver_end as *const u8
     // );
 
     // create_domain_bdev("ahci", binary_range, pci)
@@ -320,13 +320,13 @@ pub fn create_domain_ahci(pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Dom
 pub fn create_domain_ixgbe(pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::net::Net>) {
 
     extern "C" {
-        fn _binary_sys_driver_ixgbe_build_ixgbe_start();
-        fn _binary_sys_driver_ixgbe_build_ixgbe_end();
+        fn _binary_domains_build_ixgbe_start();
+        fn _binary_domains_build_ixgbe_end();
     }
 
     let binary_range = (
-        _binary_sys_driver_ixgbe_build_ixgbe_start as *const u8,
-        _binary_sys_driver_ixgbe_build_ixgbe_end as *const u8
+        _binary_domains_build_ixgbe_start as *const u8,
+        _binary_domains_build_ixgbe_end as *const u8
     );
 
     create_domain_net("ixgbe_driver", binary_range, pci)
@@ -335,13 +335,13 @@ pub fn create_domain_ixgbe(pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Do
 pub fn create_domain_net_shadow(create: Arc<dyn create::CreateIxgbe>, pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::net::Net>) {
 
     extern "C" {
-        fn _binary_usr_shadow_net_build_net_shadow_start();
-        fn _binary_usr_shadow_net_build_net_shadow_end();
+        fn _binary_domains_build_net_shadow_start();
+        fn _binary_domains_build_net_shadow_end();
     }
 
     let binary_range = (
-        _binary_usr_shadow_net_build_net_shadow_start as *const u8,
-        _binary_usr_shadow_net_build_net_shadow_end as *const u8
+        _binary_domains_build_net_shadow_start as *const u8,
+        _binary_domains_build_net_shadow_end as *const u8
     );
 
     build_domain_net_shadow("net_shadow", binary_range, create, pci)
@@ -350,13 +350,13 @@ pub fn create_domain_net_shadow(create: Arc<dyn create::CreateIxgbe>, pci: Box<d
 pub fn create_domain_nvme_shadow(create: Arc<dyn create::CreateNvme>, pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::NvmeBDev>) {
 
     extern "C" {
-        fn _binary_usr_shadow_nvme_build_nvme_shadow_start();
-        fn _binary_usr_shadow_nvme_build_nvme_shadow_end();
+        fn _binary_domains_build_nvme_shadow_start();
+        fn _binary_domains_build_nvme_shadow_end();
     }
 
     let binary_range = (
-        _binary_usr_shadow_nvme_build_nvme_shadow_start as *const u8,
-        _binary_usr_shadow_nvme_build_nvme_shadow_end as *const u8
+        _binary_domains_build_nvme_shadow_start as *const u8,
+        _binary_domains_build_nvme_shadow_end as *const u8
     );
 
     build_domain_nvme_shadow("nvme_shadow", binary_range, create, pci)
@@ -365,13 +365,13 @@ pub fn create_domain_nvme_shadow(create: Arc<dyn create::CreateNvme>, pci: Box<d
 pub fn create_domain_nvme(pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::NvmeBDev>) {
 
     extern "C" {
-        fn _binary_sys_driver_nvme_build_nvme_start();
-        fn _binary_sys_driver_nvme_build_nvme_end();
+        fn _binary_domains_build_nvme_start();
+        fn _binary_domains_build_nvme_end();
     }
 
     let binary_range = (
-        _binary_sys_driver_nvme_build_nvme_start as *const u8,
-        _binary_sys_driver_nvme_build_nvme_end as *const u8
+        _binary_domains_build_nvme_start as *const u8,
+        _binary_domains_build_nvme_end as *const u8
     );
 
     create_domain_nvmedev("nvme_driver", binary_range, pci)
@@ -381,25 +381,25 @@ pub fn create_domain_membdev(memdisk: &'static mut [u8]) -> (Box<dyn syscalls::D
     #[cfg(debug_assertions)]
     let binary_range  = {
         extern "C" {
-            fn _binary_sys_driver_membdev_target_x86_64_redleaf_domain_debug_membdev_start();
-            fn _binary_sys_driver_membdev_target_x86_64_redleaf_domain_debug_membdev_end();
+            fn _binary_domains_build_membdev_start();
+            fn _binary_domains_build_membdev_end();
         }
 
         (
-            _binary_sys_driver_membdev_target_x86_64_redleaf_domain_debug_membdev_start as *const u8,
-            _binary_sys_driver_membdev_target_x86_64_redleaf_domain_debug_membdev_end as *const u8
+            _binary_domains_build_membdev_start as *const u8,
+            _binary_domains_build_membdev_end as *const u8
         )
     };
     #[cfg(not(debug_assertions))]
     let binary_range  = {
         extern "C" {
-            fn _binary_sys_driver_membdev_target_x86_64_redleaf_domain_release_membdev_start();
-            fn _binary_sys_driver_membdev_target_x86_64_redleaf_domain_release_membdev_end();
+            fn _binary_domains_build_membdev_start();
+            fn _binary_domains_build_membdev_end();
         }
 
         (
-            _binary_sys_driver_membdev_target_x86_64_redleaf_domain_release_membdev_start as *const u8,
-            _binary_sys_driver_membdev_target_x86_64_redleaf_domain_release_membdev_end as *const u8
+            _binary_domains_build_membdev_start as *const u8,
+            _binary_domains_build_membdev_end as *const u8
         )
     };
 
@@ -410,25 +410,25 @@ pub fn create_domain_bdev_shadow(create: Arc<dyn create::CreateMemBDev>) -> (Box
     #[cfg(debug_assertions)]
     let binary_range  = {
         extern "C" {
-            fn _binary_usr_shadow_bdev_target_x86_64_redleaf_domain_debug_bdev_shadow_start();
-            fn _binary_usr_shadow_bdev_target_x86_64_redleaf_domain_debug_bdev_shadow_end();
+            fn _binary_domains_build_bdev_shadow_start();
+            fn _binary_domains_build_bdev_shadow_end();
         }
 
         (
-            _binary_usr_shadow_bdev_target_x86_64_redleaf_domain_debug_bdev_shadow_start as *const u8,
-            _binary_usr_shadow_bdev_target_x86_64_redleaf_domain_debug_bdev_shadow_end as *const u8
+            _binary_domains_build_bdev_shadow_start as *const u8,
+            _binary_domains_build_bdev_shadow_end as *const u8
         )
     };
     #[cfg(not(debug_assertions))]
     let binary_range  = {
         extern "C" {
-            fn _binary_usr_shadow_bdev_target_x86_64_redleaf_domain_release_bdev_shadow_start();
-            fn _binary_usr_shadow_bdev_target_x86_64_redleaf_domain_release_bdev_shadow_end();
+            fn _binary_domains_build_bdev_shadow_start();
+            fn _binary_domains_build_bdev_shadow_end();
         }
 
         (
-            _binary_usr_shadow_bdev_target_x86_64_redleaf_domain_release_bdev_shadow_start as *const u8,
-            _binary_usr_shadow_bdev_target_x86_64_redleaf_domain_release_bdev_shadow_end as *const u8
+            _binary_domains_build_bdev_shadow_start as *const u8,
+            _binary_domains_build_bdev_shadow_end as *const u8
         )
     };
 
@@ -442,13 +442,13 @@ pub fn create_domain_xv6kernel(ints: Box<dyn syscalls::Interrupt>,
                                net: Box<dyn usr::net::Net>,
                                nvme: Box<dyn usr::bdev::NvmeBDev>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::xv6::Xv6>) {
     extern "C" {
-        fn _binary_usr_xv6_kernel_core_build_xv6kernel_start();
-        fn _binary_usr_xv6_kernel_core_build_xv6kernel_end();
+        fn _binary_domains_build_xv6kernel_start();
+        fn _binary_domains_build_xv6kernel_end();
     }
 
     let binary_range = (
-        _binary_usr_xv6_kernel_core_build_xv6kernel_start as *const u8,
-        _binary_usr_xv6_kernel_core_build_xv6kernel_end as *const u8
+        _binary_domains_build_xv6kernel_start as *const u8,
+        _binary_domains_build_xv6kernel_end as *const u8
     );
 
     build_domain_xv6kernel("xv6kernel", binary_range, ints, create_xv6fs, create_xv6usr, bdev, net, nvme)
@@ -458,13 +458,13 @@ pub fn create_domain_xv6kernel(ints: Box<dyn syscalls::Interrupt>,
 pub fn create_domain_xv6fs(bdev: Box<dyn usr::bdev::BDev>) ->(Box<dyn syscalls::Domain>, Box<dyn usr::vfs::VFS>) {
 
     extern "C" {
-        fn _binary_usr_xv6_kernel_fs_build_xv6fs_start();
-        fn _binary_usr_xv6_kernel_fs_build_xv6fs_end();
+        fn _binary_domains_build_xv6fs_start();
+        fn _binary_domains_build_xv6fs_end();
     }
 
     let binary_range = (
-        _binary_usr_xv6_kernel_fs_build_xv6fs_start as *const u8,
-        _binary_usr_xv6_kernel_fs_build_xv6fs_end as *const u8
+        _binary_domains_build_xv6fs_start as *const u8,
+        _binary_domains_build_xv6fs_end as *const u8
     );
 
     build_domain_fs("xv6fs", binary_range, bdev)
@@ -482,13 +482,13 @@ pub fn create_domain_xv6usr(name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8]
 
 pub fn create_domain_dom_a() -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_a::DomA>) {
     extern "C" {
-        fn _binary_usr_test_dom_a_build_dom_a_start();
-        fn _binary_usr_test_dom_a_build_dom_a_end();
+        fn _binary_domains_build_dom_a_start();
+        fn _binary_domains_build_dom_a_end();
     }
 
     let binary_range = (
-        _binary_usr_test_dom_a_build_dom_a_start as *const u8,
-        _binary_usr_test_dom_a_build_dom_a_end as *const u8
+        _binary_domains_build_dom_a_start as *const u8,
+        _binary_domains_build_dom_a_end as *const u8
     );
 
     build_domain_dom_a("dom_a", binary_range)
@@ -496,13 +496,13 @@ pub fn create_domain_dom_a() -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_a::
 
 pub fn create_domain_dom_b(dom_a: Box<dyn usr::dom_a::DomA>) -> Box<dyn syscalls::Domain> {
     extern "C" {
-        fn _binary_usr_test_dom_b_build_dom_b_start();
-        fn _binary_usr_test_dom_b_build_dom_b_end();
+        fn _binary_domains_build_dom_b_start();
+        fn _binary_domains_build_dom_b_end();
     }
 
     let binary_range = (
-        _binary_usr_test_dom_b_build_dom_b_start as *const u8,
-        _binary_usr_test_dom_b_build_dom_b_end as *const u8
+        _binary_domains_build_dom_b_start as *const u8,
+        _binary_domains_build_dom_b_end as *const u8
     );
 
     build_domain_dom_b("dom_b", binary_range, dom_a)
@@ -510,13 +510,13 @@ pub fn create_domain_dom_b(dom_a: Box<dyn usr::dom_a::DomA>) -> Box<dyn syscalls
 
 pub fn create_domain_dom_c() -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
     extern "C" {
-        fn _binary_usr_test_dom_c_build_dom_c_start();
-        fn _binary_usr_test_dom_c_build_dom_c_end();
+        fn _binary_domains_build_dom_c_start();
+        fn _binary_domains_build_dom_c_end();
     }
 
     let binary_range = (
-        _binary_usr_test_dom_c_build_dom_c_start as *const u8,
-        _binary_usr_test_dom_c_build_dom_c_end as *const u8
+        _binary_domains_build_dom_c_start as *const u8,
+        _binary_domains_build_dom_c_end as *const u8
     );
 
     build_domain_dom_c("dom_c", binary_range)
@@ -524,13 +524,13 @@ pub fn create_domain_dom_c() -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::
 
 pub fn recreate_domain_dom_c(dom: Box<dyn syscalls::Domain>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
     extern "C" {
-        fn _binary_usr_test_dom_c_build_dom_c_start();
-        fn _binary_usr_test_dom_c_build_dom_c_end();
+        fn _binary_domains_build_dom_c_start();
+        fn _binary_domains_build_dom_c_end();
     }
 
     let binary_range = (
-        _binary_usr_test_dom_c_build_dom_c_start as *const u8,
-        _binary_usr_test_dom_c_build_dom_c_end as *const u8
+        _binary_domains_build_dom_c_start as *const u8,
+        _binary_domains_build_dom_c_end as *const u8
     );
 
     build_domain_dom_c("dom_c", binary_range)
@@ -539,13 +539,13 @@ pub fn recreate_domain_dom_c(dom: Box<dyn syscalls::Domain>) -> (Box<dyn syscall
 
 pub fn create_domain_dom_d(dom_c: Box<dyn usr::dom_c::DomC>) -> Box<dyn syscalls::Domain> {
     extern "C" {
-        fn _binary_usr_test_dom_d_build_dom_d_start();
-        fn _binary_usr_test_dom_d_build_dom_d_end();
+        fn _binary_domains_build_dom_d_start();
+        fn _binary_domains_build_dom_d_end();
     }
 
     let binary_range = (
-        _binary_usr_test_dom_d_build_dom_d_start as *const u8,
-        _binary_usr_test_dom_d_build_dom_d_end as *const u8
+        _binary_domains_build_dom_d_start as *const u8,
+        _binary_domains_build_dom_d_end as *const u8
     );
 
     build_domain_dom_d("dom_d", binary_range, dom_c)
@@ -553,13 +553,13 @@ pub fn create_domain_dom_d(dom_c: Box<dyn usr::dom_c::DomC>) -> Box<dyn syscalls
 
 pub fn create_domain_shadow(create_dom_c: Arc<dyn create::CreateDomC>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
     extern "C" {
-        fn _binary_usr_test_shadow_build_shadow_start();
-        fn _binary_usr_test_shadow_build_shadow_end();
+        fn _binary_domains_build_shadow_start();
+        fn _binary_domains_build_shadow_end();
     }
 
     let binary_range = (
-        _binary_usr_test_shadow_build_shadow_start as *const u8,
-        _binary_usr_test_shadow_build_shadow_end as *const u8
+        _binary_domains_build_shadow_start as *const u8,
+        _binary_domains_build_shadow_end as *const u8
     );
 
     build_domain_shadow("shadow", binary_range, create_dom_c)
@@ -567,13 +567,13 @@ pub fn create_domain_shadow(create_dom_c: Arc<dyn create::CreateDomC>) -> (Box<d
 
 pub fn create_domain_benchnet(net: Box<dyn usr::net::Net>) -> Box<dyn syscalls::Domain> {
     extern "C" {
-        fn _binary_usr_test_benchnet_inside_build_benchnet_inside_start();
-        fn _binary_usr_test_benchnet_inside_build_benchnet_inside_end();
+        fn _binary_domains_build_benchnet_inside_start();
+        fn _binary_domains_build_benchnet_inside_end();
     }
 
     let binary_range = (
-        _binary_usr_test_benchnet_inside_build_benchnet_inside_start as *const u8,
-        _binary_usr_test_benchnet_inside_build_benchnet_inside_end as *const u8
+        _binary_domains_build_benchnet_inside_start as *const u8,
+        _binary_domains_build_benchnet_inside_end as *const u8
     );
 
     build_domain_benchnet_helper("benchnet", binary_range, net)
@@ -581,13 +581,13 @@ pub fn create_domain_benchnet(net: Box<dyn usr::net::Net>) -> Box<dyn syscalls::
 
 pub fn create_domain_benchnvme(nvme: Box<dyn usr::bdev::NvmeBDev>) -> Box<dyn syscalls::Domain> {
     extern "C" {
-        fn _binary_usr_test_benchnvme_build_benchnvme_start();
-        fn _binary_usr_test_benchnvme_build_benchnvme_end();
+        fn _binary_domains_build_benchnvme_start();
+        fn _binary_domains_build_benchnvme_end();
     }
 
     let binary_range = (
-        _binary_usr_test_benchnvme_build_benchnvme_start as *const u8,
-        _binary_usr_test_benchnvme_build_benchnvme_end as *const u8
+        _binary_domains_build_benchnvme_start as *const u8,
+        _binary_domains_build_benchnvme_end as *const u8
     );
 
     build_domain_benchnvme("benchnvme", binary_range, nvme)
@@ -595,13 +595,13 @@ pub fn create_domain_benchnvme(nvme: Box<dyn usr::bdev::NvmeBDev>) -> Box<dyn sy
 
 pub fn create_domain_hashstore() -> Box<dyn syscalls::Domain> {
     extern "C" {
-        fn _binary_usr_test_benchhash_build_benchhash_start();
-        fn _binary_usr_test_benchhash_build_benchhash_end();
+        fn _binary_domains_build_benchhash_start();
+        fn _binary_domains_build_benchhash_end();
     }
 
     let binary_range = (
-        _binary_usr_test_benchhash_build_benchhash_start as *const u8,
-        _binary_usr_test_benchhash_build_benchhash_end as *const u8
+        _binary_domains_build_benchhash_start as *const u8,
+        _binary_domains_build_benchhash_end as *const u8
     );
 
     build_domain_hashstore("benchhash", binary_range)
@@ -610,13 +610,13 @@ pub fn create_domain_hashstore() -> Box<dyn syscalls::Domain> {
 pub fn create_domain_tpm() -> (Box<dyn syscalls::Domain>, Box<dyn usr::tpm::TpmDev>) {
 
     extern "C" {
-        fn _binary_sys_driver_tpm_build_tpm_start();
-        fn _binary_sys_driver_tpm_build_tpm_end();
+        fn _binary_domains_build_tpm_start();
+        fn _binary_domains_build_tpm_end();
     }
 
     let binary_range = (
-        _binary_sys_driver_tpm_build_tpm_start as *const u8,
-        _binary_sys_driver_tpm_build_tpm_end as *const u8
+        _binary_domains_build_tpm_start as *const u8,
+        _binary_domains_build_tpm_end as *const u8
     );
 
     build_domain_tpm("tpm_driver", binary_range)
@@ -642,13 +642,13 @@ pub fn create_domain_proxy(
     create_dom_d: Arc<dyn create::CreateDomD>,
     create_shadow: Arc<dyn create::CreateShadow>) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
     extern "C" {
-        fn _binary_usr_proxy_build_dom_proxy_start();
-        fn _binary_usr_proxy_build_dom_proxy_end();
+        fn _binary_domains_build_dom_proxy_start();
+        fn _binary_domains_build_dom_proxy_end();
     }
 
     let binary_range = (
-        _binary_usr_proxy_build_dom_proxy_start as *const u8,
-        _binary_usr_proxy_build_dom_proxy_end as *const u8
+        _binary_domains_build_dom_proxy_start as *const u8,
+        _binary_domains_build_dom_proxy_end as *const u8
     );
 
     build_domain_proxy(

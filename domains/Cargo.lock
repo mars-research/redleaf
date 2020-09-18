@@ -69,6 +69,63 @@ dependencies = [
 ]
 
 [[package]]
+name = "benchhash"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "create",
+ "fnv",
+ "hashbrown 0.7.2",
+ "lazy_static",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "num-traits",
+ "proxy",
+ "rref",
+ "sashstore-redleaf",
+ "syscalls",
+ "twox-hash",
+ "usr",
+]
+
+[[package]]
+name = "benchnet_inside"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "create",
+ "lazy_static",
+ "libbenchnet",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "num-traits",
+ "proxy",
+ "rref",
+ "syscalls",
+ "usr",
+]
+
+[[package]]
+name = "benchnvme"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "create",
+ "lazy_static",
+ "libbenchnvme",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "num-traits",
+ "proxy",
+ "rref",
+ "syscalls",
+ "usr",
+]
+
+[[package]]
 name = "bin"
 version = "0.1.0"
 dependencies = [
@@ -153,6 +210,98 @@ name = "create"
 version = "0.1.0"
 dependencies = [
  "syscalls",
+ "usr",
+]
+
+[[package]]
+name = "dom_a"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "create",
+ "lazy_static",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "num-traits",
+ "proxy",
+ "rref",
+ "spin 0.5.3",
+ "syscalls",
+ "tls",
+ "usr",
+]
+
+[[package]]
+name = "dom_b"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "create",
+ "lazy_static",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "num-traits",
+ "proxy",
+ "rref",
+ "spin 0.5.3",
+ "syscalls",
+ "usr",
+]
+
+[[package]]
+name = "dom_c"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "create",
+ "lazy_static",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "num-traits",
+ "proxy",
+ "rref",
+ "spin 0.5.3",
+ "syscalls",
+ "usr",
+]
+
+[[package]]
+name = "dom_d"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "create",
+ "lazy_static",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "num-traits",
+ "proxy",
+ "rref",
+ "spin 0.5.3",
+ "syscalls",
+ "usr",
+]
+
+[[package]]
+name = "dom_proxy"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "create",
+ "lazy_static",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "num-traits",
+ "proxy",
+ "rref",
+ "spin 0.5.3",
+ "syscalls",
+ "unwind",
  "usr",
 ]
 
@@ -676,6 +825,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "shadow"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "create",
+ "lazy_static",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "num-traits",
+ "proxy",
+ "rref",
+ "spin 0.5.3",
+ "syscalls",
+ "usr",
+]
+
+[[package]]
 name = "slabmalloc"
 version = "0.7.0"
 dependencies = [
@@ -787,6 +954,14 @@ name = "unicode-xid"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7fe0bb3479651439c9112f72b6c505038574c9fbb575ed1bf3b797fa39dd564"
+
+[[package]]
+name = "unwind"
+version = "0.1.0"
+dependencies = [
+ "libsyscalls",
+ "syscalls",
+]
 
 [[package]]
 name = "usr"

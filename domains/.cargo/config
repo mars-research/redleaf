@@ -1,5 +1,5 @@
 [alias]
-rbuild = "build --out-dir=build -Z build-std=core,alloc -Z features=host_dep -Z unstable-options"
+rbuild = "build --out-dir=build -Z build-std=core,alloc -Z features=host_dep -Z unstable-options -Z package-features"
 rb = "rbuild"
 
 [build]

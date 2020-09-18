@@ -1,4 +1,5 @@
 #![no_std]
+#![no_main]
 extern crate malloc;
 extern crate alloc;
 use libsyscalls;
@@ -82,7 +83,7 @@ impl usr::dom_c::DomC for Shadow {
 }
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, create_dom_c: Arc<dyn create::CreateDomC>) -> Box<dyn usr::dom_c::DomC> {
+pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, create_dom_c: Arc<dyn create::CreateDomC>) -> Box<dyn usr::dom_c::DomC> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
