@@ -18,8 +18,13 @@ pub fn sys_spawn_domain(path: &str, args: &str, fds: &[Option<usize>]) -> Result
     rv6.sys_spawn_domain(rv6.clone()?, path, args, arr)?
 }
 
-fn sys_getpid() -> Result<u64> {
+pub fn sys_getpid() -> Result<u64> {
     SYSCALL.r#try().unwrap().sys_getpid()?   
+}
+
+pub fn sys_uptime() -> Result<u64> {
+    unimplemented!()
+    // SYSCALL.r#try().unwrap().sys_uptime()?   
 }
 
 pub fn sys_open(path: &str, mode: FileMode) -> Result<usize> {
