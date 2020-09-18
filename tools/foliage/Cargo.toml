@@ -1,0 +1,17 @@
+[package]
+name = "redleaf-foliage"
+version = "0.1.0"
+authors = ["Zhaofeng Li <hello@zhaofeng.li>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = "2.33.3"
+log = "0.4.11"
+serde = { version = "1.0", features = ["derive"] }
+cargo_toml = "0.8.1"
+void = "1.0.2"
+glob = "0.3.0"
+pretty_env_logger = "0.4.0"
+regex = "1"
