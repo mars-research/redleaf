@@ -1,6 +1,17 @@
 [workspace]
 members = [
+	"sys/init",
 	"sys/driver/ixgbe",
-#	"sys/driver/membdev",
-#	"usr/xv6/usr/bin",
+	"sys/driver/membdev",
+	"sys/driver/nvme",
+	"sys/driver/pci",
+	"sys/driver/tpm",
+	"usr/proxy",
+	"usr/shadow/net",
+	"usr/shadow/nvme",
+	"usr/shadow/bdev",
+	"usr/xv6/usr/bin",
+	"usr/xv6/usr/lib",
+	"usr/xv6/kernel/core",
+	"usr/xv6/kernel/fs"
 ]

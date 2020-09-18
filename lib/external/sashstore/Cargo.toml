@@ -7,9 +7,9 @@ edition = "2018"
 [dependencies]
 log = "0.4"
 b2histogram = "1.0.0"
-console = { path = "../console" }
-syscalls = { path = "../interfaces/syscalls" }
-libsyscalls = { path = "../libsyscalls" }
+console = { path = "../../core/console" }
+syscalls = { path = "../../core/interfaces/syscalls" }
+libsyscalls = { path = "../../core/libsyscalls" }
 
 [dependencies.fnv]
 git = "https://github.com/servo/rust-fnv"

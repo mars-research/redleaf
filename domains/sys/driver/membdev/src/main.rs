@@ -15,7 +15,7 @@ use usr::bdev::BDev;
 
 extern crate alloc;
 extern crate malloc;
-extern crate memcpy;
+
 
 
 

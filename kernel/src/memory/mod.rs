@@ -4,7 +4,7 @@ use x86::bits64::paging;
 use core::mem::transmute;
 use core::alloc::{GlobalAlloc, Layout};
 use spin::Mutex;
-use slabmalloc::{ObjectPage, PageProvider, ZoneAllocator};
+use slabmalloc_kernel::{ObjectPage, PageProvider, ZoneAllocator};
 use crate::memory::buddy::BUDDY;
 use log::{trace};
 use crate::arch::KERNEL_END;

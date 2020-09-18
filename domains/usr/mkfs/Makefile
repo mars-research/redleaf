@@ -61,11 +61,11 @@ large:
 
 .PHONY: bin
 bin:
-	make -C ../xv6/usr/bin
+	cd ../xv6/usr/bin && cargo rb
 
 .PHONY: $(BINS)
 $(BINS): bin
-	cp ../xv6/usr/bin/target/$(target)/$(TARGET_SUB_DIR)/$@ build/ -f
+	cp ../xv6/usr/bin/build/$@ build/ -f
 
 .PHONY: clean
 clean: 

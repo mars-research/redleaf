@@ -1,4 +1,5 @@
 #![no_std]
+#![no_main]
 #![feature(
     const_fn,
     const_raw_ptr_to_usize_cast,
@@ -548,7 +549,7 @@ fn run_blocktest(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
 }
 
 #[no_mangle]
-pub fn nvme_init(s: Box<dyn Syscall + Send + Sync>,
+pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>,
                  heap: Box<dyn Heap + Send + Sync>,
                  pci: Box<dyn usr::pci::PCI>) -> Box<dyn usr::bdev::NvmeBDev> {
     libsyscalls::syscalls::init(s);

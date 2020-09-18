@@ -8,5 +8,5 @@ edition = "2018"
 [dependencies]
 array-init = "0.1.1"
 spin = "0.5.2"
-usr_interface = { package = "usr", path = "../../../../../lib-trusted/interfaces/usr" }
+usr_interface = { package = "usr", path = "../../../../../lib/core/interfaces/usr" }
 

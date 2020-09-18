@@ -7,9 +7,9 @@ edition = "2018"
 crate-type = ["lib"]
 
 [dependencies]
-usr = { path = "../interfaces/usr" }
-rref = { path = "../rref" }
-console = { path = "../console" }
-spin = { path = "../spin-rs" }
-libtime = { path = "../libtime" }
-bin = { path = "../../domains/usr/xv6/usr/bin" }
+usr = { path = "../../core/interfaces/usr" }
+rref = { path = "../../core/rref" }
+console = { path = "../../core/console" }
+spin = { path = "../../core/spin-rs" }
+libtime = { path = "../../core/libtime" }
+bin = { path = "../../../domains/usr/xv6/usr/bin" }

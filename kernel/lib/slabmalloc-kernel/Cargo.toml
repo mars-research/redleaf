@@ -1,5 +1,5 @@
 [package]
-name = "slabmalloc"
+name = "slabmalloc-kernel"
 version = "0.3.4"
 authors = ["Gerd Zellweger <mail@gerdzellweger.com>"]
 description = "Simple slab based malloc implementation in rust. Can be used stand-alone or in order to provide the necessary interface to rusts liballoc library. slabmalloc only relies on libcore."
@@ -17,7 +17,7 @@ unstable = []
 default = [ "unstable" ]
 
 [dependencies]
-spin = { path = "../../../lib-trusted/spin-rs" }
+spin = { path = "../../../lib/core/spin-rs" }
 log = "0.4"
 
 [target.'cfg(unix)'.dev-dependencies]

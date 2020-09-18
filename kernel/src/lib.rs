@@ -21,7 +21,6 @@ extern crate x86;
 extern crate lazy_static;
 extern crate spin;
 extern crate core;
-extern crate slabmalloc;
 #[macro_use]
 extern crate alloc;
 extern crate backtracer;

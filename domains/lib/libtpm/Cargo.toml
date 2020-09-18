@@ -7,10 +7,10 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-libsyscalls = { path = "../libsyscalls", version = "0.1.0" }
-libtime = { path = "../libtime", version = "0.1.0" }
-usr = { path = "../../../sys/interfaces/usr", version = "0.1.0" }
-console = { path = "../console", version = "0.1.0" }
-malloc = { path = "../../lib/malloc", version = "0.1.0" }
+libsyscalls = { path = "../../../lib/core/libsyscalls" }
+libtime = { path = "../../../lib/core/libtime" }
+usr = { path = "../../../lib/core/interfaces/usr" }
+console = { path = "../../../lib/core/console" }
+malloc = { path = "../../../lib/core/malloc" }
 bitfield = "0.13.2"
 byteorder = { version = "1.3.4", default-features = false }

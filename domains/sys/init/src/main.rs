@@ -1,4 +1,5 @@
 #![no_std]
+#![no_main]
 #![feature(
     const_fn,
     const_raw_ptr_to_usize_cast,
@@ -89,7 +90,7 @@ fn test_dummy_syscall() {
 //
 // We have to re-write in an ugly way
 #[no_mangle]
-pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
+pub fn trusted_entry(s: Box<dyn syscalls::Syscall + Send + Sync>,
             ints: Box<dyn syscalls::Interrupt + Send + Sync>,
             create_proxy: Box<dyn proxy::CreateProxy>,
             create_xv6: Arc<dyn create::CreateXv6>,

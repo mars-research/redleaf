@@ -10,8 +10,8 @@ crate-type = ["lib"]
 [dependencies]
 b2histogram = "1.0"
 byteorder = { version = "1.2", default-features = false }
-libsyscalls = { path = "../libsyscalls" }
-libtime = { path = "../libtime" }
-rref = { path = "../rref" }
-usr = { path = "../interfaces/usr" }
-console = { path = "../console" }
+libsyscalls = { path = "../../../lib/core/libsyscalls" }
+libtime = { path = "../../../lib/core/libtime" }
+rref = { path = "../../../lib/core/rref" }
+usr = { path = "../../../lib/core/interfaces/usr" }
+console = { path = "../../../lib/core/console" }

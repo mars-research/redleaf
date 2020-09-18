@@ -33,21 +33,21 @@ hashbrown = "0.6"
 # Local
 elfloader = { path = "./lib/rust-elfloader" }
 pcid = { path = "./lib/pcid" }
-slabmalloc = { path = "./lib/slabmalloc-kernel" }
+slabmalloc-kernel = { path = "./lib/slabmalloc-kernel" }
 
 # Shared
-spin = { path = "../lib-trusted/spin-rs" }
-unwind = { path = "../lib-trusted/unwind" }
+spin = { path = "../lib/core/spin-rs" }
+unwind = { path = "../lib/core/unwind" }
 
 # Interfaces
-syscalls = { path = "../lib-trusted/interfaces/syscalls" }
-create = { path = "../lib-trusted/interfaces/create" }
-usr = { path = "../lib-trusted/interfaces/usr" }
-proxy = { path = "../lib-trusted/interfaces/proxy" }
-# ixgbe = { path = "../lib-trusted/interfaces/dev/ixgbe" }
-ahci = { path = "../lib-trusted/interfaces/dev/ahci" }
-platform = { path = "../lib-trusted/interfaces/platform" }
-# pci_driver = { path = "../lib-trusted/interfaces/dev/pci/pci_driver" }
+syscalls = { path = "../lib/core/interfaces/syscalls" }
+create = { path = "../lib/core/interfaces/create" }
+usr = { path = "../lib/core/interfaces/usr" }
+proxy = { path = "../lib/core/interfaces/proxy" }
+# ixgbe = { path = "../lib/core/interfaces/dev/ixgbe" }
+ahci = { path = "../lib/core/interfaces/dev/ahci" }
+platform = { path = "../lib/core/interfaces/platform" }
+# pci_driver = { path = "../lib/core/interfaces/dev/pci/pci_driver" }
 
 [dependencies.lazy_static]
 version = "1.3.0"
@@ -79,9 +79,6 @@ features = ["u64_backend"] # maybe simd_backend?
 [build-dependencies]
 rand = "0.7"
 ed25519-dalek = "1.0.0-pre.3"
-
-[package.metadata.cargo-xbuild]
-memcpy = false
 
 [features]
 smp = [ ]

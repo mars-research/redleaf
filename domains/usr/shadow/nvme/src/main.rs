@@ -1,4 +1,5 @@
 #![no_std]
+#![no_main]
 #![feature(
     box_syntax,
 )]
@@ -78,7 +79,7 @@ impl NvmeBDev for Shadow {
 }
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, create: Arc<dyn CreateNvme>, pci: Box<dyn PCI>) -> Box<dyn NvmeBDev> {
+pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, create: Arc<dyn CreateNvme>, pci: Box<dyn PCI>) -> Box<dyn NvmeBDev> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 

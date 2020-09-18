@@ -1,4 +1,5 @@
 #![no_std]
+#![no_main]
 #![forbid(unsafe_code)]
 #![feature(box_syntax, const_fn, const_raw_ptr_to_usize_cast, untagged_unions)]
 
@@ -22,7 +23,7 @@ use usr_interface::vfs::{FileMode, VFS};
 use usr_interface::xv6::{Thread, Xv6};
 
 #[no_mangle]
-pub fn init(
+pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
     heap: Box<dyn Heap + Send + Sync>,
     ints: Box<dyn syscalls::Interrupt + Send + Sync>,

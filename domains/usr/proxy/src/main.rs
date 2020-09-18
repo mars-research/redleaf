@@ -1,4 +1,5 @@
 #![no_std]
+#![no_main]
 #![feature(
     global_asm,
     box_syntax,
@@ -18,7 +19,7 @@ use core::alloc::Layout;
 use core::panic::PanicInfo;
 
 #[no_mangle]
-pub fn init(
+pub fn trusted_entry(
     s: Box<dyn syscalls::Syscall + Send + Sync>,
     heap: Box<dyn syscalls::Heap + Send + Sync>,
     create_pci: Arc<dyn create::CreatePCI>,

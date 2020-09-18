@@ -7,11 +7,11 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-libsyscalls = { path = "../../../lib/libsyscalls", version = "0.1.0" }
-libtime = { path = "../../../lib/libtime", version = "0.1.0" }
-console = { path = "../../../lib/console", version = "0.1.0" }
-libdma = { path = "../../../lib/libdma", version = "0.1.0" }
-platform = { path = "../../../interfaces/platform", version = "0.1.0" }
-malloc = { path = "../../../lib/malloc", version = "0.1.0" }
-rref = { path = "../../../lib/rref", version = "0.1.0" }
-usr = { path = "../../usr", version = "0.1.0" }
+libsyscalls = { path = "../../core/libsyscalls" }
+libtime = { path = "../../core/libtime" }
+console = { path = "../../core/console" }
+libdma = { path = "../libdma" }
+platform = { path = "../../core/interfaces/platform" }
+malloc = { path = "../../core/malloc" }
+rref = { path = "../../core/rref" }
+usr = { path = "../../core/interfaces/usr" }

@@ -130,7 +130,7 @@ impl BDev for Shadow {
 }
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, create_bdev: Arc<dyn CreateMemBDev>) -> Box<dyn BDev> {
+pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, create_bdev: Arc<dyn CreateMemBDev>) -> Box<dyn BDev> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 

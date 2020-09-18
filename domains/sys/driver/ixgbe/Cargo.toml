@@ -22,22 +22,22 @@ bitflags = "1.0.4"
 b2histogram = "1.0"
 byteorder = { version = "1.3.4", default-features = false }
 
-libsyscalls = { path = "../../../../lib-trusted/libsyscalls" }
-libtime = { path = "../../../../lib-trusted/libtime" }
-console = { path = "../../../../lib-trusted/console" }
-malloc = { path = "../../../../lib-trusted/malloc" }
-rref = { path = "../../../../lib-trusted/rref" }
-spin = { path = "../../../../lib-trusted/spin-rs" }
-sashstore-redleaf = { path = "../../../../lib-trusted/sashstore" }
-libbenchnet = { path = "../../../../lib-trusted/libbenchnet" }
+libsyscalls = { path = "../../../../lib/core/libsyscalls" }
+libtime = { path = "../../../../lib/core/libtime" }
+console = { path = "../../../../lib/core/console" }
+malloc = { path = "../../../../lib/core/malloc" }
+rref = { path = "../../../../lib/core/rref" }
+spin = { path = "../../../../lib/core/spin-rs" }
+sashstore-redleaf = { path = "../../../../lib/external/sashstore" }
+libbenchnet = { path = "../../../lib/libbenchnet" }
 
 # Interfaces
-syscalls = { path = "../../../../lib-trusted/interfaces/syscalls" }
-ixgbe_device = { path = "../../../../lib-trusted/interfaces/device/ixgbe" }
-pci_driver = { path = "../../../../lib-trusted/interfaces/dev/pci/pci_driver" }
-protocol = { path = "../../../../lib-trusted/interfaces/protocol" }
-platform = { path = "../../../../lib-trusted/interfaces/platform" }
-usr = { path = "../../../../lib-trusted/interfaces/usr" }
+syscalls = { path = "../../../../lib/core/interfaces/syscalls" }
+ixgbe_device = { path = "../../../../lib/devices/ixgbe" }
+pci_driver = { path = "../../../../lib/core/interfaces/dev/pci/pci_driver" }
+protocol = { path = "../../../../lib/core/interfaces/protocol" }
+platform = { path = "../../../../lib/core/interfaces/platform" }
+usr = { path = "../../../../lib/core/interfaces/usr" }
 
 [dependencies.lazy_static]
 version = "1.3.0"
@@ -49,7 +49,7 @@ default-features = false
 
 
 [dependencies.smoltcp]
-path = "../../../../lib-trusted/smoltcp"
+path = "../../../../lib/external/smoltcp"
 default-features = false
 features = ["alloc", "proto-ipv4", "socket-tcp", "socket-icmp", "ethernet"]
 
@@ -58,7 +58,7 @@ version = "0.5.1"
 default-features = false
 
 [dependencies.httparse]
-path = "../../../../lib-trusted/httparse"
+path = "../../../../lib/external/httparse"
 default-features = false
 
 [features]

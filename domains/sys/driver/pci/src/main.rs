@@ -1,4 +1,5 @@
 #![no_std]
+#![no_main]
 #![feature(
     const_fn,
     const_raw_ptr_to_usize_cast,
@@ -74,7 +75,7 @@ impl usr::pci::PCI for PCI {
 }
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>,
+pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>,
             m: Box<dyn syscalls::Mmap + Send + Sync>,
             heap: Box<dyn Heap + Send + Sync>) -> Box<dyn usr::pci::PCI> {
 

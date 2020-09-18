@@ -1,4 +1,5 @@
 #![no_std]
+#![no_main]
 #![feature(
     const_fn,
     const_raw_ptr_to_usize_cast,
@@ -116,7 +117,7 @@ impl usr::tpm::TpmDev for Tpm {
 }
 
 #[no_mangle]
-pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
+pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>,
                  heap: Box<dyn Heap + Send + Sync>) -> Box<dyn usr::tpm::TpmDev> {
     libsyscalls::syscalls::init(s);
 

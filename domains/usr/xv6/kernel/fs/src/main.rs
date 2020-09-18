@@ -1,4 +1,5 @@
 #![no_std]
+#![no_main]
 #![forbid(unsafe_code)]
 #![feature(
     box_syntax,
@@ -17,7 +18,7 @@ extern crate malloc;
 extern crate lazy_static;
 #[macro_use]
 extern crate byteorder;
-extern crate memcpy;
+
 
 use alloc::boxed::Box;
 use console::println;
@@ -109,7 +110,7 @@ impl UsrVFS for Rv6FS {
 }
 
 #[no_mangle]
-pub fn init(
+pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
     heap: Box<dyn Heap + Send + Sync>,
     bdev: Box<dyn BDev>,

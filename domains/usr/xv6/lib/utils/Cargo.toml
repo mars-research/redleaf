@@ -5,4 +5,4 @@ edition = "2018"
 
 
 [dependencies]
-spin = { path = "../spin-rs" }
+spin = { path = "../../../../../lib/core/spin-rs" }

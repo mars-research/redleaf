@@ -1,4 +1,4 @@
-libpolylibc.a: musl/lib/libc.a
+libmemops.a: musl/lib/libc.a
 	strip $< -o $@ -K memcpy -K memmove -K memcmp -K memset
 	ranlib $@
 

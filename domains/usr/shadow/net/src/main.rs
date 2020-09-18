@@ -1,4 +1,5 @@
 #![no_std]
+#![no_main]
 #![feature(
     box_syntax,
 )]
@@ -89,7 +90,7 @@ impl Net for Shadow {
 }
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, create: Arc<dyn CreateIxgbe>, pci: Box<dyn PCI>) -> Box<dyn Net> {
+pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, create: Arc<dyn CreateIxgbe>, pci: Box<dyn PCI>) -> Box<dyn Net> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
