@@ -1027,6 +1027,9 @@ impl Xv6 for Rv6Proxy {
     fn sys_spawn_domain(&self, rv6: Box<dyn Xv6>, path: &str, args: &str, fds: [Option<usize>; NFILE]) -> RpcResult<Result<Box<dyn Thread>>> {
         self.domain.sys_spawn_domain(rv6, path, args, fds)
     }
+    fn sys_getpid(&self) -> RpcResult<Result<u64>> {
+        self.domain.sys_getpid()
+    }
 } 
 
 // Rv6 proxy

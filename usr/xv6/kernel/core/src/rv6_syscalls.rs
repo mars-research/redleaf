@@ -107,6 +107,12 @@ impl Xv6 for Rv6Syscalls {
             ).unwrap())
         })())
     }
+
+    fn sys_getpid(&self) -> RpcResult<Result<u64>> {
+        Ok((|| {
+            Ok(libsyscalls::syscalls::sys_current_thread_id())
+        })())
+    }
 }
 
 impl UsrVFS for Rv6Syscalls {
