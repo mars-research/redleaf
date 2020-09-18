@@ -33,7 +33,7 @@ pub fn init(
 }
 
 fn getpid() -> Result<(), String> {
-    sys_getpid().map_err(|e| alloc::format!("getpid: cannot getpid. {:?}", e))?;
+    println!("pid: {}", sys_getpid().map_err(|e| alloc::format!("getpid: cannot getpid. {:?}", e))?);
     Ok(())
 }
 

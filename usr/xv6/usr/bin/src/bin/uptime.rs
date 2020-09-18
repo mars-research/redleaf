@@ -14,7 +14,7 @@ use libsyscalls::syscalls::sys_println;
 use syscalls::{Heap, Syscall};
 use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usr_interfaces::xv6::Xv6;
-use usrlib::syscalls::sys_getpid;
+use usrlib::syscalls::sys_uptime;
 use usrlib::{eprintln, println};
 
 #[no_mangle]
@@ -29,11 +29,11 @@ pub fn init(
     usrlib::init(rv6.clone().unwrap());
     println!("Starting rv6 uptime with args: {}", args);
 
-    getpid().unwrap();
+    uptime().unwrap();
 }
 
 fn uptime() -> Result<(), String> {
-    sys_uptime().map_err(|e| alloc::format!("uptime: cannot uptime. {:?}", e))?;
+    println!("uptime: {}", sys_uptime().map_err(|e| alloc::format!("uptime: cannot uptime. {:?}", e))?);
     Ok(())
 }
 
