@@ -99,10 +99,6 @@ impl Xv6 for Rv6Syscalls {
             }),
         ))
     }
-
-    fn sys_rdtsc(&self) -> u64 {
-        libtime::get_rdtsc()
-    }
 }
 
 impl UsrVFS for Rv6Syscalls {
