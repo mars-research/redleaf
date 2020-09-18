@@ -2,6 +2,7 @@
 
 use alloc::boxed::Box;
 use core::fmt;
+use crate::rpc::RpcError;
 
 /// A specialized [`Result`](../result/enum.Result.html) type for I/O
 /// operations.
@@ -141,6 +142,8 @@ pub enum ErrorKind {
     UnsupportedOperation,
     /// Device not initialized
     UninitializedDevice,
+    /// Rpc error, could be anything in `crate::rpc::ErrorEnum`
+    RpcError,
 }
 
 // impl ErrorKind {
@@ -177,3 +180,8 @@ pub enum ErrorKind {
 //     }
 // }
 
+impl core::convert::From<RpcError> for ErrorKind {
+    fn from(_: RpcError) -> Self {
+        Self::RpcError
+    }
+}

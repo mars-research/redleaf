@@ -39,35 +39,41 @@ impl Rv6Syscalls {
 }
 
 impl Xv6 for Rv6Syscalls {
-    fn clone(&self) -> Box<dyn Xv6> {
-        box Self {
+    fn clone(&self) -> RpcResult<Box<dyn Xv6>> {
+        Ok((|| box Self {
             create_xv6usr: self.create_xv6usr.clone(),
             fs: self.fs.clone(),
             net: self.net.clone(),
             nvme: self.nvme.clone(),
-        }
+        })())
     }
 
-    fn as_net(&self) -> Box<dyn Net> {
-        box Self {
+    fn as_net(&self) -> RpcResult<Box<dyn Net>> {
+        Ok((|| box Self {
             create_xv6usr: self.create_xv6usr.clone(),
             fs: self.fs.clone(),
             net: self.net.clone(),
             nvme: self.nvme.clone(),
-        }
+        })())
     }
 
-    fn as_nvme(&self) -> Box<dyn NvmeBDev> {
-        box Self {
+    fn as_nvme(&self) -> RpcResult<Box<dyn NvmeBDev>> {
+        Ok((|| box Self {
             create_xv6usr: self.create_xv6usr.clone(),
             fs: self.fs.clone(),
             net: self.net.clone(),
             nvme: self.nvme.clone(),
-        }
+        })())
     }
 
-    fn sys_spawn_thread(&self, name: &str, func: Box<dyn FnOnce() + Send>) -> Box<dyn Thread> {
-        crate::thread::spawn_thread(self.fs.clone(), name, func)
+    fn sys_spawn_thread(
+        &self,
+        name: &str,
+        func: Box<dyn FnOnce() + Send>,
+    ) -> RpcResult<Box<dyn Thread>> {
+        Ok((|| {
+            crate::thread::spawn_thread(self.fs.clone(), name, func)
+        })())
     }
 
     fn sys_spawn_domain(
@@ -76,28 +82,30 @@ impl Xv6 for Rv6Syscalls {
         path: &str,
         args: &str,
         fds: [Option<usize>; NFILE],
-    ) -> Result<Box<dyn Thread>> {
-        // Load bin into memory
-        println!("sys_spawn_domain {} {}", path, args);
-        let fd = self.fs.sys_open(path, FileMode::READ)?;
-        let size = self.fs.sys_fstat(fd)?.size; // fstat will filter out non INode files
-        let mut blob = alloc::vec![0; size as usize];
-        assert_eq!(self.fs.sys_read(fd, blob.as_mut_slice())?, size as usize);
+    ) -> RpcResult<Result<Box<dyn Thread>>> {
+        Ok((|| {
+            // Load bin into memory
+            println!("sys_spawn_domain {} {}", path, args);
+            let fd = self.fs.sys_open(path, FileMode::READ)?;
+            let size = self.fs.sys_fstat(fd)?.size; // fstat will filter out non INode files
+            let mut blob = alloc::vec![0; size as usize];
+            assert_eq!(self.fs.sys_read(fd, blob.as_mut_slice())?, size as usize);
 
-        // Create a seperate copy of all the objects we want to pass to the new thread
-        // and transfer the ownership over
-        let fs_copy = self.fs.clone();
-        let path_copy = path.to_owned();
-        let create_copy = self.create_xv6usr.clone();
-        let args_copy = args.to_owned();
-        let tmp_storage_id = fs_copy.sys_save_threadlocal(fds)?;
-        Ok(self.sys_spawn_thread(
-            path,
-            Box::new(move || {
-                fs_copy.sys_set_threadlocal(tmp_storage_id).unwrap();
-                create_copy.create_domain_xv6usr(&path_copy, rv6, blob.as_slice(), &args_copy);
-            }),
-        ))
+            // Create a seperate copy of all the objects we want to pass to the new thread
+            // and transfer the ownership over
+            let fs_copy = self.fs.clone();
+            let path_copy = path.to_owned();
+            let create_copy = self.create_xv6usr.clone();
+            let args_copy = args.to_owned();
+            let tmp_storage_id = fs_copy.sys_save_threadlocal(fds)?;
+            Ok(self.sys_spawn_thread(
+                path,
+                Box::new(move || {
+                    fs_copy.sys_set_threadlocal(tmp_storage_id).unwrap();
+                    create_copy.create_domain_xv6usr(&path_copy, rv6, blob.as_slice(), &args_copy);
+                }),
+            ).unwrap())
+        })())
     }
 }
 

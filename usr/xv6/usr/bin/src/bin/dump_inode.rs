@@ -26,7 +26,7 @@ pub fn init(
 ) {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
-    usrlib::init(rv6.clone());
+    usrlib::init(rv6.clone().unwrap());
     println!("Starting rv6 dump_inode with args: {}", args);
 
     dump_inode().unwrap();

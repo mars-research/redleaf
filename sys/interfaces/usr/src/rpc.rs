@@ -1,3 +1,8 @@
+/// `RpcResult` is a wrapper around the `Result` type. It forces the users
+/// can only return an `Ok` and an `RpcError` must be raise by the proxy(trusted)
+
+use crate::error::ErrorKind;
+
 pub type RpcResult<T> = Result<T, RpcError>;
 
 /// A wrapper that hides the ErrorEnum

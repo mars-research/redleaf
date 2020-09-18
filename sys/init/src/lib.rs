@@ -253,7 +253,7 @@ pub fn init(s: Box<dyn syscalls::Syscall + Send + Sync>,
     #[cfg(not(any(feature = "benchnet", feature = "benchnvme")))]
     {
         let (dom_xv6, rv6) = proxy.as_create_xv6().create_domain_xv6kernel(ints_clone, proxy.as_create_xv6fs(), proxy.as_create_xv6usr(), bdev, net, nvme);
-        rv6.sys_spawn_domain(rv6.clone(), "/init", "/init", array_init::array_init(|_| None)).unwrap();
+        rv6.sys_spawn_domain(rv6.clone().unwrap(), "/init", "/init", array_init::array_init(|_| None)).unwrap();
     }
 }
 

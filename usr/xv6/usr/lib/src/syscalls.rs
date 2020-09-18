@@ -15,7 +15,7 @@ pub fn sys_spawn_domain(path: &str, args: &str, fds: &[Option<usize>]) -> Result
     let mut arr: [Option<usize>; NFILE] = array_init::array_init(|_| None);
     arr[..fds.len()].clone_from_slice(&fds);
     let rv6 = &**SYSCALL.r#try().unwrap();
-    rv6.sys_spawn_domain(rv6.clone(), path, args, arr)
+    rv6.sys_spawn_domain(rv6.clone()?, path, args, arr)?
 }
 
 pub fn sys_open(path: &str, mode: FileMode) -> Result<usize> {
