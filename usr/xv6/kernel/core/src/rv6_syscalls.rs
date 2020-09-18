@@ -20,6 +20,7 @@ pub struct Rv6Syscalls {
     fs: Box<dyn VFS>,
     net: Arc<Mutex<Box<dyn Net>>>,
     nvme: Arc<Mutex<Box<dyn NvmeBDev>>>,
+    start_time: u64
 }
 
 impl Rv6Syscalls {
@@ -34,6 +35,7 @@ impl Rv6Syscalls {
             fs,
             net: Arc::new(Mutex::new(net)),
             nvme: Arc::new(Mutex::new(nvme)),
+            start_time: libtime::get_ns_time(),
         }
     }
 }
@@ -41,6 +43,7 @@ impl Rv6Syscalls {
 impl Xv6 for Rv6Syscalls {
     fn clone(&self) -> RpcResult<Box<dyn Xv6>> {
         Ok((|| box Self {
+            start_time: self.start_time,
             create_xv6usr: self.create_xv6usr.clone(),
             fs: self.fs.clone(),
             net: self.net.clone(),
@@ -50,6 +53,7 @@ impl Xv6 for Rv6Syscalls {
 
     fn as_net(&self) -> RpcResult<Box<dyn Net>> {
         Ok((|| box Self {
+            start_time: self.start_time,
             create_xv6usr: self.create_xv6usr.clone(),
             fs: self.fs.clone(),
             net: self.net.clone(),
@@ -59,6 +63,7 @@ impl Xv6 for Rv6Syscalls {
 
     fn as_nvme(&self) -> RpcResult<Box<dyn NvmeBDev>> {
         Ok((|| box Self {
+            start_time: self.start_time,
             create_xv6usr: self.create_xv6usr.clone(),
             fs: self.fs.clone(),
             net: self.net.clone(),
@@ -111,6 +116,12 @@ impl Xv6 for Rv6Syscalls {
     fn sys_getpid(&self) -> RpcResult<Result<u64>> {
         Ok((|| {
             Ok(libsyscalls::syscalls::sys_current_thread_id())
+        })())
+    }
+
+    fn sys_uptime(&self) -> RpcResult<Result<u64>> {
+        Ok((|| {
+            Ok(libtime::get_ns_time() - self.start_time)
         })())
     }
 }

@@ -17,6 +17,7 @@ pub trait Xv6: Send + Sync + UsrVFS + Net {
     // We need to pass a new instance of `rv6` as a parameter so that the proxy can be properly propagated.
     fn sys_spawn_domain(&self, rv6: Box<dyn Xv6>, path: &str, args: &str, fds: [Option<usize>; NFILE]) -> RpcResult<Result<Box<dyn Thread>>>;
     fn sys_getpid(&self) -> RpcResult<Result<u64>>;
+    fn sys_uptime(&self) -> RpcResult<Result<u64>>;
 }
 
 pub trait File: Send {

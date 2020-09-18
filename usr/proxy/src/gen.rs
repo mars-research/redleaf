@@ -1030,6 +1030,9 @@ impl Xv6 for Rv6Proxy {
     fn sys_getpid(&self) -> RpcResult<Result<u64>> {
         self.domain.sys_getpid()
     }
+    fn sys_uptime(&self) -> RpcResult<Result<u64>> {
+        self.domain.sys_uptime()
+    }
 } 
 
 // Rv6 proxy

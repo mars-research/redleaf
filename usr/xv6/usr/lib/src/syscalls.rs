@@ -23,8 +23,7 @@ pub fn sys_getpid() -> Result<u64> {
 }
 
 pub fn sys_uptime() -> Result<u64> {
-    unimplemented!()
-    // SYSCALL.r#try().unwrap().sys_uptime()?   
+    SYSCALL.r#try().unwrap().sys_uptime()?   
 }
 
 pub fn sys_open(path: &str, mode: FileMode) -> Result<usize> {
