@@ -21,9 +21,9 @@ impl PHeap {
 }
 
 impl syscalls::Heap for PHeap {
-    unsafe fn alloc(&self, layout: Layout, type_hash: u64) -> SharedHeapAllocation {
+    unsafe fn alloc(&self, layout: Layout, type_id: u64) -> Option<SharedHeapAllocation> {
         disable_irq();
-        let allocation = alloc_heap(layout, type_hash);
+        let allocation = alloc_heap(layout, type_id);
         enable_irq();
         allocation
     }
@@ -35,7 +35,12 @@ impl syscalls::Heap for PHeap {
     }
 }
 
-unsafe fn alloc_heap(layout: Layout, type_hash: u64) -> SharedHeapAllocation {
+unsafe fn alloc_heap(layout: Layout, type_id: u64) -> Option<SharedHeapAllocation> {
+
+    if !DROPPER.has_type(type_id) {
+        return None
+    }
+
     let domain_id_pointer = MEM_PROVIDER.alloc(Layout::new::<u64>()) as *mut u64;
     let borrow_count_pointer = MEM_PROVIDER.alloc(Layout::new::<u64>()) as *mut u64;
     let value_pointer = MEM_PROVIDER.alloc(layout);
@@ -45,11 +50,11 @@ unsafe fn alloc_heap(layout: Layout, type_hash: u64) -> SharedHeapAllocation {
         domain_id_pointer,
         borrow_count_pointer,
         layout,
-        type_hash,
+        type_id,
     };
     unsafe { &mut allocations.lock() }.insert(value_pointer as usize, allocation);
 
-    allocation
+    Some(allocation)
 }
 
 unsafe fn dealloc_heap(ptr: *mut u8) {
@@ -62,7 +67,7 @@ unsafe fn dealloc_heap(ptr: *mut u8) {
         Some(allocation) => {
 
             // recursively invoke the cleanup methods
-            DROPPER.drop(allocation.type_hash, allocation.value_pointer);
+            DROPPER.drop(allocation.type_id, allocation.value_pointer);
 
             unsafe {
                 MEM_PROVIDER.dealloc(allocation.value_pointer, allocation.layout);
@@ -90,7 +95,7 @@ pub unsafe fn drop_domain(domain_id: u64) {
 
     for allocation in queue {
         // recursively invoke the cleanup methods
-        DROPPER.drop(allocation.type_hash, allocation.value_pointer);
+        DROPPER.drop(allocation.type_id, allocation.value_pointer);
 
         unsafe {
             MEM_PROVIDER.dealloc(allocation.value_pointer, allocation.layout);

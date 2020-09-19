@@ -5,6 +5,22 @@ impl<T> !RRefable for &T {}
 impl<T> !RRefable for &mut T {}
 impl<T> !RRefable for [T] {}
 
+pub trait TypeIdentifiable {
+    fn type_id() -> u64;
+}
+
+// TODO: replace this blanket implementation with generated type ids
+impl<T> TypeIdentifiable for T {
+    default fn type_id() -> u64 {
+        let type_str = core::any::type_name::<T>();
+        let mut hash = 5381u64;
+        for byte in type_str.bytes() {
+            hash = hash.wrapping_mul(33) ^ (byte as u64);
+        }
+        hash
+    }
+}
+
 pub trait CustomCleanup: RRefable {
     fn cleanup(&mut self);
 }

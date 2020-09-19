@@ -1,7 +1,7 @@
 use crate::rref::RRef;
-use crate::traits::{RRefable, CustomCleanup};
+use crate::traits::{RRefable, CustomCleanup, TypeIdentifiable};
 
-pub struct RRefArray<T: RRefable, const N: usize> where T: 'static {
+pub struct RRefArray<T, const N: usize> where T: 'static + RRefable {
     arr: RRef<[Option<RRef<T>>; N]>
 }
 
@@ -15,12 +15,31 @@ impl<T: RRefable, const N: usize> CustomCleanup for RRefArray<T, N> {
     }
 }
 
-impl<T: RRefable, const N: usize> RRefArray<T, N> {
+impl<T: RRefable, const N: usize> RRefArray<T, N> where [Option<RRef<T>>; N]: TypeIdentifiable {
     pub fn new(arr: [Option<RRef<T>>; N]) -> Self {
         Self {
             arr: RRef::new(arr)
         }
     }
+}
+
+impl<T: RRefable, const N: usize> Default for RRefArray<T, N> where [Option<RRef<T>>; N]: TypeIdentifiable {
+    fn default() -> Self {
+        // https://www.joshmcguigan.com/blog/array-initialization-rust/
+        let arr = unsafe {
+            let mut arr: [Option<RRef<T>>; N] = core::mem::uninitialized();
+            for item in &mut arr[..] {
+                core::ptr::write(item, None);
+            }
+            arr
+        };
+        Self {
+            arr: RRef::new(arr)
+        }
+    }
+}
+
+impl<T: RRefable, const N: usize> RRefArray<T, N> {
 
     pub fn has(&self, index: usize) -> bool {
         self.arr[index].is_some()
@@ -59,21 +78,5 @@ impl<T: RRefable, const N: usize> RRefArray<T, N> {
         self.arr[index].as_ref().map(|r| {
             unsafe { r.ptr_mut() }
         })
-    }
-}
-
-impl<T: RRefable, const N: usize> Default for RRefArray<T, N> {
-    fn default() -> Self {
-        // https://www.joshmcguigan.com/blog/array-initialization-rust/
-        let arr = unsafe {
-            let mut arr: [Option<RRef<T>>; N] = core::mem::uninitialized();
-            for item in &mut arr[..] {
-                core::ptr::write(item, None);
-            }
-            arr
-        };
-        Self {
-            arr: RRef::new(arr)
-        }
     }
 }
