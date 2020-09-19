@@ -18,6 +18,7 @@ members = [
 	"usr/test/dom_c",
 	"usr/test/dom_d",
 	"usr/test/shadow",
+	"usr/test/testtpm",
 	"usr/xv6/kernel/core",
 	"usr/xv6/kernel/fs",
 	"usr/xv6/usr/bin",

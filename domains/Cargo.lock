@@ -899,6 +899,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "testtpm"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "create",
+ "libsyscalls",
+ "libtime",
+ "libtpm",
+ "malloc",
+ "proxy",
+ "rref",
+ "syscalls",
+ "usr",
+]
+
+[[package]]
 name = "tls"
 version = "0.1.0"
 dependencies = [
