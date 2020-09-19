@@ -34,7 +34,7 @@ pub fn init(
     args: &str,
 ) {
     libsyscalls::syscalls::init(s);
-    usrlib::init(rv6.clone());
+    usrlib::init(rv6.clone().unwrap());
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
     println!("Starting rv6 shell with args: {}", args);
 
@@ -58,7 +58,7 @@ pub fn init(
                 leftover
             );
             println!("Parsed command: {:?}", cmd);
-            cmd.run(Redir::new()).iter().for_each(|t| t.join());
+            cmd.run(Redir::new()).iter().for_each(|t| t.join().unwrap());
         }
     }
     println!("Finish shell");

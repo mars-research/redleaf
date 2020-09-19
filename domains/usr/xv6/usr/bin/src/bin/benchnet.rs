@@ -27,10 +27,10 @@ pub fn init(
 ) {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
-    usrlib::init(rv6.clone());
+    usrlib::init(rv6.clone().unwrap());
     println!("Starting rv6 benchnet with args: {}", args);
 
-    let net = rv6.as_net();
+    let net = rv6.as_net().unwrap();
 
     for _ in 0..5 {
         libbenchnet::run_tx_udptest_rref(&*net, 64, false);

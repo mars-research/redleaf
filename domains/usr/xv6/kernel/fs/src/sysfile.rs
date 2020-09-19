@@ -9,7 +9,7 @@ use core::sync::atomic::AtomicUsize;
 pub use usr_interface::vfs::{ErrorKind, FileMode, FileStat, Result, NFILE};
 
 use crate::cross_thread_temp_store::CrossThreadTempStorage;
-use crate::icache::{ICache, INode, INodeFileType};
+use crate::icache::{ICache, ICACHE, INode, INodeFileType};
 use crate::log::LOG;
 use crate::opened_file::{FDTable, FileType, OpenedFile, FD_TABLE};
 use crate::params;
@@ -193,6 +193,25 @@ pub fn sys_pipe() -> Result<(usize, usize)> {
     };
 
     Ok((fd0, fd1))
+}
+
+pub fn sys_mkdir(path: &str) -> Result<()> {
+    console::println!("sys_mkdir {}", path);
+    let mut trans = LOG.r#try().unwrap().begin_transaction();
+    let inode = ICache::create(&mut trans, path, INodeFileType::Directory, 0, 0)?;
+    ICache::put(&mut trans, inode);
+    Ok(())
+}
+
+pub fn sys_dump_inode() -> Result<()> {
+    let inode = ICACHE
+            .lock()
+            .get(params::ROOTDEV, params::ROOTINO)
+            .unwrap();
+        inode
+            .lock()
+            .print(&mut LOG.r#try().unwrap().begin_transaction(), 0);
+    Ok(())
 }
 
 //------------------------------------
