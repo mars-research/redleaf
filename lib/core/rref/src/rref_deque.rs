@@ -1,6 +1,6 @@
 use crate::rref_array::RRefArray;
 use crate::rref::RRef;
-use crate::traits::{RRefable, CustomCleanup};
+use crate::traits::{RRefable, CustomCleanup, TypeIdentifiable};
 
 pub struct RRefDeque<T: RRefable, const N: usize> where T: 'static {
     arr: RRefArray<T, N>,
@@ -18,7 +18,7 @@ impl<T: RRefable, const N: usize> CustomCleanup for RRefDeque<T, N> {
     }
 }
 
-impl<T: RRefable, const N: usize> RRefDeque<T, N> {
+impl<T: RRefable, const N: usize> RRefDeque<T, N> where [Option<RRef<T>>; N]: TypeIdentifiable {
     pub fn new(empty_arr: [Option<RRef<T>>; N]) -> Self {
         Self {
             arr: RRefArray::new(empty_arr),
@@ -26,6 +26,19 @@ impl<T: RRefable, const N: usize> RRefDeque<T, N> {
             tail: 0
         }
     }
+}
+
+impl<T: RRefable, const N: usize> Default for RRefDeque<T, N> where [Option<RRef<T>>; N]: TypeIdentifiable {
+    fn default() -> Self {
+        Self {
+            arr: Default::default(),
+            head: 0,
+            tail: 0,
+        }
+    }
+}
+
+impl<T: RRefable, const N: usize> RRefDeque<T, N> {
 
     // TODO: mark unsafe?
     pub fn move_to(&self, new_domain_id: u64) {
@@ -85,16 +98,6 @@ impl<T: RRefable, const N: usize> RRefDeque<T, N> {
             arr: &self.arr,
             curr: self.tail,
             remaining: len,
-        }
-    }
-}
-
-impl<T: RRefable, const N: usize> Default for RRefDeque<T, N> {
-    fn default() -> Self {
-        Self {
-            arr: Default::default(),
-            head: 0,
-            tail: 0,
         }
     }
 }

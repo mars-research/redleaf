@@ -1,7 +1,6 @@
 // although unsafe function's don't need unsafe blocks, it helps readability
 #![allow(unused_unsafe)]
-use crate::traits::{RRefable, CustomCleanup};
-use crate::type_hash;
+use crate::traits::{RRefable, TypeIdentifiable, CustomCleanup};
 
 use alloc::boxed::Box;
 use core::ops::{Deref, DerefMut, Drop};
@@ -33,18 +32,21 @@ pub struct RRef<T> where T: 'static + RRefable {
 unsafe impl<T: RRefable> RRefable for RRef<T> {}
 unsafe impl<T: RRefable> Send for RRef<T> where T: Send {}
 
-impl<T: RRefable> RRef<T> {
+impl<T: RRefable> RRef<T> where T: TypeIdentifiable {
     fn new_with_layout(value: T, layout: Layout) -> RRef<T> {
         // We allocate the shared heap memory by hand. It will be deallocated in one of two cases:
         //   1. RRef<T> gets dropped, and so the memory under it should be freed.
         //   2. The domain owning the RRef dies, and so the shared heap gets cleaned,
         //        and the memory under this RRef is wiped.
-        let type_hash = type_hash::<T>();
+        let type_id = T::type_id();
 
         // the heap interface allocates both a pointer to T, and a pointer to the domain id
         // when we move the rref, we change the value of the domain id pointer
         // when we modify the rref, we dereference the value pointer
-        let allocation = unsafe { HEAP.force_get().alloc(layout, type_hash) };
+        let allocation = match unsafe { HEAP.force_get().alloc(layout, type_id) } {
+            Some(allocation) => allocation,
+            None => panic!("{} is not a registered RRef type", core::any::type_name::<T>())
+        };
 
         // the memory we get back has size and alignment of T, so this cast is safe
         let value_pointer = allocation.value_pointer as *mut T;
@@ -75,7 +77,9 @@ impl<T: RRefable> RRef<T> {
         let layout = unsafe { Layout::from_size_align_unchecked(size, align) };
         Self::new_with_layout(value, layout)
     }
+}
 
+impl<T: RRefable> RRef<T> {
     pub fn borrow(&self) {
         unsafe {
             *self.borrow_count_pointer += 1;
@@ -123,8 +127,8 @@ impl<T: RRefable> Drop for RRef<T> {
 impl<T: 'static + RRefable> CustomCleanup for RRef<T> {
     fn cleanup(&mut self) {
         unsafe {
-            // #[cfg(features = "rref_dbg")]
-            println!("CustomCleanup::{}::cleanup() dom id {:?} heap? {:?}", core::any::type_name_of_val(self), CRATE_DOMAIN_ID.r#try(), HEAP.r#try().is_some());
+            #[cfg(features = "rref_dbg")]
+            println!("CustomCleanup::<{}>::cleanup() dom id {:?} heap? {:?}", core::any::type_name_of_val(self), CRATE_DOMAIN_ID.r#try(), HEAP.r#try().is_some());
             // "drop" the contents, only interesting for recursive cases
             // self.ptr_mut().cleanup();
             HEAP.force_get().dealloc(self.value_pointer as *mut u8);

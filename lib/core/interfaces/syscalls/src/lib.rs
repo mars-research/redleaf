@@ -99,13 +99,13 @@ pub struct SharedHeapAllocation {
     pub domain_id_pointer: *mut u64,
     pub borrow_count_pointer: *mut u64,
     pub layout: Layout,
-    pub type_hash: u64,
+    pub type_id: u64,
 }
 
 unsafe impl Send for SharedHeapAllocation {}
 
 pub trait Heap {
-    unsafe fn alloc(&self, layout: Layout, type_hash: u64) -> SharedHeapAllocation;
+    unsafe fn alloc(&self, layout: Layout, type_id: u64) -> Option<SharedHeapAllocation>;
     unsafe fn dealloc(&self, ptr: *mut u8);
 }
 
