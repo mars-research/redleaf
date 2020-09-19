@@ -97,16 +97,16 @@ pub fn active_cpus() -> u32 {
 // Init AP cpus
 pub fn init_ap_cpus() {
     for cpu in 1..MAX_CPUS {
-        let ap_cpu_stack = unsafe { crate::thread::alloc_stack() } as u32;
+        let ap_cpu_stack = unsafe { crate::thread::alloc_stack() } as u64;
 
         println!("Waking up CPU{} with stack: {:x}--{:x}",
             cpu, ap_cpu_stack, 
-            ap_cpu_stack + (crate::thread::STACK_SIZE_IN_PAGES * BASE_PAGE_SIZE) as u32);
+            ap_cpu_stack + (crate::thread::STACK_SIZE_IN_PAGES * BASE_PAGE_SIZE) as u64);
 
         unsafe {
             ptr::write_volatile(&mut ap_entry_running as *mut bool, true);
             interrupt::init_cpu(cpu,
-                ap_cpu_stack + (crate::thread::STACK_SIZE_IN_PAGES * BASE_PAGE_SIZE) as u32,
+                ap_cpu_stack + (crate::thread::STACK_SIZE_IN_PAGES * BASE_PAGE_SIZE) as u64,
                 rust_main_ap as u64);
         }
 
@@ -267,7 +267,8 @@ pub extern "C" fn rust_main_ap() -> ! {
         interrupt::init_irqs_local();
 
         // Init page table (code runs on a new page table after this call)
-        construct_ap_pt();
+        // XXX: We already pass the new pgdir and initialize it while booting the ap_cpus
+        //construct_ap_pt();
     }
 
     if unsafe { elf_found } {
