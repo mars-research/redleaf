@@ -124,6 +124,12 @@ impl Xv6 for Rv6Syscalls {
             Ok(libtime::get_ns_time() - self.start_time)
         })())
     }
+
+    fn sys_sleep(&self, ns: u64) -> RpcResult<Result<()>> {
+        Ok((|| {
+            Ok(libtime::sys_ns_sleep(ns))
+        })())
+    }
 }
 
 impl UsrVFS for Rv6Syscalls {

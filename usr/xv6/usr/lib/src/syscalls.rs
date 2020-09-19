@@ -26,6 +26,10 @@ pub fn sys_uptime() -> Result<u64> {
     SYSCALL.r#try().unwrap().sys_uptime()?   
 }
 
+pub fn sys_sleep(ns: u64) -> Result<()> {
+    SYSCALL.r#try().unwrap().sys_sleep(ns)?      
+}
+
 pub fn sys_open(path: &str, mode: FileMode) -> Result<usize> {
     SYSCALL.r#try().unwrap().sys_open(path, mode)?
 }

@@ -18,6 +18,7 @@ pub trait Xv6: Send + Sync + UsrVFS + Net {
     fn sys_spawn_domain(&self, rv6: Box<dyn Xv6>, path: &str, args: &str, fds: [Option<usize>; NFILE]) -> RpcResult<Result<Box<dyn Thread>>>;
     fn sys_getpid(&self) -> RpcResult<Result<u64>>;
     fn sys_uptime(&self) -> RpcResult<Result<u64>>;
+    fn sys_sleep(&self, ns: u64) -> RpcResult<Result<()>>;
 }
 
 pub trait File: Send {

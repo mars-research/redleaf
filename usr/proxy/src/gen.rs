@@ -1033,6 +1033,10 @@ impl Xv6 for Rv6Proxy {
     fn sys_uptime(&self) -> RpcResult<Result<u64>> {
         self.domain.sys_uptime()
     }
+
+    fn sys_sleep(&self, ns: u64) -> RpcResult<Result<()>> {
+        self.domain.sys_sleep(ns)
+    }
 } 
 
 // Rv6 proxy

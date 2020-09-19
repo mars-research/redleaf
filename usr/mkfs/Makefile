@@ -38,6 +38,7 @@ BINS=\
 	mkdir\
 	getpid\
 	uptime\
+	sleep\
 	dump_inode\
 	benchfs\
 	benchnet\
