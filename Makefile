@@ -6,10 +6,13 @@ root := ./
 linker_script := linker.ld
 grub_cfg := boot/grub.cfg
 
-CARGO_FLAGS     =
-DOMAIN_FEATURES =
+# Configurations
+CARGO_FLAGS     ?=
+DOMAIN_FEATURES ?=
+KERNEL_FEATURES ?=
+DEBUG           ?= false
+LARGE_MEM       ?= true
 
-KERNEL_FEATURES =
 #KERNEL_FEATURES += --features "trace_alloc"
 #KERNEL_FEATURES += --features "smp"
 KERNEL_FEATURES += --features "trace_vspace"
@@ -23,21 +26,21 @@ endif
 
 ifeq ($(LARGE_MEM),true)
 KERNEL_FEATURES += --features "large_mem"
-MEM = -m 10240M
+QEMU_MEM = -m 10240M
 else
-MEM = -m 2048M
+QEMU_MEM = -m 2048M
 endif
 
-ifeq ($(IXGBE),true)
+#ifeq ($(IXGBE),true)
 DOMAIN_FEATURES += --features "c220g2_ixgbe"
 KERNEL_FEATURES += --features "c220g2_ixgbe"
-endif
+#endif
 
 export CARGO_FLAGS
 export DOMAIN_FEATURES
 export KERNEL_FEATURES
 
-xv6fs_img = domains/usr/mkfs/build/fs.img
+xv6fs_img = tools/rv6-mkfs/build/fs.img
 root := ./
 domain_list := $(addprefix domains/build/, \
 	init \
@@ -61,7 +64,7 @@ domain_list := $(addprefix domains/build/, \
 	benchnvme \
 	benchhash)
 
-qemu_common := ${MEM} -vga std -s
+qemu_common := ${QEMU_MEM} -vga std -s
 qemu_common += -cdrom $(iso)
 #qemu_common += -no-reboot -no-shutdown -d int,cpu_reset
 qemu_common += -drive id=satadisk,file=$(xv6fs_img),format=raw,if=none
@@ -152,10 +155,9 @@ qemu-nox-cloudlab: $(iso)
 qemu-efi-nox: $(iso) $(xv6fs_img) ovmf-code
 	$(QEMU) $(qemu_common) $(qemu_nox) -bios OVMF_CODE.fd
 
-# always build this target
 .PHONY: $(xv6fs_img)
 $(xv6fs_img):
-	make -C domains/usr/mkfs 
+	make -C tools/rv6-mkfs
 
 .PHONY: iso
 iso: $(iso)
@@ -186,7 +188,7 @@ kernel:
 	make -C kernel
 
 .PHONY: domains
-domains:
+domains: $(xv6fs_img) memops
 	make -C domains
 
 .PHONY: memops

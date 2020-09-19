@@ -1,3 +1,9 @@
+# Adapted from original xv6 mkfs Makefile
+
+root := ../../
+
+RV6_BIN = $(root)/domains/usr/xv6/usr/bin
+
 CC = $(TOOLPREFIX)gcc
 AS = $(TOOLPREFIX)gas
 LD = $(TOOLPREFIX)ld
@@ -8,11 +14,13 @@ CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 &
 ASFLAGS = -m32 -gdwarf-2 -Wa,-divide
 # FreeBSD ld wants ``elf_i386_fbsd''
 LDFLAGS += -m $(shell $(LD) -V | grep elf_i386 2>/dev/null | head -n 1)
+arch ?= x86_64
 
-all: build/fs.img
+all: build/libfs.a
 	
-mkfs: mkfs.c fs.h param.h stat.h types.h
-	gcc -Werror -Wall -g -o mkfs mkfs.c
+build/mkfs: mkfs.c fs.h param.h stat.h types.h
+	mkdir -p build
+	gcc -Werror -Wall -g -o $@ mkfs.c
 
 # Prevent deletion of intermediate files, e.g. cat.o, after first build, so
 # that disk image changes after first build are persistent until clean.  More
@@ -29,29 +37,43 @@ BINS=\
 	sh\
 	ls\
 	wc\
+	mkdir\
+	getpid\
+	uptime\
+	sleep\
+	dump_inode\
 	benchfs\
+	benchnet\
+	benchnvme\
 
-build/fs.img: mkfs $(FILES) $(BINS) Makefile
+build/fs.img: build/mkfs $(FILES) $(BINS) Makefile
 	mkdir -p build
-	./mkfs build/fs.img $(FILES) $(BINS)
+	cd build/ && ./mkfs fs.img $(FILES) $(BINS)
 
-large: Makefile
-	fallocate -x -l 1Mb $@
+build/fs.o: build/fs.img
+	objcopy -I binary -O elf64-x86-64 -B i386 build/fs.img build/fs.o
+
+build/libfs.a: build/fs.o
+	ar cr --target elf64-x86-64 build/libfs.a build/fs.o
+
+.PHONY: README
+README:
+	cp README build/
+
+.PHONY: large
+large:
+	echo "hello" > build/$@
  	# wget https://ocw.mit.edu/ans7870/6/6.006/s08/lecturenotes/files/t8.shakespeare.txt -O $@
-	# fallocate -l 128M $@
+	# fallocate -l 128M build/$@
 
-$(BINS): $(shell find ../xv6/usr/$@ -type f -name '*.rs') Makefile
-	make -C ../xv6/usr/$@	
-	cp ../xv6/usr/$@/build/$@ . -f
+.PHONY: bin
+bin:
+	cd $(RV6_BIN) && cargo rb
+
+.PHONY: $(BINS)
+$(BINS): bin
+	cp $(RV6_BIN)/build/$@ build/ -f
 
 .PHONY: clean
 clean: 
-	rm -f *.o *.d
 	rm -rf build
-	rm -f ./mkfs
-	rm -f ./init
-	rm -f ./sh
-	rm -f ./ls
-	rm -f ./wc
-	rm -f ./benchfs
-	rm -f ./large
