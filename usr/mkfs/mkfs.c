@@ -127,6 +127,7 @@ main(int argc, char *argv[])
   iappend(rootino, &de, sizeof(de));
 
   for(i = 2; i < argc; i++){
+    printf("adding %s\n", argv[i]);
     assert(index(argv[i], '/') == 0);
 
     if((fd = open(argv[i], 0)) < 0){

@@ -20,6 +20,7 @@ pub struct Rv6Syscalls {
     fs: Box<dyn VFS>,
     net: Arc<Mutex<Box<dyn Net>>>,
     nvme: Arc<Mutex<Box<dyn NvmeBDev>>>,
+    start_time: u64
 }
 
 impl Rv6Syscalls {
@@ -34,40 +35,50 @@ impl Rv6Syscalls {
             fs,
             net: Arc::new(Mutex::new(net)),
             nvme: Arc::new(Mutex::new(nvme)),
+            start_time: libtime::get_ns_time(),
         }
     }
 }
 
 impl Xv6 for Rv6Syscalls {
-    fn clone(&self) -> Box<dyn Xv6> {
-        box Self {
+    fn clone(&self) -> RpcResult<Box<dyn Xv6>> {
+        Ok((|| box Self {
+            start_time: self.start_time,
             create_xv6usr: self.create_xv6usr.clone(),
             fs: self.fs.clone(),
             net: self.net.clone(),
             nvme: self.nvme.clone(),
-        }
+        })())
     }
 
-    fn as_net(&self) -> Box<dyn Net> {
-        box Self {
+    fn as_net(&self) -> RpcResult<Box<dyn Net>> {
+        Ok((|| box Self {
+            start_time: self.start_time,
             create_xv6usr: self.create_xv6usr.clone(),
             fs: self.fs.clone(),
             net: self.net.clone(),
             nvme: self.nvme.clone(),
-        }
+        })())
     }
 
-    fn as_nvme(&self) -> Box<dyn NvmeBDev> {
-        box Self {
+    fn as_nvme(&self) -> RpcResult<Box<dyn NvmeBDev>> {
+        Ok((|| box Self {
+            start_time: self.start_time,
             create_xv6usr: self.create_xv6usr.clone(),
             fs: self.fs.clone(),
             net: self.net.clone(),
             nvme: self.nvme.clone(),
-        }
+        })())
     }
 
-    fn sys_spawn_thread(&self, name: &str, func: Box<dyn FnOnce() + Send>) -> Box<dyn Thread> {
-        crate::thread::spawn_thread(self.fs.clone(), name, func)
+    fn sys_spawn_thread(
+        &self,
+        name: &str,
+        func: Box<dyn FnOnce() + Send>,
+    ) -> RpcResult<Box<dyn Thread>> {
+        Ok((|| {
+            crate::thread::spawn_thread(self.fs.clone(), name, func)
+        })())
     }
 
     fn sys_spawn_domain(
@@ -76,64 +87,83 @@ impl Xv6 for Rv6Syscalls {
         path: &str,
         args: &str,
         fds: [Option<usize>; NFILE],
-    ) -> Result<Box<dyn Thread>> {
-        // Load bin into memory
-        println!("sys_spawn_domain {} {}", path, args);
-        let fd = self.fs.sys_open(path, FileMode::READ)?;
-        let size = self.fs.sys_fstat(fd)?.size; // fstat will filter out non INode files
-        let mut blob = alloc::vec![0; size as usize];
-        assert_eq!(self.fs.sys_read(fd, blob.as_mut_slice())?, size as usize);
+    ) -> RpcResult<Result<Box<dyn Thread>>> {
+        Ok((|| {
+            // Load bin into memory
+            println!("sys_spawn_domain {} {}", path, args);
+            let fd = self.fs.sys_open(path, FileMode::READ)??;
+            let size = self.fs.sys_fstat(fd)??.size; // fstat will filter out non INode files
+            let mut blob = alloc::vec![0; size as usize];
+            assert_eq!(self.fs.sys_read(fd, blob.as_mut_slice())??, size as usize);
 
-        // Create a seperate copy of all the objects we want to pass to the new thread
-        // and transfer the ownership over
-        let fs_copy = self.fs.clone();
-        let path_copy = path.to_owned();
-        let create_copy = self.create_xv6usr.clone();
-        let args_copy = args.to_owned();
-        let tmp_storage_id = fs_copy.sys_save_threadlocal(fds)?;
-        Ok(self.sys_spawn_thread(
-            path,
-            Box::new(move || {
-                fs_copy.sys_set_threadlocal(tmp_storage_id).unwrap();
-                create_copy.create_domain_xv6usr(&path_copy, rv6, blob.as_slice(), &args_copy);
-            }),
-        ))
+            // Create a seperate copy of all the objects we want to pass to the new thread
+            // and transfer the ownership over
+            let fs_copy = self.fs.clone();
+            let path_copy = path.to_owned();
+            let create_copy = self.create_xv6usr.clone();
+            let args_copy = args.to_owned();
+            let tmp_storage_id = fs_copy.sys_save_threadlocal(fds)?;
+            Ok(self.sys_spawn_thread(
+                path,
+                Box::new(move || {
+                    fs_copy.sys_set_threadlocal(tmp_storage_id).unwrap();
+                    create_copy.create_domain_xv6usr(&path_copy, rv6, blob.as_slice(), &args_copy);
+                }),
+            ).unwrap())
+        })())
     }
 
-    fn sys_rdtsc(&self) -> u64 {
-        libtime::get_rdtsc()
+    fn sys_getpid(&self) -> RpcResult<Result<u64>> {
+        Ok((|| {
+            Ok(libsyscalls::syscalls::sys_current_thread_id())
+        })())
+    }
+
+    fn sys_uptime(&self) -> RpcResult<Result<u64>> {
+        Ok((|| {
+            Ok(libtime::get_ns_time() - self.start_time)
+        })())
+    }
+
+    fn sys_sleep(&self, ns: u64) -> RpcResult<Result<()>> {
+        Ok((|| {
+            Ok(libtime::sys_ns_sleep(ns))
+        })())
     }
 }
 
 impl UsrVFS for Rv6Syscalls {
-    fn sys_open(&self, path: &str, mode: FileMode) -> Result<usize> {
+    fn sys_open(&self, path: &str, mode: FileMode) -> RpcResult<Result<usize>> {
         self.fs.sys_open(path, mode)
     }
-    fn sys_close(&self, fd: usize) -> Result<()> {
+    fn sys_close(&self, fd: usize) -> RpcResult<Result<()>> {
         self.fs.sys_close(fd)
     }
-    fn sys_read(&self, fd: usize, buffer: &mut [u8]) -> Result<usize> {
+    fn sys_read(&self, fd: usize, buffer: &mut [u8]) -> RpcResult<Result<usize>> {
         self.fs.sys_read(fd, buffer)
     }
-    fn sys_write(&self, fd: usize, buffer: &[u8]) -> Result<usize> {
+    fn sys_write(&self, fd: usize, buffer: &[u8]) -> RpcResult<Result<usize>> {
         self.fs.sys_write(fd, buffer)
     }
-    fn sys_seek(&self, fd: usize, offset: usize) -> Result<()> {
+    fn sys_seek(&self, fd: usize, offset: usize) -> RpcResult<Result<()>> {
         self.fs.sys_seek(fd, offset)
     }
-    fn sys_fstat(&self, fd: usize) -> Result<FileStat> {
+    fn sys_fstat(&self, fd: usize) -> RpcResult<Result<FileStat>> {
         self.fs.sys_fstat(fd)
     }
-    fn sys_mknod(&self, path: &str, major: i16, minor: i16) -> Result<()> {
+    fn sys_mknod(&self, path: &str, major: i16, minor: i16) -> RpcResult<Result<()>> {
         self.fs.sys_mknod(path, major, minor)
     }
-    fn sys_dup(&self, fd: usize) -> Result<usize> {
+    fn sys_dup(&self, fd: usize) -> RpcResult<Result<usize>> {
         self.fs.sys_dup(fd)
     }
-    fn sys_pipe(&self) -> Result<(usize, usize)> {
+    fn sys_pipe(&self) -> RpcResult<Result<(usize, usize)>> {
         self.fs.sys_pipe()
     }
-    fn sys_dump_inode(&self) {
+    fn sys_mkdir(&self, path: &str) -> RpcResult<Result<()>> {
+        self.fs.sys_mkdir(path)
+    }
+    fn sys_dump_inode(&self) -> RpcResult<Result<()>> {
         self.fs.sys_dump_inode()
     }
 }

@@ -6,16 +6,16 @@
 extern crate alloc;
 extern crate malloc;
 extern crate memcpy;
-
-#[macro_use]
 use alloc::boxed::Box;
 use alloc::string::String;
-use alloc::string::ToString;
 use core::panic::PanicInfo;
 
+use libsyscalls::syscalls::sys_println;
 use syscalls::{Heap, Syscall};
+use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usr_interfaces::xv6::Xv6;
-use usrlib::{print, println};
+use usrlib::syscalls::sys_dump_inode;
+use usrlib::{eprintln, println};
 
 #[no_mangle]
 pub fn init(
@@ -27,27 +27,20 @@ pub fn init(
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
     usrlib::init(rv6.clone().unwrap());
-    println!("Starting rv6 benchnet with args: {}", args);
+    println!("Starting rv6 dump_inode with args: {}", args);
 
-    let mut nvme = rv6.as_nvme().unwrap();
+    dump_inode().unwrap();
+}
 
-    for _ in 0..=6 {
-        let _ = libbenchnvme::run_blocktest_rref(
-            &mut *nvme, 4096, /*is_write=*/ true, /*is_random=*/ false,
-        );
-    }
-
-    for _ in 0..=6 {
-        let _ = libbenchnvme::run_blocktest_rref(
-            &mut *nvme, 4096, /*is_write=*/ false, /*is_random=*/ false,
-        );
-    }
+fn dump_inode() -> Result<(), String> {
+    sys_dump_inode().map_err(|e| alloc::format!("dump_inode failed {:?}", e))?;
+    Ok(())
 }
 
 // This function is called on panic.
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    println!("benchnvme panic: {:?}", info);
+    eprintln!("dump_inode panic: {:?}", info);
     libsyscalls::syscalls::sys_backtrace();
     loop {}
 }

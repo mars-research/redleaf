@@ -28,6 +28,7 @@ use syscalls::{Heap, Syscall};
 use sysfile::{FileMode, FileStat};
 use usr_interface::bdev::BDev;
 use usr_interface::vfs::{KernelVFS, Result, UsrVFS, NFILE, VFS};
+use usr_interface::rpc::RpcResult;
 
 mod bcache;
 mod block;
@@ -70,41 +71,38 @@ impl KernelVFS for Rv6FS {
 }
 
 impl UsrVFS for Rv6FS {
-    fn sys_open(&self, path: &str, mode: FileMode) -> Result<usize> {
-        sysfile::sys_open(path, mode)
+    fn sys_open(&self, path: &str, mode: FileMode) -> RpcResult<Result<usize>> {
+        Ok(sysfile::sys_open(path, mode))
     }
-    fn sys_close(&self, fd: usize) -> Result<()> {
-        sysfile::sys_close(fd)
+    fn sys_close(&self, fd: usize) -> RpcResult<Result<()>> {
+        Ok(sysfile::sys_close(fd))
     }
-    fn sys_read(&self, fd: usize, buffer: &mut [u8]) -> Result<usize> {
-        sysfile::sys_read(fd, buffer)
+    fn sys_read(&self, fd: usize, buffer: &mut [u8]) -> RpcResult<Result<usize>> {
+        Ok(sysfile::sys_read(fd, buffer))
     }
-    fn sys_write(&self, fd: usize, buffer: &[u8]) -> Result<usize> {
-        sysfile::sys_write(fd, buffer)
+    fn sys_write(&self, fd: usize, buffer: &[u8]) -> RpcResult<Result<usize>> {
+        Ok(sysfile::sys_write(fd, buffer))
     }
-    fn sys_seek(&self, fd: usize, offset: usize) -> Result<()> {
-        sysfile::sys_seek(fd, offset)
+    fn sys_seek(&self, fd: usize, offset: usize) -> RpcResult<Result<()>> {
+        Ok(sysfile::sys_seek(fd, offset))
     }
-    fn sys_fstat(&self, fd: usize) -> Result<FileStat> {
-        sysfile::sys_fstat(fd)
+    fn sys_fstat(&self, fd: usize) -> RpcResult<Result<FileStat>> {
+        Ok(sysfile::sys_fstat(fd))
     }
-    fn sys_mknod(&self, path: &str, major: i16, minor: i16) -> Result<()> {
-        sysfile::sys_mknod(path, major, minor)
+    fn sys_mknod(&self, path: &str, major: i16, minor: i16) -> RpcResult<Result<()>> {
+        Ok(sysfile::sys_mknod(path, major, minor))
     }
-    fn sys_dup(&self, fd: usize) -> Result<usize> {
-        sysfile::sys_dup(fd)
+    fn sys_dup(&self, fd: usize) -> RpcResult<Result<usize>> {
+        Ok(sysfile::sys_dup(fd))
     }
-    fn sys_pipe(&self) -> Result<(usize, usize)> {
-        sysfile::sys_pipe()
+    fn sys_pipe(&self) -> RpcResult<Result<(usize, usize)>> {
+        Ok(sysfile::sys_pipe())
     }
-    fn sys_dump_inode(&self) {
-        let inode = icache::ICACHE
-            .lock()
-            .get(params::ROOTDEV, params::ROOTINO)
-            .unwrap();
-        inode
-            .lock()
-            .print(&mut log::LOG.r#try().unwrap().begin_transaction(), 0);
+    fn sys_mkdir(&self, path: &str) -> RpcResult<Result<()>> {
+        Ok(sysfile::sys_mkdir(path))
+    }
+    fn sys_dump_inode(&self) -> RpcResult<Result<()>> {
+        Ok(sysfile::sys_dump_inode())
     }
 }
 
@@ -123,23 +121,6 @@ pub fn init(
     println!("finish init xv6 filesystem");
     Box::new(Rv6FS::new())
 }
-
-// fn fs_benchmark(buf_size: usize, path: &str) {
-//     let start = get_rdtsc();
-//     let fd = sysfile::sys_open(path, FileMode::READ).unwrap();
-//     let mut buff = Vec::new();
-//     buff.resize(buf_size, 0 as u8);
-//     let mut bytes_read = 0;
-//     while let Ok(sz) = sysfile::sys_read(fd, buff.as_mut_slice()) {
-//         bytes_read += sz;
-//         if sz < 512 {
-//             break;
-//         }
-//     }
-//     sysfile::sys_close(fd).unwrap();
-//     let end = get_rdtsc();
-//     println!("we read {} bytes at a time, in total {} bytes from {} using {} cycles", buf_size, bytes_read, path, end - start);
-// }
 
 // This function is called on panic.
 #[panic_handler]

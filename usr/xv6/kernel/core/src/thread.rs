@@ -7,6 +7,7 @@ use spin::Mutex;
 
 use libsyscalls::sync::CondVar;
 use libsyscalls::syscalls::sys_create_thread;
+use usr_interface::rpc::RpcResult;
 use usr_interface::vfs::VFS;
 use usr_interface::xv6::Thread;
 
@@ -37,9 +38,11 @@ impl ThreadHandle {
 }
 
 impl Thread for ThreadHandle {
-    fn join(&self) {
-        let pred = |finished: &mut bool| *finished;
-        self.cv.sleep_until(&self.finished, pred);
+    fn join(&self) -> RpcResult<()> {
+        Ok((|| {
+            let pred = |finished: &mut bool| *finished;
+            self.cv.sleep_until(&self.finished, pred);
+        })())
     }
 }
 

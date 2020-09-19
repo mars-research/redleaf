@@ -6,16 +6,16 @@
 extern crate alloc;
 extern crate malloc;
 extern crate memcpy;
-
-#[macro_use]
 use alloc::boxed::Box;
 use alloc::string::String;
-use alloc::string::ToString;
 use core::panic::PanicInfo;
 
+use libsyscalls::syscalls::sys_println;
 use syscalls::{Heap, Syscall};
+use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usr_interfaces::xv6::Xv6;
-use usrlib::{print, println};
+use usrlib::syscalls::sys_sleep;
+use usrlib::{eprintln, println};
 
 #[no_mangle]
 pub fn init(
@@ -27,27 +27,25 @@ pub fn init(
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
     usrlib::init(rv6.clone().unwrap());
-    println!("Starting rv6 benchnet with args: {}", args);
+    println!("Starting rv6 sleep with args: {}", args);
 
-    let mut nvme = rv6.as_nvme().unwrap();
+    let mut args = args.split_whitespace();
+    assert!(args.next().is_some());
+    let ns = args.next().or(Some("")).unwrap();
 
-    for _ in 0..=6 {
-        let _ = libbenchnvme::run_blocktest_rref(
-            &mut *nvme, 4096, /*is_write=*/ true, /*is_random=*/ false,
-        );
-    }
+    sleep(ns.parse::<u64>().unwrap()).unwrap();
+}
 
-    for _ in 0..=6 {
-        let _ = libbenchnvme::run_blocktest_rref(
-            &mut *nvme, 4096, /*is_write=*/ false, /*is_random=*/ false,
-        );
-    }
+fn sleep(ns: u64) -> Result<(), String> {
+    sys_sleep(ns).map_err(|e| alloc::format!("sleep: cannot sleep. {:?}", e))?;
+    println!("sleep finished");
+    Ok(())
 }
 
 // This function is called on panic.
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    println!("benchnvme panic: {:?}", info);
+    eprintln!("sleep panic: {:?}", info);
     libsyscalls::syscalls::sys_backtrace();
     loop {}
 }
