@@ -1,3 +1,5 @@
+export BUILD_VERSION="$(shell date) ($(shell whoami)@$(shell hostname))"
+
 .PHONY: all
 all: build/libredleaf.a build/entry.o build/entryother.bin build/multiboot_header.o build/boot.o
 
@@ -6,6 +8,10 @@ clean:
 	cargo clean
 	rm -rf build
 
+.PHONY: check
+check:
+	cargo rcheck $(CARGO_FLAGS) $(KERNEL_FEATURES)
+
 # compile assembly files for the exception entry code
 build/entry.o: src/arch/entry_64.S 
 	@mkdir -p build
@@ -13,7 +19,7 @@ build/entry.o: src/arch/entry_64.S
 
 .PHONY: build/libredleaf.a
 build/libredleaf.a:
-	@BUILD_VERSION="$(shell date) ($(shell whoami)@$(shell hostname))" RUST_TARGET_PATH="$(shell pwd)" RUSTFLAGS="-Z emit-stack-sizes" cargo build --out-dir=build -Z build-std=core,alloc -Z features=host_dep -Z unstable-options $(CARGO_FLAGS) $(KERNEL_FEATURES)
+	cargo rbuild $(CARGO_FLAGS) $(KERNEL_FEATURES)
 
 build/entryother.bin: src/entryother.asm
 	@mkdir -p build

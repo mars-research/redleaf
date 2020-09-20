@@ -1,5 +1,5 @@
 arch ?= x86_64
-bin := build/kernel.bin
+bin := build/redleaf.mb2
 iso := build/redleaf.iso
 root := ./
 
@@ -96,6 +96,15 @@ qemu_x := -serial file:/dev/null -serial file:serial.log
 .PHONY: all
 all: $(bin) checkstack
 
+.PHONY: kernel
+kernel:
+	make -C kernel
+
+.PHONY: domains
+domains: $(xv6fs_img) memops
+	make -C domains
+
+.PHONY: install
 install: all
 	sudo cp -v build/kernel.bin /boot
 
@@ -171,6 +180,7 @@ $(iso): $(bin) $(grub_cfg)
 	@rm -r build/isofiles
 
 $(bin): kernel domains memops $(linker_script)
+	mkdir -p $(shell dirname $(bin))
 	ld -n --gc-sections -T $(linker_script) -o $(bin) \
 		kernel/build/entry.o \
 		kernel/build/boot.o \
@@ -182,14 +192,6 @@ $(bin): kernel domains memops $(linker_script)
 		$(domain_list) 
 
 include $(root)/checkstack.mk
-
-.PHONY: kernel
-kernel:
-	make -C kernel
-
-.PHONY: domains
-domains: $(xv6fs_img) memops
-	make -C domains
 
 .PHONY: memops
 memops:
