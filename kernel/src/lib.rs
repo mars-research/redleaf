@@ -191,7 +191,9 @@ pub extern "C" fn rust_main() -> ! {
         None => println!("RedLeaf booting on (CPU model: unknown)"),
     }
 
-    println!("Version: {}", buildinfo::BUILD_VERSION);
+    if let Some(version) = buildinfo::BUILD_VERSION {
+        println!("Version: {}", version);
+    }
 
     rtc::print_date();
 
