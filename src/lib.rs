@@ -279,12 +279,13 @@ pub extern "C" fn rust_main_ap() -> ! {
 
     if cpu_id == 0 {
         domain::domain::init_domains();
-        use kbd::KBDCTRL;
+        // FIXME: kbd irqhandler is broken. disable temporarily
+        /*use kbd::KBDCTRL;
         use crate::drivers::Driver;
         {
             let registrar = unsafe { interrupt::get_irq_registrar(KBDCTRL.clone()) };
             KBDCTRL.lock().set_irq_registrar(registrar);
-        }
+        }*/
 
     }
 

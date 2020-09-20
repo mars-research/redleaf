@@ -198,7 +198,8 @@ pub fn init_irqs_local() {
 pub fn init_irqs() {
     unsafe {
         ioapic::init();
-        ioapic::irqen(1, 0);
+        // TODO: Fix kbd and enable this
+        //ioapic::irqen(1, 0);
     }
 }
 
