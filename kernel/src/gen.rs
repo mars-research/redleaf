@@ -273,13 +273,13 @@ impl proxy::CreateProxy for PDomain {
 
 pub fn create_domain_init() -> Box<dyn syscalls::Domain> {
     extern "C" {
-        fn _binary_domains_build_init_start();
-        fn _binary_domains_build_init_end();
+        fn _binary_domains_build_redleaf_init_start();
+        fn _binary_domains_build_redleaf_init_end();
     }
 
     let binary_range = (
-        _binary_domains_build_init_start as *const u8,
-        _binary_domains_build_init_end as *const u8
+        _binary_domains_build_redleaf_init_start as *const u8,
+        _binary_domains_build_redleaf_init_end as *const u8
     );
 
     return build_domain_init("sys_init", binary_range);

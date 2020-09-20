@@ -43,7 +43,7 @@ export KERNEL_FEATURES
 xv6fs_img = tools/rv6-mkfs/build/fs.img
 root := ./
 domain_list := $(addprefix domains/build/, \
-	init \
+	redleaf_init \
 	dom_proxy \
 	dom_a \
 	dom_b \

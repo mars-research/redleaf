@@ -346,25 +346,6 @@ name = "httparse"
 version = "1.3.4"
 
 [[package]]
-name = "init"
-version = "0.1.0"
-dependencies = [
- "array-init",
- "console",
- "create",
- "lazy_static",
- "libsyscalls",
- "libtime",
- "malloc",
- "num-traits",
- "pc-keyboard",
- "proxy",
- "spin 0.5.3",
- "syscalls",
- "usr",
-]
-
-[[package]]
 name = "ixgbe"
 version = "0.1.0"
 dependencies = [
@@ -763,6 +744,25 @@ dependencies = [
  "bitflags",
  "cc",
  "rustc_version",
+]
+
+[[package]]
+name = "redleaf_init"
+version = "0.1.0"
+dependencies = [
+ "array-init",
+ "console",
+ "create",
+ "lazy_static",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "num-traits",
+ "pc-keyboard",
+ "proxy",
+ "spin 0.5.3",
+ "syscalls",
+ "usr",
 ]
 
 [[package]]
