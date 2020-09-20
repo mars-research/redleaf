@@ -132,20 +132,33 @@ pub fn init_allocator(bootinfo: &BootInformation) {
     }
 }
 
+// [module] [kernel cpu0 stack][module]
+//                             ^ KERNEL_END
+//                                     ^ new KERNEL_END
+
 pub fn init_backtrace_kernel_elf(bootinfo: &BootInformation) {
     unsafe {
         for tag in bootinfo.module_tags() {
             match tag.name() {
                 "redleaf_kernel" => {
+                    use alloc::vec::Vec;
+
                     let kelf = (tag.start_address(), tag.end_address());
                     let ksize = (kelf.1 - kelf.0) as usize;
                     println!("Found kernel image at: {:x} end : {:x}", kelf.0, kelf.1);
-                    ptr::copy(kelf.0 as *const u8, KERNEL_END as *mut u64 as *mut u8, ksize);
+
+                    let src = kelf.0 as *const u8;
+                    let dest = KERNEL_END as *mut u64 as *mut u8;
+                    println!("Copying image bytes from {:x?} to {:x?} ({} bytes)", src, dest, ksize);
+
+                    let mut tmpbuf: Vec<u8> = Vec::with_capacity(ksize);
+
+                    ptr::copy(src, tmpbuf.as_mut_ptr(), ksize);
+                    ptr::copy(tmpbuf.as_ptr(), dest, ksize);
 
                     let kernel_elf = KERNEL_END;
                     let new_end = KERNEL_END + ksize as u64;
                     KERNEL_END = round_up!(new_end, BASE_PAGE_SIZE as u64);
-                    println!("Old kernel_end: {:x} New kernel_end: {:x}", kernel_end(), new_end);
                     init_backtrace(core::slice::from_raw_parts(kernel_elf as *const usize as *const u8, ksize));
                     elf_found = true;
                 },
@@ -202,10 +215,10 @@ pub extern "C" fn rust_main() -> ! {
         multibootv2::load(_bootinfo)
     };
 
-    init_backtrace_kernel_elf(&bootinfo);
-
     // Init memory allocator (normal allocation should work after this)
     init_allocator(&bootinfo);
+
+    init_backtrace_kernel_elf(&bootinfo);
 
     // To enable NX mappings
     unsafe {
