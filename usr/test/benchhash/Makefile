@@ -25,10 +25,9 @@ clean:
 
 $(bin): lib $(linker_script)
 	mkdir -p build
-	ld -n -pie --no-dynamic-linker --gc-sections -T $(linker_script) -o $(bin) $(lib)
 
 .PHONY: lib
 lib:
-	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo ${CARGO_COMMAND} ${CARGO_FLAGS} --target x86_64-$(bin_name).json $(FEATURES)
+	@RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS="-Z emit-stack-sizes" cargo --verbose ${CARGO_COMMAND} ${CARGO_FLAGS} --target x86_64-$(bin_name).json $(FEATURES) --out-dir=build -Z unstable-options
 
 include $(root)/checkstack.mk

@@ -13,5 +13,14 @@
   "disable-redzone": true,
   "eliminate-frame-pointer": false,
   "features": "-mmx,-sse,+soft-float",
+  "pre-link-args": {
+    "ld.lld": [
+      "-n",
+	  "-pie",
+	  "--no-dynamic-linker",
+      "--gc-sections",
+	  "-T./linker.ld"
+    ]
+  },
   "stack-probes": true
 }

@@ -1,4 +1,5 @@
 #![no_std]
+#![no_main]
 extern crate malloc;
 extern crate alloc;
 use libsyscalls;
@@ -92,10 +93,40 @@ fn test_hashmap_with_cap(capacity: usize) {
 
 fn test_hashmap() {
 
-    for i in 10..30 {
+    /*for i in 10..30 {
         test_hashmap_with_cap(1 << i);
+    }*/
+
+    for i in 12..27 {
+        run_bench(i, (i - 2));
     }
+
     panic!("");
+}
+
+fn run_bench(_capacity: usize, _keys: usize) {
+    let capacity: usize = 2usize.pow(_capacity as u32);
+    let keys = 2usize.pow(_keys as u32);
+
+    let mut ht = Index::with_capacity(capacity);
+
+    let start_tsc = rdtsc();
+
+    for i in 1..(keys+1) {
+        ht.insert(i, i);
+    }
+    let total_tsc = rdtsc() - start_tsc;
+    let cycles_per_insert = total_tsc / keys as u64;
+    let mil_inserts_per_sec: f64 = 1000f64 / (cycles_per_insert as f64 / 2.6f64);
+
+    println!("{}, {}, {}", _capacity, _keys, total_tsc);
+    //indexmap::print_collisions();
+    /*
+    println!("Keys inserted: {}", keys);
+    println!("Total TSC: {}", total_tsc);
+    println!("Average cycles per insert: {}", cycles_per_insert);
+    println!("Million inserts per second: {}", mil_inserts_per_sec);
+    */
 }
 
 #[no_mangle]

@@ -1,13 +1,12 @@
 OUTPUT_FORMAT("elf64-x86-64")
 OUTPUT_ARCH(i386:x86-64)
-ENTRY(start)
+ENTRY(init)
 
 SECTIONS {
   . = 0x0; /* Link at 0x0 */
 
   /* . = 0x227000;  */
 
-  ENTRY(init)
 
   .rodata :
   {
