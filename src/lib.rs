@@ -212,9 +212,13 @@ pub extern "C" fn rust_main() -> ! {
     // To enable NX mappings
     unsafe {
         // Enable NXE bit (11)
-        use x86::msr::{rdmsr, wrmsr, IA32_EFER};
+        use x86::msr::{rdmsr, wrmsr, IA32_EFER, IA32_MISC_ENABLE};
         let efer = rdmsr(IA32_EFER) | 1 << 11;
         wrmsr(IA32_EFER, efer);
+
+        // Disable turbo boost
+        let misc = rdmsr(IA32_MISC_ENABLE) | (1u64 << 38);
+        wrmsr(IA32_MISC_ENABLE, misc);
     }
 
     // Init page table (code runs on a new page table after this call)
