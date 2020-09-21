@@ -1,0 +1,38 @@
+[package]
+name = "xv6kernel"
+version = "0.1.0"
+authors = ["RedLeaf Team"]
+edition = "2018"
+
+[features]
+default = []
+test_threads = []
+test_sleeplock = []
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+debug = true
+
+[dependencies]
+array-init = "0.1.1"
+rv6_sync = { package = "sync", path = "../../lib/sync", version = "0.1.0" }
+syscalls = { path = "../../../../../lib/core/interfaces/syscalls" }
+usr_interface = { package = "usr", path = "../../../../../lib/core/interfaces/usr", version = "0.1.0" }
+create = { path = "../../../../../lib/core/interfaces/create" }
+libsyscalls = { path = "../../../../../lib/core/libsyscalls" }
+rref = { path = "../../../../../lib/core/rref" }
+console = { path = "../../../../../lib/core/console" }
+malloc = { path = "../../../../../lib/core/malloc" }
+spin = { path = "../../../../../lib/core/spin-rs" }
+libtime = { path = "../../../../../lib/core/libtime" }
+
+[dependencies.lazy_static]
+version = "1.3.0"
+features = ["spin_no_std"]
+
+[dependencies.num-traits]
+version = "0.2.8"
+default-features = false

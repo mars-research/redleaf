@@ -1,0 +1,63 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index aa6273f..1501faa 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -7,6 +7,10 @@ edition = "2018"
+ [dependencies]
+ log = "0.4"
+ 
++[dependencies.fnv]
++git = "https://github.com/servo/rust-fnv"
++default-features = false
++
+ # Add debug symbols on the release build so that we can debug performance issues
+ [profile.release]
+ debug = true
+diff --git a/src/lib.rs b/src/lib.rs
+index 5252b67..331fddb 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -8,6 +8,7 @@ extern crate alloc;
+ #[cfg(test)]
+ extern crate test;
+ 
++use core::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
+ use alloc::collections::VecDeque;
+ use alloc::vec::Vec;
+ 
+@@ -18,17 +19,32 @@ mod indexmap;
+ mod memb;
+ 
+ use memb::{serialize::buf_encode, serialize::Decoder, ClientValue, ServerValue};
++use fnv::FnvHasher;
++
++type FnvHashFactory = BuildHasherDefault<FnvHasher>;
+ 
+ pub struct SashStore {
+     /// Maps key -> (flags, value)
+-    map: indexmap::Index<Vec<u8>, (u32, Vec<u8>)>,
++    map: indexmap::Index<Vec<u8>, (u32, Vec<u8>), FnvHashFactory>,
+ }
+ 
+ impl SashStore {
+     /// Initialize a new SashStore instance.
+-    pub fn with_capacity(cap: usize) -> Self {
++    pub fn with_capacity(capacity: usize) -> Self {
++        const DEFAULT_MAX_LOAD: f64 = 0.7;
++        const DEFAULT_GROWTH_POLICY: f64 = 2.0;
++        const DEFAULT_PROBING: fn(usize, usize) -> usize = |hash, i| hash + i + i * i;
++        
+         SashStore {
+-            map: indexmap::Index::with_capacity(cap),
++            map: indexmap::Index::with_capacity_and_parameters(
++                capacity,
++                indexmap::Parameters {
++                    max_load: DEFAULT_MAX_LOAD,
++                    growth_policy: DEFAULT_GROWTH_POLICY,
++                    hasher_builder: Default::default(),
++                    probe: DEFAULT_PROBING,
++                },
++            )
+         }
+     }
+ 

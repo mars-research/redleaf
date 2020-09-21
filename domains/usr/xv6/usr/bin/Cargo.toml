@@ -1,0 +1,26 @@
+[package]
+name = "bin"
+version = "0.1.0"
+authors = ["RedLeaf Team"]
+edition = "2018"
+#autobins = false
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+debug = true
+
+[dependencies]
+libsyscalls = { path = "../../../../../lib/core/libsyscalls" }
+malloc = { path = "../../../../../lib/core/malloc" }
+usrlib = { package = "lib", path = "../lib" }
+rref = { path = "../../../../../lib/core/rref" }
+libbenchnvme = { path = "../../../../lib/libbenchnvme" }
+libbenchnet = { path = "../../../../lib/libbenchnet" }
+libtime = { path = "../../../../../lib/core/libtime" }
+utils = { path = "../../lib/utils" }
+
+syscalls = { path = "../../../../../lib/core/interfaces/syscalls" }
+usr_interfaces = { package = "usr", path = "../../../../../lib/core/interfaces/usr" }

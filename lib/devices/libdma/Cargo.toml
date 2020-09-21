@@ -1,0 +1,12 @@
+[package]
+name = "libdma"
+version = "0.1.0"
+authors = ["RedLeaf Team <aburtsev@uci.edu>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[dependencies]
+libsyscalls = { path = "../../core/libsyscalls" }
+
+#[dev-dependencies]
+#redleaf = { path = "../", version = "0.1.0" }

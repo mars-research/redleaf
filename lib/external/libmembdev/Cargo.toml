@@ -1,0 +1,15 @@
+[package]
+name = "libmembdev"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+usr = { path = "../../core/interfaces/usr" }
+rref = { path = "../../core/rref" }
+console = { path = "../../core/console" }
+spin = { path = "../../core/spin-rs" }
+libtime = { path = "../../core/libtime" }
+bin = { path = "../../../domains/usr/xv6/usr/bin" }

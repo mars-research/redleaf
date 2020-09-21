@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+
+BASE=$(dirname "$0")
+
+RUSTFLAGS=-Awarnings cargo run --release --manifest-path $BASE/tools/foliage/Cargo.toml -- "$@"

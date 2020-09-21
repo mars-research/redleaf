@@ -1,0 +1,17 @@
+[package]
+name = "nvme_device"
+version = "0.1.0"
+authors = ["Redleaf Team"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+libsyscalls = { path = "../../core/libsyscalls" }
+libtime = { path = "../../core/libtime" }
+console = { path = "../../core/console" }
+libdma = { path = "../libdma" }
+platform = { path = "../../core/interfaces/platform" }
+malloc = { path = "../../core/malloc" }
+rref = { path = "../../core/rref" }
+usr = { path = "../../core/interfaces/usr" }

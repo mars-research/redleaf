@@ -1,0 +1,26 @@
+[workspace]
+members = [
+	"sys/driver/ixgbe",
+	"sys/driver/membdev",
+	"sys/driver/nvme",
+	"sys/driver/pci",
+	"sys/driver/tpm",
+	"sys/init",
+	"usr/proxy",
+	"usr/shadow/bdev",
+	"usr/shadow/net",
+	"usr/shadow/nvme",
+	"usr/test/benchhash",
+	"usr/test/benchnet_inside",
+	"usr/test/benchnvme",
+	"usr/test/dom_a",
+	"usr/test/dom_b",
+	"usr/test/dom_c",
+	"usr/test/dom_d",
+	"usr/test/shadow",
+	"usr/test/testtpm",
+	"usr/xv6/kernel/core",
+	"usr/xv6/kernel/fs",
+	"usr/xv6/usr/bin",
+	"usr/xv6/usr/lib"
+]

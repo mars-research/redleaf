@@ -1,0 +1,35 @@
+[package]
+name = "pci"
+version = "0.1.0"
+authors = ["RedLeaf Team"]
+edition = "2018"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+debug = true
+
+[dependencies]
+x86 = "0.33.0"
+syscalls = { path = "../../../../lib/core/interfaces/syscalls" }
+usr = { path = "../../../../lib/core/interfaces/usr" }
+libsyscalls = { path = "../../../../lib/core/libsyscalls" }
+rref = { path = "../../../../lib/core/rref" }
+console = { path = "../../../../lib/core/console" }
+malloc = { path = "../../../../lib/core/malloc" }
+spin = { path = "../../../../lib/core/spin-rs" }
+pcidevice = { path = "../../../../lib/devices/pcidevice" }
+pci_driver = { path = "../../../../lib/core/interfaces/dev/pci/pci_driver" }
+
+[dependencies.lazy_static]
+version = "1.3.0"
+features = ["spin_no_std"]
+
+[dependencies.num-traits]
+version = "0.2.8"
+default-features = false
+
+[features]
+c220g2_ixgbe = []

@@ -1,0 +1,35 @@
+[package]
+name = "tpm"
+version = "0.1.0"
+authors = ["RedLeaf Team"]
+edition = "2018"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+debug = true
+lto = false
+
+[dependencies]
+syscalls = { path = "../../../../lib/core/interfaces/syscalls" }
+libsyscalls = { path = "../../../../lib/core/libsyscalls" }
+libtime = { path = "../../../../lib/core/libtime" }
+console = { path = "../../../../lib/core/console" }
+malloc = { path = "../../../../lib/core/malloc" }
+rref = { path = "../../../../lib/core/rref" }
+spin = { path = "../../../../lib/core/spin-rs" }
+protocol = { path = "../../../../lib/core/interfaces/protocol" }
+platform = { path = "../../../../lib/core/interfaces/platform" }
+usr = { path = "../../../../lib/core/interfaces/usr" }
+b2histogram = "1.0"
+byteorder = { version = "1.3.4", default-features = false }
+tpm_device = { path = "../../../../lib/devices/tpm" }
+libtpm = { path= "../../../lib/libtpm" }
+bitflags = "1.*"
+bitfield = "0.13.2"
+
+[dependencies.num-traits]
+version = "0.2.8"
+default-features = false

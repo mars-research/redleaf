@@ -1,0 +1,38 @@
+[package]
+name = "libbenchnet"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+crate-type = ["lib"]
+
+
+[dependencies]
+b2histogram = "1.0"
+byteorder = { version = "1.2", default-features = false }
+libsyscalls = { path = "../../../lib/core/libsyscalls" }
+libtime = { path = "../../../lib/core/libtime" }
+rref = { path = "../../../lib/core/rref" }
+usr = { path = "../../../lib/core/interfaces/usr" }
+console = { path = "../../../lib/core/console" }
+hashbrown = "0.7.2"
+sashstore-redleaf = { path = "../../../lib/external/sashstore" }
+
+[dependencies.fnv]
+git = "https://github.com/servo/rust-fnv"
+default-features = false
+
+[dependencies.twox-hash]
+version = "1.5.0"
+default-features = false
+
+[dependencies.lru]
+git = "https://github.com/zhaofengli/lru-rs"
+default-features = false
+features = ["nightly", "hashbrown"]
+
+[features]
+default = [
+    # "noop",
+]
+noop = []
