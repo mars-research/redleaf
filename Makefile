@@ -1,4 +1,4 @@
-.DEFAULT_GOAL := fatmb2
+.DEFAULT_GOAL := mb2
 
 ################
 # Configurations
