@@ -6,18 +6,22 @@ RedLeaf is a research operating system developed from scratch in Rust to explore
 
 ## Building
 
-You need a very recent nightly Rust toolchain. If you wish to generate a bootable `.iso` image (required for the `qemu` targets), you also need to have `grub-mkrescue` in your PATH.
+You need a very recent nightly Rust toolchain with the `rust-src` component.
+If you wish to generate a bootable `.iso` image (required for the `qemu` targets), you also need to have `grub-mkrescue` in your PATH.
 
 ```
+make check      # Verify that the tree is buildable
 make kernel     # Build kernel proper
 make domains    # Build domains
-make fatmb2     # Build redleaf.mb2 (Multiboot v2), with kernel and all domains ("fat")
-make iso        # Build redleaf.iso
+make mb2        # Build Multiboot v2 kernel image (redleaf.mb2)
+make iso        # Build bootable ISO (redleaf.iso)
 make qemu       # Build and launch QEMU
+make qemu-nox   # Build and launch QEMU in headless mode
 make qemu-kvm   # Build and launch QEMU with KVM
 ```
 
-For the `qemu` targets, specify `GDB=1` to start a GDB server and pause execution on boot.
+For the `qemu` targets, specify `GDB=true` to start a GDB server and pause execution on boot.
+By default, the build system will build everything in the `release` mode with optimizations enabled, and you can override this behavior by passing `DEBUG=true`.
 
 ## Foliage
 
