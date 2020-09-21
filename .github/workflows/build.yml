@@ -9,9 +9,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-18.04
-
-    container: gitlet/redleaf_build:latest
+    runs-on: ubuntu-20.04
 
     strategy:
       matrix:
@@ -22,8 +20,14 @@ jobs:
     name: DEBUG=${{ matrix.debug }} IXGBE=${{ matrix.ixgbe }} LARGE_MEM=${{ matrix.large_mem }}
 
     steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: 'true'
-    - name: Build
-      run:  make DEBUG=${{ matrix.debug }} IXGBE=${{ matrix.ixgbe }} LARGE_MEM=${{ matrix.large_mem }}
+      - uses: actions/checkout@v2
+        with:
+          submodules: 'true'
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          profile: minimal
+          components: rust-src
+          default: true
+      - name: Build
+        run:  make DEBUG=${{ matrix.debug }} IXGBE=${{ matrix.ixgbe }} LARGE_MEM=${{ matrix.large_mem }}
