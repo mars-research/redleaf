@@ -682,9 +682,10 @@ pub fn tpm_create_primary(tpm: &TpmDev, locality: u32, pcr_index: u32, unique: &
     buf.extend_from_slice(&u16::to_be_bytes(0 as u16));
     buf.extend_from_slice(&u16::to_be_bytes(0 as u16));
     // inPublic: Tpm2BPublic
-    buf.extend_from_slice(&u16::to_be_bytes(58 as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_RSA as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_SHA256 as u16));
+    let mut inPublic: Vec<u8> = Vec::new();
+    inPublic.extend_from_slice(&u16::to_be_bytes(0 as u16));
+    inPublic.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_RSA as u16));
+    inPublic.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_SHA256 as u16));
     let mut objectAttributes = TpmAObject(0);
     objectAttributes.set_sign(sign);
     objectAttributes.set_decrypt(decrypt);
@@ -693,17 +694,30 @@ pub fn tpm_create_primary(tpm: &TpmDev, locality: u32, pcr_index: u32, unique: &
     objectAttributes.set_sensitive_data_origin(true);
     objectAttributes.set_fixed_parent(true);
     objectAttributes.set_fixed_tpm(true);
-    buf.extend_from_slice(&u32::to_be_bytes(objectAttributes.bit_range(31, 0)));
-    buf.extend_from_slice(&u16::to_be_bytes(0 as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_AES as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(128 as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_CFB as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_NULL as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(2048 as u16));
-    buf.extend_from_slice(&u32::to_be_bytes(0 as u32));
+    inPublic.extend_from_slice(&u32::to_be_bytes(objectAttributes.bit_range(31, 0)));
+    inPublic.extend_from_slice(&u16::to_be_bytes(0 as u16));
+    if sign {
+        inPublic.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_NULL as u16));
+    }
+    else {
+        inPublic.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_AES as u16));
+        inPublic.extend_from_slice(&u16::to_be_bytes(128 as u16));
+        inPublic.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_CFB as u16));
+    }
+    if sign && !decrypt {
+        inPublic.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_RSASSA as u16));
+        inPublic.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_SHA256 as u16));
+    }
+    else {
+        inPublic.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_NULL as u16));
+    }
+    inPublic.extend_from_slice(&u16::to_be_bytes(2048 as u16));
+    inPublic.extend_from_slice(&u32::to_be_bytes(0 as u32));
     let mut hash: Vec<u8> = Sha256::digest(unique).to_vec();
-    buf.extend_from_slice(&u16::to_be_bytes(hash.len() as u16));
-    buf.extend_from_slice(&hash);
+    inPublic.extend_from_slice(&u16::to_be_bytes(hash.len() as u16));
+    inPublic.extend_from_slice(&hash);
+    inPublic.splice(0..2, ((inPublic.len() - 2) as u16).to_be_bytes().into_iter().cloned());
+    buf.extend_from_slice(&inPublic);
     // outsideInfo: Tpm2BData
     buf.extend_from_slice(&u16::to_be_bytes(0 as u16));
     // creationPcr: TpmLPcrSelection
@@ -737,16 +751,29 @@ pub fn tpm_create_primary(tpm: &TpmDev, locality: u32, pcr_index: u32, unique: &
         // outPublic.publicArea.paramers.rsaDetail.symmetric
         let algorithm: u16 = BigEndian::read_u16(&slice[th..(th + 2)]);
         th += 2;
-        assert!(algorithm == TpmAlgorithms::TPM_ALG_AES as u16);
-        let keybits_aes_keysizesbits: u16 = BigEndian::read_u16(&slice[th..(th + 2)]);
-        th += 2;
-        assert!(keybits_aes_keysizesbits == 128 as u16);
-        let mode_aes_mode: u16 = BigEndian::read_u16(&slice[th..(th + 2)]);
-        th += 2;
-        assert!(mode_aes_mode == TpmAlgorithms::TPM_ALG_CFB as u16);
+        if sign {
+            assert!(algorithm == TpmAlgorithms::TPM_ALG_NULL as u16);
+        }
+        else {
+            assert!(algorithm == TpmAlgorithms::TPM_ALG_AES as u16);
+            let keybits_aes_keysizesbits: u16 = BigEndian::read_u16(&slice[th..(th + 2)]);
+            th += 2;
+            assert!(keybits_aes_keysizesbits == 128 as u16);
+            let mode_aes_mode: u16 = BigEndian::read_u16(&slice[th..(th + 2)]);
+            th += 2;
+            assert!(mode_aes_mode == TpmAlgorithms::TPM_ALG_CFB as u16);
+        }
         let scheme_scheme: u16 = BigEndian::read_u16(&slice[th..(th + 2)]);
         th += 2;
-        assert!(scheme_scheme == TpmAlgorithms::TPM_ALG_NULL as u16);
+        if sign && !decrypt {
+            assert!(scheme_scheme == TpmAlgorithms::TPM_ALG_RSASSA as u16);
+            let scheme_details: u16 = BigEndian::read_u16(&slice[th..(th + 2)]);
+            th += 2;
+            assert!(scheme_details == TpmAlgorithms::TPM_ALG_SHA256 as u16);
+        }
+        else {
+            assert!(scheme_scheme == TpmAlgorithms::TPM_ALG_NULL as u16);
+        }
         let keybits: u16 = BigEndian::read_u16(&slice[th..(th + 2)]);
         th += 2;
         assert!(keybits == 2048 as u16);
@@ -1112,7 +1139,8 @@ pub fn tpm_unseal(tpm: &TpmDev, locality: u32, session_handle: u32, item_handle:
 
 /// Generate Quote
 pub fn tpm_quote(tpm: &TpmDev, locality: u32, sign_handle: u32, hash: u16,
-                 nonce: Vec<u8>, pcr_idxs: Vec<usize>) -> bool {
+                 nonce: Vec<u8>, pcr_idxs: Vec<usize>,
+                 out_pcr_digest: &mut Vec<u8>, out_sig: &mut Vec<u8>) -> bool {
     let mut hdr: TpmHeader = TpmHeader::new(
         TpmStructures::TPM_ST_SESSIONS as u16,
         0 as u32,
@@ -1157,6 +1185,56 @@ pub fn tpm_quote(tpm: &TpmDev, locality: u32, sign_handle: u32, hash: u16,
     println!("presend: {:x?}", buf);
     tpm_transmit_cmd(tpm, locality, &mut buf);
     println!("postsend: {:x?}", buf);
+    if buf.len() > 0 {
+        let mut slice = buf.as_slice();
+        let mut th = 0;
+        th += 4; // Length of entire response body
+        let quoted_size: usize = BigEndian::read_u16(&slice[th..(th + 2)]) as usize;
+        th += 2;
+        let quoted_magic: u32 = BigEndian::read_u32(&slice[th..(th + 4)]) as u32;
+        th += 4;
+        assert!(quoted_magic == 0xff544347);
+        let quoted_type: u16 = BigEndian::read_u16(&slice[th..(th + 2)]) as u16;
+        th += 2;
+        assert!(quoted_type == TpmStructures::TPM_ST_ATTEST_QUOTE as u16);
+        let qualified_signer_size: usize = BigEndian::read_u16(&slice[th..(th + 2)]) as usize;
+        th += 2;
+        th += qualified_signer_size;
+        let extra_data_size: usize = BigEndian::read_u16(&slice[th..(th + 2)]) as usize;
+        th += 2;
+        th += extra_data_size;
+        th += 8; // clockInfo clock
+        th += 4; // clockInfo resetCount
+        th += 4; // clockInfo restartCount
+        th += 1; // clockInfo safe
+        th += 8; // firmwareVersion
+        let pcr_select_count: usize = BigEndian::read_u32(&slice[th..(th + 4)]) as usize;
+        th += 4;
+        for _ in 0..pcr_select_count {
+            th += 2; // pcrSelections hash
+            th += 1; // pcrSelections sizeofSelect
+            th += 3; // pcrSelections pcrSelect
+        }
+        let pcr_digest_size: usize = BigEndian::read_u16(&slice[th..(th + 2)]) as usize;
+        th += 2;
+        out_pcr_digest.extend([0].repeat(pcr_digest_size));
+        out_pcr_digest.copy_from_slice(&slice[th..(th + pcr_digest_size)]);
+        th += pcr_digest_size;
+        let sig_alg: u16 = BigEndian::read_u16(&slice[th..(th + 2)]);
+        th += 2;
+        assert!(sig_alg == TpmAlgorithms::TPM_ALG_RSASSA as u16);
+        let rsassa_hash: u16 = BigEndian::read_u16(&slice[th..(th + 2)]);
+        th += 2;
+        assert!(rsassa_hash == TpmAlgorithms::TPM_ALG_SHA256 as u16);
+        let sig_size: usize = BigEndian::read_u16(&slice[th..(th + 2)]) as usize;
+        th += 2;
+        out_sig.extend([0].repeat(sig_size));
+        out_sig.copy_from_slice(&slice[th..(th + sig_size)]);
+        th += sig_size;
+    } else {
+        println!("Didn't receive any response from TPM!");
+        return false;
+    }
     true
 }
 
