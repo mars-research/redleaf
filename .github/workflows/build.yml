@@ -20,6 +20,8 @@ jobs:
     name: DEBUG=${{ matrix.debug }} IXGBE=${{ matrix.ixgbe }} LARGE_MEM=${{ matrix.large_mem }}
 
     steps:
+      - name: Install dependencies
+        run: sudo apt update && sudo apt install -y nasm
       - uses: actions/checkout@v2
         with:
           submodules: 'true'

@@ -6,7 +6,7 @@ RedLeaf is a research operating system developed from scratch in Rust to explore
 
 ## Building
 
-You need a very recent nightly Rust toolchain with the `rust-src` component.
+You need a very recent nightly Rust toolchain with the `rust-src` component, and also the `nasm` assembler.
 If you wish to generate a bootable `.iso` image (required for the `qemu` targets), you also need to have `grub-mkrescue` in your PATH.
 
 ```
