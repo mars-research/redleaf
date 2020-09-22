@@ -29,7 +29,12 @@ features = ["spin_no_std"]
 debug = true
 incremental = false
 lto = true
-codegen-units = 1
+opt-level = 3
 
 [profile.bench]
 debug = true
+
+[features]
+default = ["aligned-mem", "c-style-insert"]
+aligned-mem = [ ]
+c-style-insert = [ ]

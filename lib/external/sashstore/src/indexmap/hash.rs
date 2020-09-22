@@ -6,6 +6,34 @@
 
 use core::hash::{BuildHasher, Hash, Hasher};
 
+#[inline]
+pub fn fnv<K: Sized>(value: &K) -> u64 {
+    let num_bytes = core::mem::size_of::<K>() as isize;
+
+    /*
+    if num_bytes == 8 {
+        // incorrect fnv
+        let address = value as *const _ as *const u64;
+        let val: u64 = unsafe { *address };
+        (val * 14695981039346656037) >> (64 - 24)
+    } else {
+    */
+        let address = value as *const _ as *const u8;
+
+        let mut state: u64 = 0xcbf29ce484222325;
+
+        for i in 0..num_bytes {
+            let byte: u8 = unsafe { *(address.offset(i)) };
+            state = state.wrapping_mul(0x100_0000_01b3);
+            state ^= byte as u64;
+            // print!("{} ", byte);
+        }
+        // println!("-> {}", state);
+
+        state
+    // }
+}
+
 /// Hashes a `value` using a specified `hasher_builder`.
 ///
 /// # Example

@@ -19,6 +19,7 @@ use core::mem;
 
 use alloc::vec::Vec;
 use alloc::format;
+use core::alloc::Layout;
 
 use arrayvec::ArrayVec;
 
@@ -39,6 +40,12 @@ static mut TSC_FIND_HISTOGRAM: Option<Base2Histogram> = None;
 static mut TSC_FIND_TOTAL: u64 = 0;
 
 static mut REPROBE_COUNT: usize = 0;
+static mut COLLISIONS: u64 = 0;
+static mut HASH_ACC: usize = 0;
+
+pub fn print_collisions() {
+    println!("{}", unsafe { COLLISIONS });
+}
 
 macro_rules! record_hist {
     ($hist: ident, $total: ident, $val: expr) => {
@@ -69,6 +76,23 @@ macro_rules! print_stat {
             }
 
             println!("Average: {}", $total / count);
+        }
+    };
+}
+
+// The optimizer can very well do its job if we
+// simply add the feature gate in grow() itself,
+// but we are doing this for the sake of reducing
+// variables.
+macro_rules! grow {
+    () => {
+        #[cfg(feature = "grow")]
+        {
+            self.grow();
+        }
+        #[cfg(not(feature = "grow"))]
+        {
+            panic!("Hash table saturated");
         }
     };
 }
@@ -549,6 +573,32 @@ where
         } else {
             capacity
         };
+
+        #[cfg(feature = "aligned-mem")]
+        let mut index = { 
+            let num_bytes = core::mem::size_of::<Bucket<K, V>>() * capacity;
+
+            // println!("Creating a layout of {} * {} = {}",
+            //                        std::mem::size_of::<Bucket<K,V>>(),
+            //                        capacity, num_bytes);
+
+            let layout = Layout::from_size_align(num_bytes, 4096)
+                    .map_err(|e| panic!("Layout error: {}", e)).unwrap();
+
+
+            let buf = unsafe {alloc::alloc::alloc(layout) as *mut Bucket<K,V> };
+            //println!("vector aligned buf {:?}", buf);
+            let mut v: Vec<Bucket<K,V>> = unsafe { Vec::from_raw_parts(buf, capacity, capacity)} ;
+            //println!("vec len {} cap {}", v.len(), v.capacity());
+            Index {
+                params,
+                capacity,
+                len: 0,
+                table: v
+            }
+        };
+
+        #[cfg(not(feature = "aligned-mem"))]
         let mut index = Index {
             params,
             capacity,
@@ -563,8 +613,12 @@ where
 
     /// Initializes inner table with empty buckets according to specified capacity.
     fn init_table(table: &mut Vec<Bucket<K, V>>, capacity: usize) {
-        for _ in 0..capacity {
-            table.push(Bucket::None);
+        for i in 0..capacity {
+            #[cfg(feature = "aligned-mem")]
+            { table[i] = Bucket::None; }
+
+            #[cfg(not(feature = "aligned-mem"))]
+            { table.push(Bucket::None); }
         }
 
         // useless but that paranoia
@@ -617,7 +671,12 @@ where
             match &self.table[probe] {
                 Some(pair) if f(pair.borrow()) => return (Some(pair), Some(probe)), // found matching bucket
                 None => return (None, Some(probe)), // found empty bucket
-                Some(_) => continue,
+                Some(_) => {
+                    /*unsafe {
+                        COLLISIONS += 1;
+                    }*/
+                    continue;
+                },
             }
         }
 
@@ -662,41 +721,109 @@ where
     /// ```
     #[inline]
     pub fn insert(&mut self, key: K, value: V) -> Bucket<K, V> {
-        let insert_start = unsafe { core::arch::x86_64::_rdtsc() };
+        // /* PERF */ let insert_start = unsafe { core::arch::x86_64::_rdtsc() };
 
-        let hash_start = unsafe { core::arch::x86_64::_rdtsc() };
-        let hash = make_hash(&self.params.hasher_builder, &key) as usize;
-        let hash_end = unsafe { core::arch::x86_64::_rdtsc() };
-        record_hist!(TSC_HASH_HISTOGRAM, TSC_HASH_TOTAL, hash_end - hash_start);
+        // /* PERF */ let hash_start = unsafe { core::arch::x86_64::_rdtsc() };
+        // let hash = make_hash(&self.params.hasher_builder, &key) as usize;
+        let hash = fnv(&key) as usize;
+        // /* PERF */ let hash_end = unsafe { core::arch::x86_64::_rdtsc() };
+        // /* PERF */ record_hist!(TSC_HASH_HISTOGRAM, TSC_HASH_TOTAL, hash_end - hash_start);
+        /*unsafe {
+            HASH_ACC += hash;
+        }*/
 
-        if self.load() >= self.params.max_load {
-            self.grow();
+        // We have two styles of insert()
+        // - C-style, similar to insert() in the C version
+        // - Idiomatic Rust
+        #[cfg(feature = "c-style-insert")]
+        {
+            // C-style
+            /*
+            for i in 0..self.capacity {
+                let probe = (hash + i + i * i) % self.capacity;
+
+                #[cfg(feature = "grow")]
+                {
+                    if self.table[probe].is_none() {
+                        self.len += 1;
+                    }
+                }
+
+                if self.table[probe].is_none() || self.table[probe].as_ref().unwrap().borrow().0 == key {
+                    self.table[probe] = Bucket::Some(RefCell::new((key, value)));
+                    return;
+                }
+
+                unsafe {
+                    COLLISIONS += 1;
+                }
+            }
+            */
+
+            for i in 0..self.capacity {
+                // let probe = (hash + i + i * i) % self.capacity;
+                let probe = (hash + i + i * i) & (self.capacity - 1);
+
+                match &self.table[probe] {
+                    Some(pair) if pair.borrow().0 == key => {
+                        // return std::mem::replace(&mut self.table[probe], Bucket::Some(RefCell::new((key, value))));
+
+                        // self.table[probe] = Bucket::Some(RefCell::new((key, value)));
+
+                        core::mem::replace(&mut self.table[probe], Bucket::Some(RefCell::new((key, value))));
+                        return Bucket::None;
+                        //return;
+                    },
+                    None => {
+                        core::mem::replace(&mut self.table[probe], Bucket::Some(RefCell::new((key, value))));
+                        // self.table[probe] = Bucket::Some(RefCell::new((key, value)));
+                        return Bucket::None;
+                        // return;
+                    },
+                    Some(_) => {
+                        /*unsafe {
+                            COLLISIONS += 1;
+                        }*/
+                        continue;
+                    },
+                }
+            }
+
+            // Failed to find a cell
+            grow!();
+            self.insert(key, value)
+        }
+        #[cfg(not(feature = "c-style-insert"))]
+        {
+            this_will_not_compile();
+
+            // Idiomatic Rust
+            match self.find(hash, |p| key.eq(&p.0)) {
+                (Some(_), Some(i)) => {
+                    return core::mem::replace(&mut self.table[i], Bucket::Some(RefCell::new((key, value))));
+                    // self.table[i] = Bucket::Some(RefCell::new((key, value)));
+                    // return;
+                }
+                (None, Some(i)) => {
+                    self.table[i] = Bucket::Some(RefCell::new((key, value)));
+
+                    #[cfg(feature = "grow")]
+                    {
+                        self.len += 1;
+                    }
+                    return Bucket::None;
+                    //return;
+                }
+                _ => {
+                    grow!();
+                    self.insert(key, value)
+                }
+            }
         }
 
-        let find_start = unsafe { core::arch::x86_64::_rdtsc() };
-        let f = self.find(hash, |p| key.eq(&p.0));
-        let find_end = unsafe { core::arch::x86_64::_rdtsc() };
-        record_hist!(TSC_FIND_HISTOGRAM, TSC_FIND_TOTAL, find_end - find_start);
-
-        let r = match f {
-            (Some(_), Some(i)) => {
-                mem::replace(&mut self.table[i], Bucket::Some(RefCell::new((key, value))))
-            }
-            (None, Some(i)) => {
-                self.table[i] = Bucket::Some(RefCell::new((key, value)));
-                self.len += 1;
-                Bucket::None
-            }
-            _ => {
-                self.grow();
-                self.insert(key, value)
-            }
-        };
-
-        let insert_end = unsafe { core::arch::x86_64::_rdtsc() };
-        record_hist!(TSC_INSERT_HISTOGRAM, TSC_INSERT_TOTAL, insert_end - insert_start);
-
-        r
+        // /* PERF */ let insert_end = unsafe { core::arch::x86_64::_rdtsc() };
+        // /* PERF */ record_hist!(TSC_INSERT_HISTOGRAM, TSC_INSERT_TOTAL, insert_end - insert_start);
+        // /* PERF */ eprintln!("1,{},{},{},{}", self.len, self.capacity, self.load(), insert_end - insert_start);
     }
 
     // pub fn remove_entry<Q>(&mut self, key: &Q) -> Bucket<K, V> where K: Borrow<Q>, Q: Hash + Eq + ?Sized
@@ -735,68 +862,27 @@ where
         K: Borrow<Q>,
         Q: Hash + Eq + ?Sized,
     {
-        #[cfg(feature = "rdtsc")]
-        let get_start = unsafe { core::arch::x86_64::_rdtsc() };
+        /* PERF */ let get_start = unsafe { core::arch::x86_64::_rdtsc() };
 
-        #[cfg(feature = "rdtsc")]
-        let hash_start = unsafe { core::arch::x86_64::_rdtsc() };
-
+        /* PERF */ let hash_start = unsafe { core::arch::x86_64::_rdtsc() };
         let hash = make_hash(self.hasher(), &key) as usize;
+        /* PERF */ let hash_end = unsafe { core::arch::x86_64::_rdtsc() };
+        /* PERF */ record_hist!(TSC_HASH_HISTOGRAM, TSC_HASH_TOTAL, hash_end - hash_start);
 
-        #[cfg(feature = "rdtsc")]
-        let hash_end = unsafe { core::arch::x86_64::_rdtsc() };
-
-        #[cfg(feature = "rdtsc")]
-        record_hist!(TSC_HASH_HISTOGRAM, TSC_HASH_TOTAL, hash_end - hash_start);
-
-        #[cfg(feature = "rdtsc")]
-        let find_start = unsafe { core::arch::x86_64::_rdtsc() };
-
+        /* PERF */ let find_start = unsafe { core::arch::x86_64::_rdtsc() };
         let r = self.find(hash, |p| key.borrow().eq(p.0.borrow()))
             .0
             .map(|pair| Ref::map(pair.borrow(), |p| &p.1));
+        /* PERF */ let find_end = unsafe { core::arch::x86_64::_rdtsc() };
+        /* PERF */ record_hist!(TSC_FIND_HISTOGRAM, TSC_FIND_TOTAL, find_end - find_start);
 
-        #[cfg(feature = "rdtsc")]
-        let find_end = unsafe { core::arch::x86_64::_rdtsc() };
+        /* PERF */ let get_end = unsafe { core::arch::x86_64::_rdtsc() };
+        /* PERF */ record_hist!(TSC_GET_HISTOGRAM, TSC_GET_TOTAL, get_end - get_start);
 
-        #[cfg(feature = "rdtsc")]
-        record_hist!(TSC_FIND_HISTOGRAM, TSC_FIND_TOTAL, find_end - find_start);
-
-        #[cfg(feature = "rdtsc")]
-        let get_end = unsafe { core::arch::x86_64::_rdtsc() };
-
-        #[cfg(feature = "rdtsc")]
-        record_hist!(TSC_GET_HISTOGRAM, TSC_GET_TOTAL, get_end - get_start);
+        // /* PERF */ eprintln!("0,{},{},{},{}", self.len, self.capacity, self.load(), get_end - get_start);
 
         r
     }
-
-    /*
-    #[inline]
-    pub fn get_hash(&self, hash: usize) -> Option<Ref<V>> {
-        /*
-        let get_start = unsafe { core::arch::x86_64::_rdtsc() };
-        */
-
-        /*
-        let find_start = unsafe { core::arch::x86_64::_rdtsc() };
-        */
-        let r = self.find(hash, |p| hash == p.0.borrow())
-            .0
-            .map(|pair| Ref::map(pair.borrow(), |p| &p.1));
-        /*
-        let find_end = unsafe { core::arch::x86_64::_rdtsc() };
-        */
-        record_hist!(TSC_FIND_HISTOGRAM, TSC_FIND_TOTAL, find_end - find_start);
-
-        /*
-        let get_end = unsafe { core::arch::x86_64::_rdtsc() };
-        */
-        record_hist!(TSC_GET_HISTOGRAM, TSC_GET_TOTAL, get_end - get_start);
-
-        r
-    }
-    */
 
     /// Returns a mutable reference to the value associated with the specified key
     /// if the lookup found a match, else it returns `None`.
@@ -822,22 +908,22 @@ where
         K: Borrow<Q>,
         Q: Hash + Eq + ?Sized,
     {
-        let get_start = unsafe { core::arch::x86_64::_rdtsc() };
+        /* PERF */ let get_start = unsafe { core::arch::x86_64::_rdtsc() };
 
-        let hash_start = unsafe { core::arch::x86_64::_rdtsc() };
+        /* PERF */ let hash_start = unsafe { core::arch::x86_64::_rdtsc() };
         let hash = make_hash(self.hasher(), &key) as usize;
-        let hash_end = unsafe { core::arch::x86_64::_rdtsc() };
-        record_hist!(TSC_HASH_HISTOGRAM, TSC_HASH_TOTAL, hash_end - hash_start);
+        /* PERF */ let hash_end = unsafe { core::arch::x86_64::_rdtsc() };
+        /* PERF */ record_hist!(TSC_HASH_HISTOGRAM, TSC_HASH_TOTAL, hash_end - hash_start);
 
-        let find_start = unsafe { core::arch::x86_64::_rdtsc() };
-        let r = self.find(hash, |p| key.borrow().eq(p.0.borrow()))
+        /* PERF */ let find_start = unsafe { core::arch::x86_64::_rdtsc() };
+        let r = self.find(hash, |p| key.eq(p.0.borrow()))
             .0
             .map(|pair| RefMut::map(pair.borrow_mut(), |p| &mut p.1));
-        let find_end = unsafe { core::arch::x86_64::_rdtsc() };
-        record_hist!(TSC_FIND_HISTOGRAM, TSC_FIND_TOTAL, find_end - find_start);
+        /* PERF */ let find_end = unsafe { core::arch::x86_64::_rdtsc() };
+        /* PERF */ record_hist!(TSC_FIND_HISTOGRAM, TSC_FIND_TOTAL, find_end - find_start);
 
-        let get_end = unsafe { core::arch::x86_64::_rdtsc() };
-        record_hist!(TSC_GET_HISTOGRAM, TSC_GET_TOTAL, get_end - get_start);
+        /* PERF */ let get_end = unsafe { core::arch::x86_64::_rdtsc() };
+        /* PERF */ record_hist!(TSC_GET_HISTOGRAM, TSC_GET_TOTAL, get_end - get_start);
 
         r
     }
