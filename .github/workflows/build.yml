@@ -13,11 +13,10 @@ jobs:
 
     strategy:
       matrix:
-        debug: ["true", "false"]
-        ixgbe: ["true", "false"]
+        debug: ["false"]
         large_mem: ["true", "false"]
 
-    name: DEBUG=${{ matrix.debug }} IXGBE=${{ matrix.ixgbe }} LARGE_MEM=${{ matrix.large_mem }}
+    name: DEBUG=${{ matrix.debug }} LARGE_MEM=${{ matrix.large_mem }}
 
     steps:
       - name: Install dependencies
@@ -32,4 +31,4 @@ jobs:
           components: rust-src
           default: true
       - name: Build
-        run:  make DEBUG=${{ matrix.debug }} IXGBE=${{ matrix.ixgbe }} LARGE_MEM=${{ matrix.large_mem }}
+        run:  make DEBUG=${{ matrix.debug }} LARGE_MEM=${{ matrix.large_mem }}
