@@ -86,9 +86,10 @@ qemu_common     += -cpu 'Haswell,pdpe1gb' -machine q35
 qemu_common     += -net nic,model=virtio
 #qemu_common    += -device vfio-pci,romfile=,host=06:00.1
 #qemu_common    += -vnc 127.0.0.1:0
+#qemu_common	+= -mem-path /dev/hugepages
 
 ifeq ($(LARGE_MEM),true)
-qemu_common     += -m 10240M
+qemu_common     += -m 20G
 else
 qemu_common     += -m 2048M
 endif
@@ -105,7 +106,7 @@ endif
 
 QEMU            ?= qemu-system-x86_64
 KVM             := sudo numactl -C 4 ${QEMU}
-qemu_kvm        := --enable-kvm
+qemu_kvm_args	:= --enable-kvm
 
 # https://superuser.com/a/1412150
 # We set the first serial to /dev/null because we want to always use COM2
@@ -185,7 +186,7 @@ else
 endif
 
 .PHONY: install
-install: all
+install: mb2
 	sudo cp -v $(mb2) /boot
 
 .PHONY: release
