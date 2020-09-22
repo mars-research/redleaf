@@ -24,3 +24,7 @@ members = [
 	"usr/xv6/usr/bin",
 	"usr/xv6/usr/lib"
 ]
+
+[profile.release]
+lto = true
+debug = true
