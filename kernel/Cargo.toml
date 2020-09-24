@@ -29,8 +29,8 @@ bitflags = "1.0.4"
 log = "0.4"
 custom_error = { git = "https://github.com/gz/custom_error.git" }
 hashbrown = "0.6"
-rref = { path = "sys/lib/rref", version = "0.1.0" }
-libsyscalls = { path = "sys/lib/libsyscalls", version = "0.1.0" }
+rref = { path = "../lib/core/rref", version = "0.1.0" }
+libsyscalls = { path = "../lib/core/libsyscalls", version = "0.1.0" }
 
 # Local
 elfloader = { path = "./lib/rust-elfloader" }
