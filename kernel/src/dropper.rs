@@ -1,5 +1,6 @@
 use hashbrown::HashMap;
 use core::mem::transmute;
+use core::any::TypeId;
 use crate::alloc::borrow::ToOwned;
 
 use rref::{RRef, RRefArray, RRefDeque, traits::CustomCleanup, traits::TypeIdentifiable};
@@ -43,7 +44,7 @@ fn drop_t<T: CustomCleanup + TypeIdentifiable>(ptr: *mut u8) {
     }
 }
 
-struct DropMap(HashMap<u64, fn (*mut u8) -> ()>);
+struct DropMap(HashMap<TypeId, fn (*mut u8) -> ()>);
 
 impl DropMap {
     fn add_type<T: 'static + CustomCleanup + TypeIdentifiable> (&mut self) {
@@ -52,7 +53,7 @@ impl DropMap {
         self.0.insert(type_id, type_erased_drop);
     }
 
-    fn get_drop(&self, type_id: u64) -> Option<&fn (*mut u8) -> ()> {
+    fn get_drop(&self, type_id: TypeId) -> Option<&fn (*mut u8) -> ()> {
         self.0.get(&type_id)
     }
 }
@@ -68,17 +69,17 @@ impl Dropper {
         }
     }
 
-    pub fn drop(&self, type_id: u64, ptr: *mut u8) -> bool {
+    pub fn drop(&self, type_id: TypeId, ptr: *mut u8) -> bool {
         if let Some(drop_fn) = self.drop_map.get_drop(type_id) {
             (drop_fn)(ptr);
             true
         } else {
-            println!("NO REGISTERED DROP FOR type hash {}", type_id);
+            println!("NO REGISTERED DROP FOR type hash {:?}", type_id);
             false
         }
     }
 
-    pub fn has_type(&self, type_id: u64) -> bool {
+    pub fn has_type(&self, type_id: TypeId) -> bool {
         self.drop_map.get_drop(type_id).is_some()
     }
 }

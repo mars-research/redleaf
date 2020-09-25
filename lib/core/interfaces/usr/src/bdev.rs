@@ -29,10 +29,6 @@ pub struct BlkReq {
    pub block: u64,
 }
 
-impl TypeIdentifiable for BlkReq {
-    fn type_id() -> u64 { 1 }
-}
-
 impl BlkReq {
     pub fn new() -> Self {
         Self {
