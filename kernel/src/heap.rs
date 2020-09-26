@@ -6,7 +6,6 @@ use crate::memory::MEM_PROVIDER;
 use hashbrown::HashMap;
 use crate::dropper::DROPPER;
 use syscalls::SharedHeapAllocation;
-use core::any::TypeId;
 
 lazy_static! {
     // key of this HashMap is SharedHeapAllocation.ptr
@@ -22,7 +21,7 @@ impl PHeap {
 }
 
 impl syscalls::Heap for PHeap {
-    unsafe fn alloc(&self, layout: Layout, type_id: TypeId) -> Option<SharedHeapAllocation> {
+    unsafe fn alloc(&self, layout: Layout, type_id: u64) -> Option<SharedHeapAllocation> {
         disable_irq();
         let allocation = alloc_heap(layout, type_id);
         enable_irq();
@@ -36,7 +35,7 @@ impl syscalls::Heap for PHeap {
     }
 }
 
-unsafe fn alloc_heap(layout: Layout, type_id: TypeId) -> Option<SharedHeapAllocation> {
+unsafe fn alloc_heap(layout: Layout, type_id: u64) -> Option<SharedHeapAllocation> {
 
     if !DROPPER.has_type(type_id) {
         return None
