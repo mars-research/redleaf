@@ -4,6 +4,7 @@
 # Configurations
 ################
 
+ifndef NO_DEFAULT_FLAGS
 CARGO_FLAGS      ?=
 DOMAIN_FEATURES  ?=
 KERNEL_FEATURES  ?=
@@ -16,15 +17,15 @@ KERNEL_FEATURES  += --features "trace_vspace"
 KERNEL_FEATURES  += --features "page_fault_on_ist"
 #KERNEL_FEATURES += --features "trace_sched"
 
-################
-
 ifeq ($(DEBUG),false)
 CARGO_FLAGS      += --release
 endif
 
-#ifdef IXGBE
+endif
+
+ifdef IXGBE
 $(warning IXGBE is always enabled now.)
-#endif
+endif
 DOMAIN_FEATURES  += --features "c220g2_ixgbe"
 KERNEL_FEATURES  += --features "c220g2_ixgbe"
 
@@ -135,23 +136,23 @@ qemu-kvm: $(iso) $(xv6fs_img)
 
 .PHONY: qemu-gdb
 qemu-gdb:
-	make qemu GDB=true
+	NO_DEFAULT_FLAGS=1 make qemu GDB=true
 
 .PHONY: qemu-gdb-kvm
 qemu-gdb-kvm:
-	make qemu-kvm GDB=true
+	NO_DEFAULT_FLAGS=1 make qemu-kvm GDB=true
 
 .PHONY: qemu-kvm-gdb
 qemu-kvm-gdb:
-	make qemu-kvm GDB=true
+	NO_DEFAULT_FLAGS=1 make qemu-kvm GDB=true
 
 .PHONY: qemu-gdb-nox
 qemu-gdb-nox:
-	make qemu-nox GDB=true
+	NO_DEFAULT_FLAGS=1 make qemu-nox GDB=true
 
 .PHONY: qemu-nox-gdb
 qemu-nox-gdb:
-	make qemu-nox GDB=true
+	NO_DEFAULT_FLAGS=1 make qemu-nox GDB=true
 
 ################
 # Build
