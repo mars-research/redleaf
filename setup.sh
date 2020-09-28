@@ -1,7 +1,8 @@
 #!/bin/sh
 # Install Rust toolchain and other dependencies.
 # Change $INSTALL_HOME if you would like Rust to be installed somewhere else.
-# Sample usage
+# Sample usage:
+#   ./setup.sh INSTALL_HOME=~/large
 
 echo "Setting up Rust build environemnt for RedLeaf"
 
