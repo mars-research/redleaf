@@ -6,7 +6,7 @@ checkstack: checkstackinfo
 .PHONY: checkstackinfo
 checkstackinfo:
 	$(eval max_stack := $(shell stack-sizes $(mb2) | sort -k2 -nr | awk 'NR==1{print $$2}'))
-	$(eval half_ukern_stack := $(shell grep "^pub const STACK_SIZE_IN_PAGES" $(root)/src/thread.rs | grep -o '[[:digit:]]*' | awk '{print $$1*4096/2}'))
+	$(eval half_ukern_stack := $(shell grep "^pub const STACK_SIZE_IN_PAGES" $(root)/kernel/src/thread.rs | grep -o '[[:digit:]]*' | awk '{print $$1*4096/2}'))
 	$(eval max_stacks := $(shell stack-sizes $(mb2) | sort -k2 -nr | head -n 1))
 	@echo "Max allocated stack used by this domain is $(max_stack) bytes, which is less than half of kernel stack ($(half_ukern_stack) bytes)"
 	@echo "The largest stack is allocated by this function:" 
