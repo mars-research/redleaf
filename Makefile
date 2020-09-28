@@ -4,12 +4,18 @@
 # Configurations
 ################
 
-ifndef NO_DEFAULT_FLAGS
-CARGO_FLAGS      ?=
-DOMAIN_FEATURES  ?=
-KERNEL_FEATURES  ?=
 DEBUG            ?= false
 LARGE_MEM        ?= true
+
+ifndef NO_DEFAULT_FLAGS
+CARGO_FLAGS      ?=
+
+DOMAIN_FEATURES  ?=
+KERNEL_FEATURES  ?=
+
+ifeq ($(DEBUG),false)
+CARGO_FLAGS      += --release
+endif
 
 #KERNEL_FEATURES += --features "trace_alloc"
 #KERNEL_FEATURES += --features "smp"
@@ -17,11 +23,8 @@ KERNEL_FEATURES  += --features "trace_vspace"
 KERNEL_FEATURES  += --features "page_fault_on_ist"
 #KERNEL_FEATURES += --features "trace_sched"
 
-ifeq ($(DEBUG),false)
-CARGO_FLAGS      += --release
-endif
+endif # NO_DEFAULT_FLAGS
 
-endif
 
 ifdef IXGBE
 $(warning IXGBE is always enabled now.)
@@ -106,7 +109,7 @@ qemu_common     += -S
 endif
 
 QEMU            ?= qemu-system-x86_64
-KVM             := sudo numactl -C 4 ${QEMU}
+KVM             := sudo taskset -c 4 ${QEMU}
 qemu_kvm_args	:= --enable-kvm
 
 # https://superuser.com/a/1412150
