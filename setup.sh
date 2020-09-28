@@ -1,28 +1,24 @@
 #!/bin/sh
+# Install Rust toolchain and other dependencies.
+# Change $INSTALL_HOME if you would like Rust to be installed somewhere else.
+# Sample usage
 
 echo "Setting up Rust build environemnt for RedLeaf"
-curl https://sh.rustup.rs -sSf | sh
+
 USR_HOME=`printenv HOME`
-RUST_HOME=$USR_HOME/.cargo/bin
+INSTALL_HOME=$USR_HOME # Default install path is $HOME. 
+CARGO_HOME=$INSTALL_HOME/.cargo
+RUSTUP_HOME= $INSTALL_HOME/.rustup
+RUST_HOME=$CARGO_HOME/bin
+
 echo $RUST_HOME
-$RUST_HOME/rustup override add nightly
-$RUST_HOME/rustup component add llvm-tools-preview
-$RUST_HOME/cargo install cargo-xbuild
-$RUST_HOME/cargo +nightly install stack-sizes
-$RUST_HOME/rustup component add rust-src
+curl https://sh.rustup.rs -sSf | bash -s -- --default-toolchain nightly-2020-08-22 -y
+$RUST_HOME/rustup component add llvm-tools-preview rust-src
+$RUST_HOME/cargo install stack-sizes
 
-# Install Qemu
-sudo apt-get install qemu
+# Install Qemu, nasm, Grub, Xorriso
+sudo apt-get update
+sudo apt-get install qemu nasm grub-pc-bin xorriso numactl -y
 
-# Install nasm
-
-sudo apt-get install nasm
-
-# Install Grub
-sudo apt-get install grub-pc-bin
-
-# Install Xorriso
-sudo apt-get install xorriso
-
-echo "To get started you need Cargo's bin directory ($HOME/.cargo/bin) in your PATH environment variable. Next time you log in this will be done automatically."
-echo "To configure your current shell run source $HOME/.cargo/env"
+echo "To get started you need Cargo's bin directory ($CARGO_HOME/bin) in your PATH environment variable. Next time you log in this will be done automatically."
+echo "To configure your current shell run `source $CARGO_HOME/env`"
