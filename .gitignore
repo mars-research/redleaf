@@ -1,6 +1,7 @@
 **/target/
 **/build/
 **/*.rs.bk
+**/.cargo/registry/**
 *.swp
 *.sw*
 serial.log
