@@ -209,7 +209,6 @@ pub fn trusted_entry(s: Box<dyn syscalls::Syscall + Send + Sync>,
     println!("Creating pci");
     let (dom_pci, pci) = proxy.as_create_pci().create_domain_pci();
 
-    /*
     #[cfg(not(feature = "membdev"))]
     let (dom_ahci, bdev) = proxy.as_create_ahci().create_domain_ahci(pci.pci_clone());
 
@@ -220,15 +219,12 @@ pub fn trusted_entry(s: Box<dyn syscalls::Syscall + Send + Sync>,
     #[cfg(feature = "membdev")]
     #[cfg(feature = "shadow")]
     let (dom_ahci, bdev) = proxy.as_create_bdev_shadow().create_domain_bdev_shadow(proxy.as_create_membdev());
-    */
 
-    /*
     println!("Creating nvme domain!");
     #[cfg(not(feature = "shadow"))]
     let (dom_nvme, nvme) = proxy.as_create_nvme().create_domain_nvme(pci.pci_clone());
     #[cfg(feature = "shadow")]
     let (dom_nvme, nvme) = proxy.as_create_nvme_shadow().create_domain_nvme_shadow(proxy.as_create_nvme(), pci.pci_clone());
-    */
 
     println!("Creating ixgbe");
     #[cfg(not(feature = "shadow"))]
@@ -239,7 +235,6 @@ pub fn trusted_entry(s: Box<dyn syscalls::Syscall + Send + Sync>,
     #[cfg(feature = "benchnet")]
     let _ = proxy.as_create_benchnet().create_domain_benchnet(net);
 
-    /*
     #[cfg(feature = "benchnvme")]
     let _ = proxy.as_create_benchnvme().create_domain_benchnvme(nvme);
     
@@ -257,13 +252,14 @@ pub fn trusted_entry(s: Box<dyn syscalls::Syscall + Send + Sync>,
         let (dom_shadow, dom_c) = proxy.as_create_shadow().create_domain_shadow(proxy.as_create_dom_c());
         let dom_dom_d = proxy.as_create_dom_d().create_domain_dom_d(dom_c);
     }
-
+    
     #[cfg(not(any(feature = "benchnet", feature = "benchnvme")))]
     {
+        println!("Starting xv6 kernel");
         let (dom_xv6, rv6) = proxy.as_create_xv6().create_domain_xv6kernel(ints_clone, proxy.as_create_xv6fs(), proxy.as_create_xv6usr(), bdev, net, nvme);
+        println!("Starting xv6 user init");
         rv6.sys_spawn_domain(rv6.clone().unwrap(), "/init", "/init", array_init::array_init(|_| None)).unwrap();
     }
-    */
 }
 
 // This function is called on panic.
