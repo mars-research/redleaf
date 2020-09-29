@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Install Rust toolchain and other dependencies.
 # Change $INSTALL_HOME if you would like Rust to be installed somewhere else.
 # Sample usage:
@@ -12,12 +12,19 @@ CARGO_HOME=$INSTALL_HOME/.cargo
 RUSTUP_HOME=$INSTALL_HOME/.rustup
 RUST_HOME=$CARGO_HOME/bin
 
+# Install Rust and Cargo dependencies
 echo $RUST_HOME
 curl https://sh.rustup.rs -sSf | CARGO_HOME=$CARGO_HOME RUSTUP_HOME=$RUSTUP_HOME bash -s -- --default-toolchain nightly-2020-08-22 -y
 $RUST_HOME/rustup component add llvm-tools-preview rust-src
 $RUST_HOME/cargo install stack-sizes
 
-# Install Qemu, nasm, Grub, Xorriso
+# # Setup CARGO_HOME and RUSTUP_HOME if using custom installation home
+# if [[ $USR_HOME != $INSTALL_HOME &&  ! $(grep -q "CARGO_HOME\|RUSTUP_HOME" ~/.profile) ]]
+# then
+#     echo -e "export CARGO_HOME=$CARGO_HOME\nexport RUSTUP_HOME=$RUSTUP_HOME" | tee -a ~/.profile
+# fi
+
+# Install apt dependencies: Qemu, nasm, Grub, Xorriso
 sudo apt-get update
 sudo apt-get install qemu nasm grub-pc-bin xorriso numactl -y
 
