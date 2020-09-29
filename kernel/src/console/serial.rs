@@ -76,10 +76,8 @@ impl Write for SerialPort {
 
 use spin::Mutex;
 
-#[cfg(not(feature = "c220g2_ixgbe"))]
-pub static mut EMERGENCY_SERIAL1: SerialPort = SerialPort::new(COM2_PORT);
-#[cfg(feature = "c220g2_ixgbe")]
 pub static mut EMERGENCY_SERIAL1: SerialPort = SerialPort::new(COM1_PORT);
+pub static mut EMERGENCY_SERIAL2: SerialPort = SerialPort::new(COM2_PORT);
 
 lazy_static! {
     pub static ref SERIAL1: Mutex<SerialPort> = {
