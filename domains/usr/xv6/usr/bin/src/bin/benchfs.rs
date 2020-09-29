@@ -22,7 +22,7 @@ const TEN_MS: u64 = 10 * ONE_MS;
 const ONE_SEC: u64 = 2_400_000_000;
 
 #[no_mangle]
-pub fn init(
+pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
     heap: Box<dyn Heap + Send + Sync>,
     rv6: Box<dyn Xv6>,

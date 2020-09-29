@@ -27,7 +27,7 @@ mod parse;
 use crate::parse::{Command, Redir};
 
 #[no_mangle]
-pub fn init(
+pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
     heap: Box<dyn Heap + Send + Sync>,
     rv6: Box<dyn Xv6>,

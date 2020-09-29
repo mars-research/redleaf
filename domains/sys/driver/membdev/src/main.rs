@@ -20,7 +20,7 @@ extern crate malloc;
 
 
 #[no_mangle]
-pub fn init(s: Box<dyn Syscall + Send + Sync>,
+pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>,
             heap: Box<dyn Heap + Send + Sync>,
             mut memdisk: &'static mut [u8]) -> Box<dyn BDev> {
     libsyscalls::syscalls::init(s);

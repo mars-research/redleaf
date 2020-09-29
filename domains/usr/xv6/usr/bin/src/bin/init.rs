@@ -16,7 +16,7 @@ use usrlib::syscalls::{sys_spawn_domain, sys_open, sys_mknod, sys_dup};
 use usrlib::{dbg, println};
 
 #[no_mangle]
-pub fn init(
+pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
     heap: Box<dyn Heap + Send + Sync>,
     rv6: Box<dyn Xv6>,
