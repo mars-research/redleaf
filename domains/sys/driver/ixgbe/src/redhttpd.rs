@@ -9,29 +9,30 @@ use console::println;
 #[cfg(not(target_os = "linux"))]
 use alloc::vec;
 
+use core::fmt;
+use core::fmt::Write;
+
 extern crate arrayvec;
-use arrayvec::ArrayVec;
+use arrayvec::{ArrayVec, ArrayString};
 
 use smoltcp::socket::{SocketSet, SocketHandle};
-use smoltcp::socket::{Socket, TcpSocket, TcpSocketBuffer};
-use httparse::BrokenRequest as HttpRequest;
+use smoltcp::socket::{Socket, SocketRef, TcpSocket, TcpSocketBuffer};
 
 #[macro_use]
 use core::include_bytes;
 
 // All sessions are pre-allocated in advance
-const MAX_SESSIONS: usize = 2048;
+const MAX_SESSIONS: usize = 100;
 
 /// Our dummy backing storage :)
 fn read_file(url: &str) -> Option<&'static [u8]> {
     match url {
         "/index.html" | "/" | "" => Some(include_bytes!("htdocs/index.html")),
-        "/404.html" => Some(include_bytes!("htdocs/404.html")),
         "/style.css" => Some(include_bytes!("htdocs/style.css")),
+        "/404.html" => Some(include_bytes!("htdocs/404.html")),
         _ => None,
     }
 }
-
 
 // Currently the design of smoltcp requires us to have multiple
 // listening sockets to handle simultaneous connections. In other words,
@@ -72,34 +73,49 @@ impl Httpd {
     }
 }
 
-/// An HTTP session.
-///
-/// A session is a state machine with 4 states:
-/// [Idle] -> [Listen] -> [ReadRequest] -> [SendResponse] -
-///   ^---------------------------------------------------|
-///
-/// A session holds a socket, and can be reused. After it's initialized,
-/// it does not perform any dynamic allocations.
-struct HttpSession {
-    handle: SocketHandle,
-    state: HttpState,
-    response: Option<HttpResponse>,
+/*
+    Sample HTTP/1.1 requests:
+
+    GET /rustc-meowing.jpg HTTP/1.1[cr][lf]
+    Host: redleaf.cat[cr][lf]
+    User-Agent: Whatever[cr][lf]
+    X-Moar-Headers: Yes[cr][lf]
+    [cr][lf]
+
+    POST /new-cat-pic HTTP/1.1[cr][lf]
+    Content-Length: 1234[cr][lf]
+    Connection: Keep-Alive[cr][lf]
+    X-Need-to-Parse-Number: Annoying[cr][lf]
+    [cr][lf]
+    [1234 bytes of cat pic]
+*/
+
+/// The HTTP state.
+enum HttpState {
+    /// Reading request
+    ReadRequest,
+
+    /// Sending header + response
+    SendResponse(bool, usize, usize),
+}
+
+#[non_exhaustive]
+enum HttpStatus {
+    Success,
+    NotFound,
+    BadRequest,
 }
 
 struct HttpResponse {
-    code: &'static [u8; 3],
+    status: HttpStatus,
     body: &'static [u8],
 }
 
-#[derive(PartialEq)]
-enum HttpState {
-    Idle,
-    Listen,
-    ReadRequest,
-    SendResponseHeaders,
-    SendResponseBody(usize),
-    ToClose,
-    Closing,
+/// An HTTP session.
+struct HttpSession {
+    handle: SocketHandle,
+    response: Option<HttpResponse>,
+    state: HttpState,
 }
 
 impl HttpSession {
@@ -112,171 +128,211 @@ impl HttpSession {
 
         let handle = sockets.add(socket);
 
-        Self {
+        let r = HttpSession {
             handle,
-            state: HttpState::Idle,
             response: None,
-        }
+            state: HttpState::ReadRequest,
+        };
+
+        r
     }
 
-    /// Returns true if the connection has just established
     pub fn handle(&mut self, sockets: &mut SocketSet) {
         let mut socket = sockets.get::<TcpSocket>(self.handle);
 
-        if !socket.is_active() && HttpState::Closing == self.state {
-            self.state = HttpState::Idle;
-            self.reset_state();
-        }
-        
-        if !socket.is_active() && !socket.is_listening() {
-            // It's possible that we were serving someone and the connection
-            // closed. Anyways, let's reset the state machine and go home.
+        if !socket.is_active() {
+            self.state = HttpState::ReadRequest;
 
-            socket.listen(80).unwrap();
-            self.state = HttpState::Listen;
-        }
-
-        if socket.is_active() {
-            // We have an established connection, but it's possible that we can't recv/send yet
-
-            if let HttpState::Listen = self.state {
-                self.state = HttpState::ReadRequest;
+            if !socket.is_listening() {
+                socket.listen(80).unwrap();
             }
+            return;
+        }
 
-            match self.state {
-                HttpState::Closing => {},
-                HttpState::ReadRequest => {
-                    if socket.can_recv() {
-                        socket.recv(|buf| {
-                            let mut req = HttpRequest::new();
-                            match req.parse(buf) {
-                                Ok(_) => {
-                                    if let Some(path) = req.path {
-                                        if path.len() <= 250 {
-                                            self.prepare_response(&path);
-                                        } else {
-                                            println!("Path too long: {}", &path);
-                                            self.prepare_error(b"400");
-                                        }
-                                    }
-                                },
-                                Err(_) => {
-                                    // Bad request
-                                    self.prepare_error(b"400");
-                                }
+        // Connection active
+        match self.state {
+            HttpState::ReadRequest => {
+                if socket.may_recv() {
+                    let send_res = socket.recv(|buf| {
+                        if buf.len() == 0 {
+                            return (0, false);
+                        }
+
+                        if buf.len() < 5 {
+                            // Too short
+                            self.emit_error(HttpStatus::BadRequest);
+                            return (buf.len(), true);
+                        }
+                        if &buf[..4] != "GET ".as_bytes() || &buf[buf.len() - 4..] != "\r\n\r\n".as_bytes() {
+                            // Not GET, or request not complete in one
+                            // packet (against specs)
+                            self.emit_error(HttpStatus::BadRequest);
+                            return (buf.len(), true);
+                        }
+
+                        let mut urlend: usize = 4;
+                        for i in 4..buf.len() {
+                            if buf[i] == ' ' as u8 {
+                                urlend = i;
+                                break;
                             }
-                            
-                            (buf.len(), buf)
-                        }).expect("Failed to receive");
-
-                        self.state = HttpState::SendResponseHeaders;
-                    }
-                },
-                HttpState::SendResponseHeaders => {
-                    if socket.can_send() {
-                        match &self.response {
-                            Some(response) => {
-                                socket.send(|mut buf| {
-                                    // we can send at most buf.len() bytes
-                                    let mut cursor = 0;
-                                    let http_version = "HTTP/1.1 ".as_bytes();
-                                    let ending = b" Kinda Worked?\r\n\r\n";
-                                    
-                                    buf[cursor..cursor + http_version.len()].copy_from_slice(http_version);
-                                    cursor += http_version.len();
-
-                                    buf[cursor..cursor + 3].copy_from_slice(response.code);
-                                    cursor += 3;
-
-                                    buf[cursor..cursor + ending.len()].copy_from_slice(ending);
-                                    cursor += ending.len();
-
-                                    (cursor, buf)
-                                }).expect("Failed to send");
-
-                                self.state = HttpState::SendResponseBody(0);
-                            },
-                            None => {
-                                // Nothing to send!
-                                self.state = HttpState::ToClose;
-                            },
                         }
-                    } else {
-                        // Cannot send!
-                        self.state = HttpState::ToClose;
-                    }
-                },
-                HttpState::SendResponseBody(offset) => {
-                    if socket.can_send() {
-                        match &self.response {
-                            Some(response) => {
-                                let new_offset = socket.send(|mut buf| {
-                                    // we can send at most buf.len() bytes
-                                    let remaining = response.body.len() - offset;
-                                    let to_send = core::cmp::min(buf.len(), remaining);
-
-                                    buf[0..to_send].clone_from_slice(&response.body[offset..offset + to_send]);
-
-                                    (to_send, offset + to_send)
-                                }).expect("Failed to send");
-                                
-                                self.state = HttpState::SendResponseBody(new_offset);
-
-                                if new_offset >= response.body.len() {
-                                    // All done, going home
-                                    self.state = HttpState::ToClose;
-                                }
-                            },
-                            None => {
-                                // Nothing to send!
-                                self.state = HttpState::ToClose;
-                            },
+                        if urlend == 4 {
+                            // No path
+                            self.emit_error(HttpStatus::BadRequest);
+                            return (buf.len(), true);
                         }
-                    } else {
-                        // Cannot send!
-                        self.state = HttpState::ToClose;
+
+                        let url = if let Ok(url) = core::str::from_utf8(&buf[4..urlend]) {
+                            url
+                        } else {
+                            // Invalid UTF-8
+                            self.emit_error(HttpStatus::BadRequest);
+                            return (buf.len(), true);
+                        };
+
+                        match read_file(url) {
+                            Some(body) => {
+                                self.response = Some(HttpResponse {
+                                    status: HttpStatus::Success,
+                                    body,
+                                });
+                                self.state = HttpState::SendResponse(false, 0, 0);
+                            }
+                            None => {
+                                // 404
+                                self.emit_error(HttpStatus::NotFound);
+                            }
+                        }
+
+                        return (buf.len(), true);
+                    }).expect("Failed to receive");
+
+                    if send_res {
+                        self.send_response(&mut socket);
                     }
-                },
-                _ => {
-                    self.state = HttpState::ToClose;
-                },
+                }
             }
-
-            if let HttpState::ToClose = self.state {
-                // Bye
-                socket.close();
-                self.state = HttpState::Closing;
+            HttpState::SendResponse(_, _, _) => {
+                // Continue sending response
+                self.send_response(&mut socket);
             }
-        } 
-    }
-
-    fn prepare_response(&mut self, path: &str) {
-        if let Some(body) = read_file(path) {
-            self.response = Some(HttpResponse {
-                code: b"200",
-                body,
-            })
-        } else if let Some(body) = read_file("/404.html") {
-            self.response = Some(HttpResponse {
-                code: b"404",
-                body: body,
-            })
-        } else {
-            self.response = Some(HttpResponse {
-                code: b"404",
-                body: "Meow?".as_bytes(),
-            })
         }
     }
 
-    fn prepare_error(&mut self, code: &'static [u8; 3]) {
-        self.response = Some(HttpResponse {
-            code,
-            body: "Some kind of error occurred :(".as_bytes(),
-        })
+    fn send_response(&mut self, socket: &mut SocketRef<TcpSocket>) {
+        if !socket.may_send() {
+            return;
+        }
+
+        if let HttpState::SendResponse(header_complete, header_sent, body_sent) = self.state {
+            // We must have content-length to do keep-alive
+            let response = self.response.as_ref().unwrap();
+
+            if !header_complete {
+                // let mut header = "HTTP/1.1 200 R\r\n\r\n".as_bytes();
+
+                let mut header = ResponseHeader::new();
+                let header = header.emit(response.body.len());
+
+                let complete = socket.send(|mut buf| {
+                    let remaining = header.len() - header_sent;
+                    let to_send = if remaining < buf.len() {
+                        remaining
+                    } else {
+                        buf.len()
+                    };
+
+                    let hslice = &header[header_sent..header_sent + to_send];
+                    buf[..hslice.len()].copy_from_slice(hslice);
+
+                    let complete = to_send == remaining;
+                    self.state = HttpState::SendResponse(complete, header_sent + to_send, 0);
+
+                    (hslice.len(), complete)
+                }).expect("Failed to send");
+
+                if complete {
+                    // Continue to send body
+                    self.send_response(socket);
+                }
+            } else {
+                // Send body
+                let body = response.body;
+                let complete = socket.send(|mut buf| {
+                    let remaining = body.len() - body_sent;
+                    let to_send = if remaining < buf.len() {
+                        remaining
+                    } else {
+                        buf.len()
+                    };
+
+                    let bslice = &body[body_sent..body_sent + to_send];
+                    buf[..bslice.len()].copy_from_slice(bslice);
+
+                    let complete = to_send == remaining;
+                    self.state = HttpState::SendResponse(complete, header_sent, body_sent + to_send);
+
+                    (bslice.len(), complete)
+                }).expect("Failed to send");
+
+                if complete {
+                    // We are done! Keep alive?
+                    self.state = HttpState::ReadRequest;
+                    // socket.close(); // FIXME
+                }
+            }
+        } else {
+            panic!("Invalid state");
+        }
     }
 
-    fn reset_state(&mut self) {
-        self.response = None;
+    fn emit_error(&mut self, error: HttpStatus) {
+        match error {
+            HttpStatus::NotFound => {
+                self.response = Some(HttpResponse {
+                    status: HttpStatus::NotFound,
+                    body: read_file("/404.html").unwrap_or("Not Found".as_bytes()),
+                });
+            }
+            HttpStatus::BadRequest => {
+                self.response = Some(HttpResponse {
+                    status: HttpStatus::BadRequest,
+                    body: read_file("/400.html").unwrap_or("Bad Request".as_bytes()),
+                });
+            }
+            _ => unimplemented!(),
+        }
+        self.state = HttpState::SendResponse(false, 0, 0);
+    }
+}
+
+struct ResponseHeader {
+    buffer: [u8; 128],
+    len: usize,
+}
+
+impl ResponseHeader {
+    fn new() -> Self {
+        // Might be heavy???
+        let mut buffer = [0u8; 128];
+        let th = "HTTP/1.1 200 R\r\nContent-Length: ".as_bytes();
+        let len = th.len();
+        buffer[..th.len()].copy_from_slice(th);
+        Self { buffer, len }
+    }
+
+    fn emit(&mut self, content_length: usize) -> &[u8] {
+        write!(self, "{}\r\n\r\n", content_length);
+        &self.buffer[..self.len]
+    }
+}
+
+impl Write for ResponseHeader {
+    fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
+        // FIXME: Bound (can panic here)
+        self.buffer[self.len..self.len + s.len()].copy_from_slice(s.as_bytes());
+        self.len += s.len();
+        Ok(())
     }
 }

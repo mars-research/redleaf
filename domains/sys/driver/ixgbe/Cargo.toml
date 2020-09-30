@@ -57,10 +57,6 @@ features = ["alloc", "proto-ipv4", "socket-tcp", "socket-icmp", "ethernet"]
 version = "0.5.1"
 default-features = false
 
-[dependencies.httparse]
-path = "../../../../lib/external/httparse"
-default-features = false
-
 [features]
 default = [
     #"nullnet",

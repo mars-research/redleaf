@@ -1,9 +1,6 @@
 [submodule "sys/lib/smoltcp"]
 	path = lib/external/smoltcp
 	url = https://github.com/zhaofengli/smoltcp
-[submodule "sys/lib/httparse"]
-	path = lib/external/httparse
-	url = https://github.com/zhaofengli/httparse
 [submodule "lib/memcpy/musl"]
 	path = lib/external/memops/musl
 	url = git://git.musl-libc.org/musl
