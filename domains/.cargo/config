@@ -3,6 +3,7 @@ rbuild = "build --out-dir=build -Z build-std=core,alloc -Z features=host_dep -Z 
 rb = "rbuild"
 rcheck = "check -Z build-std=core,alloc -Z features=host_dep -Z package-features"
 rc = "rcheck"
+rfix = "fix -Z build-std=core,alloc -Z features=host_dep -Z package-features"
 
 [build]
 target = "x86_64-unknown-redleaf.json"
