@@ -16,6 +16,7 @@
 #![cfg_attr(test, feature(prelude_import, test, raw, libc, c_void_variant))]
 #![no_std]
 #![crate_type = "lib"]
+#![feature(const_mut_refs)]
 
 extern crate spin;
 #[macro_use]

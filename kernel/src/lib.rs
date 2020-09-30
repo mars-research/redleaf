@@ -6,6 +6,7 @@
     alloc_error_handler,
     box_syntax,
     const_fn,
+    const_fn_fn_ptr_basics,
     const_raw_ptr_to_usize_cast,
     thread_local,
     untagged_unions,
