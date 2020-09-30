@@ -6,7 +6,7 @@
 // impl {
 //     pub fn new() -> Self {
 //         Self {
-//             : .swap_bytes().to_be(),
+//             : ,
 //         }
 //     }
 
@@ -25,6 +25,7 @@
 use alloc::vec::Vec;
 use core::mem;
 use byteorder::{ByteOrder, BigEndian};
+use console::{print, println};
 
 pub struct TpmSPcrSelection {
     pub hash_alg:           u16,
@@ -35,8 +36,8 @@ pub struct TpmSPcrSelection {
 impl TpmSPcrSelection {
     pub fn new(hash_alg: u16, size_of_select: u8, pcr_select: Vec<u8>) -> Self {
         Self {
-            hash_alg: hash_alg.swap_bytes().to_be(),
-            size_of_select: size_of_select.swap_bytes().to_be(),
+            hash_alg: hash_alg,
+            size_of_select: size_of_select,
             pcr_select: pcr_select,
         }
     }
@@ -63,7 +64,7 @@ pub struct TpmLPcrSelection {
 impl TpmLPcrSelection {
     pub fn new(count: u32, pcr_selections: Vec<TpmSPcrSelection>) -> Self {
         Self {
-            count: count.swap_bytes().to_be(),
+            count: count,
             pcr_selections: pcr_selections,
         }
     }
@@ -99,10 +100,10 @@ pub struct TpmHandle {
 impl TpmHandle {
     pub fn new(handle: u32, nonce_size: u16, attributes: u8, auth_size: u16) -> Self {
         Self {
-            handle: handle.swap_bytes().to_be(),
-            nonce_size: nonce_size.swap_bytes().to_be(),
-            attributes: attributes.swap_bytes().to_be(),
-            auth_size: auth_size.swap_bytes().to_be(),
+            handle: handle,
+            nonce_size: nonce_size,
+            attributes: attributes,
+            auth_size: auth_size,
         }
     }
 
@@ -130,7 +131,7 @@ pub struct TpmIDhPcr {
 impl TpmIDhPcr {
     pub fn new(pcr_idx: u32, pcr_handle: TpmHandle) -> Self {
         Self {
-            pcr_idx: pcr_idx.swap_bytes().to_be(),
+            pcr_idx: pcr_idx,
             pcr_handle: pcr_handle,
         }
     }
@@ -156,7 +157,7 @@ pub struct TpmDigest {
 impl TpmDigest {
     pub fn new(hash_alg: u16, digest: Vec<u8>) -> Self {
         Self {
-            hash_alg: hash_alg.swap_bytes().to_be(),
+            hash_alg: hash_alg,
             digest: digest,
         }
     }
@@ -182,7 +183,7 @@ pub struct TpmLDigestValues {
 impl TpmLDigestValues {
     pub fn new(count: u32, digests: Vec<TpmDigest>) -> Self {
         Self {
-            count: count.swap_bytes().to_be(),
+            count: count,
             digests: digests,
         }
     }
@@ -204,3 +205,581 @@ impl TpmLDigestValues {
         buf
     }
 }
+
+pub struct Tpm2BDigest {
+    pub size: u16,
+    pub buffer: Vec<u8>,
+}
+
+impl Tpm2BDigest {
+    pub fn new(buffer: Vec<u8>) -> Self {
+        Self {
+            size: buffer.len() as u16,
+            buffer: buffer,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize = mem::size_of::<u16>() + (self.size as usize) * mem::size_of::<u8>();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&u16::to_be_bytes(self.size));
+        if self.size > 0 {
+            buf.extend_from_slice(&self.buffer);
+        }
+        buf
+    }
+}
+
+pub struct Tpm2BData {
+    pub size: u16,
+    pub buffer: Vec<u8>,
+}
+
+impl Tpm2BData {
+    pub fn new(buffer: Vec<u8>) -> Self {
+        Self {
+            size: buffer.len() as u16,
+            buffer: buffer,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize = mem::size_of::<u16>() + (self.size as usize) * mem::size_of::<u8>();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&u16::to_be_bytes(self.size));
+        if self.size > 0 {
+            buf.extend_from_slice(&self.buffer);
+        }
+        buf
+    }
+}
+
+pub struct Tpm2BAuth {
+    pub size: u16,
+    pub buffer: Vec<u8>,
+}
+
+impl Tpm2BAuth {
+    pub fn new(buffer: Vec<u8>) -> Self {
+        Self {
+            size: buffer.len() as u16,
+            buffer: buffer,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize = mem::size_of::<u16>() + (self.size as usize) * mem::size_of::<u8>();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&u16::to_be_bytes(self.size));
+        if self.size > 0 {
+            buf.extend_from_slice(&self.buffer);
+        }
+        buf
+    }
+}
+
+pub struct Tpm2BSensitiveData {
+    pub size: u16,
+    pub buffer: Vec<u8>,
+}
+
+impl Tpm2BSensitiveData {
+    pub fn new(buffer: Vec<u8>) -> Self {
+        if buffer.len() < 128 {
+            Self {
+                size: buffer.len() as u16,
+                buffer: buffer,
+            }
+        } else {
+            Self {
+                size: 0 as u16,
+                buffer: Vec::new(),
+            }
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize = mem::size_of::<u16>() + (self.size as usize) * mem::size_of::<u8>();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&u16::to_be_bytes(self.size));
+        if self.size > 0 {
+            buf.extend_from_slice(&self.buffer);
+        }
+        buf
+    }
+}
+
+pub struct TpmSSensitiveCreate {
+    pub user_auth: Tpm2BAuth,
+    pub data: Tpm2BSensitiveData,
+}
+
+impl TpmSSensitiveCreate {
+    pub fn new(user_auth: Tpm2BAuth, data: Tpm2BSensitiveData) -> Self {
+        Self {
+            user_auth: user_auth,
+            data: data,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize = self.user_auth.size() + self.data.size();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&self.user_auth.to_vec());
+        buf.extend_from_slice(&self.data.to_vec());
+        buf
+    }
+}
+
+pub struct Tpm2BSensitiveCreate {
+    pub size: u16,
+    pub sensitive: TpmSSensitiveCreate,
+}
+
+impl Tpm2BSensitiveCreate {
+    pub fn new(sensitive: TpmSSensitiveCreate) -> Self {
+        Self {
+            size: sensitive.size() as u16,
+            sensitive: sensitive,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize = mem::size_of::<u16>() + self.sensitive.size();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&u16::to_be_bytes(self.size));
+        if self.size() > 0 {
+            buf.extend_from_slice(&self.sensitive.to_vec());
+        }
+        buf
+    }
+}
+
+pub struct TpmUSchemeKeyedHash {
+    pub hash_alg: u16,
+}
+
+impl TpmUSchemeKeyedHash {
+    pub fn new(hash_alg: u16) -> Self {
+        Self {
+            hash_alg: hash_alg,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize = mem::size_of::<u16>();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&u16::to_be_bytes(self.hash_alg));
+        buf
+    }
+}
+
+pub struct TpmTKeyedhashScheme {
+    pub scheme: u16, // TPM_ALG_HMAC, TPM_ALG_XOR, or TPM_ALG_NULL
+    pub details: TpmUSchemeKeyedHash,
+}
+
+impl TpmTKeyedhashScheme {
+    pub fn new(scheme: u16, details: TpmUSchemeKeyedHash) -> Self {
+        Self {
+            scheme: scheme,
+            details: details,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize = mem::size_of::<u16>() + self.details.size();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&u16::to_be_bytes(self.scheme));
+        buf.extend_from_slice(&self.details.to_vec());
+        buf
+    }
+}
+
+pub struct TpmSKeyedhashParams {
+    pub scheme: TpmTKeyedhashScheme,
+}
+
+impl TpmSKeyedhashParams {
+    pub fn new(scheme: TpmTKeyedhashScheme) -> Self {
+        Self {
+            scheme: scheme,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize = self.scheme.size();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&self.scheme.to_vec());
+        buf
+    }
+}
+
+pub struct TpmIAlgSymObject {
+    pub scheme: u16, // Only TPM_ALG_AES is currently supported
+}
+
+impl TpmIAlgSymObject {
+    pub fn new(scheme: u16) -> Self {
+        Self {
+            scheme: scheme,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize = mem::size_of::<u16>();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&u16::to_be_bytes(self.scheme));
+        buf
+    }
+}
+
+pub struct TpmIAesKeyBits {
+    pub aes_key_sizes_bits: u16, // Only 128 or 256 is supported
+}
+
+impl TpmIAesKeyBits {
+    pub fn new(aes_key_sizes_bits: u16) -> Self {
+        Self {
+            aes_key_sizes_bits: aes_key_sizes_bits,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize = mem::size_of::<u16>();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&u16::to_be_bytes(self.aes_key_sizes_bits));
+        buf
+    }
+}
+
+pub struct TpmUSymKeyBits {
+    pub aes_key_bits: TpmIAesKeyBits, // Only AES is supported
+}
+
+impl TpmUSymKeyBits {
+    pub fn new(aes_key_bits: TpmIAesKeyBits) -> Self {
+        Self {
+            aes_key_bits: aes_key_bits,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize = self.aes_key_bits.size();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&self.aes_key_bits.to_vec());
+        buf
+    }
+}
+
+pub struct TpmIAlgSymMode {
+    pub mode: u16,
+}
+
+impl TpmIAlgSymMode {
+    pub fn new(mode: u16) -> Self {
+        Self {
+            mode: mode,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize = mem::size_of::<u16>();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&u16::to_be_bytes(self.mode));
+        buf
+    }
+}
+
+pub struct TpmUSymMode {
+    pub aes: TpmIAlgSymMode, // Only AES is supported
+}
+
+impl TpmUSymMode{
+    pub fn new(aes: TpmIAlgSymMode) -> Self {
+        Self {
+            aes: aes,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize = self.aes.size();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&self.aes.to_vec());
+        buf
+    }
+}
+
+pub struct TpmTSymDefObject {
+    pub alg: TpmIAlgSymObject,
+    pub alg_key_bits: Option<TpmUSymKeyBits>,
+    pub alg_mode: Option<TpmUSymMode>,
+}
+
+impl TpmTSymDefObject {
+    pub fn new(alg: TpmIAlgSymObject, alg_key_bits: Option<TpmUSymKeyBits>,
+               alg_mode: Option<TpmUSymMode>) -> Self {
+        Self {
+            alg: alg,
+            alg_key_bits: alg_key_bits,
+            alg_mode: alg_mode,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let mut ret: usize = self.alg.size();
+        match &self.alg_key_bits {
+            Some(x) => ret += x.size(),
+            None => (),
+        }
+        match &self.alg_mode {
+            Some(x) => ret += x.size(),
+            None => (),
+        }
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&self.alg.to_vec());
+        match &self.alg_key_bits {
+            Some(x) => buf.extend_from_slice(&x.to_vec()),
+            None => (),
+        }
+        match &self.alg_mode {
+            Some(x) => buf.extend_from_slice(&x.to_vec()),
+            None => (),
+        }
+        println!("sym: {:?}", buf);
+        buf
+    }
+}
+
+pub struct TpmTRsaScheme {
+    pub scheme: u16,
+    pub details: Option<u16>,
+}
+
+impl TpmTRsaScheme {
+    pub fn new(scheme: u16, details: Option<u16>) -> Self {
+        Self {
+            scheme: scheme,
+            details: details,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let mut ret: usize = mem::size_of::<u16>();
+        match &self.details {
+            Some(x) => ret += mem::size_of::<u16>(),
+            None => (),
+        }
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&u16::to_be_bytes(self.scheme));
+        match &self.details {
+            Some(x) => buf.extend_from_slice(&u16::to_be_bytes(*x)),
+            None => (),
+        }
+        println!("scheme: {:?}", buf);
+        buf
+    }
+}
+
+pub struct TpmSRsaParms {
+    pub symmetric: TpmTSymDefObject,
+    pub scheme: TpmTRsaScheme,
+    pub key_bits: u16,
+    pub exponent: u32,
+}
+
+impl TpmSRsaParms {
+    pub fn new(symmetric: TpmTSymDefObject, scheme: TpmTRsaScheme,
+               key_bits: u16, exponent: u32) -> Self {
+        Self {
+            symmetric: symmetric,
+            scheme: scheme,
+            key_bits: key_bits,
+            exponent: exponent,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize =   self.symmetric.size()
+                         + self.scheme.size()
+                         + mem::size_of::<u16>()
+                         + mem::size_of::<u32>();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&self.symmetric.to_vec());
+        buf.extend_from_slice(&self.scheme.to_vec());
+        buf.extend_from_slice(&u16::to_be_bytes(self.key_bits));
+        buf.extend_from_slice(&u32::to_be_bytes(self.exponent));
+        buf
+    }
+}
+
+pub struct Tpm2BPublicKeyRsa {
+    pub size: u16,
+    pub buffer: Vec<u8>,
+}
+
+impl Tpm2BPublicKeyRsa {
+    pub fn new(buffer: Vec<u8>) -> Self {
+        Self {
+            size: buffer.len() as u16,
+            buffer: buffer,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize =   mem::size_of::<u16>()
+                         + (self.size as usize) * mem::size_of::<u8>();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&u16::to_be_bytes(self.size));
+        if self.size > 0 {
+            buf.extend_from_slice(&self.buffer);
+        }
+        buf
+    }
+}
+
+pub struct TpmTPublic {
+    pub alg_type: u16,
+    pub name_alg: u16,
+    pub object_attributes: u32,
+    pub auth_policy: Tpm2BDigest,
+    pub parameters: TpmSRsaParms,
+    pub unique: Tpm2BPublicKeyRsa,
+}
+
+impl TpmTPublic {
+    pub fn new(alg_type: u16, name_alg: u16, object_attributes: u32,
+               auth_policy: Tpm2BDigest, parameters: TpmSRsaParms,
+               unique: Tpm2BPublicKeyRsa) -> Self {
+        Self {
+            alg_type: alg_type,
+            name_alg: name_alg,
+            object_attributes: object_attributes,
+            auth_policy: auth_policy,
+            parameters: parameters,
+            unique: unique,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize =   mem::size_of::<u16>() * 2
+                         + mem::size_of::<u32>()
+                         + self.auth_policy.size()
+                         + self.parameters.size()
+                         + self.unique.size();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&u16::to_be_bytes(self.alg_type));
+        buf.extend_from_slice(&u16::to_be_bytes(self.name_alg));
+        buf.extend_from_slice(&u32::to_be_bytes(self.object_attributes));
+        buf.extend_from_slice(&self.auth_policy.to_vec());
+        buf.extend_from_slice(&self.parameters.to_vec());
+        buf.extend_from_slice(&self.unique.to_vec());
+        buf
+    }
+}
+
+pub struct Tpm2BPublic {
+    pub size: u16,
+    pub public_area: TpmTPublic,
+}
+
+impl Tpm2BPublic {
+    pub fn new(public_area: TpmTPublic) -> Self {
+        Self {
+            size: public_area.size() as u16,
+            public_area: public_area,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize =   mem::size_of::<u16>()
+                         + self.public_area.size();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&u16::to_be_bytes(self.size));
+        if self.size > 0 {
+            buf.extend_from_slice(&self.public_area.to_vec());
+        }
+        buf
+    }
+}
+

@@ -194,7 +194,7 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
     let mut primary_pubkey_size: usize = 0;
     let mut primary_pubkey: Vec<u8> = Vec::new();
     let mut parent_handle: u32 = 0 as u32;
-    tpm_create_primary(&tpm, locality, 0 as u32, primary_unique,
+    tpm_create_primary(&tpm, locality, None, primary_unique,
                        /*restricted=*/true, /*decrypt=*/true, /*sign=*/false,
                        &mut parent_handle, &mut primary_pubkey_size, &mut primary_pubkey);
     println!("parent_handle {:x?}", parent_handle);
@@ -239,7 +239,7 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
     let mut aik_pubkey_size: usize = 0;
     let mut aik_pubkey: Vec<u8> = Vec::new();
     let mut aik_handle: u32 = 0 as u32;
-    tpm_create_primary(&tpm, locality, 0 as u32, aik_unique,
+    tpm_create_primary(&tpm, locality, None, aik_unique,
                        /*restricted=*/true, /*decrypt=*/false, /*sign=*/true,
                        &mut aik_handle, &mut aik_pubkey_size, &mut aik_pubkey);
     println!("aik_handle {:x?}", aik_handle);
