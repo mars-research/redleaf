@@ -30,6 +30,7 @@
         vec_remove_item
     )
 )]
+#![feature(const_mut_refs)]
 #![no_std]
 #![crate_name = "slabmalloc"]
 #![crate_type = "lib"]

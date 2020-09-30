@@ -161,7 +161,7 @@ impl BufferCacheInternal {
             .iter()
             .find(|buffer| buffer.dev == dev && buffer.block_number == block_number)
             .map(|buffer| {
-                (buffer as *const Buffer).wrapping_offset_from(self.buffers.as_ptr()) as usize
+                ((buffer as *const _ as usize) - (self.buffers.as_ptr() as *const _ as usize)) / core::mem::size_of::<Buffer>()
             });
 
         match index {

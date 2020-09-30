@@ -6,8 +6,7 @@
     const_fn,
     const_raw_ptr_to_usize_cast,
     thread_local,
-    untagged_unions,
-    ptr_wrapping_offset_from
+    untagged_unions
 )]
 
 #[macro_use]
