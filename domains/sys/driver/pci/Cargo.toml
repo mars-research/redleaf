@@ -32,4 +32,6 @@ version = "0.2.8"
 default-features = false
 
 [features]
-c220g2_ixgbe = []
+# unlocked a gem: enable feature flag of a dependency 
+# https://github.com/rust-lang/cargo/issues/633
+c220g2_ixgbe = [ "pcidevice/c220g2_ixgbe" ]

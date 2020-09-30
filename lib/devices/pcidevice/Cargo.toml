@@ -13,3 +13,6 @@ platform = { path = "../../core/interfaces/platform" }
 pci_driver = { path = "../../core/interfaces/dev/pci/pci_driver" }
 bitflags = "1.0.4"
 byteorder = { version = "1.2", default-features = false }
+
+[features]
+c220g2_ixgbe = []

@@ -160,7 +160,7 @@ pub fn read_config_space(pci_addr: &PciAddress) -> Result<PciDeviceHeader> {
                 {
                     // Cloudlab has dual port ixgbe devices and the we need to attach our driver
                     // to the second device.
-                    if bars[0] == PciBarAddr::new(0xc7900000, 0) {
+                    if bars[0] == unsafe { Some(PciBarAddr::new(0xc7900000, 0)) } {
                         return Err(Error::new(ENODEV));
                     }
                 }

@@ -6,6 +6,7 @@
 
 DEBUG            ?= false
 LARGE_MEM        ?= true
+IXGBE		 ?= true
 
 ifndef NO_DEFAULT_FLAGS
 CARGO_FLAGS      ?=
