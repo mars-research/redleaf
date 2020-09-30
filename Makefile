@@ -217,6 +217,7 @@ $(mb2): kernel domains memops $(linker_script)
 		kernel/build/entry.o \
 		kernel/build/boot.o \
 		kernel/build/multiboot_header.o \
+		kernel/build/thread.o \
 		kernel/build/libredleaf_kernel.a \
 		lib/external/memops/libmemops.a \
 		-b binary \

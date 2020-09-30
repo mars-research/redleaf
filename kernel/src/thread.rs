@@ -20,6 +20,10 @@ use crate::memory::buddy::BUDDY;
 use crate::memory::{PhysicalAllocator, Frame};
 use crate::active_cpus; 
 
+extern "C" {
+    fn switch(prev_ctx: *mut Context, next_ctx: *mut Context);
+}
+
 /// This should be a cryptographically secure number, for now 
 /// just sequential ID
 static THREAD_ID: AtomicU64 = AtomicU64::new(0);
@@ -191,6 +195,7 @@ pub enum ThreadState {
 //    grep "^pub const STACK_SIZE_IN_PAGES"
 pub const STACK_SIZE_IN_PAGES: usize  = 4096;
 
+#[repr(C)]
 pub struct Context {
   r15: usize,
   r14: usize,
@@ -559,50 +564,6 @@ extern "C" fn die(/*func: extern fn()*/) {
     };
 }
 
-
-/// Switch to the next context by restoring its stack and registers
-#[cold]
-#[inline(never)]
-#[naked]
-pub unsafe fn switch(prev: *mut Thread, next: *mut Thread) {
-    //llvm_asm!("fxsave64 [$0]" : : "r"(self.fx) : "memory" : "intel", "volatile");
-    //self.loadable = true;
-    //if next.loadable {
-    //    llvm_asm!("fxrstor64 [$0]" : : "r"(next.fx) : "memory" : "intel", "volatile");
-    //}else{
-    //    llvm_asm!("fninit" : : : "memory" : "intel", "volatile");
-    //}
-
-    //llvm_asm!("mov $0, cr3" : "=r"(self.cr3) : : "memory" : "intel", "volatile");
-    //if next.cr3 != self.cr3 {
-    //    llvm_asm!("mov cr3, $0" : : "r"(next.cr3) : "memory" : "intel", "volatile");
-    //}
-
-    llvm_asm!("pushfq ; pop $0" : "=r"((*prev).context.rflags) : : "memory" : "intel", "volatile");
-    llvm_asm!("push $0 ; popfq" : : "r"((*next).context.rflags) : "memory" : "intel", "volatile");
-
-    llvm_asm!("mov $0, rbx" : "=r"((*prev).context.rbx) : : "memory" : "intel", "volatile");
-    llvm_asm!("mov rbx, $0" : : "r"((*next).context.rbx) : "memory" : "intel", "volatile");
-
-    llvm_asm!("mov $0, r12" : "=r"((*prev).context.r12) : : "memory" : "intel", "volatile");
-    llvm_asm!("mov r12, $0" : : "r"((*next).context.r12) : "memory" : "intel", "volatile");
-
-    llvm_asm!("mov $0, r13" : "=r"((*prev).context.r13) : : "memory" : "intel", "volatile");
-    llvm_asm!("mov r13, $0" : : "r"((*next).context.r13) : "memory" : "intel", "volatile");
-
-    llvm_asm!("mov $0, r14" : "=r"((*prev).context.r14) : : "memory" : "intel", "volatile");
-    llvm_asm!("mov r14, $0" : : "r"((*next).context.r14) : "memory" : "intel", "volatile");
-
-    llvm_asm!("mov $0, r15" : "=r"((*prev).context.r15) : : "memory" : "intel", "volatile");
-    llvm_asm!("mov r15, $0" : : "r"((*next).context.r15) : "memory" : "intel", "volatile");
-
-    llvm_asm!("mov $0, rsp" : "=r"((*prev).context.rsp) : : "memory" : "intel", "volatile");
-    llvm_asm!("mov rsp, $0" : : "r"((*next).context.rsp) : "memory" : "intel", "volatile");
-
-    llvm_asm!("mov $0, rbp" : "=r"((*prev).context.rbp) : : "memory" : "intel", "volatile");
-    llvm_asm!("mov rbp, $0" : : "r"((*next).context.rbp) : "memory" : "intel", "volatile");
-}
-
 //fn set_idle(t: Arc<Mutex<Thread>>) {
 //    IDLE.replace(Some(t)); 
 //}
@@ -738,7 +699,7 @@ pub fn schedule() {
     drop(next_thread); 
 
     unsafe {
-        switch(prev, next);
+        switch(&mut prev.context, &mut next.context);
     }
 
 }

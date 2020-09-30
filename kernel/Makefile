@@ -1,7 +1,7 @@
 export BUILD_VERSION="$(shell date) ($(shell whoami)@$(shell hostname))"
 
 .PHONY: all
-all: build/libredleaf.a build/entry.o build/entryother.bin build/multiboot_header.o build/boot.o
+all: build/libredleaf.a build/entry.o build/entryother.bin build/multiboot_header.o build/boot.o build/thread.o
 
 .PHONY: clean
 clean:
@@ -27,10 +27,6 @@ build/entryother.bin: src/entryother.asm
 	ld -N -e start_others16 -Ttext 0x7000 -o build/entryother.out build/entryother.o
 	objcopy -S -O binary -j .text build/entryother.out build/entryother.bin
 
-build/multiboot_header.o: src/multiboot_header.asm
+build/%.o: src/%.asm
 	@mkdir -p build
-	nasm -felf64 src/multiboot_header.asm -o build/multiboot_header.o
-
-build/boot.o: src/boot.asm
-	@mkdir -p build
-	nasm -felf64 src/boot.asm -o build/boot.o
+	nasm -felf64 $< -o $@
