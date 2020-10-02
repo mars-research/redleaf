@@ -33,7 +33,7 @@ unsafe impl<T: RRefable> RRefable for RRef<T> {}
 unsafe impl<T: RRefable> Send for RRef<T> where T: Send {}
 
 impl<T: RRefable> RRef<T> where T: TypeIdentifiable {
-    fn new_with_layout(value: T, layout: Layout) -> RRef<T> {
+    pub unsafe fn new_with_layout(value: T, layout: Layout) -> RRef<T> {
         // We allocate the shared heap memory by hand. It will be deallocated in one of two cases:
         //   1. RRef<T> gets dropped, and so the memory under it should be freed.
         //   2. The domain owning the RRef dies, and so the shared heap gets cleaned,
@@ -51,14 +51,12 @@ impl<T: RRefable> RRef<T> where T: TypeIdentifiable {
         // the memory we get back has size and alignment of T, so this cast is safe
         let value_pointer = allocation.value_pointer as *mut T;
 
-        unsafe {
-            // set initial domain id
-            *allocation.domain_id_pointer = *CRATE_DOMAIN_ID.force_get();
-            // borrow count to 0
-            *allocation.borrow_count_pointer = 0;
-            // copy value to shared heap
-            core::ptr::write(value_pointer, value);
-        }
+        // set initial domain id
+        *allocation.domain_id_pointer = *CRATE_DOMAIN_ID.force_get();
+        // borrow count to 0
+        *allocation.borrow_count_pointer = 0;
+        // copy value to shared heap
+        core::ptr::write(value_pointer, value);
 
         RRef {
             domain_id_pointer: allocation.domain_id_pointer,
@@ -69,13 +67,13 @@ impl<T: RRefable> RRef<T> where T: TypeIdentifiable {
 
     pub fn new(value: T) -> RRef<T> {
         let layout = Layout::new::<T>();
-        Self::new_with_layout(value, layout)
+        unsafe { Self::new_with_layout(value, layout) }
     }
 
     pub fn new_aligned(value: T, align: usize) -> RRef<T> {
         let size = core::mem::size_of::<T>();
         let layout = unsafe { Layout::from_size_align_unchecked(size, align) };
-        Self::new_with_layout(value, layout)
+        unsafe { Self::new_with_layout(value, layout) }
     }
 }
 

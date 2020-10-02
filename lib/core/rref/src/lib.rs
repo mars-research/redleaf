@@ -11,12 +11,14 @@ extern crate alloc;
 mod rref;
 mod rref_deque;
 mod rref_array;
+mod rref_vec;
 pub mod traits;
 
 pub use self::rref::init as init;
 pub use self::rref::RRef as RRef;
 pub use self::rref_array::RRefArray as RRefArray;
 pub use self::rref_deque::RRefDeque as RRefDeque;
+pub use self::rref_vec::RRefVec as RRefVec;
 
 #[cfg(test)]
 mod tests {
