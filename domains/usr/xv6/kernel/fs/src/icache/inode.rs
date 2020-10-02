@@ -312,24 +312,28 @@ impl INodeDataGuard<'_> {
         const SIZE_OF_DIRENT: usize = core::mem::size_of::<DirectoryEntry>();
         let mut buffer = [0; SIZE_OF_DIRENT];
 
+        let mut empty_offset = 0;
         for offset in (0usize..self.data.size as usize).step_by(SIZE_OF_DIRENT) {
             self.read(trans, &mut buffer[..], offset)?;
             let mut dirent = DirectoryEntryRef::from_bytes(&buffer[..]);
             if dirent.inum == 0 {
-                let mut cloned_name = name.as_bytes().clone().to_vec();
-                for _ in cloned_name.len()..params::DIRSIZ {
-                    cloned_name.push(0);
-                }
-                dirent.name = cloned_name.as_slice();
-                dirent.inum = inum;
-
-                buffer = dirent.as_bytes();
-                self.write(trans, &mut buffer[..], offset)?;
-                return Ok(());
+                empty_offset = offset;
+                break;
             }
         }
 
-        Err(ErrorKind::DirectoryExhausted)
+        let mut cloned_name = name.as_bytes().clone().to_vec();
+        for _ in cloned_name.len()..params::DIRSIZ {
+            cloned_name.push(0);
+        }
+        let dirent = DirectoryEntryRef {
+            name: cloned_name.as_slice(),
+            inum: inum,
+        };
+
+        buffer = dirent.as_bytes();
+        self.write(trans, &mut buffer[..], empty_offset)?;
+        Ok(())
     }
 
     // Read data from inode
