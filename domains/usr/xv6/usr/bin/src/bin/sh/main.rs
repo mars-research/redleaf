@@ -38,14 +38,32 @@ pub fn trusted_entry(
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
     println!("Starting rv6 shell with args: {}", args);
 
-    // sys_spawn_domain("benchfs", "throughput", &[Some(0), Some(1), Some(2)]).unwrap().join();
-    // sys_spawn_domain("benchfs", &alloc::format!("benchfs r large {}", 30usize * 1024 * 1024 * 1024), &[Some(0), Some(1), Some(2)]).unwrap().join();
-    // sys_spawn_domain("benchfs", &alloc::format!("benchfs w large {}", 4usize * 1024 * 1024 * 1024), &[Some(0), Some(1), Some(2)]).unwrap().join();
-
-    //sys_spawn_domain("benchnvme", &alloc::format!("benchfs r large {}", 30usize * 1024 * 1024 * 1024), &[Some(0), Some(1), Some(2)]).unwrap().join();
-    //sys_spawn_domain("benchnet", "benchnet", &[Some(0), Some(1), Some(2)]).unwrap();
+    // Shell commands that get run automatically after shell is launched
+    let predefined_commands = [
+        // String::from("dump_inode"),
+        String::from("ls"),
+        String::from("ls > foo"), 
+        String::from("mkdir bar"), 
+        String::from("ls"),
+        // alloc::format!("benchfs r large {}", 30usize * 1024 * 1024 * 1024),
+        // alloc::format!("benchfs w large {}", 4usize * 1024 * 1024 * 1024),
+        // alloc::format!("benchfs r large {}", 30usize * 1024 * 1024 * 1024),
+    ];
 
     const prompt: &'static str = "rv6> ";
+    for command in &predefined_commands {
+        print!("{}", prompt);
+        print!("{}", command);
+        let (cmd, leftover) = Command::parse(command);
+        assert!(
+            leftover.is_empty(),
+            "Leftover after parsing: <{}>",
+            leftover
+        );
+        println!("Parsed command: {:?}", cmd);
+        cmd.run(Redir::new()).iter().for_each(|t| t.join().unwrap());
+    }
+
     loop {
         print!("{}", prompt);
         let line = read_until('\n');
