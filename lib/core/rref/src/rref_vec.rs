@@ -62,10 +62,12 @@ impl<T: RRefable + Copy> Drop for RRefVec<T> {
 }
 
 // T is a plain Copy type so there shouldn't be any addition work for droppig the T's
-// in the array. The cleanup function should be as simple as deallocating the array.
+// in the array. The cleanup function should be as simple as deallocating the array by
+// RRef::cleanup. Since `RRef::cleanup` will be called by `RRef::drop`, `RRefVec::cleanup`
+// should be noop.
 impl<T: 'static + RRefable + Copy> CustomCleanup for RRefVec<T> {
     fn cleanup(&mut self) {
-        self.data.cleanup()
+        // noop
     }
 }
 
