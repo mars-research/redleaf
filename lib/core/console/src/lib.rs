@@ -33,8 +33,25 @@ macro_rules! code_origin {
 
 #[macro_export]
 macro_rules! dbg {
-    () => (console::println!("{}", console::code_origin!()));
-    ($($arg:tt)*) => (console::println!("{}:{}", console::code_origin!(), format_args!($($arg)*)));
+    () => {
+        $crate::println!("[{}:{}]", core::file!(), core::line!());
+    };
+    ($val:expr) => {
+        // Use of `match` here is intentional because it affects the lifetimes
+        // of temporaries - https://stackoverflow.com/a/48732525/1063961
+        match $val {
+            tmp => {
+                $crate::println!("[{}:{}] {} = {:#?}",
+                    core::file!(), core::line!(), core::stringify!($val), &tmp);
+                tmp
+            }
+        }
+    };
+    // Trailing comma with single argument is ignored
+    ($val:expr,) => { $crate::dbg!($val) };
+    ($($val:expr),+ $(,)?) => {
+        ($($crate::dbg!($val)),+,)
+    };
 }
 
 #[doc(hidden)]
