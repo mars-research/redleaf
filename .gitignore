@@ -8,6 +8,7 @@ serial.log
 disk.img
 sata.img
 .gdb_history
+.vscode/**
 
 *.fingerprint
 **/linker.ld
