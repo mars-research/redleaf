@@ -1,0 +1,33 @@
+# run unittests
+name: test
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+
+    strategy:
+      matrix:
+        mode: ["debug", "release"]
+
+    name: Run test in { matrix.mode } mode
+
+    steps:
+      - name: Install dependencies
+        run: sudo apt update && sudo apt install -y nasm
+      - uses: actions/checkout@v2
+        with:
+          submodules: 'true'
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          profile: minimal
+          components: rust-src
+          default: true
+      - name: Test
+        run:  cargo test --manifest-path lib/core/rref/Cargo.toml --${{ matrix.mode }}
