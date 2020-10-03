@@ -30,4 +30,4 @@ jobs:
           components: rust-src
           default: true
       - name: Test
-        run:  cargo test --manifest-path lib/core/rref/Cargo.toml --release ${{ matrix.mode }}
+        run: cargo test -Z unstable-options --manifest-path lib/core/rref/Cargo.toml --profile ${{ matrix.mode }}
