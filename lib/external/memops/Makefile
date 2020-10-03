@@ -3,4 +3,4 @@ libmemops.a: musl/lib/libc.a
 	ranlib $@
 
 musl/lib/libc.a: musl/VERSION
-	make -C musl ARCH=x86_64 -j lib/libc.a
+	make -C musl CC=clang ARCH=x86_64 -j lib/libc.a
