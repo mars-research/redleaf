@@ -15,7 +15,7 @@ use syscalls::{Heap, Syscall};
 use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usr_interfaces::xv6::Xv6;
 use usrlib::println;
-use usrlib::syscalls::{sys_close, sys_fstat, sys_open, sys_read, sys_write};
+use usrlib::syscalls::{sys_close, sys_fstat, sys_open, sys_read, sys_write_slice_slow};
 
 const ONE_MS: u64 = 2_400_000;
 const TEN_MS: u64 = 10 * ONE_MS;
@@ -56,13 +56,13 @@ fn bench_throughput(rv6: &dyn Xv6, options: &str, file: &str) {
             let fd = sys_open(file, FileMode::WRITE | FileMode::CREATE).unwrap();
 
             // warm up
-            sys_write(fd, buffer.as_slice()).unwrap();
+            sys_write_slice_slow(fd, buffer.as_slice()).unwrap();
 
             let start = libtime::get_rdtsc();
             let mut total_size = 0;
             for _ in 0..1024 {
                 if total_size > 64 * 1024 * 1024  { break; }
-                let size = sys_write(fd, buffer.as_slice()).unwrap();
+                let size = sys_write_slice_slow(fd, buffer.as_slice()).unwrap();
                 total_size += size;
             }
             println!("Write: buffer size: {}, total bytes: {}, cycles: {}", bsize, total_size, libtime::get_rdtsc() - start);
@@ -105,7 +105,7 @@ fn bench_restart(rv6: &dyn Xv6, options: &str, file: &str) {
             let fd = sys_open(file, FileMode::WRITE | FileMode::CREATE).unwrap();
 
             // warm up
-            sys_write(fd, buffer.as_slice()).unwrap();
+            sys_write_slice_slow(fd, buffer.as_slice()).unwrap();
             rv6.sys_seek(fd, 0).unwrap();
 
             let mut recording: [(u64, f64); 100_000] = [(0, 0.0); 100_000];
@@ -133,7 +133,7 @@ fn bench_restart(rv6: &dyn Xv6, options: &str, file: &str) {
                     rv6.sys_seek(fd, 0).unwrap();
                     seek_count += 1;
                 }
-                interval_read += sys_write(fd, buffer.as_slice()).unwrap();
+                interval_read += sys_write_slice_slow(fd, buffer.as_slice()).unwrap();
             }
             let curr_time = libtime::get_rdtsc();
             let elapse = curr_time - intervel_start;

@@ -144,7 +144,7 @@ impl UsrVFS for Rv6Syscalls {
     fn sys_read(&self, fd: usize, buffer: &mut [u8]) -> RpcResult<Result<usize>> {
         self.fs.sys_read(fd, buffer)
     }
-    fn sys_write(&self, fd: usize, buffer: &[u8]) -> RpcResult<Result<usize>> {
+    fn sys_write(&self, fd: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         self.fs.sys_write(fd, buffer)
     }
     fn sys_seek(&self, fd: usize, offset: usize) -> RpcResult<Result<()>> {

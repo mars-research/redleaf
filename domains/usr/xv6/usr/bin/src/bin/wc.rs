@@ -15,7 +15,7 @@ use syscalls::{Heap, Syscall};
 use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usr_interfaces::xv6::Xv6;
 use usrlib::println;
-use usrlib::syscalls::{sys_close, sys_fstat, sys_open, sys_read, sys_write};
+use usrlib::syscalls::{sys_close, sys_fstat, sys_open, sys_read, sys_write_slice_slow};
 
 #[no_mangle]
 pub fn trusted_entry(

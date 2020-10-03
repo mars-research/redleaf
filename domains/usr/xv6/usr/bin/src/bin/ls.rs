@@ -14,7 +14,7 @@ use libsyscalls::syscalls::sys_println;
 use syscalls::{Heap, Syscall};
 use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usr_interfaces::xv6::Xv6;
-use usrlib::syscalls::{sys_close, sys_fstat, sys_open, sys_read, sys_write};
+use usrlib::syscalls::{sys_close, sys_fstat, sys_open, sys_read, sys_write_slice_slow};
 use usrlib::{eprintln, println};
 
 #[no_mangle]

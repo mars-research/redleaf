@@ -1,6 +1,7 @@
 /// Virtual file system interface
 /// Implemented by xv6 file system
 use alloc::boxed::Box;
+use rref::RRefVec;
 
 pub use crate::vfs::file::{FileMode, FileStat, INodeFileType};
 pub use crate::vfs::directory::{DirectoryEntry, DirectoryEntryRef};
@@ -17,7 +18,7 @@ pub trait UsrVFS: Send + Sync {
     fn sys_open(&self, path: &str, mode: FileMode) -> RpcResult<Result<usize>>;
     fn sys_close(&self, fd: usize) -> RpcResult<Result<()>>;
     fn sys_read(&self, fd: usize, buffer: &mut[u8]) -> RpcResult<Result<usize>>;
-    fn sys_write(&self, fd: usize, buffer: &[u8]) -> RpcResult<Result<usize>>;
+    fn sys_write(&self, fd: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>>;
     fn sys_seek(&self, fd: usize, offset: usize) -> RpcResult<Result<()>>;
     fn sys_fstat(&self, fd: usize) -> RpcResult<Result<FileStat>>;
     fn sys_mknod(&self, path: &str, major: i16, minor: i16) -> RpcResult<Result<()>>;

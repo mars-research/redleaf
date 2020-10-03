@@ -3,6 +3,7 @@ use alloc::vec::Vec;
 use spin::Once;
 use usr_interface::vfs::NFILE;
 use usr_interface::xv6::{FileMode, FileStat, Result, Thread, Xv6};
+use rref::RRefVec;
 
 static SYSCALL: Once<Box<dyn Xv6>> = Once::new();
 
@@ -42,7 +43,15 @@ pub fn sys_read(fd: usize, buffer: &mut [u8]) -> Result<usize> {
     SYSCALL.r#try().unwrap().sys_read(fd, buffer)?
 }
 
-pub fn sys_write(fd: usize, buffer: &[u8]) -> Result<usize> {
+// Implicitly convert the slice to a RRefVec.
+// Slower than `sys_write` but good for prototyping
+pub fn sys_write_slice_slow(fd: usize, buffer: &[u8]) -> Result<usize> {
+    let buffer = RRefVec::from_slice(buffer);
+    let (size, _buffer) = sys_write(fd, buffer)?;
+    Ok(size)
+}
+
+pub fn sys_write(fd: usize, buffer: RRefVec<u8>) -> Result<(usize, RRefVec<u8>)> {
     SYSCALL.r#try().unwrap().sys_write(fd, buffer)?
 }
 

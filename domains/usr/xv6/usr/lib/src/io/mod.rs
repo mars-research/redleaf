@@ -2,7 +2,7 @@ use core::fmt;
 
 mod error;
 
-use crate::syscalls::sys_write;
+use crate::syscalls::sys_write_slice_slow;
 
 use error::{ErrorKind, Result};
 
@@ -27,7 +27,7 @@ pub fn write_fmt(fd: usize, fmt: fmt::Arguments<'_>) -> Result<()> {
             //         Err(fmt::Error)
             //     }
             // }
-            sys_write(self.fd, s.as_bytes()).unwrap();
+            sys_write_slice_slow(self.fd, s.as_bytes()).unwrap();
             Ok(())
         }
     }
