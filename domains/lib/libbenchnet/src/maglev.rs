@@ -22,6 +22,7 @@ use core::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
 use core::iter;
 use core::cell::RefCell;
 use alloc::vec::Vec;
+use core::alloc::Layout;
 
 use fnv::FnvHasher;
 use twox_hash::XxHash;
@@ -34,7 +35,7 @@ use sashstore_redleaf::indexmap::Index;
 use console::println;
 
 const TABLE_SIZE: usize = 65537;
-const CACHE_SIZE: usize = 1 << 21;
+const CACHE_SIZE: usize = 1 << 22;
 
 static mut HIT_COUNT: usize = 0;
 static mut HASHMAP_TOTAL: usize = 0;
@@ -55,7 +56,7 @@ type XxHashFactory = BuildHasherDefault<XxHash>;
 /// Maglev lookup table
 pub struct Maglev<N> {
     pub nodes: Vec<N>,
-    pub lookup: Vec<isize>,
+    pub lookup: Vec<i8>,
     // pub cache: RefCell<LruCache<usize, usize>>, // hash -> backend
     // pub cache: RefCell<HashMap<usize, usize, FnvHashFactory>>,
     pub cache: RefCell<Index<usize, usize>>,
@@ -94,7 +95,7 @@ impl<N: Hash + Eq> Maglev<N> {
         (offset, skip)
     }
 
-    fn populate(nodes: &[N]) -> Vec<isize> {
+    fn populate(nodes: &[N]) -> Vec<i8> {
         let m = TABLE_SIZE;
         let n = nodes.len();
 
@@ -110,7 +111,19 @@ impl<N: Hash + Eq> Maglev<N> {
             .collect();
 
         let mut next: Vec<usize> = iter::repeat(0).take(n).collect();
-        let mut entry: Vec<isize> = iter::repeat(-1).take(m).collect();
+
+        //let mut entry: Vec<i8> = iter::repeat(-1).take(m).collect();
+        
+        // align lookup table at cacheline boundary
+        let mut entry = unsafe {
+            let layout = Layout::from_size_align(m, 64)
+                    .map_err(|e| panic!("Layout error: {}", e)).unwrap();
+
+            let buf = unsafe {alloc::alloc::alloc(layout) as *mut i8 };
+            let mut v: Vec<i8> = unsafe { Vec::from_raw_parts(buf, m, m) };
+            v.fill(-1);
+            v
+        };
 
         let mut j = 0;
 
@@ -123,7 +136,7 @@ impl<N: Hash + Eq> Maglev<N> {
                     c = permutation[i][next[i]];
                 }
 
-                entry[c] = i as isize;
+                entry[c] = i as i8;
                 next[i] += 1;
                 j += 1;
 
@@ -155,20 +168,21 @@ impl<N: Hash + Eq> Maglev<N> {
         let mut cache = self.cache.borrow_mut();
         let mut set_cache = false;
         let x = match cache.get(&hash) {
+            Some(idx) => {
+                // Use cached backend
+                //unsafe { HIT_COUNT += 1; }
+                *idx
+            },
             None => {
                 // Use lookup directly
                 set_cache = true;
                 self.lookup[hash % self.lookup.len()] as usize
             },
-            Some(idx) => {
-                // Use cached backend
-                unsafe { HIT_COUNT += 1; }
-                *idx
-            },
         };
-        unsafe { HASHMAP_TOTAL += 1; }
+        //unsafe { HASHMAP_TOTAL += 1; }
 
         if set_cache {
+            //println!("inserting ");
             cache.insert(hash, x);
         }
 
@@ -187,6 +201,6 @@ impl<N: Hash + Eq> Maglev<N> {
         unsafe {
             println!("Hits: {}, total: {}", HIT_COUNT, HASHMAP_TOTAL);
         }
-        sashstore_redleaf::indexmap::print_stats();
+        //sashstore_redleaf::indexmap::print_stats();
     }
 }

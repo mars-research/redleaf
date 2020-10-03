@@ -58,9 +58,9 @@ pub fn fix_udp_checksum(frame: &mut [u8]) {
 
 #[inline(always)]
 fn fnv_a(data: &[u8], state: &mut u64) {
-    for byte in data.iter() {
-        *state = (*state).wrapping_mul(0x100000001b3);
-        *state ^= u64::from(*byte);
+    for i in 0..data.len() {
+        *state = (*state).wrapping_mul(0x100_0000_01b3);
+        *state ^= data[i] as u64;
     }
 }
 
@@ -68,7 +68,7 @@ pub fn get_flowhash(frame: &[u8]) -> Option<usize> {
     // Ugly but fast (supposedly)
     // let h1f: BuildHasherDefault<FnvHasher> = Default::default();
     // let mut h1 = h1f.build_hasher();
-    let mut state: u64 = 0xcbf29ce484222325;
+    let mut state: u64 = 0xcbf29ce4_8422_2325;
 
     /*
     if frame[ETH_HEADER_LEN] >> 4 != 4 {

@@ -1,4 +1,7 @@
 #![no_std]
+#![feature(slice_fill,
+            core_intrinsics
+           )] // for vec::fill
 
 extern crate alloc;
 extern crate core;
@@ -6,6 +9,7 @@ extern crate core;
 mod maglev;
 pub mod packettool;
 
+use core::alloc::Layout;
 use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
@@ -748,8 +752,23 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
 
 
     for i in 0..batch_sz {
+        // Attempt to make the buffers align at different offsets - to avoid eviction from L1
+        /*let mut vec = unsafe {
+            let layout = Layout::from_size_align(4096, 4096)
+                    .map_err(|e| panic!("Layout error: {}", e)).unwrap();
+
+            let buf = unsafe {alloc::alloc::alloc(layout) as *mut u8 };
+            let mut v: Vec<u8> = unsafe { Vec::from_raw_parts(buf.offset(64 * i as isize), 64, 64) };
+            v
+        };
+        rx_packets.push_front(vec);
+        */
         rx_packets.push_front(Vec::with_capacity(2048));
     }
+
+    /*for i in 0..batch_sz {
+        println!("buf_addr[{}] = {:x}", i, rx_packets[i].as_ptr() as *const _ as *const u64 as u64);
+    }*/
 
     let mut sum: usize = 0;
     let mut fwd_sum: usize = 0;
@@ -771,8 +790,13 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
     let mut submit_rx: usize = 0;
     let mut submit_tx: usize = 0;
     let mut loop_count: usize = 0;
+    let mut hash_sum: usize = 0;
 
+    let delay = 950;
     loop {
+
+        //sys_ns_loopsleep(delay as u64);
+
         loop_count = loop_count.wrapping_add(1);
 
         submit_rx += rx_packets.len();
@@ -786,7 +810,22 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
         //println!("rx: submitted {} collect {}", ret, tx_packets.len());
 
         let ms_start = rdtsc();
-        for pkt in tx_packets.iter_mut() {
+
+        for i in 0..tx_packets.len() {
+            // Prefetch ahead
+            {
+                if i < (tx_packets.len() - 2) {
+                    if ((i + 1) < tx_packets.len()) && ((i + 2) < tx_packets.len()) {
+                        let pkt_next = &tx_packets[i + 1];
+                        let pkt_next2 = &tx_packets[i + 2];
+                        unsafe {
+                            core::intrinsics::prefetch_write_data(pkt_next.as_ptr(), 3);
+                            core::intrinsics::prefetch_write_data(pkt_next2.as_ptr(), 3);
+                        }
+                    }
+                }
+            }
+            let mut pkt = &mut tx_packets[i];
             let backend = {
                 if let Some(hash) = packettool::get_flowhash(&pkt) {
                     Some(maglev.get_index_from_hash(hash))
@@ -795,13 +834,16 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
                 }
             };
 
-            //if let Some(_) = backend {
-                unsafe {
+            if let Some(b) = backend {
+                unsafe { 
                     ptr::copy(our_mac.as_ptr(), pkt.as_mut_ptr().offset(6), our_mac.capacity());
                     ptr::copy(sender_mac.as_ptr(), pkt.as_mut_ptr().offset(0), sender_mac.capacity());
                 }
-            //}
+            };
+
+            //hash_sum = hash_sum.wrapping_add(backend.unwrap());
         }
+
         mswap_elapsed += rdtsc() - ms_start;
 
         submit_tx += tx_packets.len();
@@ -846,7 +888,7 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
 
         println!("Tx: {} packets took {} cycles (avg = {})", fwd_sum, tx_elapsed, tx_elapsed  as f64 / fwd_sum as f64);
 
-        println!("magleve_fwd : Forwarding {} packets took {} cycles (avg = {})", fwd_sum, elapsed,
+        println!("maglev_fwd : Forwarding {} packets took {} cycles (avg = {})", fwd_sum, elapsed,
                                                                         elapsed as f64 / fwd_sum as f64);
 
         let done_rx = net.poll(&mut rx_packets, false).unwrap()?;
@@ -868,6 +910,8 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
     print_hist!(submit_rx_hist);
 
     print_hist!(submit_tx_hist);
+
+    maglev.dump_stats();
 
     println!("+++++++++++++++++++++++++++++++++++++++++++++++++");
 
@@ -1211,7 +1255,7 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
     print_hist!(submit_tx_hist);
 
     println!("+++++++++++++++++++++++++++++++++++++++++++++++++");
-    //maglev.dump_stats();
+    maglev.dump_stats();
 
     Ok(())
 }
@@ -1277,10 +1321,14 @@ pub fn run_fwd_udptest_with_delay(net: &dyn Net, pkt_len: u16, delay: u64) -> Re
 
         let ms_start = rdtsc();
         for pkt in tx_packets.iter_mut() {
-            unsafe {
+
+            /*for i in 0..6 {
+                (pkt).swap(i, 6 + i);
+            }*/
+            /*unsafe {
                 ptr::copy(our_mac.as_ptr(), pkt.as_mut_ptr().offset(6), our_mac.capacity());
                 ptr::copy(sender_mac.as_ptr(), pkt.as_mut_ptr().offset(0), sender_mac.capacity());
-            }
+            }*/
         }
         mswap_elapsed += rdtsc() - ms_start;
 
