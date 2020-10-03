@@ -228,14 +228,47 @@ pub extern "C" fn rust_main() -> ! {
     // To enable NX mappings
     unsafe {
         // Enable NXE bit (11)
-        use x86::msr::{rdmsr, wrmsr, IA32_EFER, IA32_MISC_ENABLE};
+        use x86::msr::{rdmsr, wrmsr, IA32_EFER, IA32_MISC_ENABLE, MSR_PLATFORM_INFO, IA32_PERF_STATUS, IA32_PERF_CTL, IA32_MPERF, IA32_APERF};
         let efer = rdmsr(IA32_EFER) | 1 << 11;
         wrmsr(IA32_EFER, efer);
 
-        // Disable turbo boost
-        let misc = rdmsr(IA32_MISC_ENABLE) | (1u64 << 38);
-        wrmsr(IA32_MISC_ENABLE, misc);
-    }
+        #[cfg(feature="baremetal")]
+        {
+
+            let aperf_old = rdmsr(IA32_APERF);
+            let mperf_old = rdmsr(IA32_MPERF);
+
+            let perf_status = rdmsr(IA32_PERF_STATUS);
+            let perf_ctl = rdmsr(IA32_PERF_CTL);
+            println!("IA32_PERF_STATUS {:x} IA32_PERF_CTL {:x}", perf_status, perf_ctl);
+
+            // request 2.2GHz
+            // If you want to request a different frequency, write to PERF_CTL
+            //wrmsr(IA32_PERF_CTL, 0x1600);
+
+            let mut misc = rdmsr(IA32_MISC_ENABLE);
+            // Disable turbo boost
+            misc |= (1u64 << 38);
+            // Disable Intel speed-step technology
+            misc &= !(1u64 << 16);
+            wrmsr(IA32_MISC_ENABLE, misc);
+            println!("IA32_MISC_ENABLE {:x}", rdmsr(IA32_MISC_ENABLE));
+
+            // Read MSR_PLATFORM_INFO
+            let plat_info = rdmsr(MSR_PLATFORM_INFO);
+            println!("MSR_PLATFORM_INFO {:x}", plat_info);
+            let nominal_tsc = (plat_info >> 8) & 0xff;
+            let lfm = (plat_info >> 40) & 0xf;
+
+            // FIXME: 100MHz multiplier differs with family. For c220g2/Haswell, it is 100.
+            println!("Nominal TSC frequency {} MHz LFM {} MHz", nominal_tsc * 100, lfm * 100);
+
+            let aperf_delta = rdmsr(IA32_APERF) - aperf_old;
+            let mperf_delta = rdmsr(IA32_MPERF) - mperf_old;
+            let ratio = aperf_delta as f64 / mperf_delta as f64;
+            println!("aperf/mperf ratio {}", ratio);
+        }
+     }
 
     // Init page table (code runs on a new page table after this call)
     construct_pt();

@@ -37,6 +37,10 @@ ifeq ($(LARGE_MEM),true)
 KERNEL_FEATURES  += --features "large_mem"
 endif
 
+ifeq ($(BAREMETAL),true)
+KERNEL_FEATURES  += --features "baremetal"
+endif
+
 ################
 export CARGO_FLAGS
 export DOMAIN_FEATURES
@@ -142,10 +146,6 @@ qemu-kvm: $(iso) $(xv6fs_img)
 qemu-gdb:
 	NO_DEFAULT_FLAGS=1 make qemu GDB=true
 
-.PHONY: qemu-gdb-kvm
-qemu-gdb-kvm:
-	NO_DEFAULT_FLAGS=1 make qemu-kvm GDB=true
-
 .PHONY: qemu-kvm-gdb
 qemu-kvm-gdb:
 	NO_DEFAULT_FLAGS=1 make qemu-kvm GDB=true
@@ -191,7 +191,8 @@ else
 endif
 
 .PHONY: install
-install: mb2
+install:
+	NO_DEFAULT_FLAGS=1 make BAREMETAL=true
 	sudo cp -v $(mb2) /boot
 
 .PHONY: release
