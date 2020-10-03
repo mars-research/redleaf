@@ -13,9 +13,9 @@ jobs:
 
     strategy:
       matrix:
-        mode: ["debug", "release"]
+        mode: ["dev", "release"]
 
-    name: Run test in { matrix.mode } mode
+    name: Run test in release(${{ matrix.mode }}) mode
 
     steps:
       - name: Install dependencies
@@ -30,4 +30,4 @@ jobs:
           components: rust-src
           default: true
       - name: Test
-        run:  cargo test --manifest-path lib/core/rref/Cargo.toml --${{ matrix.mode }}
+        run:  cargo test --manifest-path lib/core/rref/Cargo.toml --release ${{ matrix.mode }}
