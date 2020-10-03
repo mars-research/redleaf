@@ -27,7 +27,7 @@ features = ["spin_no_std"]
 # Add debug symbols on the release build so that we can debug performance issues
 [profile.release]
 debug = true
-incremental = false
+#incremental = false
 lto = true
 opt-level = 3
 
@@ -35,6 +35,6 @@ opt-level = 3
 debug = true
 
 [features]
-default = ["aligned-mem", "c-style-insert"]
+default = ["aligned-mem"] #, "c-style-insert"]
 aligned-mem = [ ]
 c-style-insert = [ ]

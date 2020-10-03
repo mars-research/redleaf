@@ -6,6 +6,15 @@
 
 use core::hash::{BuildHasher, Hash, Hasher};
 
+pub fn naive_hash<K: Sized>(value: &K) -> u64 {
+    //let num_bytes = core::mem::size_of::<K>() as isize;
+
+    //assert!(num_bytes == 8);
+
+    let x = unsafe { *(value as *const _ as *const u64) };
+	(x * 1469_5981_0393_4665_6037u64) >> (64 - 24)
+}
+
 #[inline]
 pub fn fnv<K: Sized>(value: &K) -> u64 {
     let num_bytes = core::mem::size_of::<K>() as isize;

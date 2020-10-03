@@ -658,15 +658,15 @@ where
         F: Fn(Ref<(K, V)>) -> bool,
     {
         for i in 0..self.capacity {
-            let probe = if core::intrinsics::likely(self.capacity.is_power_of_two()) {
-                (self.params.probe)(hash, i) & (self.capacity - 1)
-            } else {
-                (self.params.probe)(hash, i) % self.capacity
-            };
+            //let probe = if core::intrinsics::likely(self.capacity.is_power_of_two()) {
+            let probe = (hash + i + i * i) & (self.capacity - 1);
+            //} else {
+            //    (hash + i + i * i) % self.capacity
+            //};
 
-            if i > 0 {
+            /*if i > 0 {
                 unsafe { REPROBE_COUNT += 1; }
-            }
+            }*/
 
             match &self.table[probe] {
                 Some(pair) if f(pair.borrow()) => return (Some(pair), Some(probe)), // found matching bucket
@@ -724,8 +724,9 @@ where
         // /* PERF */ let insert_start = unsafe { core::arch::x86_64::_rdtsc() };
 
         // /* PERF */ let hash_start = unsafe { core::arch::x86_64::_rdtsc() };
-        // let hash = make_hash(&self.params.hasher_builder, &key) as usize;
+         //let hash = make_hash(&self.params.hasher_builder, &key) as usize;
         let hash = fnv(&key) as usize;
+        //let hash = naive_hash(&key) as usize;
         // /* PERF */ let hash_end = unsafe { core::arch::x86_64::_rdtsc() };
         // /* PERF */ record_hist!(TSC_HASH_HISTOGRAM, TSC_HASH_TOTAL, hash_end - hash_start);
         /*unsafe {
@@ -795,8 +796,6 @@ where
         }
         #[cfg(not(feature = "c-style-insert"))]
         {
-            this_will_not_compile();
-
             // Idiomatic Rust
             match self.find(hash, |p| key.eq(&p.0)) {
                 (Some(_), Some(i)) => {
@@ -862,22 +861,57 @@ where
         K: Borrow<Q>,
         Q: Hash + Eq + ?Sized,
     {
-        /* PERF */ let get_start = unsafe { core::arch::x86_64::_rdtsc() };
+        /* PERF */ //let get_start = unsafe { core::arch::x86_64::_rdtsc() };
 
-        /* PERF */ let hash_start = unsafe { core::arch::x86_64::_rdtsc() };
-        let hash = make_hash(self.hasher(), &key) as usize;
-        /* PERF */ let hash_end = unsafe { core::arch::x86_64::_rdtsc() };
-        /* PERF */ record_hist!(TSC_HASH_HISTOGRAM, TSC_HASH_TOTAL, hash_end - hash_start);
+        /* PERF */ //let hash_start = unsafe { core::arch::x86_64::_rdtsc() };
+        //let hash = make_hash(self.hasher(), &key) as usize;
+        let k = unsafe { *(key as *const _ as *const usize) };
+        let hash = fnv(&k) as usize;
+        //let hash = naive_hash(&key) as usize;
+        /* PERF */ //let hash_end = unsafe { core::arch::x86_64::_rdtsc() };
+        /* PERF */ //record_hist!(TSC_HASH_HISTOGRAM, TSC_HASH_TOTAL, hash_end - hash_start);
 
-        /* PERF */ let find_start = unsafe { core::arch::x86_64::_rdtsc() };
+        /* PERF */ //let find_start = unsafe { core::arch::x86_64::_rdtsc() };
+
         let r = self.find(hash, |p| key.borrow().eq(p.0.borrow()))
-            .0
-            .map(|pair| Ref::map(pair.borrow(), |p| &p.1));
-        /* PERF */ let find_end = unsafe { core::arch::x86_64::_rdtsc() };
-        /* PERF */ record_hist!(TSC_FIND_HISTOGRAM, TSC_FIND_TOTAL, find_end - find_start);
+                .0
+                .map(|pair| Ref::map(pair.borrow(), |p| &p.1));
 
-        /* PERF */ let get_end = unsafe { core::arch::x86_64::_rdtsc() };
-        /* PERF */ record_hist!(TSC_GET_HISTOGRAM, TSC_GET_TOTAL, get_end - get_start);
+        /*#[cfg(not(feature="c-style-insert"))]
+        {
+            return self.find(hash, |p| key.borrow().eq(p.0.borrow()))
+                .0
+                .map(|pair| Ref::map(pair.borrow(), |p| &p.1));
+        }
+
+        #[cfg(feature="c-style-insert")]
+        { 
+            for i in 0..self.capacity {
+                // let probe = (hash + i + i * i) % self.capacity;
+                let probe = (hash + i + i * i) & (self.capacity - 1);
+
+                match &self.table[probe] {
+                    Some(pair) if pair.borrow().0.borrow() == key.borrow() => {
+                        return Some(Ref::map(pair.borrow(), |p| &p.1));
+                    },
+                    None => {
+                        return None;
+                    },
+                    Some(_) => {
+                        /*unsafe {
+                            COLLISIONS += 1;
+                        }*/
+                        continue;
+                    },
+                }
+            }
+            None
+        }*/
+        /* PERF */ //let find_end = unsafe { core::arch::x86_64::_rdtsc() };
+        /* PERF */ //record_hist!(TSC_FIND_HISTOGRAM, TSC_FIND_TOTAL, find_end - find_start);
+
+        /* PERF */ //let get_end = unsafe { core::arch::x86_64::_rdtsc() };
+        /* PERF */ //record_hist!(TSC_GET_HISTOGRAM, TSC_GET_TOTAL, get_end - get_start);
 
         // /* PERF */ eprintln!("0,{},{},{},{}", self.len, self.capacity, self.load(), get_end - get_start);
 
@@ -908,22 +942,24 @@ where
         K: Borrow<Q>,
         Q: Hash + Eq + ?Sized,
     {
-        /* PERF */ let get_start = unsafe { core::arch::x86_64::_rdtsc() };
+        /* PERF */ //let get_start = unsafe { core::arch::x86_64::_rdtsc() };
 
-        /* PERF */ let hash_start = unsafe { core::arch::x86_64::_rdtsc() };
-        let hash = make_hash(self.hasher(), &key) as usize;
-        /* PERF */ let hash_end = unsafe { core::arch::x86_64::_rdtsc() };
-        /* PERF */ record_hist!(TSC_HASH_HISTOGRAM, TSC_HASH_TOTAL, hash_end - hash_start);
+        /* PERF */ //let hash_start = unsafe { core::arch::x86_64::_rdtsc() };
+        //let hash = make_hash(self.hasher(), &key) as usize;
+        let k = unsafe { *(key as *const _ as *const usize) };
+        let hash = fnv(&k) as usize;
+        /* PERF */ //let hash_end = unsafe { core::arch::x86_64::_rdtsc() };
+        /* PERF */ //record_hist!(TSC_HASH_HISTOGRAM, TSC_HASH_TOTAL, hash_end - hash_start);
 
-        /* PERF */ let find_start = unsafe { core::arch::x86_64::_rdtsc() };
+        /* PERF */ //let find_start = unsafe { core::arch::x86_64::_rdtsc() };
         let r = self.find(hash, |p| key.eq(p.0.borrow()))
             .0
             .map(|pair| RefMut::map(pair.borrow_mut(), |p| &mut p.1));
-        /* PERF */ let find_end = unsafe { core::arch::x86_64::_rdtsc() };
-        /* PERF */ record_hist!(TSC_FIND_HISTOGRAM, TSC_FIND_TOTAL, find_end - find_start);
+        /* PERF */ //let find_end = unsafe { core::arch::x86_64::_rdtsc() };
+        /* PERF */ //record_hist!(TSC_FIND_HISTOGRAM, TSC_FIND_TOTAL, find_end - find_start);
 
-        /* PERF */ let get_end = unsafe { core::arch::x86_64::_rdtsc() };
-        /* PERF */ record_hist!(TSC_GET_HISTOGRAM, TSC_GET_TOTAL, get_end - get_start);
+        /* PERF */ //let get_end = unsafe { core::arch::x86_64::_rdtsc() };
+        /* PERF */ //record_hist!(TSC_GET_HISTOGRAM, TSC_GET_TOTAL, get_end - get_start);
 
         r
     }
