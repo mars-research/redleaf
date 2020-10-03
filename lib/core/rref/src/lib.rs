@@ -23,30 +23,98 @@ pub use self::rref_vec::RRefVec as RRefVec;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use traits::{RRefable, CustomCleanup};
+    use traits::{RRefable, CustomCleanup, TypeIdentifiable};
     use alloc::boxed::Box;
     use core::alloc::Layout;
     use alloc::vec::Vec;
     use core::mem;
-    use syscalls::{Syscall, Thread};
+    use syscalls::{Syscall, Thread, SharedHeapAllocation};
     extern crate pc_keyboard;
     use hashbrown::HashMap;
     use spin::{Mutex, MutexGuard};
 
+    // Drops the pointer, assumes it is of type T
+    fn drop_t<T: CustomCleanup + TypeIdentifiable>(ptr: *mut u8) {
+        unsafe {
+            let ptr_t: *mut T = core::mem::transmute(ptr);
+            // recursively invoke further shared heap deallocation in the tree of rrefs
+            (&mut *ptr_t).cleanup();
+        }
+    }
+
+    struct DropMap(HashMap<u64, fn (*mut u8) -> ()>);
+
+    impl DropMap {
+        fn add_type<T: 'static + CustomCleanup + TypeIdentifiable> (&mut self) {
+            let type_id = T::type_id();
+            let type_erased_drop = drop_t::<T>;
+            self.0.insert(type_id, type_erased_drop);
+        }
+
+        fn get_drop(&self, type_id: u64) -> Option<&fn (*mut u8) -> ()> {
+            self.0.get(&type_id)
+        }
+    }
+
+    pub struct Dropper {
+        drop_map: DropMap,
+    }
+
+    impl Dropper {
+        fn new(drop_map: DropMap) -> Self {
+            Self {
+                drop_map
+            }
+        }
+
+        pub fn drop(&self, type_id: u64, ptr: *mut u8) -> bool {
+            if let Some(drop_fn) = self.drop_map.get_drop(type_id) {
+                (drop_fn)(ptr);
+                true
+            } else {
+                false
+            }
+        }
+
+        pub fn has_type(&self, type_id: u64) -> bool {
+            self.drop_map.get_drop(type_id).is_some()
+        }
+    }
+
     struct TestHeap {
-        map: Mutex<HashMap<usize, extern fn(*mut u8)>>,
+        dropper: Dropper,
+        map: Mutex<HashMap<usize, syscalls::SharedHeapAllocation>>
     }
 
     impl TestHeap {
         pub fn new() -> TestHeap {
+            let mut drop_map = DropMap(HashMap::new());
+
+            drop_map.add_type::<usize>();
+            drop_map.add_type::<RRef<usize>>();
+            drop_map.add_type::<Container<usize>>();
+            drop_map.add_type::<CleanupTest>();
+            drop_map.add_type::<Option<CleanupTest>>();
+            drop_map.add_type::<Option<RRef<CleanupTest>>>();
+            drop_map.add_type::<Option<RRef<Option<CleanupTest>>>>();
+            drop_map.add_type::<[Option<RRef<usize>>; 3]>();
+            drop_map.add_type::<[Option<RRef<usize>>; 10]>();
+            drop_map.add_type::<[Option<RRef<CleanupTest>>; 4]>();
+
+
             TestHeap {
+                dropper: Dropper::new(drop_map),
                 map: Mutex::new(Default::default())
             }
         }
     }
 
     impl syscalls::Heap for TestHeap {
-        unsafe fn alloc(&self, layout: Layout, type_hash: u64) -> syscalls::SharedHeapAllocation {
+        unsafe fn alloc(&self, layout: Layout, type_id: u64) -> Option<syscalls::SharedHeapAllocation> {
+            if !self.dropper.has_type(type_id) {
+                return None;
+            }
+
             let domain_id_pointer = Box::into_raw(Box::<u64>::new(0));
             let borrow_count_pointer = Box::into_raw(Box::<u64>::new(0));
 
@@ -54,20 +122,26 @@ mod tests {
             let value_pointer = buf.as_mut_ptr();
             mem::forget(buf);
 
-            self.map.lock().insert(ptr as usize, drop_fn);
-
-            syscalls::SharedHeapAllocation {
+            let allocation = syscalls::SharedHeapAllocation {
                 value_pointer,
                 domain_id_pointer,
                 borrow_count_pointer,
                 layout,
-                type_hash
-            }
+                type_id
+            };
+
+            self.map.lock().insert(value_pointer as usize, allocation);
+
+            Some(allocation)
         }
 
         unsafe fn dealloc(&self, ptr: *mut u8) {
-            let mut map = self.map.lock();
-            // don't call drop_fn here - only in the case of a crashed domain (which we don't simulate)
+            let allocation = self.map.lock().remove(&(ptr as usize));
+            if let Some(allocation) = allocation {
+                self.dropper.drop(allocation.type_id, allocation.value_pointer);
+            } else {
+                panic!("dealloc twice");
+            }
         }
     }
 
@@ -83,6 +157,7 @@ mod tests {
         fn sys_yield(&self) {}
         fn sys_create_thread(&self, name: &str, func: extern fn()) -> Box<dyn Thread> { panic!() }
         fn sys_current_thread(&self) -> Box<dyn Thread> { panic!() }
+        fn sys_current_thread_id(&self) -> u64 { 0 }
         fn sys_get_current_domain_id(&self) -> u64 { 0 }
         unsafe fn sys_update_current_domain_id(&self, new_domain_id: u64) -> u64 { 0 }
         fn sys_alloc(&self) -> *mut u8 { panic!() }
@@ -123,11 +198,11 @@ mod tests {
         borrow_rref_recursively(0, &rref);
     }
 
-    static mut cleanup_counter: usize = 0usize;
-    static cleanup_lock: Mutex<()> = Mutex::new(());
+    static mut CLEANUP_COUNTER: usize = 0usize;
+    static CLEANUP_LOCK: Mutex<()> = Mutex::new(());
     fn reset_cleanup() -> MutexGuard<'static, ()> {
-        let guard = cleanup_lock.lock();
-        unsafe { cleanup_counter = 0 };
+        let guard = CLEANUP_LOCK.lock();
+        unsafe { CLEANUP_COUNTER = 0 };
         guard
     }
 
@@ -136,7 +211,12 @@ mod tests {
     }
     impl CustomCleanup for CleanupTest {
         fn cleanup(&mut self) {
-            unsafe { cleanup_counter += 1 };
+            unsafe { CLEANUP_COUNTER += 1 };
+        }
+    }
+    impl TypeIdentifiable for CleanupTest {
+        fn type_id() -> u64 {
+            1
         }
     }
 
@@ -145,12 +225,12 @@ mod tests {
         let guard = reset_cleanup();
 
         let mut foo = CleanupTest { val: 10 };
-        assert_eq!(unsafe { cleanup_counter }, 0);
+        assert_eq!(unsafe { CLEANUP_COUNTER }, 0);
         foo.cleanup();
-        assert_eq!(unsafe { cleanup_counter }, 1);
+        assert_eq!(unsafe { CLEANUP_COUNTER }, 1);
         drop(foo);
         // cleanup is not called upon drop on non-rref types
-        assert_eq!(unsafe { cleanup_counter }, 1);
+        assert_eq!(unsafe { CLEANUP_COUNTER }, 1);
 
         drop(guard);
     }
@@ -160,12 +240,12 @@ mod tests {
         let guard = reset_cleanup();
 
         let mut option = Some(CleanupTest { val: 10 });
-        assert_eq!(unsafe { cleanup_counter }, 0);
+        assert_eq!(unsafe { CLEANUP_COUNTER }, 0);
         option.cleanup();
-        assert_eq!(unsafe { cleanup_counter }, 1);
+        assert_eq!(unsafe { CLEANUP_COUNTER }, 1);
         drop(option);
         // cleanup is not called upon drop on non-rref types
-        assert_eq!(unsafe { cleanup_counter }, 1);
+        assert_eq!(unsafe { CLEANUP_COUNTER }, 1);
 
         drop(guard);
     }
@@ -177,10 +257,10 @@ mod tests {
         let guard = reset_cleanup();
 
         let rref = RRef::new(Some(RRef::new(Some(CleanupTest { val: 10 }))));
-        assert_eq!(unsafe { cleanup_counter }, 0);
+        assert_eq!(unsafe { CLEANUP_COUNTER }, 0);
         drop(rref);
         // dropping an rref calls cleanup recursively
-        assert_eq!(unsafe { cleanup_counter }, 1);
+        assert_eq!(unsafe { CLEANUP_COUNTER }, 1);
 
         drop(guard);
     }
@@ -192,11 +272,9 @@ mod tests {
         let guard = reset_cleanup();
 
         let mut rref = RRef::new(Some(RRef::new(Some(CleanupTest { val: 10 }))));
-        assert_eq!(unsafe { cleanup_counter }, 0);
-        rref.cleanup();
-        assert_eq!(unsafe { cleanup_counter }, 1);
+        assert_eq!(unsafe { CLEANUP_COUNTER }, 0);
         drop(rref);
-        assert_eq!(unsafe { cleanup_counter }, 2);
+        assert_eq!(unsafe { CLEANUP_COUNTER }, 1);
 
         drop(guard);
     }
@@ -213,9 +291,9 @@ mod tests {
             None,
             Some(RRef::new(CleanupTest { val: 20 })),
         ]);
-        assert_eq!(unsafe { cleanup_counter }, 0);
+        assert_eq!(unsafe { CLEANUP_COUNTER }, 0);
         drop(rref_array);
-        assert_eq!(unsafe { cleanup_counter }, 3);
+        assert_eq!(unsafe { CLEANUP_COUNTER }, 3);
 
         drop(guard);
     }
@@ -232,11 +310,27 @@ mod tests {
             None,
             Some(RRef::new(CleanupTest { val: 20 })),
         ]);
-        assert_eq!(unsafe { cleanup_counter }, 0);
+        assert_eq!(unsafe { CLEANUP_COUNTER }, 0);
         drop(rref_deque);
-        assert_eq!(unsafe { cleanup_counter }, 3);
+        assert_eq!(unsafe { CLEANUP_COUNTER }, 3);
 
         drop(guard);
+    }
+
+    struct Container<T: 'static + RRefable> {
+        inner: RRef<T>,
+    }
+
+    impl<T: 'static + RRefable> CustomCleanup for Container<T> {
+        fn cleanup(&mut self) {
+            unsafe { CLEANUP_COUNTER += 1 };
+            self.inner.cleanup();
+        }
+    }
+    impl<T: 'static + RRefable> TypeIdentifiable for Container<T> {
+        fn type_id() -> u64 {
+            2
+        }
     }
 
     #[test]
@@ -245,26 +339,16 @@ mod tests {
         init_syscall();
         let guard = reset_cleanup();
 
-        struct Container<T: 'static + RRefable> {
-            inner: RRef<T>,
-        }
-
-        impl<T: 'static + RRefable> CustomCleanup for Container<T> {
-            fn cleanup(&mut self) {
-                unsafe { cleanup_counter += 1 };
-            }
-        }
-
         let rref = RRef::new(55usize);
         let inner = Container { inner: rref };
         let inner_rref = RRef::new(inner);
         // Container<RRef<Container<RRef<usize>>>>
         let outer = Container { inner: inner_rref };
 
-        assert_eq!(unsafe { cleanup_counter }, 0);
+        assert_eq!(unsafe { CLEANUP_COUNTER }, 0);
         drop(outer);
         // should call cleanup on inner, but not outer (since cleanup doesn't get called unless dropped by rref/iter)
-        assert_eq!(unsafe { cleanup_counter }, 1);
+        assert_eq!(unsafe { CLEANUP_COUNTER }, 1);
 
         drop(guard);
     }

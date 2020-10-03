@@ -50,19 +50,19 @@ impl TypeIdentifiable for bool {
 
 impl<T: TypeIdentifiable + RRefable> TypeIdentifiable for RRef<T> {
     fn type_id() -> u64 {
-        (T::type_id() + 123) ^ 2 - 1
+        (T::type_id().wrapping_add(123)).wrapping_pow(2).wrapping_sub(1)
     }
 }
 
 impl<T: TypeIdentifiable + RRefable> TypeIdentifiable for Option<T> {
     fn type_id() -> u64 {
-        (T::type_id() + 123) ^ 3 - 1
+        (T::type_id().wrapping_add(123)).wrapping_pow(3).wrapping_sub(1)
     }
 }
 
 impl<T: TypeIdentifiable, const N: usize> TypeIdentifiable for [T; N] {
     fn type_id() -> u64 {
-        (T::type_id() + 123) ^ 2 - N as u64
+        (T::type_id().wrapping_add(123)).wrapping_pow(2).wrapping_sub(N as u64)
     }
 }
 
