@@ -15,7 +15,6 @@ use rref;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use console::println;
-use core::alloc::Layout;
 use core::panic::PanicInfo;
 
 #[no_mangle]

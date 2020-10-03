@@ -50,14 +50,20 @@ impl<T: RRefable + Copy + TypeIdentifiable + Default> RRefVec<T> where T: Copy {
         unsafe { core::slice::from_raw_parts(self.data.ptr_mut(), self.size) }
     }
 
-    pub fn as_mut_slice(&mut self) -> &mut [T] {
+    fn as_mut_slice(&mut self) -> &mut [T] {
         unsafe { core::slice::from_raw_parts_mut(self.data.ptr_mut(), self.size) }
     }
-}
 
-impl<T: RRefable + Copy> Drop for RRefVec<T> {
-    fn drop(&mut self) {
-        self.cleanup();
+    pub fn move_to(&self, new_domain_id: u64) {
+        self.data.move_to(new_domain_id);
+    }
+
+    pub fn borrow(&self) {
+        self.data.borrow();
+    }
+
+    pub fn forfeit(&self) {
+        self.data.forfeit();
     }
 }
 
@@ -67,7 +73,7 @@ impl<T: RRefable + Copy> Drop for RRefVec<T> {
 // should be noop.
 impl<T: 'static + RRefable + Copy> CustomCleanup for RRefVec<T> {
     fn cleanup(&mut self) {
-        // noop
+        self.data.cleanup();
     }
 }
 

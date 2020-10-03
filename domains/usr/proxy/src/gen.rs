@@ -983,7 +983,19 @@ impl UsrVFS for Rv6Proxy {
         self.domain.sys_read(fd, buffer)
     }
     fn sys_write(&self, fd: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
-        self.domain.sys_write(fd, buffer)
+        // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        buffer.move_to(self.domain_id);
+        let r = self.domain.sys_write(fd, buffer);
+        if let Ok(Ok(r)) = r.as_ref() {
+            r.1.move_to(caller_domain);
+        }
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
     }
     fn sys_seek(&self, fd: usize, offset: usize) -> RpcResult<Result<()>> {
         self.domain.sys_seek(fd, offset)
@@ -1022,8 +1034,18 @@ impl Xv6 for Rv6Proxy {
         Ok(box NvmeProxy::new(self.domain_id, self.domain.as_nvme()?))
     }
     fn sys_spawn_thread(&self, name: RRefVec<u8>, func: alloc::boxed::Box<dyn FnOnce() + Send>) -> RpcResult<Result<Box<dyn Thread>>> {
-        self.domain.sys_spawn_thread(name, func)
+        // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        name.move_to(self.domain_id);
+        let r = self.domain.sys_spawn_thread(name, func);
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
     }
+
     fn sys_spawn_domain(&self, rv6: Box<dyn Xv6>, path: &str, args: &str, fds: [Option<usize>; NFILE]) -> RpcResult<Result<Box<dyn Thread>>> {
         self.domain.sys_spawn_domain(rv6, path, args, fds)
     }
