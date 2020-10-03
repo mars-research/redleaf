@@ -144,6 +144,8 @@ pub enum ErrorKind {
     UninitializedDevice,
     /// Rpc error, could be anything in `crate::rpc::ErrorEnum`
     RpcError,
+    /// Utf8 conversion error
+    Utf8Error,
 }
 
 // impl ErrorKind {
@@ -183,5 +185,11 @@ pub enum ErrorKind {
 impl core::convert::From<RpcError> for ErrorKind {
     fn from(_: RpcError) -> Self {
         Self::RpcError
+    }
+}
+
+impl core::convert::From<core::str::Utf8Error> for ErrorKind {
+    fn from(_: core::str::Utf8Error) -> Self {
+        Self::Utf8Error
     }
 }

@@ -8,7 +8,7 @@ use spin::Mutex;
 
 use console::println;
 use create::CreateXv6Usr;
-use rref::RRefDeque;
+use rref::{RRefDeque, RRefVec};
 use usr_interface::bdev::{BlkReq, NvmeBDev};
 use usr_interface::net::{Net, NetworkStats};
 use usr_interface::rpc::RpcResult;
@@ -73,11 +73,12 @@ impl Xv6 for Rv6Syscalls {
 
     fn sys_spawn_thread(
         &self,
-        name: &str,
+        name: RRefVec<u8>,
         func: Box<dyn FnOnce() + Send>,
-    ) -> RpcResult<Box<dyn Thread>> {
+    ) -> RpcResult<Result<Box<dyn Thread>>> {
         Ok((|| {
-            crate::thread::spawn_thread(self.fs.clone(), name, func)
+            let name = core::str::from_utf8(name.as_slice())?;
+            Ok(crate::thread::spawn_thread(self.fs.clone(), &name, func))
         })())
     }
 
@@ -103,13 +104,14 @@ impl Xv6 for Rv6Syscalls {
             let create_copy = self.create_xv6usr.clone();
             let args_copy = args.to_owned();
             let tmp_storage_id = fs_copy.sys_save_threadlocal(fds)?;
+            let path = RRefVec::from_slice(path.as_bytes());
             Ok(self.sys_spawn_thread(
                 path,
                 Box::new(move || {
                     fs_copy.sys_set_threadlocal(tmp_storage_id).unwrap();
                     create_copy.create_domain_xv6usr(&path_copy, rv6, blob.as_slice(), &args_copy);
                 }),
-            ).unwrap())
+            )?.unwrap())
         })())
     }
 

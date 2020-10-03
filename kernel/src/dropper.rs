@@ -19,6 +19,7 @@ lazy_static! {
 
         // xv6fs
         drop_map.add_type::<[u8; usr::bdev::BSIZE]>();
+        drop_map.add_type::<u8>();
 
         // benchnet
         drop_map.add_type::<[u8; 1514]>();

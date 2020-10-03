@@ -33,7 +33,7 @@ unsafe impl<T: RRefable> RRefable for RRef<T> {}
 unsafe impl<T: RRefable> Send for RRef<T> where T: Send {}
 
 impl<T: RRefable> RRef<T> where T: TypeIdentifiable {
-    pub unsafe fn new_with_layout(value: T, layout: Layout) -> RRef<T> {
+    pub(crate) unsafe fn new_with_layout(value: T, layout: Layout) -> RRef<T> {
         // We allocate the shared heap memory by hand. It will be deallocated in one of two cases:
         //   1. RRef<T> gets dropped, and so the memory under it should be freed.
         //   2. The domain owning the RRef dies, and so the shared heap gets cleaned,

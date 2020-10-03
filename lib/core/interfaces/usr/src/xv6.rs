@@ -1,6 +1,7 @@
 /// Xv6 system calls
 
 use alloc::boxed::Box;
+use rref::RRefVec;
 
 use crate::vfs::{UsrVFS, NFILE};
 use crate::net::Net;
@@ -13,7 +14,7 @@ pub trait Xv6: Send + Sync + UsrVFS + Net {
     fn clone(&self) -> RpcResult<Box<dyn Xv6>>;
     fn as_net(&self) -> RpcResult<Box<dyn Net>>;
     fn as_nvme(&self) -> RpcResult<Box<dyn NvmeBDev>>;
-    fn sys_spawn_thread(&self, name: &str, func: alloc::boxed::Box<dyn FnOnce() + Send>) -> RpcResult<Box<dyn Thread>>;
+    fn sys_spawn_thread(&self, name: RRefVec<u8>, func: alloc::boxed::Box<dyn FnOnce() + Send>) -> RpcResult<Result<Box<dyn Thread>>>;
     // We need to pass a new instance of `rv6` as a parameter so that the proxy can be properly propagated.
     fn sys_spawn_domain(&self, rv6: Box<dyn Xv6>, path: &str, args: &str, fds: [Option<usize>; NFILE]) -> RpcResult<Result<Box<dyn Thread>>>;
     fn sys_getpid(&self) -> RpcResult<Result<u64>>;

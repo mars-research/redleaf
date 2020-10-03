@@ -18,7 +18,7 @@ pub struct RRefVec<T> where T: 'static + RRefable + Copy {
 unsafe impl<T: RRefable + Copy> RRefable for RRefVec<T> {}
 unsafe impl<T: RRefable + Copy> Send for RRefVec<T> where T: Send {}
 
-impl<T: RRefable + Copy + TypeIdentifiable> RRefVec<T> where T: Copy {
+impl<T: RRefable + Copy + TypeIdentifiable + Default> RRefVec<T> where T: Copy {
     pub fn new(initial_value: T, size: usize) -> Self {
         let layout = Layout::array::<T>(size).unwrap();
         let data = unsafe { RRef::new_with_layout(initial_value, layout) };
@@ -28,6 +28,20 @@ impl<T: RRefable + Copy + TypeIdentifiable> RRefVec<T> where T: Copy {
         };
         for e in vec.as_mut_slice() {
             *e = initial_value;
+        }
+        vec
+    }
+
+    pub fn from_slice(slice: &[T]) -> Self {
+        let size = slice.len();
+        let layout = Layout::array::<T>(size).unwrap();
+        let data = unsafe { RRef::new_with_layout(Default::default(), layout) };
+        let mut vec = Self {
+            data,
+            size
+        };
+        for (dest, src) in vec.as_mut_slice().iter_mut().zip(slice) {
+            *dest = *src;
         }
         vec
     }
@@ -47,6 +61,8 @@ impl<T: RRefable + Copy> Drop for RRefVec<T> {
     }
 }
 
+// T is a plain Copy type so there shouldn't be any addition work for droppig the T's
+// in the array. The cleanup function should be as simple as deallocating the array.
 impl<T: 'static + RRefable + Copy> CustomCleanup for RRefVec<T> {
     fn cleanup(&mut self) {
         self.data.cleanup()

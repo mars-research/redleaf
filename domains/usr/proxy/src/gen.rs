@@ -1,7 +1,7 @@
 use proxy;
 use usr;
 use create;
-use rref::{RRef, RRefDeque, traits::CustomCleanup};
+use rref::{RRef, RRefDeque, RRefVec, traits::CustomCleanup};
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain_id};
@@ -1021,7 +1021,7 @@ impl Xv6 for Rv6Proxy {
     fn as_nvme(&self) -> RpcResult<Box<dyn usr::bdev::NvmeBDev>> {
         Ok(box NvmeProxy::new(self.domain_id, self.domain.as_nvme()?))
     }
-    fn sys_spawn_thread(&self, name: &str, func: alloc::boxed::Box<dyn FnOnce() + Send>) -> RpcResult<Box<dyn Thread>> {
+    fn sys_spawn_thread(&self, name: RRefVec<u8>, func: alloc::boxed::Box<dyn FnOnce() + Send>) -> RpcResult<Result<Box<dyn Thread>>> {
         self.domain.sys_spawn_thread(name, func)
     }
     fn sys_spawn_domain(&self, rv6: Box<dyn Xv6>, path: &str, args: &str, fds: [Option<usize>; NFILE]) -> RpcResult<Result<Box<dyn Thread>>> {
