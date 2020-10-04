@@ -35,6 +35,6 @@ opt-level = 3
 debug = true
 
 [features]
-default = ["aligned-mem"] #, "c-style-insert"]
+default = ["aligned-mem", "c-style-insert"]
 aligned-mem = [ ]
 c-style-insert = [ ]

@@ -23,6 +23,7 @@ use log::trace;
 use console::println;
 
 pub mod indexmap;
+pub mod cindexmap;
 
 mod memb;
 
