@@ -6,6 +6,7 @@ use crate::rref::RRef;
 use alloc::boxed::Box;
 use core::ops::{Deref, DerefMut, Drop};
 use core::alloc::Layout;
+use core::mem::MaybeUninit;
 use spin::Once;
 
 
@@ -18,7 +19,7 @@ pub struct RRefVec<T> where T: 'static + RRefable + Copy {
 unsafe impl<T: RRefable + Copy> RRefable for RRefVec<T> {}
 unsafe impl<T: RRefable + Copy> Send for RRefVec<T> where T: Send {}
 
-impl<T: RRefable + Copy + TypeIdentifiable + Default> RRefVec<T> where T: Copy {
+impl<T: RRefable + Copy + TypeIdentifiable> RRefVec<T> where T: Copy {
     pub fn new(initial_value: T, size: usize) -> Self {
         let layout = Layout::array::<T>(size).unwrap();
         let data = unsafe { RRef::new_with_layout(initial_value, layout) };
@@ -35,7 +36,7 @@ impl<T: RRefable + Copy + TypeIdentifiable + Default> RRefVec<T> where T: Copy {
     pub fn from_slice(slice: &[T]) -> Self {
         let size = slice.len();
         let layout = Layout::array::<T>(size).unwrap();
-        let data = unsafe { RRef::new_with_layout(Default::default(), layout) };
+        let data = unsafe { RRef::new_with_layout(MaybeUninit::uninit().assume_init(), layout) };
         let mut vec = Self {
             data,
             size
@@ -50,7 +51,7 @@ impl<T: RRefable + Copy + TypeIdentifiable + Default> RRefVec<T> where T: Copy {
         unsafe { core::slice::from_raw_parts(self.data.ptr_mut(), self.size) }
     }
 
-    fn as_mut_slice(&mut self) -> &mut [T] {
+    pub fn as_mut_slice(&mut self) -> &mut [T] {
         unsafe { core::slice::from_raw_parts_mut(self.data.ptr_mut(), self.size) }
     }
 
