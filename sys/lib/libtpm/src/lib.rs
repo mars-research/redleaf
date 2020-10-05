@@ -831,7 +831,8 @@ pub fn tpm_create_primary(tpm: &TpmDev, locality: u32,
 }
 
 /// Start Authenticated Session
-pub fn tpm_start_auth_session(tpm: &TpmDev, locality: u32, session_type: TpmSE, session_handle: &mut u32) -> bool {
+pub fn tpm_start_auth_session(tpm: &TpmDev, locality: u32, session_type: TpmSE,
+                              nonce: Vec<u8>, session_handle: &mut u32) -> bool {
     let mut hdr: TpmHeader = TpmHeader::new(
         TpmStructures::TPM_ST_NO_SESSIONS as u16,
         0 as u32,
@@ -841,21 +842,26 @@ pub fn tpm_start_auth_session(tpm: &TpmDev, locality: u32, session_type: TpmSE, 
     // header: TpmHeader
     buf = TpmHeader::to_vec(&hdr);
     // tpmKey: TPMI_DH_OBJECT
-    buf.extend_from_slice(&u32::to_be_bytes(TpmRH::TPM_RH_NULL as u32));
+    let tpm_key = TpmIDhObject::new(TpmRH::TPM_RH_NULL as u32);
+    buf.extend_from_slice(&tpm_key.to_vec());
     // bind: TPMI_DH_ENTITY
-    buf.extend_from_slice(&u32::to_be_bytes(TpmRH::TPM_RH_NULL as u32));
+    let bind = TpmIDhEntity::new(TpmRH::TPM_RH_NULL as u32);
+    buf.extend_from_slice(&bind.to_vec());
     // nonceCaller: TPM2B_NONCE
-    let nonce = alloc::vec![0; 32];
-    buf.extend_from_slice(&u16::to_be_bytes(nonce.len() as u16));
-    buf.extend_from_slice(&nonce);
+    let nonce_caller = Tpm2BNonce::new(nonce);
+    buf.extend_from_slice(&nonce_caller.to_vec());
     // encryptedSalt: TPM2B_ENCRYPTED_SECRET
-    buf.extend_from_slice(&u16::to_be_bytes(0));
+    let encrypted_salt = Tpm2BEncryptedSecret::new(Vec::<u8>::new());
+    buf.extend_from_slice(&encrypted_salt.to_vec());
     // sessionType: TPM_SE (= u8)
     buf.extend_from_slice(&u8::to_be_bytes(session_type as u8));
     // symmetric: TPMT_SYM_DEF
-    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_NULL as u16));
+    let algorithm = TpmIAlgSym::new(TpmAlgorithms::TPM_ALG_NULL as u16);
+    let symmetric = TpmTSymDef::new(algorithm, None, None);
+    buf.extend_from_slice(&symmetric.to_vec());
     // authHash: TPMI_ALG_HASH
-    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_SHA256 as u16));
+    let auth_hash = TpmIAlgHash::new(TpmAlgorithms::TPM_ALG_SHA256 as u16);
+    buf.extend_from_slice(&auth_hash.to_vec());
     // Change the size of command in header
     buf.splice(2..6, (buf.len() as u32).to_be_bytes().into_iter().cloned());
 

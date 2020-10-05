@@ -146,14 +146,14 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
     println!("STS {:x?}", reg_sts);
 
     // Changing locality
-    let mut locality = 0;
+    let locality = 0;
     println!("burst_count {}", tpm_get_burst(&tpm, locality));
     // Initially we have locality 0
     println!("request locality {}", tpm_request_locality(&tpm, locality));
     println!("validate locality {}", tpm_validate_locality(&tpm, locality));
     // Deactivate all localities
     tpm_deactivate_all_localities(&tpm);
-    let mut locality = 2;
+    let locality = 2;
     // Then request target localities
     println!("request locality {}", tpm_request_locality(&tpm, locality));
     println!("validate locality {}", tpm_validate_locality(&tpm, locality));
@@ -200,7 +200,8 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
     println!("parent_handle {:x?}", parent_handle);
     // Start authenticated session
     let mut session_handle: u32 = 0 as u32;
-    tpm_start_auth_session(&tpm, locality, TpmSE::TPM_SE_TRIAL, &mut session_handle);
+    let nonce = alloc::vec![0; 32];
+    tpm_start_auth_session(&tpm, locality, TpmSE::TPM_SE_TRIAL, nonce, &mut session_handle);
     // Tie session to PCR 17
     tpm_policy_pcr(&tpm, locality, session_handle, b"".to_vec(), pcr_idx);
     // Get digest of authenticated session
@@ -221,7 +222,9 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
     // Unsealing Data
     // Start authenticated session
     let mut unseal_session_handle: u32 = 0 as u32;
-    tpm_start_auth_session(&tpm, locality, TpmSE::TPM_SE_POLICY, &mut unseal_session_handle);
+    let nonce = alloc::vec![0; 32];
+    tpm_start_auth_session(&tpm, locality, TpmSE::TPM_SE_POLICY,
+                           nonce, &mut unseal_session_handle);
     // Tie session to PCR 17
     tpm_policy_pcr(&tpm, locality, unseal_session_handle, b"".to_vec(), pcr_idx);
     // Unseal data under PCR 17 using Child key (should succeed)
