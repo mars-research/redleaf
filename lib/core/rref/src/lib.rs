@@ -322,16 +322,22 @@ mod tests {
     fn access_rref_vec() {
         init_heap();
         init_syscall();
+        let guard = reset_cleanup();
+
         let rref_vec = RRefVec::new(CleanupTest { val: 10 }, 3);
         for e in rref_vec.as_slice() {
             assert_eq!(e.val, 10);
         }
+
+        drop(guard);
     }
 
     #[test]
     fn mutate_rref_vec() {
         init_heap();
         init_syscall();
+        let guard = reset_cleanup();
+
         let mut rref_vec = RRefVec::new(CleanupTest { val: 10 }, 3);
         for (i, e) in rref_vec.as_mut_slice().iter_mut().enumerate() {
             e.val = i;
@@ -340,6 +346,8 @@ mod tests {
         for (i, e) in rref_vec.as_slice().iter().enumerate() {
             assert_eq!(i, e.val);
         }
+
+        drop(guard);
     }
 
     #[test]
