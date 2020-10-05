@@ -6,20 +6,26 @@ use crate::rref::RRef;
 use alloc::boxed::Box;
 use core::ops::{Deref, DerefMut, Drop};
 use core::alloc::Layout;
-use core::mem::MaybeUninit;
+use core::mem::{MaybeUninit, ManuallyDrop};
 use spin::Once;
 
 
-
-pub struct RRefVec<T> where T: 'static + RRefable + Copy {
+/// `RRef`ed runtime constant size array.
+/// This allow us to pass array across domains without having
+/// its size being limited at complie time like in RRefArray.
+/// 
+/// Currently, it only support Copy types since we only need
+/// it for passing byte arrays around. We will later merge it
+/// with RRefArray when we have time.
+pub struct RRefVec<T> where T: 'static + RRefable + Copy + TypeIdentifiable {
     data: RRef<T>,
     size: usize,
 }
 
-unsafe impl<T: RRefable + Copy> RRefable for RRefVec<T> {}
-unsafe impl<T: RRefable + Copy> Send for RRefVec<T> where T: Send {}
+unsafe impl<T> RRefable for RRefVec<T> where T: 'static + RRefable + Copy + TypeIdentifiable  {}
+unsafe impl<T> Send for RRefVec<T> where T: 'static + RRefable + Copy + TypeIdentifiable  {}
 
-impl<T: RRefable + Copy + TypeIdentifiable> RRefVec<T> where T: Copy {
+impl<T> RRefVec<T> where T: 'static + RRefable + Copy + TypeIdentifiable  {
     pub fn new(initial_value: T, size: usize) -> Self {
         let layout = Layout::array::<T>(size).unwrap();
         let data = unsafe { RRef::new_with_layout(initial_value, layout) };
@@ -68,17 +74,26 @@ impl<T: RRefable + Copy + TypeIdentifiable> RRefVec<T> where T: Copy {
     }
 }
 
-// T is a plain Copy type so there shouldn't be any addition work for droppig the T's
-// in the array. The cleanup function should be as simple as deallocating the array by
-// RRef::cleanup. Since `RRef::cleanup` will be called by `RRef::drop`, `RRefVec::cleanup`
-// should be noop.
-impl<T: 'static + RRefable + Copy> CustomCleanup for RRefVec<T> {
-    fn cleanup(&mut self) {
-        self.data.cleanup();
+impl<T> Drop for RRefVec<T> where T: 'static + RRefable + Copy + TypeIdentifiable  {
+    fn drop(&mut self) {
+        self.cleanup();
     }
 }
 
-impl<T: RRefable + Copy> Deref for RRefVec<T> {
+/// Drop every elements in the array and 
+/// `RRef::cleanup` will drop the first element and deallocate the arry.
+/// So our job here is to drop every element, besides the first element,
+/// in the array.
+impl<T> CustomCleanup for RRefVec<T> where T: 'static + RRefable + Copy + TypeIdentifiable  {
+    fn cleanup(&mut self) {
+        assert!(self.size > 0);
+        for e in self.as_mut_slice().iter_mut().skip(1) {
+            e.cleanup();
+        }
+    }
+}
+
+impl<T> Deref for RRefVec<T> where T: 'static + RRefable + Copy + TypeIdentifiable  {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -86,7 +101,7 @@ impl<T: RRefable + Copy> Deref for RRefVec<T> {
     }
 }
 
-impl<T: RRefable + Copy> DerefMut for RRefVec<T> {
+impl<T> DerefMut for RRefVec<T> where T: 'static + RRefable + Copy + TypeIdentifiable  {
     fn deref_mut(&mut self) -> &mut T {
         &mut self.data
     }

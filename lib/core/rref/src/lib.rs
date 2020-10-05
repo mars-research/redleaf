@@ -356,12 +356,14 @@ mod tests {
         init_syscall();
         let guard = reset_cleanup();
 
-        let rref_vec = RRefVec::new(CleanupTest { val: 10 }, 3);
+        let a = CleanupTest { val: 10 };
+        let rref_vec = RRefVec::new(a, 3);
         assert_eq!(unsafe { CLEANUP_COUNTER }, 0);
         drop(rref_vec);
-        assert_eq!(unsafe { CLEANUP_COUNTER }, 1);
+        assert_eq!(unsafe { CLEANUP_COUNTER }, 3);
 
         drop(guard);
+        drop(a);
     }
 
     struct Container<T: 'static + RRefable> {
