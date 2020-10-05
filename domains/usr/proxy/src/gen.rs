@@ -1004,7 +1004,19 @@ impl UsrVFS for Rv6Proxy {
         self.domain.sys_close(fd)
     }
     fn sys_read(&self, fd: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
-        self.domain.sys_read(fd, buffer)
+        // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        buffer.move_to(self.domain_id);
+        let r = self.domain.sys_read(fd, buffer);
+        if let Ok(Ok(r)) = r.as_ref() {
+            r.1.move_to(caller_domain);
+        }
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
     }
     fn sys_write(&self, fd: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         // move thread to next domain

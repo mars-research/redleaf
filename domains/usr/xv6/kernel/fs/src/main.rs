@@ -80,7 +80,7 @@ impl UsrVFS for Rv6FS {
     }
     fn sys_read(&self, fd: usize, mut buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         Ok((|| {
-            let bytes_read = sysfile::sys_write(fd, buffer.as_mut_slice())?;
+            let bytes_read = sysfile::sys_read(fd, buffer.as_mut_slice())?;
             Ok((bytes_read, buffer))
         })())
     }
