@@ -15,7 +15,7 @@ use core::panic::PanicInfo;
 use syscalls::{Heap, Syscall};
 use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usr_interfaces::xv6::Xv6;
-use usrlib::syscalls::{sys_close, sys_fstat, sys_open, sys_read, sys_write_slice_slow};
+use usrlib::syscalls::{sys_close, sys_fstat, sys_open, sys_read_slice_slow, sys_write_slice_slow};
 use usrlib::{print, println};
 
 #[no_mangle]

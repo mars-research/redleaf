@@ -78,8 +78,11 @@ impl UsrVFS for Rv6FS {
     fn sys_close(&self, fd: usize) -> RpcResult<Result<()>> {
         Ok(sysfile::sys_close(fd))
     }
-    fn sys_read(&self, fd: usize, buffer: &mut [u8]) -> RpcResult<Result<usize>> {
-        Ok(sysfile::sys_read(fd, buffer))
+    fn sys_read(&self, fd: usize, mut buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+        Ok((|| {
+            let bytes_read = sysfile::sys_write(fd, buffer.as_mut_slice())?;
+            Ok((bytes_read, buffer))
+        })())
     }
     fn sys_write(&self, fd: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         Ok((|| {

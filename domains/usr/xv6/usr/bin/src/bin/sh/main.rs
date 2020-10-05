@@ -19,7 +19,7 @@ use core::panic::PanicInfo;
 
 use syscalls::{Heap, Syscall};
 use usr_interfaces::xv6::Xv6;
-use usrlib::syscalls::{sys_read, sys_spawn_domain};
+use usrlib::syscalls::{sys_read_slice_slow, sys_spawn_domain};
 use usrlib::{print, println};
 
 mod parse;
@@ -85,7 +85,7 @@ pub fn trusted_entry(
 fn read_until(c: char) -> String {
     let mut buff = [0u8; 1024];
     for i in 0..buff.len() {
-        sys_read(1, &mut buff[i..i + 1]).unwrap();
+        sys_read_slice_slow(1, &mut buff[i..i + 1]).unwrap();
         if buff[i] == c as u8 {
             return String::from_utf8(buff[..i + 1].to_vec()).unwrap();
         }

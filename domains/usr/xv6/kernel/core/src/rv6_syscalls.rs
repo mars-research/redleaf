@@ -99,8 +99,9 @@ impl Xv6 for Rv6Syscalls {
             println!("sys_spawn_domain {} {}", path, args);
             let fd = self.fs.sys_open(path, FileMode::READ)??;
             let size = self.fs.sys_fstat(fd)??.size; // fstat will filter out non INode files
-            let mut blob = alloc::vec![0; size as usize];
-            assert_eq!(self.fs.sys_read(fd, blob.as_mut_slice())??, size as usize);
+            let blob = RRefVec::new(0, size as usize);
+            let (bytes_read, blob) = self.fs.sys_read(fd, blob)??;
+            assert_eq!(bytes_read, size as usize);
 
             // Create a seperate copy of all the objects we want to pass to the new thread
             // and transfer the ownership over
@@ -146,7 +147,7 @@ impl UsrVFS for Rv6Syscalls {
     fn sys_close(&self, fd: usize) -> RpcResult<Result<()>> {
         self.fs.sys_close(fd)
     }
-    fn sys_read(&self, fd: usize, buffer: &mut [u8]) -> RpcResult<Result<usize>> {
+    fn sys_read(&self, fd: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         self.fs.sys_read(fd, buffer)
     }
     fn sys_write(&self, fd: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {

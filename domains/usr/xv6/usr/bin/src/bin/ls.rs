@@ -14,7 +14,7 @@ use libsyscalls::syscalls::sys_println;
 use syscalls::{Heap, Syscall};
 use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usr_interfaces::xv6::Xv6;
-use usrlib::syscalls::{sys_close, sys_fstat, sys_open, sys_read, sys_write_slice_slow};
+use usrlib::syscalls::{sys_close, sys_fstat, sys_open, sys_read_slice_slow, sys_write_slice_slow};
 use usrlib::{eprintln, println};
 
 #[no_mangle]
@@ -53,7 +53,7 @@ fn ls(path: &str) -> Result<(), String> {
         }
         INodeFileType::Directory => {
             // Assuming DIRENT_SIZE > 0
-            while sys_read(fd, &mut buffer[..]).unwrap_or(0) == DIRENT_SIZE {
+            while sys_read_slice_slow(fd, &mut buffer[..]).unwrap_or(0) == DIRENT_SIZE {
                 let de = DirectoryEntryRef::from_bytes(&buffer[..]);
                 if de.inum == 0 {
                     continue;

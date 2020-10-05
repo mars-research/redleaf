@@ -1003,7 +1003,7 @@ impl UsrVFS for Rv6Proxy {
     fn sys_close(&self, fd: usize) -> RpcResult<Result<()>> {
         self.domain.sys_close(fd)
     }
-    fn sys_read(&self, fd: usize, buffer: &mut[u8]) -> RpcResult<Result<usize>> {
+    fn sys_read(&self, fd: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         self.domain.sys_read(fd, buffer)
     }
     fn sys_write(&self, fd: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
