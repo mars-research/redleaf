@@ -2,26 +2,6 @@
 // Taken from TPM2.0 Specification Part 2
 // (https://trustedcomputinggroup.org/wp-content/uploads/TCG_TPM2_r1p59_Part2_Structures_pub.pdf)
 
-// // Template
-// impl {
-//     pub fn new() -> Self {
-//         Self {
-//             : ,
-//         }
-//     }
-
-//     pub fn size(&self) -> usize {
-//         let ret: usize = ;
-//         ret
-//     }
-
-//     pub fn to_vec(&self) -> Vec<u8> {
-//         let mut buf: Vec<u8> = Vec::with_capacity(self.size());
-//         buf.extend_from_slice(::to_be_bytes());
-//         buf
-//     }
-// }
-
 use alloc::vec::Vec;
 use core::mem;
 use byteorder::{ByteOrder, BigEndian};
@@ -968,6 +948,29 @@ impl Tpm2BEncryptedSecret {
         if self.size > 0 {
             buf.extend_from_slice(&self.secret);
         }
+        buf
+    }
+}
+
+pub struct TpmIShPolicy {
+    pub policy: u32,
+}
+
+impl TpmIShPolicy {
+    pub fn new(policy: u32) -> Self {
+        Self {
+            policy: policy,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize = mem::size_of::<u32>();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&u32::to_be_bytes(self.policy));
         buf
     }
 }

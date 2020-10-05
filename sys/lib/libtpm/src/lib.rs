@@ -880,7 +880,8 @@ pub fn tpm_start_auth_session(tpm: &TpmDev, locality: u32, session_type: TpmSE,
 }
 
 /// Bind a policy to a particular PCR
-pub fn tpm_policy_pcr(tpm: &TpmDev, locality: u32, session_handle: u32, pcr_digest: Vec<u8>, pcr_idx: usize) -> bool {
+pub fn tpm_policy_pcr(tpm: &TpmDev, locality: u32, session_handle: u32,
+                      digest: Vec<u8>, pcr_idx: usize) -> bool {
     let mut hdr: TpmHeader = TpmHeader::new(
         TpmStructures::TPM_ST_NO_SESSIONS as u16,
         0 as u32,
@@ -890,31 +891,30 @@ pub fn tpm_policy_pcr(tpm: &TpmDev, locality: u32, session_handle: u32, pcr_dige
     // header: TpmHeader
     buf = TpmHeader::to_vec(&hdr);
     // policySession: TPMI_SH_POLICY
-    buf.extend_from_slice(&u32::to_be_bytes(session_handle));
+    let policy_session = TpmIShPolicy::new(session_handle);
+    buf.extend_from_slice(&policy_session.to_vec());
     // pcrDigest: TPM2B_DIGEST
-    buf.extend_from_slice(&u16::to_be_bytes(pcr_digest.len() as u16));
-    if pcr_digest.len() > 0 {
-        buf.extend_from_slice(&pcr_digest);
-    }
+    let pcr_digest = Tpm2BDigest::new(digest);
+    buf.extend_from_slice(&pcr_digest.to_vec());
     // pcrs: TPML_PCR_SELECTION
-    let hashAlg: u16 = TpmAlgorithms::TPM_ALG_SHA256 as u16;
+    let hash_alg: u16 = TpmAlgorithms::TPM_ALG_SHA256 as u16;
     let mut pcr_select: Vec<u8>;
     pcr_select = Vec::with_capacity(TPM_PCR_SELECT_MIN);
     pcr_select.extend([0].repeat(TPM_PCR_SELECT_MIN));
     pcr_select[pcr_idx >> 3] = 1 << (pcr_idx & 0x7);
-    let mut sPcrSelection: TpmSPcrSelection = TpmSPcrSelection::new(
-        hashAlg, // hash_alg
+    let mut s_pcr_selection: TpmSPcrSelection = TpmSPcrSelection::new(
+        hash_alg, // hash_alg
         TPM_PCR_SELECT_MIN as u8, // size_of_select
         pcr_select // pcr_select
     );
     let count: u32 = 1;
-    let mut sPcrSelections: Vec<TpmSPcrSelection> = Vec::with_capacity(count as usize);
-    sPcrSelections.push(sPcrSelection);
-    let mut lPcrSelection: TpmLPcrSelection = TpmLPcrSelection::new(
+    let mut s_pcr_selections: Vec<TpmSPcrSelection> = Vec::with_capacity(count as usize);
+    s_pcr_selections.push(s_pcr_selection);
+    let mut l_pcr_selection: TpmLPcrSelection = TpmLPcrSelection::new(
         count, // count,
-        sPcrSelections // TpmSPcrSelection
+        s_pcr_selections // TpmSPcrSelection
     );
-    buf.extend_from_slice(&lPcrSelection.to_vec());
+    buf.extend_from_slice(&l_pcr_selection.to_vec());
     // Change the size of command in header
     buf.splice(2..6, (buf.len() as u32).to_be_bytes().into_iter().cloned());
 
