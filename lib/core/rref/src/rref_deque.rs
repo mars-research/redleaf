@@ -145,3 +145,21 @@ impl<'a, T: RRefable, const N: usize> Iterator for RRefDequeIterMut<'a, T, N> {
             })
     }
 }
+
+impl<'a, T: RRefable, const N: usize> RRefDequeIter<'a, T, N> {
+    fn peek(&self) -> Option<&T> {
+        if self.remaining == 0 {
+            return None;
+        }
+        self.arr.get_ref(self.curr)
+    }
+}
+
+impl<'a, T: RRefable, const N: usize> RRefDequeIterMut<'a, T, N> {
+    fn peek(&self) -> Option<&T> {
+        if self.remaining == 0 {
+            return None;
+        }
+        self.arr.get_ref(self.curr)
+    }
+}
