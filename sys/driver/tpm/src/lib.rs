@@ -212,8 +212,8 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
     // Seal data under PCR 17 using Child key
     let mut create_out_private: Vec<u8> = Vec::new();
     let mut create_out_public: Vec<u8> = Vec::new();
-    let in_sensitive: Vec<u8> = b"horizon".to_vec();
-    tpm_create(&tpm, locality, parent_handle, policy_digest, in_sensitive,
+    let sensitive_data: Vec<u8> = b"horizon".to_vec();
+    tpm_create(&tpm, locality, None, parent_handle, policy_digest, sensitive_data,
                /*restricted=*/false, /*decrypt=*/false, /*sign=*/false,
                &mut create_out_private, &mut create_out_public);
     let mut item_handle: u32 = 0 as u32;

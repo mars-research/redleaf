@@ -6,6 +6,8 @@ use alloc::vec::Vec;
 use core::mem;
 use byteorder::{ByteOrder, BigEndian};
 
+pub use crate::regs::*;
+
 pub struct TpmSPcrSelection {
     pub hash_alg:           u16,
     pub size_of_select: u8,
@@ -358,25 +360,108 @@ impl Tpm2BSensitiveCreate {
     }
 }
 
-pub struct TpmUSchemeKeyedHash {
-    pub hash_alg: u16,
+pub struct TpmSSchemeHmac {
+    pub hash_alg: TpmIAlgHash,
 }
 
-impl TpmUSchemeKeyedHash {
-    pub fn new(hash_alg: u16) -> Self {
+impl TpmSSchemeHmac {
+    pub fn new(hash_alg: TpmIAlgHash) -> Self {
         Self {
             hash_alg: hash_alg,
         }
     }
 
     pub fn size(&self) -> usize {
-        let ret: usize = mem::size_of::<u16>();
+        let ret: usize = self.hash_alg.size();
         ret
     }
 
     pub fn to_vec(&self) -> Vec<u8> {
         let mut buf: Vec<u8> = Vec::with_capacity(self.size());
-        buf.extend_from_slice(&u16::to_be_bytes(self.hash_alg));
+        buf.extend_from_slice(&self.hash_alg.to_vec());
+        buf
+    }
+}
+
+pub struct TpmSSchemeXor {
+    pub hash_alg: TpmIAlgHash,
+    pub kdf: TpmIAlgKdf,
+}
+
+impl TpmSSchemeXor {
+    pub fn new(hash_alg: TpmIAlgHash, kdf: TpmIAlgKdf) -> Self {
+        Self {
+            hash_alg: hash_alg,
+            kdf: kdf,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize = self.hash_alg.size() + self.kdf.size();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&self.hash_alg.to_vec());
+        buf.extend_from_slice(&self.kdf.to_vec());
+        buf
+    }
+}
+
+pub struct TpmUSchemeKeyedHash {
+    pub selector: TpmAlgorithms,
+    pub scheme_hmac: Option<TpmSSchemeHmac>,
+    pub scheme_xor: Option<TpmSSchemeXor>,
+}
+
+impl TpmUSchemeKeyedHash {
+    pub fn new(selector: TpmAlgorithms,
+               scheme_hmac: Option<TpmSSchemeHmac>,
+               scheme_xor: Option<TpmSSchemeXor>) -> Self {
+        match selector {
+            TpmAlgorithms::TPM_ALG_HMAC |
+            TpmAlgorithms::TPM_ALG_XOR  |
+            TpmAlgorithms::TPM_ALG_NULL  =>
+                Self {
+                    selector: selector,
+                    scheme_hmac: scheme_hmac,
+                    scheme_xor: scheme_xor,
+                },
+            _ =>
+                Self {
+                    selector: TpmAlgorithms::TPM_ALG_NULL,
+                    scheme_hmac: None,
+                    scheme_xor: None,
+                },
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let mut ret: usize = 0;
+        if let TpmAlgorithms::TPM_ALG_HMAC = self.selector {
+            ret = self.scheme_hmac.as_ref().unwrap().size();
+        }
+        if let TpmAlgorithms::TPM_ALG_XOR = self.selector {
+            ret = self.scheme_xor.as_ref().unwrap().size();
+        }
+        if let TpmAlgorithms::TPM_ALG_NULL = self.selector {
+            ret = 0;
+        }
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        if let TpmAlgorithms::TPM_ALG_HMAC = self.selector {
+            buf.extend_from_slice(&self.scheme_hmac.as_ref().unwrap().to_vec());
+        }
+        if let TpmAlgorithms::TPM_ALG_XOR = self.selector {
+            buf.extend_from_slice(&self.scheme_xor.as_ref().unwrap().to_vec());
+        }
+        if let TpmAlgorithms::TPM_ALG_NULL = self.selector {
+            ();
+        }
         buf
     }
 }
@@ -407,11 +492,11 @@ impl TpmTKeyedhashScheme {
     }
 }
 
-pub struct TpmSKeyedhashParams {
+pub struct TpmSKeyedhashParms {
     pub scheme: TpmTKeyedhashScheme,
 }
 
-impl TpmSKeyedhashParams {
+impl TpmSKeyedhashParms {
     pub fn new(scheme: TpmTKeyedhashScheme) -> Self {
         Self {
             scheme: scheme,
@@ -426,6 +511,29 @@ impl TpmSKeyedhashParams {
     pub fn to_vec(&self) -> Vec<u8> {
         let mut buf: Vec<u8> = Vec::with_capacity(self.size());
         buf.extend_from_slice(&self.scheme.to_vec());
+        buf
+    }
+}
+
+pub struct TpmIAlgKdf {
+    pub kdf: u16,
+}
+
+impl TpmIAlgKdf {
+    pub fn new(kdf: u16) -> Self {
+        Self {
+            kdf: kdf,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize = mem::size_of::<u16>();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&u16::to_be_bytes(self.kdf));
         buf
     }
 }
@@ -748,6 +856,91 @@ impl TpmSRsaParms {
     }
 }
 
+pub struct TpmSSymcipherParms {
+    pub sym: TpmTSymDefObject,
+}
+
+impl TpmSSymcipherParms {
+    pub fn new(sym: TpmTSymDefObject) -> Self {
+        Self {
+            sym: sym,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize = self.sym.size();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&self.sym.to_vec());
+        buf
+    }
+}
+
+pub struct TpmUPublicParms {
+    pub selector: TpmAlgorithms,
+    pub keyedhash_parms: Option<TpmSKeyedhashParms>,
+    pub symcipher_parms: Option<TpmSSymcipherParms>,
+    pub rsa_parms: Option<TpmSRsaParms>,
+    // ToDo: Add TPMS_ECC_PARMS and TPMS_ASYM_PARMS support
+}
+
+impl TpmUPublicParms {
+    pub fn new(selector: TpmAlgorithms,
+               keyedhash_parms: Option<TpmSKeyedhashParms>,
+               symcipher_parms: Option<TpmSSymcipherParms>,
+               rsa_parms: Option<TpmSRsaParms>) -> Self {
+        match selector {
+            TpmAlgorithms::TPM_ALG_KEYEDHASH |
+            TpmAlgorithms::TPM_ALG_SYMCIPHER |
+            TpmAlgorithms::TPM_ALG_RSA =>
+                Self {
+                    selector: selector,
+                    keyedhash_parms: keyedhash_parms,
+                    symcipher_parms: symcipher_parms,
+                    rsa_parms: rsa_parms,
+                },
+            _ =>
+                Self {
+                    selector: TpmAlgorithms::TPM_ALG_NULL,
+                    keyedhash_parms: None,
+                    symcipher_parms: None,
+                    rsa_parms: None,
+                },
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let mut ret: usize = 0;
+        if let TpmAlgorithms::TPM_ALG_KEYEDHASH = self.selector {
+            ret = self.keyedhash_parms.as_ref().unwrap().size();
+        }
+        if let TpmAlgorithms::TPM_ALG_SYMCIPHER = self.selector {
+            ret = self.symcipher_parms.as_ref().unwrap().size();
+        }
+        if let TpmAlgorithms::TPM_ALG_RSA = self.selector {
+            ret = self.rsa_parms.as_ref().unwrap().size();
+        }
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        if let TpmAlgorithms::TPM_ALG_KEYEDHASH = self.selector {
+            buf.extend_from_slice(&self.keyedhash_parms.as_ref().unwrap().to_vec());
+        }
+        if let TpmAlgorithms::TPM_ALG_SYMCIPHER = self.selector {
+            buf.extend_from_slice(&self.symcipher_parms.as_ref().unwrap().to_vec());
+        }
+        if let TpmAlgorithms::TPM_ALG_RSA = self.selector {
+            buf.extend_from_slice(&self.rsa_parms.as_ref().unwrap().to_vec());
+        }
+        buf
+    }
+}
+
 pub struct Tpm2BPublicKeyRsa {
     pub size: u16,
     pub buffer: Vec<u8>,
@@ -782,13 +975,13 @@ pub struct TpmTPublic {
     pub name_alg: u16,
     pub object_attributes: u32,
     pub auth_policy: Tpm2BDigest,
-    pub parameters: TpmSRsaParms,
+    pub parameters: TpmUPublicParms,
     pub unique: Tpm2BPublicKeyRsa,
 }
 
 impl TpmTPublic {
     pub fn new(alg_type: u16, name_alg: u16, object_attributes: u32,
-               auth_policy: Tpm2BDigest, parameters: TpmSRsaParms,
+               auth_policy: Tpm2BDigest, parameters: TpmUPublicParms,
                unique: Tpm2BPublicKeyRsa) -> Self {
         Self {
             alg_type: alg_type,

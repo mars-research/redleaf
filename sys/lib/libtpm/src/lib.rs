@@ -718,7 +718,8 @@ pub fn tpm_create_primary(tpm: &TpmDev, locality: u32,
     else {
         scheme = TpmTRsaScheme::new(TpmAlgorithms::TPM_ALG_NULL as u16, None);
     }
-    let parameters: TpmSRsaParms = TpmSRsaParms::new(symmetric, scheme, 2048 as u16, 0 as u32);
+    let rsa_parms = Some(TpmSRsaParms::new(symmetric, scheme, 2048 as u16, 0 as u32));
+    let parameters = TpmUPublicParms::new(TpmAlgorithms::TPM_ALG_RSA, None, None, rsa_parms);
     let hash: Vec<u8> = Sha256::digest(unique_base).to_vec();
     let unique: Tpm2BPublicKeyRsa = Tpm2BPublicKeyRsa::new(hash);
     let public_area: TpmTPublic = TpmTPublic::new(TpmAlgorithms::TPM_ALG_RSA as u16,
@@ -935,7 +936,8 @@ pub fn tpm_policy_get_digest(tpm: &TpmDev, locality: u32, session_handle: u32, p
     // header: TpmHeader
     buf = TpmHeader::to_vec(&hdr);
     // policySession: TPMI_SH_POLICY
-    buf.extend_from_slice(&u32::to_be_bytes(session_handle));
+    let policy_session = TpmIShPolicy::new(session_handle);
+    buf.extend_from_slice(&policy_session.to_vec());
     // Change the size of command in header
     buf.splice(2..6, (buf.len() as u32).to_be_bytes().into_iter().cloned());
 
@@ -957,34 +959,46 @@ pub fn tpm_policy_get_digest(tpm: &TpmDev, locality: u32, session_handle: u32, p
     true
 }
 
-fn create_symcipher(auth_policy: Vec<u8>) -> Vec<u8> {
+fn create_symcipher(policy: Vec<u8>) -> Vec<u8> {
     let mut buf: Vec<u8> = Vec::new();
     // inSensitive: Tpm2BSensitiveCreate
-    buf.extend_from_slice(&u16::to_be_bytes(4 as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(0));
-    buf.extend_from_slice(&u16::to_be_bytes(0));
+    let user_auth = Tpm2BAuth::new(Vec::<u8>::new());
+    let data = Tpm2BSensitiveData::new(Vec::<u8>::new());
+    let sensitive = TpmSSensitiveCreate::new(user_auth, data);
+    let sensitive_create = Tpm2BSensitiveCreate::new(sensitive);
+    buf.extend_from_slice(&sensitive_create.to_vec());
     // inPublic: Tpm2BPublic
-    buf.extend_from_slice(&u16::to_be_bytes(18 + auth_policy.len() as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_SYMCIPHER as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_SHA256 as u16));
     let mut objectAttributes = TpmAObject(0);
     objectAttributes.set_decrypt(true);
     objectAttributes.set_restricted(true);
     objectAttributes.set_sensitive_data_origin(true);
     objectAttributes.set_fixed_parent(true);
     objectAttributes.set_fixed_tpm(true);
-    buf.extend_from_slice(&u32::to_be_bytes(objectAttributes.bit_range(31, 0)));
-    buf.extend_from_slice(&u16::to_be_bytes(auth_policy.len() as u16));
-    buf.extend_from_slice(&auth_policy);
-    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_AES as u16)); // TPMU_PUBLIC_PARMS (TPMS_SYMCIPHER_PARMS = TPMT_SYM_DEF_OBJECT)
-    buf.extend_from_slice(&u16::to_be_bytes(128 as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_CFB as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(0 as u16)); // TPMU_PUBLIC_ID (TPM2B_DIGEST)
+    let auth_policy: Tpm2BDigest = Tpm2BDigest::new(policy);
+    let algorithm = TpmIAlgSymObject::new(TpmAlgorithms::TPM_ALG_AES as u16);
+    let keybits: TpmIAesKeyBits = TpmIAesKeyBits::new(128 as u16);
+    let aes_keybits = Some(TpmUSymKeyBits::new(keybits));
+    let mode: TpmIAlgSymMode = TpmIAlgSymMode::new(TpmAlgorithms::TPM_ALG_CFB as u16);
+    let aes_mode = Some(TpmUSymMode::new(mode));
+    let symmetric = TpmTSymDefObject::new(algorithm, aes_keybits, aes_mode);
+    let symcipher_parms = Some(TpmSSymcipherParms::new(symmetric));
+    let parameters = TpmUPublicParms::new(TpmAlgorithms::TPM_ALG_SYMCIPHER, None,
+                                          symcipher_parms, None);
+    let unique: Tpm2BPublicKeyRsa = Tpm2BPublicKeyRsa::new(Vec::<u8>::new());
+    let public_area: TpmTPublic = TpmTPublic::new(TpmAlgorithms::TPM_ALG_SYMCIPHER as u16,
+                                                  TpmAlgorithms::TPM_ALG_SHA256 as u16,
+                                                  objectAttributes.bit_range(31, 0),
+                                                  auth_policy,
+                                                  parameters,
+                                                  unique);
+    let in_public: Tpm2BPublic = Tpm2BPublic::new(public_area);
+    buf.extend_from_slice(&in_public.to_vec());
     buf
 }
 
 /// Create child key
-pub fn tpm_create(tpm: &TpmDev, locality: u32, parent_handle: u32, auth_policy: Vec<u8>, in_sensitive: Vec<u8>,
+pub fn tpm_create(tpm: &TpmDev, locality: u32, pcr_idx: Option<usize>,
+                  parent_handle: u32, policy: Vec<u8>, sensitive_data: Vec<u8>,
                   restricted: bool, decrypt: bool, sign: bool,
                   out_private: &mut Vec<u8>, out_public: &mut Vec<u8>) -> bool {
     let mut hdr: TpmHeader = TpmHeader::new(
@@ -1001,31 +1015,62 @@ pub fn tpm_create(tpm: &TpmDev, locality: u32, parent_handle: u32, auth_policy: 
     let tpmHandle = TpmHandle::new(TpmRH::TPM_RS_PW as u32, 0 as u16, 0 as u8, 0 as u16);
     buf.extend_from_slice(&tpmHandle.to_vec());
     // inSensitive: Tpm2BSensitiveCreate
-    buf.extend_from_slice(&u16::to_be_bytes((4 + in_sensitive.len()) as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(0));
-    buf.extend_from_slice(&u16::to_be_bytes(in_sensitive.len() as u16));
-    if in_sensitive.len() > 0 {
-        buf.extend_from_slice(&in_sensitive.to_vec());
-    }
+    let user_auth = Tpm2BAuth::new(Vec::<u8>::new());
+    let data = Tpm2BSensitiveData::new(sensitive_data);
+    let sensitive = TpmSSensitiveCreate::new(user_auth, data);
+    let sensitive_create = Tpm2BSensitiveCreate::new(sensitive);
+    buf.extend_from_slice(&sensitive_create.to_vec());
     // inPublic: Tpm2BPublic
-    buf.extend_from_slice(&u16::to_be_bytes(14 + auth_policy.len() as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_KEYEDHASH as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_SHA256 as u16));
     let mut objectAttributes = TpmAObject(0);
     objectAttributes.set_sign(sign);
     objectAttributes.set_decrypt(decrypt);
     objectAttributes.set_restricted(restricted);
     objectAttributes.set_fixed_parent(true);
     objectAttributes.set_fixed_tpm(true);
-    buf.extend_from_slice(&u32::to_be_bytes(objectAttributes.bit_range(31, 0)));
-    buf.extend_from_slice(&u16::to_be_bytes(auth_policy.len() as u16));
-    buf.extend_from_slice(&auth_policy);
-    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_NULL as u16)); // TPMU_PUBLIC_PARMS (TPMS_SYMCIPHER_PARMS = TPMT_SYM_DEF_OBJECT)
-    buf.extend_from_slice(&u16::to_be_bytes(0 as u16)); // TPMU_PUBLIC_ID (TPM2B_DIGEST)
+    let auth_policy: Tpm2BDigest = Tpm2BDigest::new(policy);
+    let details = TpmUSchemeKeyedHash::new(TpmAlgorithms::TPM_ALG_NULL, None, None);
+    let scheme = TpmTKeyedhashScheme::new(TpmAlgorithms::TPM_ALG_NULL as u16, details);
+    let keyedhash_parms = Some(TpmSKeyedhashParms::new(scheme));
+    let parameters = TpmUPublicParms::new(TpmAlgorithms::TPM_ALG_KEYEDHASH, keyedhash_parms,
+                                          None, None);
+    let unique: Tpm2BPublicKeyRsa = Tpm2BPublicKeyRsa::new(Vec::<u8>::new());
+    let public_area: TpmTPublic = TpmTPublic::new(TpmAlgorithms::TPM_ALG_KEYEDHASH as u16,
+                                                  TpmAlgorithms::TPM_ALG_SHA256 as u16,
+                                                  objectAttributes.bit_range(31, 0),
+                                                  auth_policy,
+                                                  parameters,
+                                                  unique);
+    let in_public: Tpm2BPublic = Tpm2BPublic::new(public_area);
+    buf.extend_from_slice(&in_public.to_vec());
     // outsideInfo: Tpm2BData
-    buf.extend_from_slice(&u16::to_be_bytes(0 as u16));
-    // creationPCR: TpmLPcrSelection
-    buf.extend_from_slice(&u32::to_be_bytes(0 as u32));
+    let outside_info: Tpm2BData = Tpm2BData::new(Vec::<u8>::new());
+    buf.extend_from_slice(&outside_info.to_vec());
+    // creationPcr: TpmLPcrSelection
+    match pcr_idx {
+        Some(x) => {
+            let hash_alg: u16 = TpmAlgorithms::TPM_ALG_SHA256 as u16;
+            let mut pcr_select: Vec<u8>;
+            pcr_select = Vec::with_capacity(TPM_PCR_SELECT_MIN);
+            pcr_select.extend([0].repeat(TPM_PCR_SELECT_MIN));
+            pcr_select[x >> 3] = 1 << (x & 0x7);
+            let mut s_pcr_selection: TpmSPcrSelection = TpmSPcrSelection::new(
+                hash_alg, // hash_alg
+                TPM_PCR_SELECT_MIN as u8, // size_of_select
+                pcr_select // pcr_select
+            );
+            let count: u32 = 1;
+            let mut pcr_selections: Vec<TpmSPcrSelection> = Vec::with_capacity(count as usize);
+            pcr_selections.push(s_pcr_selection);
+            let mut l_pcr_selection: TpmLPcrSelection = TpmLPcrSelection::new(
+                count, // count,
+                pcr_selections // TpmSPcrSelection
+            );
+            buf.extend_from_slice(&l_pcr_selection.to_vec());
+        },
+        None => {
+            buf.extend_from_slice(&u32::to_be_bytes(0));
+        },
+    }
     // Change the size of command in header
     buf.splice(2..6, (buf.len() as u32).to_be_bytes().into_iter().cloned());
 
