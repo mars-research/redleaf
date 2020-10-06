@@ -396,6 +396,7 @@ name = "lib"
 version = "0.1.0"
 dependencies = [
  "array-init",
+ "rref",
  "spin 0.5.2",
  "usr",
 ]
@@ -1052,4 +1053,26 @@ dependencies = [
  "sync",
  "syscalls",
  "usr",
+]
+
+[[package]]
+name = "xv6net"
+version = "0.1.0"
+dependencies = [
+ "array-init",
+ "byteorder",
+ "console",
+ "lazy_static",
+ "libsyscalls",
+ "libtime",
+ "libusr",
+ "malloc",
+ "num-traits",
+ "rref",
+ "spin 0.5.3",
+ "sync",
+ "syscalls",
+ "tls",
+ "usr",
+ "utils",
 ]
