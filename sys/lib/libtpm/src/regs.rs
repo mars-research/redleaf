@@ -228,6 +228,7 @@ pub enum TpmAlgorithms {
     TPM_ALG_NULL		= 0x0010,
     TPM_ALG_SM3_256		= 0x0012,
     TPM_ALG_RSASSA		= 0x0014,
+    TPM_ALG_ECDAA		= 0x001A,
     TPM_ALG_ECC		    = 0x0023,
     TPM_ALG_SYMCIPHER   = 0x0025,
     TPM_ALG_CTR		    = 0x0040,

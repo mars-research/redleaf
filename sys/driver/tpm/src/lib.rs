@@ -217,7 +217,8 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
                /*restricted=*/false, /*decrypt=*/false, /*sign=*/false,
                &mut create_out_private, &mut create_out_public);
     let mut item_handle: u32 = 0 as u32;
-    tpm_load(&tpm, locality, parent_handle, create_out_private, create_out_public, &mut item_handle);
+    tpm_load(&tpm, locality, parent_handle,
+             create_out_private, create_out_public, &mut item_handle);
 
     // Unsealing Data
     // Start authenticated session
@@ -254,7 +255,8 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
     // Request quote
     let mut out_pcr_digest: Vec<u8> = Vec::new();
     let mut out_sig: Vec<u8> = Vec::new();
-    tpm_quote(&tpm, locality, aik_handle, TpmAlgorithms::TPM_ALG_SHA256 as u16, nonce.to_vec(), pcr_idxs,
+    tpm_quote(&tpm, locality, aik_handle, TpmAlgorithms::TPM_ALG_SHA256 as u16,
+              nonce.to_vec(), pcr_idxs,
               &mut out_pcr_digest, &mut out_sig);
     println!("out_pcr_digest {:x?}", out_pcr_digest);
     println!("out_sig {:x?}", out_sig);
