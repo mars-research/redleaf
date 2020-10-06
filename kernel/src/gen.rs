@@ -127,6 +127,15 @@ impl create::CreateXv6FS for PDomain {
     }
 }
 
+impl create::CreateXv6Net for PDomain {
+    fn create_domain_xv6net(&self, net: Box<dyn usr::net::Net>) ->(Box<dyn syscalls::Domain>, Box<dyn usr::usrnet::UsrNet>) {
+        disable_irq();
+        let r = create_domain_xv6net(net);
+        enable_irq();
+        r
+    }
+}
+
 impl create::CreateXv6Usr for PDomain {
     fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn syscalls::Domain>> {
         disable_irq();
@@ -483,6 +492,22 @@ pub fn create_domain_xv6usr(name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8]
     // if !signed(blob) return Err("Not signed")
 
     Ok(build_domain_xv6usr(name, xv6, blob, args))
+}
+
+pub fn create_domain_xv6net(net: Box<dyn usr::net::Net>) ->(Box<dyn syscalls::Domain>, Box<dyn usr::usrnet::UsrNet>) {
+
+    extern "C" {
+        fn _binary_domains_build_xv6net_start();
+        fn _binary_domains_build_xv6net_end();
+    }
+
+    let binary_range = (
+        _binary_domains_build_xv6net_start as *const u8,
+        _binary_domains_build_xv6net_end as *const u8
+    );
+
+
+    build_domain_xv6net("xv6net", binary_range, net)
 }
 
 pub fn create_domain_dom_a() -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_a::DomA>) {
@@ -1006,6 +1031,7 @@ pub fn build_domain_init(name: &str,
                        Box<dyn proxy::CreateProxy>,
                        Arc<dyn create::CreateXv6>,
                        Arc<dyn create::CreateXv6FS>,
+                       Arc<dyn create::CreateXv6Net>,
                        Arc<dyn create::CreateXv6Usr>,
                        Arc<dyn create::CreatePCI>,
                        Arc<dyn create::CreateIxgbe>,
@@ -1047,6 +1073,7 @@ pub fn build_domain_init(name: &str,
     user_ep(Box::new(PDomain::new(Arc::clone(&dom))),
             Box::new(Interrupt::new()),
             Box::new(PDomain::new(Arc::clone(&dom))),
+            Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),
@@ -1117,6 +1144,47 @@ pub fn build_domain_fs(
 
     println!("domain/{}: returned from entry point", name);
     (Box::new(PDomain::new(Arc::clone(&dom))), vfs)
+}
+
+pub fn build_domain_xv6net(
+    name: &str,
+    binary_range: (*const u8, *const u8),
+    net: Box<dyn usr::net::Net>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::usrnet::UsrNet>)
+{
+    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, Box<dyn usr::net::Net>) -> Box<dyn usr::usrnet::UsrNet>;
+
+    let (dom, entry) = unsafe {
+        load_domain(name, binary_range)
+    };
+
+    let user_ep: UserInit = unsafe {
+        core::mem::transmute::<*const(), UserInit>(entry)
+    };
+
+    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pheap = Box::new(PHeap::new());
+
+    // update current domain id
+    let thread = thread::get_current_ref();
+    let old_id = {
+        let mut thread = thread.lock();
+        let old_id = thread.current_domain_id;
+        thread.current_domain_id = dom.lock().id;
+        old_id
+    };
+
+    // Enable interrupts on exit to user so it can be preempted
+    enable_irq();
+    let usrnet = user_ep(pdom, pheap, net);
+    disable_irq();
+
+    // change domain id back
+    {
+        thread.lock().current_domain_id = old_id;
+    }
+
+    println!("domain/{}: returned from entry point", name);
+    (Box::new(PDomain::new(Arc::clone(&dom))), usrnet)
 }
 
 pub fn build_domain_proxy(

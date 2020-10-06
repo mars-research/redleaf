@@ -36,8 +36,9 @@ default-features = false
 default = [
     # "test_ab",
     # "test_cd",
+    "membdev",
     "shadow",
-    "benchnet",
+    #"benchnet",
     # "benchnvme",
     #"hashbench",
     "tpm",
