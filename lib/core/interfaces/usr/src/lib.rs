@@ -14,6 +14,7 @@ pub mod error;
 pub mod net;
 pub mod pci;
 pub mod rpc;
+pub mod usrnet;
 pub mod vfs;
 pub mod xv6;
 pub mod tpm;

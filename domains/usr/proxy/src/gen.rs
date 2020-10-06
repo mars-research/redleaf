@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain_id};
 use syscalls::{Heap, Domain, Interrupt};
-use usr::{bdev::{BDev, BSIZE, NvmeBDev, BlkReq}, vfs::{UsrVFS, VFS}, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::{Net, NetworkStats}, pci::{PCI, PciBar, PciResource}};
+use usr::{bdev::{BDev, BSIZE, NvmeBDev, BlkReq}, vfs::{UsrVFS, VFS}, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::{Net, NetworkStats}, usrnet::UsrNet, pci::{PCI, PciBar, PciResource}};
 use usr::rpc::{RpcResult, RpcError};
 use usr::error::Result;
 use core::mem::transmute;
@@ -29,6 +29,7 @@ pub struct Proxy {
     create_benchnet: Arc<dyn create::CreateBenchnet>,
     create_benchnvme: Arc<dyn create::CreateBenchnvme>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
+    create_xv6net: Arc<dyn create::CreateXv6Net>,
     create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
     create_xv6: Arc<dyn create::CreateXv6>,
     create_dom_a: Arc<dyn create::CreateDomA>,
@@ -54,6 +55,7 @@ impl Proxy {
         create_benchnet: Arc<dyn create::CreateBenchnet>,
         create_benchnvme: Arc<dyn create::CreateBenchnvme>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
+        create_xv6net: Arc<dyn create::CreateXv6Net>,
         create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
         create_xv6: Arc<dyn create::CreateXv6>,
         create_dom_a: Arc<dyn create::CreateDomA>,
@@ -74,6 +76,7 @@ impl Proxy {
             create_benchnet,
             create_benchnvme,
             create_xv6fs,
+            create_xv6net,
             create_xv6usr,
             create_xv6,
             create_dom_a,
@@ -118,6 +121,9 @@ impl proxy::Proxy for Proxy {
         Arc::new(self.clone())
     }
     fn as_create_xv6fs(&self) -> Arc<dyn create::CreateXv6FS> {
+        Arc::new(self.clone())
+    }
+    fn as_create_xv6net(&self) -> Arc<dyn create::CreateXv6Net> {
         Arc::new(self.clone())
     }
     fn as_create_xv6usr(&self) -> Arc<dyn create::CreateXv6Usr + Send + Sync> {
@@ -220,6 +226,13 @@ impl create::CreateXv6FS for Proxy {
     }
 }
 
+impl create::CreateXv6Net for Proxy {
+    fn create_domain_xv6net(&self, net: Box<dyn Net>) -> (Box<dyn Domain>, Box<dyn UsrNet>) {
+        // TODO: write Xv6NetProxy
+        self.create_xv6net.create_domain_xv6net(net)
+    }
+}
+
 impl create::CreateXv6Usr for Proxy {
     fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn Domain>> {
         // TODO: write Xv6UsrProxy
@@ -231,11 +244,12 @@ impl create::CreateXv6 for Proxy {
     fn create_domain_xv6kernel(&self,
                                ints: Box<dyn Interrupt>,
                                create_xv6fs: Arc<dyn create::CreateXv6FS>,
+                               create_xv6net: Arc<dyn create::CreateXv6Net>,
                                create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
                                bdev: Box<dyn BDev>,
                                net: Box<dyn usr::net::Net>,
                                nvme: Box<dyn usr::bdev::NvmeBDev>) -> (Box<dyn Domain>, Box<dyn Xv6>) {
-        let (domain, rv6) = self.create_xv6.create_domain_xv6kernel(ints, create_xv6fs, create_xv6usr, bdev, net, nvme);
+        let (domain, rv6) = self.create_xv6.create_domain_xv6kernel(ints, create_xv6fs, create_xv6net, create_xv6usr, bdev, net, nvme);
         let domain_id = domain.get_domain_id();
         (domain, Box::new(Rv6Proxy::new(domain_id, rv6)))
     }
@@ -1047,6 +1061,7 @@ impl Xv6 for Rv6Proxy {
     }
 
     fn sys_spawn_domain(&self, rv6: Box<dyn Xv6>, path: &str, args: &str, fds: [Option<usize>; NFILE]) -> RpcResult<Result<Box<dyn Thread>>> {
+        console::dbg!();
         self.domain.sys_spawn_domain(rv6, path, args, fds)
     }
     fn sys_getpid(&self) -> RpcResult<Result<u64>> {

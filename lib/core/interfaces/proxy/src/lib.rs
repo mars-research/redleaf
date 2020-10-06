@@ -14,7 +14,8 @@ use create::{CreatePCI,
              CreateNvmeShadow,
              CreateBenchnet,
              CreateBenchnvme,
-             CreateXv6FS, 
+             CreateXv6FS,
+             CreateXv6Net,
              CreateXv6Usr, 
              CreateXv6, 
              CreateDomA, 
@@ -38,6 +39,7 @@ pub trait CreateProxy {
         create_benchnet: Arc<dyn CreateBenchnet>,
         create_benchnvme: Arc<dyn create::CreateBenchnvme>,
         create_xv6fs: Arc<dyn CreateXv6FS>,
+        create_xv6net: Arc<dyn create::CreateXv6Net>,
         create_xv6usr: Arc<dyn CreateXv6Usr>,
         create_xv6: Arc<dyn CreateXv6>,
         create_dom_a: Arc<dyn CreateDomA>,
@@ -76,6 +78,7 @@ pub trait Proxy: CreatePCI +
     fn as_create_benchnet(&self) -> Arc<dyn CreateBenchnet>;
     fn as_create_benchnvme(&self) -> Arc<dyn CreateBenchnvme>;
     fn as_create_xv6fs(&self) -> Arc<dyn CreateXv6FS>;
+    fn as_create_xv6net(&self) -> Arc<dyn CreateXv6Net>;
     fn as_create_xv6usr(&self) -> Arc<dyn CreateXv6Usr + Send + Sync>;
     fn as_create_xv6(&self) -> Arc<dyn CreateXv6>;
     fn as_create_dom_a(&self) -> Arc<dyn CreateDomA>;

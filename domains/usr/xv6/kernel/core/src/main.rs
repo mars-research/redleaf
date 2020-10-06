@@ -28,6 +28,7 @@ pub fn trusted_entry(
     heap: Box<dyn Heap + Send + Sync>,
     ints: Box<dyn syscalls::Interrupt + Send + Sync>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
+    create_xv6net: Arc<dyn create::CreateXv6Net>,
     create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
     bdev: Box<dyn BDev>,
     net: Box<dyn usr_interface::net::Net>,

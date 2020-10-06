@@ -95,6 +95,7 @@ pub fn trusted_entry(s: Box<dyn syscalls::Syscall + Send + Sync>,
             create_proxy: Box<dyn proxy::CreateProxy>,
             create_xv6: Arc<dyn create::CreateXv6>,
             create_xv6fs: Arc<dyn create::CreateXv6FS>,
+            create_xv6net: Arc<dyn create::CreateXv6Net>,
             create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
             create_pci: Arc<dyn create::CreatePCI>,
             create_ixgbe: Arc<dyn create::CreateIxgbe>,
@@ -188,6 +189,7 @@ pub fn trusted_entry(s: Box<dyn syscalls::Syscall + Send + Sync>,
         create_benchnet,
         create_benchnvme,
         create_xv6fs,
+        create_xv6net,
         create_xv6usr,
         create_xv6,
         create_dom_a,
@@ -256,7 +258,7 @@ pub fn trusted_entry(s: Box<dyn syscalls::Syscall + Send + Sync>,
     #[cfg(not(any(feature = "benchnet", feature = "benchnvme")))]
     {
         println!("Starting xv6 kernel");
-        let (dom_xv6, rv6) = proxy.as_create_xv6().create_domain_xv6kernel(ints_clone, proxy.as_create_xv6fs(), proxy.as_create_xv6usr(), bdev, net, nvme);
+        let (dom_xv6, rv6) = proxy.as_create_xv6().create_domain_xv6kernel(ints_clone, proxy.as_create_xv6fs(), proxy.as_create_xv6net(), proxy.as_create_xv6usr(), bdev, net, nvme);
         println!("Starting xv6 user init");
         rv6.sys_spawn_domain(rv6.clone().unwrap(), "/init", "/init", array_init::array_init(|_| None)).unwrap();
     }

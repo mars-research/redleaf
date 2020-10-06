@@ -100,6 +100,7 @@ impl create::CreateXv6 for PDomain {
     fn create_domain_xv6kernel(&self,
                                ints: Box<dyn syscalls::Interrupt>,
                                create_xv6fs: Arc<dyn create::CreateXv6FS>,
+                               create_xv6net: Arc<dyn create::CreateXv6Net>,
                                create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
                                bdev: Box<dyn usr::bdev::BDev>,
                                net: Box<dyn usr::net::Net>,
@@ -107,6 +108,7 @@ impl create::CreateXv6 for PDomain {
         disable_irq();
         let r = create_domain_xv6kernel(ints,
                                         create_xv6fs,
+                                        create_xv6net,
                                         create_xv6usr,
                                         bdev,
                                         net,
@@ -239,6 +241,7 @@ impl proxy::CreateProxy for PDomain {
         create_benchnet: Arc<dyn create::CreateBenchnet>,
         create_benchnvme: Arc<dyn create::CreateBenchnvme>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
+        create_xv6net: Arc<dyn create::CreateXv6Net>,
         create_xv6usr: Arc<dyn create::CreateXv6Usr>,
         create_xv6: Arc<dyn create::CreateXv6>,
         create_dom_a: Arc<dyn create::CreateDomA>,
@@ -259,6 +262,7 @@ impl proxy::CreateProxy for PDomain {
             create_benchnet,
             create_benchnvme,
             create_xv6fs,
+            create_xv6net,
             create_xv6usr,
             create_xv6,
             create_dom_a,
@@ -437,6 +441,7 @@ pub fn create_domain_bdev_shadow(create: Arc<dyn create::CreateMemBDev>) -> (Box
 
 pub fn create_domain_xv6kernel(ints: Box<dyn syscalls::Interrupt>,
                                create_xv6fs: Arc<dyn create::CreateXv6FS>,
+                               create_xv6net: Arc<dyn create::CreateXv6Net>,
                                create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
                                bdev: Box<dyn usr::bdev::BDev>,
                                net: Box<dyn usr::net::Net>,
@@ -451,7 +456,7 @@ pub fn create_domain_xv6kernel(ints: Box<dyn syscalls::Interrupt>,
         _binary_domains_build_xv6kernel_end as *const u8
     );
 
-    build_domain_xv6kernel("xv6kernel", binary_range, ints, create_xv6fs, create_xv6usr, bdev, net, nvme)
+    build_domain_xv6kernel("xv6kernel", binary_range, ints, create_xv6fs, create_xv6net, create_xv6usr, bdev, net, nvme)
 }
 
 
@@ -634,6 +639,7 @@ pub fn create_domain_proxy(
     create_benchnet: Arc<dyn create::CreateBenchnet>,
     create_benchnvme: Arc<dyn create::CreateBenchnvme>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
+    create_xv6net: Arc<dyn create::CreateXv6Net>,
     create_xv6usr: Arc<dyn create::CreateXv6Usr>,
     create_xv6: Arc<dyn create::CreateXv6>,
     create_dom_a: Arc<dyn create::CreateDomA>,
@@ -665,6 +671,7 @@ pub fn create_domain_proxy(
         create_benchnet,
         create_benchnvme,
         create_xv6fs,
+        create_xv6net,
         create_xv6usr,
         create_xv6,
         create_dom_a,
@@ -1126,6 +1133,7 @@ pub fn build_domain_proxy(
     create_benchnet: Arc<dyn create::CreateBenchnet>,
     create_benchnvme: Arc<dyn create::CreateBenchnvme>,
     create_xv6fs: Arc<dyn create::CreateXv6FS>,
+    create_xv6net: Arc<dyn create::CreateXv6Net>,
     create_xv6usr: Arc<dyn create::CreateXv6Usr>,
     create_xv6: Arc<dyn create::CreateXv6>,
     create_dom_a: Arc<dyn create::CreateDomA>,
@@ -1147,6 +1155,7 @@ pub fn build_domain_proxy(
         create_benchnet: Arc<dyn create::CreateBenchnet>,
         create_benchnvme: Arc<dyn create::CreateBenchnvme>,
         create_xv6fs: Arc<dyn create::CreateXv6FS>,
+        create_xv6net: Arc<dyn create::CreateXv6Net>,
         create_xv6usr: Arc<dyn create::CreateXv6Usr>,
         create_xv6: Arc<dyn create::CreateXv6>,
         create_dom_a: Arc<dyn create::CreateDomA>,
@@ -1191,6 +1200,7 @@ pub fn build_domain_proxy(
         create_benchnet,
         create_benchnvme,
         create_xv6fs,
+        create_xv6net,
         create_xv6usr,
         create_xv6,
         create_dom_a,
@@ -1213,6 +1223,7 @@ pub fn build_domain_xv6kernel(name: &str,
                               binary_range: (*const u8, *const u8),
                               ints: Box<dyn syscalls::Interrupt>,
                               create_xv6fs: Arc<dyn create::CreateXv6FS>,
+                              create_xv6net: Arc<dyn create::CreateXv6Net>,
                               create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
                               bdev: Box<dyn usr::bdev::BDev>,
                               net: Box<dyn usr::net::Net>,
@@ -1221,11 +1232,12 @@ pub fn build_domain_xv6kernel(name: &str,
     type UserInit = fn(Box<dyn syscalls::Syscall>,
                        Box<dyn syscalls::Heap>,
                        Box<dyn syscalls::Interrupt>,
-                       Arc<dyn create::CreateXv6FS>,
-                       Arc<dyn create::CreateXv6Usr>,
-                       Box<dyn usr::bdev::BDev>,
-                       Box<dyn usr::net::Net>,
-                       Box<dyn usr::bdev::NvmeBDev>) -> Box<dyn usr::xv6::Xv6>;
+                       create_xv6fs: Arc<dyn create::CreateXv6FS>,
+                       create_xv6net: Arc<dyn create::CreateXv6Net>,
+                       create_xv6kernel: Arc<dyn create::CreateXv6Usr>,
+                       bdev: Box<dyn usr::bdev::BDev>,
+                       net: Box<dyn usr::net::Net>,
+                       nvme: Box<dyn usr::bdev::NvmeBDev>) -> Box<dyn usr::xv6::Xv6>;
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)
@@ -1249,7 +1261,7 @@ pub fn build_domain_xv6kernel(name: &str,
 
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
-    let rv6 = user_ep(pdom, pheap, ints, create_xv6fs, create_xv6usr, bdev, net, nvme);
+    let rv6 = user_ep(pdom, pheap, ints, create_xv6fs, create_xv6net, create_xv6usr, bdev, net, nvme);
     disable_irq();
 
     // change domain id back

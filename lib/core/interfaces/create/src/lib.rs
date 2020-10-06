@@ -4,7 +4,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use syscalls::{Heap, Domain, Interrupt};
-use usr::{bdev::{BDev, NvmeBDev}, vfs::VFS, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}};
+use usr::{bdev::{BDev, NvmeBDev}, vfs::VFS, usrnet::UsrNet, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}};
 use usr::error::Result;
 
 /* AB: XXX: first thing: change all names to create_domain -- it's absurd */
@@ -45,6 +45,10 @@ pub trait CreateXv6FS: Send + Sync {
     fn create_domain_xv6fs(&self, bdev: Box<dyn BDev>) ->(Box<dyn Domain>, Box<dyn VFS>);
 }
 
+pub trait CreateXv6Net: Send + Sync {
+    fn create_domain_xv6net(&self, net: Box<dyn Net>) ->(Box<dyn Domain>, Box<dyn UsrNet>);
+}
+
 pub trait CreateXv6Usr: Send + Sync {
     fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn syscalls::Domain>>;
 }
@@ -54,6 +58,7 @@ pub trait CreateXv6: Send + Sync {
     fn create_domain_xv6kernel(&self,
                                ints: Box<dyn Interrupt>,
                                create_xv6fs: Arc<dyn CreateXv6FS>,
+                               create_xv6net: Arc<dyn CreateXv6Net>,
                                create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>,
                                bdev: Box<dyn BDev>,
                                net: Box<dyn usr::net::Net>,
