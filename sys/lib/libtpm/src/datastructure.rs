@@ -360,6 +360,29 @@ impl Tpm2BSensitiveCreate {
     }
 }
 
+pub struct TpmSSchemeHash {
+    pub hash_alg: TpmIAlgHash,
+}
+
+impl TpmSSchemeHash {
+    pub fn new(hash_alg: TpmIAlgHash) -> Self {
+        Self {
+            hash_alg: hash_alg,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize = self.hash_alg.size();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&self.hash_alg.to_vec());
+        buf
+    }
+}
+
 pub struct TpmSSchemeHmac {
     pub hash_alg: TpmIAlgHash,
 }
@@ -405,6 +428,32 @@ impl TpmSSchemeXor {
         let mut buf: Vec<u8> = Vec::with_capacity(self.size());
         buf.extend_from_slice(&self.hash_alg.to_vec());
         buf.extend_from_slice(&self.kdf.to_vec());
+        buf
+    }
+}
+
+pub struct TpmSSchemeEcdaa {
+    pub hash_alg: TpmIAlgHash,
+    pub count: u16,
+}
+
+impl TpmSSchemeEcdaa {
+    pub fn new(hash_alg: TpmIAlgHash, count: u16) -> Self {
+        Self {
+            hash_alg: hash_alg,
+            count: count,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize = self.hash_alg.size() + mem::size_of::<u16>();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&self.hash_alg.to_vec());
+        buf.extend_from_slice(&u16::to_be_bytes(self.count));
         buf
     }
 }
@@ -511,6 +560,123 @@ impl TpmSKeyedhashParms {
     pub fn to_vec(&self) -> Vec<u8> {
         let mut buf: Vec<u8> = Vec::with_capacity(self.size());
         buf.extend_from_slice(&self.scheme.to_vec());
+        buf
+    }
+}
+
+pub struct TpmIAlgSigScheme {
+    pub sig_scheme: u16,
+}
+
+impl TpmIAlgSigScheme {
+    pub fn new(sig_scheme: u16) -> Self {
+        Self {
+            sig_scheme: sig_scheme,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize = mem::size_of::<u16>();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&u16::to_be_bytes(self.sig_scheme));
+        buf
+    }
+}
+
+pub struct TpmUSigScheme {
+    pub selector: TpmAlgorithms,
+    pub scheme_hmac: Option<TpmSSchemeHmac>,
+    pub scheme_hash: Option<TpmSSchemeHash>,
+    pub scheme_ecdaa: Option<TpmSSchemeEcdaa>,
+}
+
+impl TpmUSigScheme {
+    pub fn new(selector: TpmAlgorithms,
+               scheme_hmac: Option<TpmSSchemeHmac>,
+               scheme_hash: Option<TpmSSchemeHash>,
+               scheme_ecdaa: Option<TpmSSchemeEcdaa>) -> Self {
+        match selector {
+            TpmAlgorithms::TPM_ALG_HMAC  |
+            TpmAlgorithms::TPM_ALG_RSA   |
+            TpmAlgorithms::TPM_ALG_ECDAA |
+            TpmAlgorithms::TPM_ALG_NULL  =>
+                Self {
+                    selector: selector,
+                    scheme_hmac: scheme_hmac,
+                    scheme_hash: scheme_hash,
+                    scheme_ecdaa: scheme_ecdaa,
+                },
+            _ =>
+                Self {
+                    selector: TpmAlgorithms::TPM_ALG_NULL,
+                    scheme_hmac: None,
+                    scheme_hash: None,
+                    scheme_ecdaa: None,
+                },
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let mut ret: usize = 0;
+        if let TpmAlgorithms::TPM_ALG_HMAC = self.selector {
+            ret = self.scheme_hmac.as_ref().unwrap().size();
+        }
+        if let TpmAlgorithms::TPM_ALG_RSA = self.selector {
+            ret = self.scheme_hash.as_ref().unwrap().size();
+        }
+        if let TpmAlgorithms::TPM_ALG_ECDAA = self.selector {
+            ret = self.scheme_ecdaa.as_ref().unwrap().size();
+        }
+        if let TpmAlgorithms::TPM_ALG_NULL = self.selector {
+            ret = 0;
+        }
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        if let TpmAlgorithms::TPM_ALG_HMAC = self.selector {
+            buf.extend_from_slice(&self.scheme_hmac.as_ref().unwrap().to_vec());
+        }
+        if let TpmAlgorithms::TPM_ALG_RSA = self.selector {
+            buf.extend_from_slice(&self.scheme_hash.as_ref().unwrap().to_vec());
+        }
+        if let TpmAlgorithms::TPM_ALG_ECDAA = self.selector {
+            buf.extend_from_slice(&self.scheme_ecdaa.as_ref().unwrap().to_vec());
+        }
+        if let TpmAlgorithms::TPM_ALG_NULL = self.selector {
+            ();
+        }
+        buf
+    }
+}
+
+pub struct TpmTSigScheme {
+    pub scheme: TpmIAlgSigScheme,
+    pub details: TpmUSigScheme,
+}
+
+impl TpmTSigScheme {
+    pub fn new(scheme: TpmIAlgSigScheme, details: TpmUSigScheme) -> Self {
+        Self {
+            scheme: scheme,
+            details: details,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize = self.scheme.size() + self.details.size();
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&self.scheme.to_vec());
+        buf.extend_from_slice(&self.details.to_vec());
         buf
     }
 }

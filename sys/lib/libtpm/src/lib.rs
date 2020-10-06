@@ -1102,8 +1102,8 @@ pub fn tpm_create(tpm: &TpmDev, locality: u32, pcr_idx: Option<usize>,
 
 /// Load objects into the TPM
 /// Both TPM2B_PUBLIC and TPM2B_PRIVATE are to be loaded
-pub fn tpm_load(tpm: &TpmDev, locality: u32, parent_handle: u32, in_private: Vec<u8>, in_public: Vec<u8>,
-                item_handle: &mut u32) -> bool {
+pub fn tpm_load(tpm: &TpmDev, locality: u32, parent_handle: u32,
+                in_private: Vec<u8>, in_public: Vec<u8>, item_handle: &mut u32) -> bool {
     let mut hdr: TpmHeader = TpmHeader::new(
         TpmStructures::TPM_ST_SESSIONS as u16,
         0 as u32,
@@ -1137,52 +1137,6 @@ pub fn tpm_load(tpm: &TpmDev, locality: u32, parent_handle: u32, in_private: Vec
         println!("Didn't receive any response from TPM!");
         return false;
     }
-    true
-}
-
-/// Create child key and load to TPM
-/// (Combination of CC_Create and CC_Load commands)
-pub fn tpm_create_loaded(tpm: &TpmDev, locality: u32, unique: &[u8], parent_handle: u32,
-                         child_handle: &mut u32) -> bool {
-    let mut hdr: TpmHeader = TpmHeader::new(
-        TpmStructures::TPM_ST_SESSIONS as u16,
-        0 as u32,
-        Tpm2Commands::TPM2_CC_CREATE_LOADED as u32
-    );
-    let mut buf: Vec<u8>;
-    // header: TpmHeader
-    buf = TpmHeader::to_vec(&hdr);
-    // parentHandle: TpmIDhParent
-    buf.extend_from_slice(&u32::to_be_bytes(parent_handle));
-    // handle (required whenever header.tag is TPM_ST_SESSIONS)
-    let tpmHandle = TpmHandle::new(TpmRH::TPM_RS_PW as u32, 0 as u16, 0 as u8, 0 as u16);
-    buf.extend_from_slice(&tpmHandle.to_vec());
-    // inSensitive: Tpm2BSensitiveCreate
-    buf.extend_from_slice(&u16::to_be_bytes(4 as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(0 as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(0 as u16));
-    // inPublic: Tpm2BPublic
-    buf.extend_from_slice(&u16::to_be_bytes(18 as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_AES as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_SHA256 as u16));
-    // let objectAttributes = TpmAObject::new(false, true, true, false, true, false, true, true, false, true);
-    // buf.extend_from_slice(&objectAttributes.to_vec());
-    buf.extend_from_slice(&u32::to_be_bytes(0x00030072 as u32));
-    buf.extend_from_slice(&u16::to_be_bytes(0 as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_AES as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(128 as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_CFB as u16));
-    buf.extend_from_slice(&u16::to_be_bytes(0 as u16));
-    // outsideInfo: Tpm2BData
-    buf.extend_from_slice(&u16::to_be_bytes(0 as u16));
-    // creationPCR: TpmLPcrSelection
-    buf.extend_from_slice(&u32::to_be_bytes(0 as u32));
-    // Change the size of command in header
-    buf.splice(2..6, (buf.len() as u32).to_be_bytes().into_iter().cloned());
-
-    println!("presend: {:x?}", buf);
-    tpm_transmit_cmd(tpm, locality, &mut buf);
-    println!("postsend: {:x?}", buf);
     true
 }
 
@@ -1225,7 +1179,7 @@ pub fn tpm_unseal(tpm: &TpmDev, locality: u32, session_handle: u32, item_handle:
 }
 
 /// Generate Quote
-pub fn tpm_quote(tpm: &TpmDev, locality: u32, sign_handle: u32, hash: u16,
+pub fn tpm_quote(tpm: &TpmDev, locality: u32, handle: u32, hash: u16,
                  nonce: Vec<u8>, pcr_idxs: Vec<usize>,
                  out_pcr_digest: &mut Vec<u8>, out_sig: &mut Vec<u8>) -> bool {
     let mut hdr: TpmHeader = TpmHeader::new(
@@ -1237,35 +1191,39 @@ pub fn tpm_quote(tpm: &TpmDev, locality: u32, sign_handle: u32, hash: u16,
     // header: TpmHeader
     buf = TpmHeader::to_vec(&hdr);
     // signHandle: TPMI_DH_OBJECT
-    buf.extend_from_slice(&u32::to_be_bytes(sign_handle));
+    let sign_handle = TpmIDhObject::new(handle);
+    buf.extend_from_slice(&sign_handle.to_vec());
     // handle (required whenever header.tag is TPM_ST_SESSIONS)
     let tpmHandle = TpmHandle::new(TpmRH::TPM_RS_PW as u32, 0 as u16, 1 as u8, 0 as u16);
     buf.extend_from_slice(&tpmHandle.to_vec());
     // qualifyingData: TPM2B_DATA
-    buf.extend_from_slice(&u16::to_be_bytes(nonce.len() as u16));
-    buf.extend_from_slice(&nonce.to_vec());
+    let qualifying_data = Tpm2BData::new(nonce);
+    buf.extend_from_slice(&qualifying_data.to_vec());
     // inScheme: TPMT_SIG_SCHEME
-    buf.extend_from_slice(&u16::to_be_bytes(TpmAlgorithms::TPM_ALG_NULL as u16));
+    let scheme = TpmIAlgSigScheme::new(TpmAlgorithms::TPM_ALG_NULL as u16);
+    let u_sig_scheme = TpmUSigScheme::new(TpmAlgorithms::TPM_ALG_NULL, None, None, None);
+    let t_sig_scheme = TpmTSigScheme::new(scheme, u_sig_scheme);
+    buf.extend_from_slice(&t_sig_scheme.to_vec());
     // PCRselect: TPML_PCR_SELECTION
     let count: u32 = pcr_idxs.len() as u32;
-    let mut sPcrSelections: Vec<TpmSPcrSelection> = Vec::with_capacity(count as usize);
+    let mut s_pcr_selections: Vec<TpmSPcrSelection> = Vec::with_capacity(count as usize);
     for pcr_idx in pcr_idxs {
         let mut pcr_select: Vec<u8>;
         pcr_select = Vec::with_capacity(TPM_PCR_SELECT_MIN);
         pcr_select.extend([0].repeat(TPM_PCR_SELECT_MIN));
         pcr_select[pcr_idx >> 3] = 1 << (pcr_idx & 0x7);
-        let mut sPcrSelection: TpmSPcrSelection = TpmSPcrSelection::new(
+        let mut s_pcr_selection: TpmSPcrSelection = TpmSPcrSelection::new(
             hash, // hash
             TPM_PCR_SELECT_MIN as u8, // size_of_select
             pcr_select // pcr_select
         );
-        sPcrSelections.push(sPcrSelection);
+        s_pcr_selections.push(s_pcr_selection);
     }
-    let mut lPcrSelection: TpmLPcrSelection = TpmLPcrSelection::new(
+    let mut l_pcr_selection: TpmLPcrSelection = TpmLPcrSelection::new(
         count, // count,
-        sPcrSelections // TpmSPcrSelection
+        s_pcr_selections // TpmSPcrSelection
     );
-    buf.extend_from_slice(&lPcrSelection.to_vec());
+    buf.extend_from_slice(&l_pcr_selection.to_vec());
     // Change the size of command in header
     buf.splice(2..6, (buf.len() as u32).to_be_bytes().into_iter().cloned());
 
@@ -1343,27 +1301,6 @@ pub fn tpm_flush_context(tpm: &TpmDev, locality: u32, flush_handle: u32) -> bool
 
     println!("presend: {:x?}", buf);
     tpm_transmit_cmd(tpm, locality, &mut buf);
-    println!("postsend: {:x?}", buf);
-    true
-}
-
-/// Set Locality Policy
-pub fn tpm_policy_locality(tpm: &TpmDev) -> bool {
-    let mut buf: Vec<u8>;
-    let mut data_size = 1;
-    let command_len = TPM_HEADER_SIZE + data_size;
-    let mut hdr: TpmHeader = TpmHeader::new(
-        TpmStructures::TPM_ST_SESSIONS as u16,
-        command_len as u32,
-        Tpm2Commands::TPM2_CC_POLICY_LOCALITY as u32
-    );
-    let locality_zero: u8 = 1 << 0;
-    let locality_four: u8 = 1 << 4;
-    let locality: u8 = locality_zero | locality_four;
-    buf = TpmHeader::to_vec(&hdr);
-    buf.extend_from_slice(&(locality).to_be_bytes());
-    println!("presend: {:x?}", buf);
-    tpm_transmit_cmd(tpm, 4, &mut buf);
     println!("postsend: {:x?}", buf);
     true
 }
