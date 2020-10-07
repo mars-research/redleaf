@@ -41,6 +41,7 @@ BINS=\
 	getpid\
 	uptime\
 	sleep\
+	httpd\
 	dump_inode\
 	benchfs\
 	benchnet\
