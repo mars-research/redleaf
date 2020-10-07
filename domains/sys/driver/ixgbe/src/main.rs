@@ -1,10 +1,11 @@
 #![no_std]
 #![no_main]
 #![feature(
+    box_syntax,
     const_fn,
     const_raw_ptr_to_usize_cast,
     untagged_unions,
-        maybe_uninit_extra
+    maybe_uninit_extra,
 )]
 //#![forbid(unsafe_code)]
 
@@ -32,12 +33,14 @@ use alloc::collections::VecDeque;
 #[macro_use]
 use alloc::vec::Vec;
 use alloc::vec;
+use alloc::sync::Arc;
 use core::panic::PanicInfo;
 use syscalls::{Syscall, Heap};
 use usr;
 use usr::rpc::RpcResult;
 use console::{println, print};
 use pci_driver::DeviceBarRegions;
+use spin::Mutex;
 use libsyscalls::syscalls::sys_backtrace;
 pub use platform::PciBarAddr;
 
@@ -56,7 +59,7 @@ use sashstore_redleaf::SashStore;
 
 static mut SASHSTORE: Option<SashStore> = None;
 
-struct Ixgbe {
+struct IxgbeInternal {
     vendor_id: u16,
     device_id: u16,
     driver: pci_driver::PciDrivers,
@@ -64,14 +67,14 @@ struct Ixgbe {
     device: RefCell<Option<Intel8259x>>,
 }
 
-impl Ixgbe {
-    fn new() -> Ixgbe {
+impl IxgbeInternal {
+    fn new() -> Self {
         unsafe {
             // SASHSTORE = Some(SashStore::with_capacity((1 << 20)));
             SASHSTORE = Some(SashStore::with_capacity(1 << 21));
         }
 
-        Ixgbe {
+        Self {
             vendor_id: 0x8086,
             device_id: 0x10fb,
             driver: pci_driver::PciDrivers::IxgbeDriver,
@@ -85,12 +88,33 @@ impl Ixgbe {
     }
 }
 
+struct Ixgbe(Arc<Mutex<IxgbeInternal>>);
+
+impl Ixgbe {
+    fn new() -> Self {
+        Self(Arc::new(Mutex::new(IxgbeInternal::new())))
+    }
+}
+
+impl core::ops::Deref for Ixgbe {
+    type Target = Arc<Mutex<IxgbeInternal>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl usr::net::Net for Ixgbe {
+    fn clone_net(&self) -> RpcResult<Box<dyn usr::net::Net>> {
+        Ok(box Self(self.0.clone()))
+    }
+
     fn submit_and_poll(&self, mut packets: &mut VecDeque<Vec<u8>
         >, mut collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
         Ok((||{
             let mut ret: usize = 0;
-            let device = &mut self.device.borrow_mut();
+            let mut ixgbe = self.lock();
+            let device = &mut ixgbe.device.borrow_mut();
             let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
             ret = device.device.submit_and_poll(&mut packets, &mut collect, tx, false);
             Ok(ret)
@@ -110,11 +134,12 @@ impl usr::net::Net for Ixgbe {
     {
         Ok((||{
             let mut ret: usize = 0;
+            let mut ixgbe = self.lock();
     
             let mut packets = Some(packets);
             let mut collect = Some(collect);
     
-            let device = &mut self.device.borrow_mut();
+            let device = &mut ixgbe.device.borrow_mut();
             let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
             let (num, mut packets_, mut collect_) = device.device.submit_and_poll_rref(packets.take().unwrap(),
                                                     collect.take().unwrap(), tx, pkt_len, false);
@@ -131,8 +156,9 @@ impl usr::net::Net for Ixgbe {
     fn poll(&self, mut collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
         Ok((||{
             let mut ret: usize = 0;
+            let mut ixgbe = self.lock();
     
-            let device = &mut self.device.borrow_mut();
+            let device = &mut ixgbe.device.borrow_mut();
             let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
             ret = device.device.poll(&mut collect, tx);
 
@@ -143,9 +169,10 @@ impl usr::net::Net for Ixgbe {
     fn poll_rref(&self, mut collect: RRefDeque<[u8; 1514], 512>, tx: bool) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>> {
         Ok((||{
             let mut ret: usize = 0;
+            let mut ixgbe = self.lock();
             let mut collect = Some(collect);
     
-            let device = &mut self.device.borrow_mut();
+            let device = &mut ixgbe.device.borrow_mut();
             let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
             let (num, mut collect_) = device.device.poll_rref(collect.take().unwrap(), tx);
             ret = num;
@@ -158,8 +185,9 @@ impl usr::net::Net for Ixgbe {
     fn get_stats(&self) -> RpcResult<Result<NetworkStats>> {
         Ok((||{
             let mut ret = NetworkStats::new();
+            let mut ixgbe = self.lock();
 
-            let device = &mut self.device.borrow_mut();
+            let device = &mut ixgbe.device.borrow_mut();
             let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
             let stats = device.get_stats();
             ret = stats;
@@ -172,12 +200,13 @@ impl usr::net::Net for Ixgbe {
 impl pci_driver::PciDriver for Ixgbe {
     fn probe(&mut self, bar_region: DeviceBarRegions) {
         println!("ixgbe probe called");
+        let mut ixgbe = self.lock();
         match bar_region {
             DeviceBarRegions::Ixgbe(bar) => {
                 println!("got ixgbe bar region");
                 if let Ok(ixgbe_dev) = Intel8259x::new(bar) {
-                    self.device_initialized = true;
-                    self.device.replace(Some(ixgbe_dev));
+                    ixgbe.device_initialized = true;
+                    ixgbe.device.replace(Some(ixgbe_dev));
                 }
             }
             _ => { println!("Got unknown bar region") }
@@ -185,15 +214,15 @@ impl pci_driver::PciDriver for Ixgbe {
     }
 
     fn get_vid(&self) -> u16 {
-        self.vendor_id
+        self.lock().vendor_id
     }
 
     fn get_did(&self) -> u16 {
-        self.device_id
+        self.lock().device_id
     }
 
     fn get_driver_type(&self) -> pci_driver::PciDrivers {
-        self.driver
+        self.lock().driver
     }
 }
 
@@ -208,7 +237,7 @@ fn run_sashstoretest(dev: &Ixgbe, pkt_size: u16) {
         rx_packets.push_front(Vec::with_capacity(2048));
     }
 
-    if let Some(device) = dev.device.borrow_mut().as_mut() {
+    if let Some(device) = dev.lock().device.borrow_mut().as_mut() {
         let idev: &mut Intel8259x = device;
         let mut sum: usize = 0;
         let mut fwd_sum: usize = 0;
@@ -411,7 +440,7 @@ fn smoltcp_main(dev: &Ixgbe) {
 
     use smoltcp::socket::SocketSet;
 
-    if let Some(device) = dev.device.borrow_mut().take() {
+    if let Some(device) = dev.lock().device.borrow_mut().take() {
         let idev: Intel8259x = device;
 
         // smol boi is good boi

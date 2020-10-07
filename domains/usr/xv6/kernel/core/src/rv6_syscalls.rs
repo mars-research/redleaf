@@ -11,6 +11,7 @@ use create::CreateXv6Usr;
 use rref::{RRefDeque, RRefVec};
 use usr_interface::bdev::{BlkReq, NvmeBDev};
 use usr_interface::net::{Net, NetworkStats};
+use usr_interface::usrnet::UsrNet;
 use usr_interface::rpc::RpcResult;
 use usr_interface::vfs::{FileMode, FileStat, Result, UsrVFS, NFILE, VFS};
 use usr_interface::xv6::{Thread, Xv6};
@@ -18,7 +19,8 @@ use usr_interface::xv6::{Thread, Xv6};
 pub struct Rv6Syscalls {
     create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>,
     fs: Box<dyn VFS>,
-    net: Arc<Mutex<Box<dyn Net>>>,
+    usrnet: Box<dyn UsrNet>,
+    net: Box<dyn Net>,
     nvme: Arc<Mutex<Box<dyn NvmeBDev>>>,
     start_time: u64
 }
@@ -27,48 +29,51 @@ impl Rv6Syscalls {
     pub fn new(
         create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>,
         fs: Box<dyn VFS>,
+        usrnet: Box<dyn UsrNet>,
         net: Box<dyn Net>,
         nvme: Box<dyn NvmeBDev>,
     ) -> Self {
         Self {
             create_xv6usr,
             fs,
-            net: Arc::new(Mutex::new(net)),
+            usrnet,
+            net,
             nvme: Arc::new(Mutex::new(nvme)),
             start_time: libtime::get_ns_time(),
         }
+    }
+
+    fn _clone(&self) -> RpcResult<Self> {
+        Ok(Self {
+            start_time: self.start_time,
+            create_xv6usr: self.create_xv6usr.clone(),
+            fs: self.fs.clone(),
+            usrnet: self.usrnet.clone_usrnet()?,
+            net: self.net.clone_net()?,
+            nvme: self.nvme.clone(),
+        })
     }
 }
 
 impl Xv6 for Rv6Syscalls {
     fn clone(&self) -> RpcResult<Box<dyn Xv6>> {
-        Ok((|| box Self {
-            start_time: self.start_time,
-            create_xv6usr: self.create_xv6usr.clone(),
-            fs: self.fs.clone(),
-            net: self.net.clone(),
-            nvme: self.nvme.clone(),
-        })())
+        Ok(box self._clone()?)
+    }
+
+    fn as_usrnet(&self) -> RpcResult<Box<dyn UsrNet>> {
+        Ok(box self._clone()?)
+    }
+
+    fn get_usrnet(&self) -> RpcResult<Box<dyn UsrNet>> {
+        self.usrnet.clone_usrnet()
     }
 
     fn as_net(&self) -> RpcResult<Box<dyn Net>> {
-        Ok((|| box Self {
-            start_time: self.start_time,
-            create_xv6usr: self.create_xv6usr.clone(),
-            fs: self.fs.clone(),
-            net: self.net.clone(),
-            nvme: self.nvme.clone(),
-        })())
+        Ok(box self._clone()?)
     }
 
     fn as_nvme(&self) -> RpcResult<Box<dyn NvmeBDev>> {
-        Ok((|| box Self {
-            start_time: self.start_time,
-            create_xv6usr: self.create_xv6usr.clone(),
-            fs: self.fs.clone(),
-            net: self.net.clone(),
-            nvme: self.nvme.clone(),
-        })())
+        Ok(box self._clone()?)
     }
 
     fn sys_spawn_thread(
@@ -170,18 +175,39 @@ impl UsrVFS for Rv6Syscalls {
     }
 }
 
+impl UsrNet for Rv6Syscalls {
+    fn clone_usrnet(&self) -> RpcResult<Box<dyn UsrNet>> {
+        self.usrnet.clone_usrnet()
+    }
+    fn listen(&self, port: u16) -> RpcResult<Result<usize>> {
+        self.usrnet.listen(port)
+    }
+    fn accept(&self, server: usize) -> RpcResult<Result<usize>> {
+        self.usrnet.accept(server)
+    }
+    fn read_socket(&self, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+        self.read_socket(socket, buffer)
+    }
+    fn write_socket(&self, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+        self.usrnet.write_socket(socket, buffer)
+    }
+}
+
 impl Net for Rv6Syscalls {
+    fn clone_net(&self) -> RpcResult<Box<dyn Net>> {
+        self.net.clone_net()
+    }
     fn submit_and_poll(
         &self,
         packets: &mut VecDeque<Vec<u8>>,
         reap_queue: &mut VecDeque<Vec<u8>>,
         tx: bool,
     ) -> RpcResult<Result<usize>> {
-        self.net.lock().submit_and_poll(packets, reap_queue, tx)
+        self.net.submit_and_poll(packets, reap_queue, tx)
     }
 
     fn poll(&self, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
-        self.net.lock().poll(collect, tx)
+        self.net.poll(collect, tx)
     }
 
     fn submit_and_poll_rref(
@@ -191,9 +217,7 @@ impl Net for Rv6Syscalls {
         tx: bool,
         pkt_len: usize,
     ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 32>, RRefDeque<[u8; 1514], 32>)>> {
-        //println!("rv6 syscall");
         self.net
-            .lock()
             .submit_and_poll_rref(packets, collect, tx, pkt_len)
     }
 
@@ -202,11 +226,11 @@ impl Net for Rv6Syscalls {
         collect: RRefDeque<[u8; 1514], 512>,
         tx: bool,
     ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>> {
-        self.net.lock().poll_rref(collect, tx)
+        self.net.poll_rref(collect, tx)
     }
 
     fn get_stats(&self) -> RpcResult<Result<NetworkStats>> {
-        self.net.lock().get_stats()
+        self.net.get_stats()
     }
 }
 

@@ -5,15 +5,18 @@ use rref::RRefVec;
 
 use crate::vfs::{UsrVFS, NFILE};
 use crate::net::Net;
+use crate::usrnet::UsrNet;
 use crate::bdev::NvmeBDev;
 use crate::rpc::RpcResult;
 pub use crate::vfs::{FileMode, FileStat};
 pub use crate::error::{ErrorKind, Result};
 
-pub trait Xv6: Send + Sync + UsrVFS + Net {
+pub trait Xv6: Send + Sync + UsrVFS + Net + UsrNet {
     fn clone(&self) -> RpcResult<Box<dyn Xv6>>;
     fn as_net(&self) -> RpcResult<Box<dyn Net>>;
     fn as_nvme(&self) -> RpcResult<Box<dyn NvmeBDev>>;
+    fn as_usrnet(&self) -> RpcResult<Box<dyn UsrNet>>;
+    fn get_usrnet(&self) -> RpcResult<Box<dyn UsrNet>>;
     fn sys_spawn_thread(&self, name: RRefVec<u8>, func: alloc::boxed::Box<dyn FnOnce() + Send>) -> RpcResult<Result<Box<dyn Thread>>>;
     // We need to pass a new instance of `rv6` as a parameter so that the proxy can be properly propagated.
     fn sys_spawn_domain(&self, rv6: Box<dyn Xv6>, path: &str, args: &str, fds: [Option<usize>; NFILE]) -> RpcResult<Result<Box<dyn Thread>>>;

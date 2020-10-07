@@ -590,6 +590,10 @@ extern {
 trampoline!(get_stats);
 
 impl Net for IxgbeProxy {
+    fn clone_net(&self) -> RpcResult<Box<dyn Net>> {
+        Ok(box Self::new(self.domain_id, self.domain.clone_net()?))
+    }
+
     fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
 
         // move thread to next domain
@@ -916,6 +920,12 @@ impl Rv6Proxy {
 }
 
 impl Net for Rv6Proxy {
+    fn clone_net(&self) -> RpcResult<Box<dyn Net>> {
+        // TODO: use net proxy
+        unimplemented!()
+        // Ok(box Self::new(self.domain_id, self.domain.clone_net()?))
+    }
+
     fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
         unimplemented!()
     }
@@ -1034,6 +1044,50 @@ impl UsrVFS for Rv6Proxy {
     }
 }
 
+impl UsrNet for Rv6Proxy {
+    fn clone_usrnet(&self) -> RpcResult<Box<dyn UsrNet>> {
+        // TODO: impl usr net proxy
+        // Ok(box Self::new(self.domain_id, self.domain.clone()?))
+        unimplemented!()
+    }
+    fn listen(&self, port: u16) -> RpcResult<Result<usize>> {
+        self.domain.listen(port)
+    }
+    fn accept(&self, server: usize) -> RpcResult<Result<usize>> {
+        self.domain.accept(server)
+    }
+    fn read_socket(&self, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+        // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        buffer.move_to(self.domain_id);
+        let r = self.domain.read_socket(socket, buffer);
+        if let Ok(Ok(r)) = r.as_ref() {
+            r.1.move_to(caller_domain);
+        }
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
+    }
+    fn write_socket(&self, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+        // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        buffer.move_to(self.domain_id);
+        let r = self.domain.write_socket(socket, buffer);
+        if let Ok(Ok(r)) = r.as_ref() {
+            r.1.move_to(caller_domain);
+        }
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
+    }
+} 
+
 
 use usr::xv6::Thread;
 
@@ -1046,6 +1100,14 @@ impl Xv6 for Rv6Proxy {
     }
     fn as_nvme(&self) -> RpcResult<Box<dyn usr::bdev::NvmeBDev>> {
         Ok(box NvmeProxy::new(self.domain_id, self.domain.as_nvme()?))
+    }
+    fn as_usrnet(&self) -> RpcResult<Box<dyn usr::usrnet::UsrNet>> {
+        unimplemented!()
+        // Ok(box UsrNetProxy::new(self.domain_id, self.domain.as_usrnet()?))
+    }
+    fn get_usrnet(&self) -> RpcResult<Box<dyn usr::usrnet::UsrNet>> {
+        unimplemented!()
+        // Ok(box UsrNetProxy::new(self.domain_id, self.domain.get_usrnet()?))
     }
     fn sys_spawn_thread(&self, name: RRefVec<u8>, func: alloc::boxed::Box<dyn FnOnce() + Send>) -> RpcResult<Result<Box<dyn Thread>>> {
         // move thread to next domain

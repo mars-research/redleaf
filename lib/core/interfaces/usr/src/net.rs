@@ -45,7 +45,9 @@ impl fmt::Display for NetworkStats {
     }
 }
 
-pub trait Net: Send {
+pub trait Net: Send + Sync {
+    fn clone_net(&self) -> RpcResult<Box<dyn Net>>;
+
     fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>>;
 
     fn poll(&self, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>>;

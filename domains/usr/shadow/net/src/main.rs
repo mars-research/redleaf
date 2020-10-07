@@ -43,18 +43,24 @@ impl ShadowInternal {
 }
 
 struct Shadow {
-    shadow: Mutex<ShadowInternal>,
+    shadow: Arc<Mutex<ShadowInternal>>,
 }
 
 impl Shadow {
     fn new(create: Arc<dyn CreateIxgbe>, pci: Box<dyn PCI>) -> Self {
         Self {
-            shadow: Mutex::new(ShadowInternal::new(create, pci)),
+            shadow: Arc::new(Mutex::new(ShadowInternal::new(create, pci))),
         }
     }
 }
 
 impl Net for Shadow {
+    fn clone_net(&self) -> RpcResult<Box<dyn Net>> {
+        Ok(box Self {
+            shadow: self.shadow.clone(),
+        })
+    }
+
     fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
         self.shadow.lock().net.submit_and_poll(packets, reap_queue, tx)
     }

@@ -22,6 +22,8 @@ use alloc::boxed::Box;
 use console::println;
 use core::panic::PanicInfo;
 use syscalls::{Heap, Syscall};
+use rref::RRefVec;
+use usr_interface::error::{Result, ErrorKind};
 use usr_interface::net::Net;
 use usr_interface::usrnet::UsrNet;
 use usr_interface::rpc::RpcResult;
@@ -35,8 +37,27 @@ impl Rv6Net {
 }
 
 impl UsrNet for Rv6Net {
-    fn clone(&self) -> RpcResult<Box<dyn UsrNet>> {
+    fn clone_usrnet(&self) -> RpcResult<Box<dyn UsrNet>> {
         Ok(box Self {})
+    }
+
+    fn listen(&self, port: u16) -> RpcResult<Result<usize>> {
+        console::println!("listen {}", port);
+        Ok(Err(ErrorKind::UnsupportedOperation))
+    }
+    fn accept(&self, server: usize) -> RpcResult<Result<usize>> {
+        console::println!("accept {}", server);
+        Ok(Err(ErrorKind::UnsupportedOperation))
+    }
+
+    fn read_socket(&self, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+        console::println!("read_socket {}", socket);
+        Ok(Err(ErrorKind::UnsupportedOperation))
+    }
+
+    fn write_socket(&self, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+        console::println!("write_socket {}", socket);
+        Ok(Err(ErrorKind::UnsupportedOperation))
     }
 }
 

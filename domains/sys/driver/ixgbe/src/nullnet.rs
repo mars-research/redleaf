@@ -1,4 +1,5 @@
 use alloc::collections::VecDeque;
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 use rref::{RRef, RRefDeque};
 use usr::rpc::RpcResult;
@@ -14,6 +15,10 @@ impl NullNet {
 }
 
 impl usr::net::Net for NullNet {
+    fn clone_net(&self) -> RpcResult<Box<dyn usr::net::Net>> {
+        Ok(box Self::new())
+    }
+
     fn submit_and_poll(&self, mut packets: &mut VecDeque<Vec<u8>
         >, mut collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
 
