@@ -42,7 +42,7 @@ pub fn sys_close(fd: usize) -> Result<()> {
 // See comment for `sys_write_slice_slow`
 pub fn sys_read_slice_slow(fd: usize, buffer: &mut [u8]) -> Result<usize> {
     let vec = RRefVec::from_slice(buffer);
-    let (size, vec) = sys_write(fd, vec)?;
+    let (size, vec) = sys_read(fd, vec)?;
     for (dest, src) in buffer.iter_mut().zip(vec.as_slice()) {
         *dest = *src;
     }
@@ -50,7 +50,7 @@ pub fn sys_read_slice_slow(fd: usize, buffer: &mut [u8]) -> Result<usize> {
 }
 
 pub fn sys_read(fd: usize, buffer: RRefVec<u8>) -> Result<(usize, RRefVec<u8>)> {
-    SYSCALL.r#try().unwrap().sys_write(fd, buffer)?
+    SYSCALL.r#try().unwrap().sys_read(fd, buffer)?
 }
 
 // Implicitly convert the slice to a RRefVec.
