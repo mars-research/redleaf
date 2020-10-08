@@ -36,7 +36,7 @@ lazy_static! {
 
 // Drops the pointer, assumes it is of type T
 fn drop_t<T: CustomCleanup + TypeIdentifiable>(ptr: *mut u8) {
-    println!("DROPPING {}", core::any::type_name::<T>());
+    // println!("DROPPING {}", core::any::type_name::<T>());
     unsafe {
         let ptr_t: *mut T = transmute(ptr);
         // recursively invoke further shared heap deallocation in the tree of rrefs
