@@ -84,16 +84,14 @@ impl<T> Drop for RRefVec<T> where T: 'static + RRefable + Copy + TypeIdentifiabl
 /// `RRef::cleanup` will drop the first element and deallocate the arry.
 /// So our job here is to drop every element, besides the first element,
 /// in the array.
-// However, this is currently casuing PageFault so it's disabled for now.
-// This shouldn't be too big of an issue because dropping `Copy`able types
-// should be noop. 
-// TODO(tianjiao): fix this
 impl<T> CustomCleanup for RRefVec<T> where T: 'static + RRefable + Copy + TypeIdentifiable  {
     fn cleanup(&mut self) {
+        // This assert statement is currently casuing PageFault.
+        // TODO(tianjiao): investigage this
         // assert!(self.size > 0);
-        // for e in self.as_mut_slice().iter_mut().skip(1) {
-        //     drop(e);
-        // }
+        for e in self.as_mut_slice().iter_mut().skip(1) {
+            drop(e);
+        }
     }
 }
 
