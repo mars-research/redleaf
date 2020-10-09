@@ -146,6 +146,8 @@ pub enum ErrorKind {
     RpcError,
     /// Utf8 conversion error
     Utf8Error,
+    /// One or more parameter is invalid
+    InvalidParameter,
 }
 
 // impl ErrorKind {
