@@ -129,6 +129,7 @@ dependencies = [
 name = "bin"
 version = "0.1.0"
 dependencies = [
+ "arrayvec",
  "lib",
  "libbenchnet",
  "libbenchnvme",
@@ -1060,6 +1061,7 @@ name = "xv6net"
 version = "0.1.0"
 dependencies = [
  "array-init",
+ "arrayvec",
  "byteorder",
  "console",
  "lazy_static",
@@ -1069,6 +1071,7 @@ dependencies = [
  "malloc",
  "num-traits",
  "rref",
+ "smoltcp",
  "spin 0.5.3",
  "sync",
  "syscalls",
