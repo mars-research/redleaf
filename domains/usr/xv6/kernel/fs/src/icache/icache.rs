@@ -217,8 +217,9 @@ impl ICache {
 
         dirguard.dirlink(trans, name, inode.meta.inum)?;
         drop(&mut dirguard);
+        drop(iguard);
 
-        Ok(inode.clone())
+        Ok(inode)
     }
 }
 
