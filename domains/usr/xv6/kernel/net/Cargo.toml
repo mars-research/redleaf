@@ -32,3 +32,11 @@ rref = { path = "../../../../../lib/core/rref" }
 version = "1.3.0"
 features = ["spin_no_std"]
 
+[dependencies.smoltcp]
+path = "../../../../../lib/external/smoltcp"
+default-features = false
+features = ["alloc", "proto-ipv4", "socket-tcp", "socket-icmp", "ethernet"]
+
+[dependencies.arrayvec]
+version = "0.5.1"
+default-features = false

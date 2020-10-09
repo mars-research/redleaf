@@ -183,11 +183,14 @@ impl UsrNet for Rv6Syscalls {
     fn listen(&self, port: u16) -> RpcResult<Result<usize>> {
         self.usrnet.listen(port)
     }
-    fn accept(&self, server: usize) -> RpcResult<Result<usize>> {
-        self.usrnet.accept(server)
+    fn is_active(&self, server: usize) -> RpcResult<Result<bool>> {
+        self.usrnet.is_active(server)
+    }
+    fn close(&self, server: usize) -> RpcResult<Result<()>> {
+        self.usrnet.close(server)
     }
     fn read_socket(&self, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
-        self.read_socket(socket, buffer)
+        self.usrnet.read_socket(socket, buffer)
     }
     fn write_socket(&self, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         self.usrnet.write_socket(socket, buffer)
