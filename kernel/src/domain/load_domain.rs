@@ -14,7 +14,28 @@ pub unsafe fn load_domain(name: &str, binary_range: (*const u8, *const u8)) -> (
         name, binary_start as usize, binary_end as usize);
 
     // Create a new elf binary from the address range we just extracted
+    let mut binary_vec: alloc::vec::Vec<u8>;
+
+    #[cfg(not(debug_assertions))]
     let binary = core::slice::from_raw_parts(binary_start, num_bytes);
+    // Align the binary at page boundary when building in debug mode
+    #[cfg(debug_assertions)]
+    let binary = {
+        binary_vec = unsafe {
+            use core::alloc::Layout;
+            use alloc::vec::Vec;
+    
+            let layout = Layout::from_size_align(num_bytes, 4096)
+                .map_err(|e| panic!("Layout error: {}", e)).unwrap();
+    
+            let elf_buf = unsafe {alloc::alloc::alloc(layout) as *mut u8 };
+            let mut v: Vec<u8> = unsafe { Vec::from_raw_parts(elf_buf, num_bytes, num_bytes) };
+            core::ptr::copy(binary_start, v.as_mut_ptr(), num_bytes);
+            v
+        };
+        binary_vec.as_slice()
+    };
+
     let domain_elf = ElfBinary::new(name, binary).expect("Invalid ELF file");
 
     // Verify signature in binary
