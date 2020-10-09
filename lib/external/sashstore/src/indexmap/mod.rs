@@ -724,9 +724,11 @@ where
         // /* PERF */ let insert_start = unsafe { core::arch::x86_64::_rdtsc() };
 
         // /* PERF */ let hash_start = unsafe { core::arch::x86_64::_rdtsc() };
-         //let hash = make_hash(&self.params.hasher_builder, &key) as usize;
-        let hash = fnv(&key) as usize;
-        //let hash = naive_hash(&key) as usize;
+        // let hash = make_hash(&self.params.hasher_builder, &key) as usize;
+        let hash = fnv_2(&key, crate::KEY_SIZE as isize) as usize;
+        let num_bytes = core::mem::size_of::<K>() as isize;
+        //println!(" {:x?} num_bytes {} set_hash = {:x}",
+        //         unsafe { &key as *const _ as *const u8 }, num_bytes, hash);
         // /* PERF */ let hash_end = unsafe { core::arch::x86_64::_rdtsc() };
         // /* PERF */ record_hist!(TSC_HASH_HISTOGRAM, TSC_HASH_TOTAL, hash_end - hash_start);
         /*unsafe {
@@ -763,7 +765,15 @@ where
 
             for i in 0..self.capacity {
                 // let probe = (hash + i + i * i) % self.capacity;
-                let probe = (hash + i + i * i) & (self.capacity - 1);
+                let probe = (hash + i) & (self.capacity - 1);
+
+                /*unsafe {
+                    if (i + 10) < self.capacity {
+                        let np = (hash + i + 10) & (self.capacity - 1);
+                        core::intrinsics::prefetch_read_data(&self.table[np], 3);
+                        //core::intrinsics::prefetch_read_data((&self.table[np] as *const _ as *const u8).offset(64), 3);
+                    }
+                }*/
 
                 match &self.table[probe] {
                     Some(pair) if pair.borrow().0 == key => {
@@ -865,48 +875,57 @@ where
 
         /* PERF */ //let hash_start = unsafe { core::arch::x86_64::_rdtsc() };
         //let hash = make_hash(self.hasher(), &key) as usize;
-        let k = unsafe { *(key as *const _ as *const usize) };
-        let hash = fnv(&k) as usize;
-        //let hash = naive_hash(&key) as usize;
         /* PERF */ //let hash_end = unsafe { core::arch::x86_64::_rdtsc() };
         /* PERF */ //record_hist!(TSC_HASH_HISTOGRAM, TSC_HASH_TOTAL, hash_end - hash_start);
 
+        use crate::KEY_SIZE; 
+        let hash = fnv_2(key, KEY_SIZE as isize) as usize;
+        //let num_bytes = core::mem::size_of::<K>() as isize;
+        //println!(" {:x?} num_bytes {} get_hash = {:x}",
+        //            unsafe { &key as *const _ as *const u8 }, num_bytes, hash);
         /* PERF */ //let find_start = unsafe { core::arch::x86_64::_rdtsc() };
 
-        let r = self.find(hash, |p| key.borrow().eq(p.0.borrow()))
-                .0
-                .map(|pair| Ref::map(pair.borrow(), |p| &p.1));
-
-        /*#[cfg(not(feature="c-style-insert"))]
+        #[cfg(not(feature="c-style-insert"))]
         {
+            this_wont_compile();
+        
             return self.find(hash, |p| key.borrow().eq(p.0.borrow()))
                 .0
                 .map(|pair| Ref::map(pair.borrow(), |p| &p.1));
         }
 
+        /* let r = self.find(hash, |p| key.borrow().eq(p.0.borrow()))
+            .0
+            .map(|pair| Ref::map(pair.borrow(), |p| &p.1));
+        */
+        /* PERF */ //let find_end = unsafe { core::arch::x86_64::_rdtsc() };
+        /* PERF */ //record_hist!(TSC_FIND_HISTOGRAM, TSC_FIND_TOTAL, find_end - find_start);
+
+        /* PERF */ //let get_end = unsafe { core::arch::x86_64::_rdtsc() };
+        /* PERF */ //record_hist!(TSC_GET_HISTOGRAM, TSC_GET_TOTAL, get_end - get_start);
+
         #[cfg(feature="c-style-insert")]
         { 
             for i in 0..self.capacity {
-                // let probe = (hash + i + i * i) % self.capacity;
-                let probe = (hash + i + i * i) & (self.capacity - 1);
+                let probe = (hash + i) & (self.capacity - 1);
 
-                match &self.table[probe] {
-                    Some(pair) if pair.borrow().0.borrow() == key.borrow() => {
+                /*unsafe {
+                    if (i + 3) < self.capacity {
+                        let np = (hash + i + 3) & (self.capacity - 1);
+                        //core::intrinsics::prefetch_read_data(&self.table[np], 3);
+                        core::intrinsics::prefetch_read_data((&self.table[np] as *const _ as *const u8).offset(64), 3);
+                    }
+                }*/
+                if let Some(pair) = &self.table[probe] {
+                    if pair.borrow().0.borrow() == key.borrow() {
                         return Some(Ref::map(pair.borrow(), |p| &p.1));
-                    },
-                    None => {
-                        return None;
-                    },
-                    Some(_) => {
-                        /*unsafe {
-                            COLLISIONS += 1;
-                        }*/
-                        continue;
-                    },
+                    }
+                } else {
+                    return None;
                 }
             }
             None
-        }*/
+        }
         /* PERF */ //let find_end = unsafe { core::arch::x86_64::_rdtsc() };
         /* PERF */ //record_hist!(TSC_FIND_HISTOGRAM, TSC_FIND_TOTAL, find_end - find_start);
 
@@ -915,7 +934,7 @@ where
 
         // /* PERF */ eprintln!("0,{},{},{},{}", self.len, self.capacity, self.load(), get_end - get_start);
 
-        r
+        //r
     }
 
     /// Returns a mutable reference to the value associated with the specified key

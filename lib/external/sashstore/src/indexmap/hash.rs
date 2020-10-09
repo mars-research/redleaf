@@ -6,13 +6,21 @@
 
 use core::hash::{BuildHasher, Hash, Hasher};
 
-pub fn naive_hash<K: Sized>(value: &K) -> u64 {
-    //let num_bytes = core::mem::size_of::<K>() as isize;
+#[inline]
+pub fn fnv_2<K: ?Sized>(value: &K, num_bytes: isize) -> u64 {
+    let address = value as *const _ as *const u8;
 
-    //assert!(num_bytes == 8);
+    let mut state: u64 = 0xcbf29ce484222325;
 
-    let x = unsafe { *(value as *const _ as *const u64) };
-	(x * 1469_5981_0393_4665_6037u64) >> (64 - 24)
+    for i in 0..num_bytes {
+        let byte: u8 = unsafe { *(address.offset(i)) };
+        state = state.wrapping_mul(0x100_0000_01b3);
+        state ^= byte as u64;
+        //print!("{} ", byte);
+    }
+    //print!("-> {} ", state);
+
+    state
 }
 
 #[inline]
@@ -37,7 +45,7 @@ pub fn fnv<K: Sized>(value: &K) -> u64 {
             state ^= byte as u64;
             // print!("{} ", byte);
         }
-        // println!("-> {}", state);
+        // print!("-> {} ", state);
 
         state
     // }

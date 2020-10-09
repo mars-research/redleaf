@@ -16,6 +16,7 @@ use core::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 use alloc::string::String;
+use core::mem;
 
 use arrayvec::ArrayVec;
 
@@ -27,6 +28,8 @@ pub mod cindexmap;
 
 mod memb;
 
+use memb::serialize::{RequestHeader, SetRequest, GetRequest};
+
 use memb::{serialize::buf_encode, serialize::Decoder, ClientValue, ServerValue};
 use fnv::FnvHasher;
 
@@ -36,8 +39,11 @@ use b2histogram::Base2Histogram;
 
 type FnvHashFactory = BuildHasherDefault<FnvHasher>;
 
-pub type KVKey = ArrayVec<[u8; 8]>;
-pub type KVal =  ArrayVec<[u8; 8]>;
+pub use memb::serialize::KEY_SIZE;
+pub use memb::serialize::VALUE_SIZE;
+
+pub type KVKey = ArrayVec<[u8; KEY_SIZE]>;
+pub type KVal =  ArrayVec<[u8; VALUE_SIZE]>;
 pub type KVVal = (u32, KVal);
 
 static mut FAKE_VAL: Option<RefCell<KVVal>> = None;
@@ -95,6 +101,13 @@ impl SashStore {
             FAKE_VAL = Some(RefCell::new((805306368, vec)));
         }
         
+        println!("sizeof RequestHeader {}, SetRequest {}, GetRequest {}",
+                        mem::size_of::<RequestHeader>(),
+                        mem::size_of::<SetRequest>(),
+                        mem::size_of::<GetRequest>());
+
+        println!("Sizeof each element in HT {}", mem::size_of::<Option<RefCell<(KVKey, KVVal)>>>());
+
         SashStore {
             map: indexmap::Index::with_capacity_and_parameters(
                 capacity,
@@ -119,10 +132,11 @@ impl SashStore {
         //println!("<= req_buf {:x?} {}", buf.as_ptr(), buf.len());
         let mut decoder = Decoder::new(buf);
 
-        let start = unsafe { core::arch::x86_64::_rdtsc() };
-        let r = decoder.decode();
-        let elapsed = unsafe { core::arch::x86_64::_rdtsc() } - start;
-        record_hist!(TSC_PARSE_HISTOGRAM, TSC_PARSE_TOTAL, elapsed);
+        //let start = unsafe { core::arch::x86_64::_rdtsc() };
+        //let r = decoder.decode();
+        let r = decoder.decode_as_struct();
+        //let elapsed = unsafe { core::arch::x86_64::_rdtsc() } - start;
+        //record_hist!(TSC_PARSE_HISTOGRAM, TSC_PARSE_TOTAL, elapsed);
 
         let response = match r {
             Ok(value) => {
@@ -158,6 +172,11 @@ impl SashStore {
                     return ServerValue::NoReply;
                 }
 
+                /*unsafe {
+                        print!("get for {:?} ", String::from_utf8(core::slice::from_raw_parts(key.as_ptr(), KEY_SIZE).to_vec())
+                                                    .unwrap());
+                }*/
+
                 let r = self.map.get(key);
                 let mut ret;
                 match r {
@@ -179,7 +198,7 @@ impl SashStore {
                     },
                 }
 
-                let end = unsafe { core::arch::x86_64::_rdtsc() };
+                //let end = unsafe { core::arch::x86_64::_rdtsc() };
 
                 ret
             }
@@ -190,23 +209,29 @@ impl SashStore {
                 */
 
                 // println!("Set for {}", core::str::from_utf8(key).unwrap());
-                let start = unsafe { core::arch::x86_64::_rdtsc() };
+                //let start = unsafe { core::arch::x86_64::_rdtsc() };
 
                 let r = if key.len() <= 250 {
+                    use core::slice;
                     let mut key_vec: KVKey = ArrayVec::new();
                     let mut value_vec: KVal = ArrayVec::new();
 
                     key_vec.try_extend_from_slice(&key).expect("rua");
                     value_vec.try_extend_from_slice(&value).expect("rua");
 
+                    /*unsafe {
+                        print!("set for {:?} {:?}", String::from_utf8(slice::from_raw_parts(key.as_ptr(), KEY_SIZE).to_vec())
+                                                    .unwrap(),
+                                                    String::from_utf8(slice::from_raw_parts(value.as_ptr(), VALUE_SIZE).to_vec())
+                                                    .unwrap());
+                    }*/
                     self.map.insert(key_vec, (flags, value_vec));
-                    //println!("set for {:?} {:?}", key, value);
                     ServerValue::Stored(req_id)
                 } else {
                     ServerValue::NotStored(req_id)
                 };
 
-                let end = unsafe { core::arch::x86_64::_rdtsc() };
+                //let end = unsafe { core::arch::x86_64::_rdtsc() };
                 // println!("set took {:?}", end - start);
 
                 r

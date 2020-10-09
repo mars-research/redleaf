@@ -28,6 +28,7 @@ pub enum ClientValue<'req> {
 }
 
 /// Data format description for a packet to be sent out
+#[derive(Debug)]
 pub enum ServerValue<'kv> {
     // (seq, key, val_ref)
     Value(u32, KVKey, Ref<'kv, KVVal>),
