@@ -88,6 +88,42 @@ pub fn sys_fstat(fd: usize) -> Result<FileStat> {
     })
 }
 
+// TODO(tianjiao): this can be cleaned up a bit
+pub fn sys_link(old_path: &str, new_path: &str) -> Result<()> {
+    console::println!("sys_link {} {}", old_path, new_path);
+    let mut trans = LOG.r#try().unwrap().begin_transaction();
+    let inode = ICache::namei(&mut trans, path)?;
+    let iguard = inode.lock();
+    if (iguard.data.file_type == INodeFileType::Directory) {
+        drop(iguard);
+        ICache::put(&mut trans, inode);
+    }
+    iguard.data.nlink += 1;
+    iguard.update(trans);
+    drop(iguard);
+    
+
+    let (parent_inode, name) = ICache::nameiparent(&mut trans, new_path)?;
+    let parent_iguard = parent_inode.lock();
+
+    let result = parent_iguard.dirlink(trans, name, iguard.data.inum);
+    if (result.is_err()) {
+        drop(parent_iguard);
+        ICache::put(&mut trans, parent_inode);
+        let iguard = inode.lock();
+        iguard.data.nlink -= 1;
+        iguard.update(trans);
+        drop(iguard);
+        ICache::put(&mut trans, inode);
+        return result;
+    }
+    
+    drop(parent_iguard);
+    ICache::put(&mut trans, parent_inode);
+    ICache::put(&mut trans, inode);
+    Ok(())
+}
+
 pub fn sys_mknod(path: &str, major: i16, minor: i16) -> Result<()> {
     console::println!("sys_mknod {} {}", major, minor);
     let mut trans = LOG.r#try().unwrap().begin_transaction();
