@@ -228,8 +228,9 @@ impl create::CreateXv6FS for Proxy {
 
 impl create::CreateXv6Net for Proxy {
     fn create_domain_xv6net(&self, net: Box<dyn Net>) -> (Box<dyn Domain>, Box<dyn UsrNet>) {
-        // TODO: write Xv6NetProxy
-        self.create_xv6net.create_domain_xv6net(net)
+        let (domain, xv6net) = self.create_xv6net.create_domain_xv6net(net);
+        let domain_id = domain.get_domain_id();
+        (domain, Box::new(UsrNetProxy::new(domain_id, xv6net)))
     }
 }
 
@@ -1058,9 +1059,7 @@ impl UsrVFS for Rv6Proxy {
 
 impl UsrNet for Rv6Proxy {
     fn clone_usrnet(&self) -> RpcResult<Box<dyn UsrNet>> {
-        // TODO: impl usr net proxy
-        // Ok(box Self::new(self.domain_id, self.domain.clone()?))
-        unimplemented!()
+        Ok(box UsrNetProxy::new(self.domain_id, self.domain.clone_usrnet()?))
     }
     fn listen(&self, port: u16) -> RpcResult<Result<usize>> {
         self.domain.listen(port)
@@ -1114,12 +1113,10 @@ impl Xv6 for Rv6Proxy {
         Ok(box NvmeProxy::new(self.domain_id, self.domain.as_nvme()?))
     }
     fn as_usrnet(&self) -> RpcResult<Box<dyn usr::usrnet::UsrNet>> {
-        unimplemented!()
-        // Ok(box UsrNetProxy::new(self.domain_id, self.domain.as_usrnet()?))
+        Ok(box UsrNetProxy::new(self.domain_id, self.domain.as_usrnet()?))
     }
     fn get_usrnet(&self) -> RpcResult<Box<dyn usr::usrnet::UsrNet>> {
-        unimplemented!()
-        // Ok(box UsrNetProxy::new(self.domain_id, self.domain.get_usrnet()?))
+        Ok(box UsrNetProxy::new(self.domain_id, self.domain.get_usrnet()?))
     }
     fn sys_spawn_thread(&self, name: RRefVec<u8>, func: alloc::boxed::Box<dyn FnOnce() + Send>) -> RpcResult<Result<Box<dyn Thread>>> {
         // move thread to next domain
@@ -1225,3 +1222,68 @@ impl NvmeBDev for NvmeProxy {
         r
     }
 }
+
+// Rv6 proxy
+struct UsrNetProxy {
+    domain: Box<dyn UsrNet>,
+    domain_id: u64,
+}
+
+unsafe impl Sync for UsrNetProxy {}
+unsafe impl Send for UsrNetProxy {}
+
+impl UsrNetProxy {
+    fn new(domain_id: u64, domain: Box<dyn UsrNet>) -> Self {
+        Self {
+            domain,
+            domain_id,
+        }
+    }
+}
+
+impl UsrNet for UsrNetProxy {
+    fn clone_usrnet(&self) -> RpcResult<Box<dyn UsrNet>> {
+        Ok(box Self::new(self.domain_id, self.domain.clone_usrnet()?))
+    }
+
+    fn listen(&self, port: u16) -> RpcResult<Result<usize>> {
+        self.domain.listen(port)
+    }
+
+    fn accept(&self, server: usize) -> RpcResult<Result<usize>> {
+        self.domain.accept(server)
+    }
+
+    fn read_socket(&self, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+        // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        buffer.move_to(self.domain_id);
+        let r = self.domain.read_socket(socket, buffer);
+        if let Ok(Ok(r)) = r.as_ref() {
+            r.1.move_to(caller_domain);
+        }
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
+    }
+
+    fn write_socket(&self, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+        // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        buffer.move_to(self.domain_id);
+        let r = self.domain.write_socket(socket, buffer);
+        if let Ok(Ok(r)) = r.as_ref() {
+            r.1.move_to(caller_domain);
+        }
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
+    }
+}
+
