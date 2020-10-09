@@ -49,11 +49,11 @@ use smoltcp::socket::{
 use arrayvec::ArrayVec;
 
 // c'mon...
-struct Rv6Net<'owned> {
-    state: Arc<Mutex<Rv6NetInner<'owned>>>,
+struct Rv6Net {
+    state: Arc<Mutex<Rv6NetInner>>,
 }
 
-impl<'a> Rv6Net<'a> {
+impl Rv6Net {
     fn new(net: Box<dyn Net>) -> Self {
         Self {
             state: Arc::new(Mutex::new(Rv6NetInner::new(net))),
@@ -61,11 +61,11 @@ impl<'a> Rv6Net<'a> {
     }
 }
 
-struct Rv6NetInner<'owned> {
+struct Rv6NetInner {
     // 'b neighbor_cache
     // 'c ip_addrs
     // 'e routes
-    iface: EthernetInterface<'owned, 'owned, 'owned, SmolPhy>,
+    iface: EthernetInterface<'static, 'static, 'static, SmolPhy>,
 
     ip_addresses: [IpCidr; 3],
     num_ip_addresses: usize,
@@ -76,11 +76,11 @@ struct Rv6NetInner<'owned> {
 
     last_polled: u64,
 
-    socketset: SocketSet<'owned, 'owned, 'owned>,
+    socketset: SocketSet<'static, 'static, 'static>,
     handles: ArrayVec<[SocketHandle; 512]>,
 }
 
-impl<'owned> Rv6NetInner<'owned> {
+impl Rv6NetInner {
     fn new(net: Box<dyn Net>) -> Self {
         // FIXME: Provide ways to setup IP and MAC
         let smol = SmolPhy::new(net);
@@ -130,7 +130,7 @@ impl<'owned> Rv6NetInner<'owned> {
             TcpSocketBuffer::new(vec![0; 1024]),
             TcpSocketBuffer::new(vec![0; 1024]),
         );
-        let socket: Socket<'owned, 'owned> = socket.into();
+        let socket: Socket = socket.into();
         let handle = self.socketset.add(socket);
         self.handles.push(handle);
 
@@ -152,7 +152,7 @@ impl<'owned> Rv6NetInner<'owned> {
     }
 }
 
-impl<'owned> UsrNet for Rv6Net<'owned> {
+impl UsrNet for Rv6Net {
     fn clone_usrnet(&self) -> RpcResult<Box<dyn UsrNet>> {
         /*
         let steal = &self.state as *const Arc<Mutex<Rv6NetInner>>;
