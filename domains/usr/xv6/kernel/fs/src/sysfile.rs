@@ -6,7 +6,7 @@
 use alloc::sync::Arc;
 use core::sync::atomic::AtomicUsize;
 
-pub use usr_interface::vfs::{ErrorKind, FileMode, FileStat, Result, NFILE};
+pub use usr_interface::vfs::{ErrorKind, FileMode, FileStat, Result, NFILE, DirectoryEntry};
 
 use crate::cross_thread_temp_store::CrossThreadTempStorage;
 use crate::icache::{ICache, ICACHE, INode, INodeFileType};
@@ -122,6 +122,57 @@ pub fn sys_link(old_path: &str, new_path: &str) -> Result<()> {
     drop(parent_iguard);
     ICache::put(&mut trans, parent_inode);
     ICache::put(&mut trans, inode);
+    Ok(())
+}
+
+pub fn sys_unlink(path: &str) -> Result<()> {
+    console::println!("sys_unlink {}", path);
+    let mut trans = LOG.r#try().unwrap().begin_transaction();
+    let (parent_inode, name) = ICache::nameiparent(&mut trans, path)?;
+    let mut parent_iguard = parent_inode.lock();
+    if (name == "." || name == "..") {
+        drop(parent_iguard);
+        ICache::put(&mut trans, parent_inode);
+        return Err(ErrorKind::InvalidParameter);
+    }
+
+    let inode = parent_iguard.dirlookup(&mut trans, name);
+    if (inode.is_err()) {
+        drop(parent_iguard);
+        ICache::put(&mut trans, parent_inode);
+        return Err(inode.err().unwrap());
+    }
+
+    let (offset, inode) = inode.unwrap();
+    let mut iguard = inode.lock();
+    if (iguard.data.nlink < 1) {
+        panic!("unlink: nlink < 1");
+    }
+
+    // If path is a dir, it must be empty;
+    if (iguard.data.file_type == INodeFileType::Directory && !iguard.is_dirempty(&mut trans)?) {
+        drop(iguard);
+        ICache::put(&mut trans, inode);
+        drop(parent_iguard);
+        ICache::put(&mut trans, parent_inode);
+        return Err(ErrorKind::InvalidParameter);
+    }
+
+    // Write an emptry entry
+    let buffer = [0u8; core::mem::size_of::<DirectoryEntry>()];
+    parent_iguard.write(&mut trans, &buffer, offset).unwrap();
+    
+    if (iguard.data.file_type == INodeFileType::Directory) {
+        parent_iguard.data.nlink -= 1;
+        parent_iguard.update(&mut trans);
+    }
+    drop(parent_iguard);
+
+    iguard.data.nlink -= 1;
+    iguard.update(&mut trans);
+    drop(iguard);
+    ICache::put(&mut trans, inode);
+
     Ok(())
 }
 

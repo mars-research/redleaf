@@ -147,7 +147,7 @@ impl ICache {
             Self::put(trans, inode);
 
             match next {
-                Ok(next) => inode = next,
+                Ok((_, next)) => inode = next,
                 Err(e) => return Err(e),
             }
         }
@@ -183,7 +183,7 @@ impl ICache {
         // found parent directory
         let mut dirguard = dirnode.lock();
 
-        if let Ok(inode) = dirguard.dirlookup(trans, name) {
+        if let Ok((_, inode)) = dirguard.dirlookup(trans, name) {
             // full path already exists
             drop(&mut dirguard);
 
