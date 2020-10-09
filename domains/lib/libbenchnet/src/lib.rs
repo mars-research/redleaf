@@ -5,6 +5,7 @@
 
 extern crate alloc;
 extern crate core;
+extern crate sashstore_redleaf;
 
 mod maglev;
 pub mod packettool;
@@ -23,6 +24,7 @@ use packettool::{ETH_HEADER_LEN, IPV4_PROTO_OFFSET};
 use rref::{RRef, RRefDeque};
 use usr::net::{Net, NetworkStats};
 use usr::error::Result;
+use sashstore_redleaf::SashStore;
 
 macro_rules! print_hist {
     ($hist: ident) => {
@@ -612,129 +614,191 @@ pub fn dump_packet_rref(pkt: &[u8; 1514], len: usize) {
     print!("\n");
 }
 
-// pub fn run_sashstoretest(net: &dyn Net, pkt_size: u16) {
-//     let batch_sz = BATCH_SIZE;
-//     let mut rx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
-//     let mut tx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
-//     let mut submit_rx_hist = Base2Histogram::new();
-//     let mut submit_tx_hist = Base2Histogram::new();
+static mut SASHSTORE: Option<SashStore> = None;
 
-//     for i in 0..batch_sz {
-//         rx_packets.push_front(Vec::with_capacity(2048));
-//     }
+pub fn run_sashstoretest(net: &dyn Net, pkt_size: u16) -> Result<()> {
+    let batch_sz = BATCH_SIZE;
+    let mut rx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
+    let mut tx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
+    let mut submit_rx_hist = Base2Histogram::new();
+    let mut submit_tx_hist = Base2Histogram::new();
 
-//     let mut sum: usize = 0;
-//     let mut fwd_sum: usize = 0;
+    unsafe {
+        // SASHSTORE = Some(SashStore::with_capacity((1 << 20)));
+        SASHSTORE = Some(SashStore::with_capacity(1 << 21));
+    }
 
-//     let start = rdtsc();
-//     let end = start + 1200 * CPU_MHZ;
 
-//     let mut tx_elapsed = 0;
-//     let mut rx_elapsed = 0;
+    for i in 0..batch_sz {
+        rx_packets.push_front(Vec::with_capacity(2048));
+    }
 
-//     let mut submit_rx: usize = 0;
-//     let mut submit_tx: usize = 0;
-//     let mut loop_count: usize = 0;
+    let mut sum: usize = 0;
+    let mut fwd_sum: usize = 0;
 
-//     loop {
-//         loop_count = loop_count.wrapping_add(1);
+    println!("======== Starting sashstore test ==========");
+    let stats_start = net.get_stats().unwrap()?;
 
-//         submit_rx += rx_packets.len();
-//         submit_rx_hist.record(rx_packets.len() as u64);
-//         //println!("call rx_submit_poll packet {}", packets.len());
-//         let rx_start = rdtsc();
-//         let ret = net.submit_and_poll(&mut rx_packets, &mut tx_packets, false);
-//         rx_elapsed += rdtsc() - rx_start;
-//         sum += ret;
+    let start = rdtsc();
+    let end = start + 60 * CPU_MHZ;
 
-//         for mut pkt in tx_packets.iter_mut() {
-//             if let Some((padding, payload)) = packettool::get_mut_udp_payload(pkt) {
-//                 if let Some(mut sashstore) = unsafe { SASHSTORE.as_mut() } {
-//                     let payloadptr = payload as *mut _ as *mut u8;
-//                     let mut payloadvec = unsafe {
-//                         Vec::from_raw_parts(
-//                             payloadptr,
-//                             payload.len(),
-//                             2048 - padding, // FIXME: Awful
-//                         )
-//                     };
+    let mut alloc_count = 0;
+    let mut alloc_elapsed = 0;
 
-//                     // println!("Before handle: payloadvec.capacity() = {}, len() = {}", payloadvec.capacity(), payloadvec.len());
-//                     let responsevec = unsafe { sashstore.handle_network_request(payloadvec) };
+    let mut tx_elapsed = 0;
+    let mut rx_elapsed = 0;
+    let mut lookup_elapsed = 0;
 
-//                     // assert!(responsevec.as_ptr() == payloadptr);
-//                     // println!("Handled: {:x?} -> {:x?}", responsevec.as_ptr(), payloadptr);
-//                     // println!("After handle: responsevec.capacity() = {}, len() = {}", responsevec.capacity(), responsevec.len());
-//                     if responsevec.as_ptr() != payloadptr {
-//                         unsafe {
-//                             ptr::copy(responsevec.as_ptr(), payloadptr, responsevec.len());
-//                         }
-//                     }
+    let mut submit_rx: usize = 0;
+    let mut submit_tx: usize = 0;
+    let mut loop_count: usize = 0;
 
-//                     // println!("Before set_len: {}", pkt.len());
-//                     unsafe {
-//                         pkt.set_len(padding + responsevec.len());
-//                     }
-//                     // println!("After set_len: padding={}, resposevec.len() = {}, set to {}", padding, responsevec.len(), pkt.len());
+    loop {
+        loop_count = loop_count.wrapping_add(1);
 
-//                     packettool::swap_udp_ips(pkt);
-//                     packettool::swap_mac(pkt);
-//                     packettool::fix_ip_length(pkt);
-//                     packettool::fix_ip_checksum(pkt);
-//                     packettool::fix_udp_length(pkt);
-//                     packettool::fix_udp_checksum(pkt);
+        submit_rx += rx_packets.len();
+        submit_rx_hist.record(rx_packets.len() as u64);
+        //println!("call rx_submit_poll packet {}", packets.len());
+        let rx_start = rdtsc();
+        let ret = net.submit_and_poll(&mut rx_packets, &mut tx_packets, false).unwrap()?;
+        rx_elapsed += rdtsc() - rx_start;
+        sum += ret;
 
-//                     // println!("To send: {:x?}", pkt);
-//                 } else {
-//                     println!("No sashstore???");
-//                 }
-//             } else {
-//                 // println!("Not a UDP packet: {:x?}", &pkt);
-//             }
-//         }
+        let lookup_start = rdtsc();
 
-//         submit_tx += tx_packets.len();
-//         submit_tx_hist.record(tx_packets.len() as u64);
-//         let tx_start = rdtsc();
-//         let ret = net.submit_and_poll(&mut tx_packets, &mut rx_packets, true);
-//         tx_elapsed += rdtsc() - tx_start;
-//         fwd_sum += ret;
+        for i in 0..tx_packets.len() {
+            // Prefetch ahead
+            {
+                if i < (tx_packets.len() - 1) {
+                    let pkt_next = &tx_packets[i + 1];
+                    unsafe {
+                        core::intrinsics::prefetch_write_data(pkt_next.as_ptr(), 3);
+                        core::intrinsics::prefetch_write_data(pkt_next.as_ptr().offset(64), 3);
+                        core::intrinsics::prefetch_write_data(pkt_next.as_ptr().offset(128), 3);
+                    }
+                }
+            }
 
-//         //print!("tx: submitted {} collect {}\n", ret, rx_packets.len());
+            let mut pkt = &mut tx_packets[i];
 
-//         if rx_packets.len() == 0 && tx_packets.len() < batch_sz * 4 {
-//             //println!("-> Allocating new rx_ptx batch");
-//             for i in 0..batch_sz {
-//                 rx_packets.push_front(Vec::with_capacity(2048));
-//             }
-//         }
+            if let Some((padding, payload)) = packettool::get_mut_udp_payload(pkt) {
+                if let Some(mut sashstore) = unsafe { SASHSTORE.as_mut() } {
+                    let payloadptr = payload as *mut _ as *mut u8;
+                    let mut payloadvec = unsafe {
+                        Vec::from_raw_parts(
+                            payloadptr,
+                            payload.len(),
+                            2048 - padding, // FIXME: Awful
+                        )
+                    };
 
-//         if rdtsc() > end {
-//             break;
-//         }
-//     }
+                    // println!("Before handle: payloadvec.capacity() = {}, len() = {}", payloadvec.capacity(), payloadvec.len());
+                    let responsevec = unsafe { sashstore.handle_network_request(payloadvec) };
 
-//     let elapsed = rdtsc() - start;
-//     for hist in alloc::vec![submit_rx_hist, submit_tx_hist] {
-//         println!("hist:");
-//         // Iterate buckets that have observations
-//         for bucket in hist.iter().filter(|b| b.count > 0) {
-//             print!("({:5}, {:5}): {}", bucket.start, bucket.end, bucket.count);
-//             print!("\n");
-//         }
-//     }
+                    // assert!(responsevec.as_ptr() == payloadptr);
+                    // println!("Handled: {:x?} -> {:x?}", responsevec.as_ptr(), payloadptr);
+                    // println!("After handle: responsevec.capacity() = {}, len() = {}", responsevec.capacity(), responsevec.len());
+                    if responsevec.as_ptr() != payloadptr {
+                        unsafe {
+                            ptr::copy(responsevec.as_ptr(), payloadptr, responsevec.len());
+                        }
+                        println!("copied");
+                    }
 
-//     println!("Received {} forwarded {}", sum, fwd_sum);
-//     println!(" ==> submit_rx {} (avg {}) submit_tx {} (avg {}) loop_count {}",
-//                         submit_rx, submit_rx / loop_count, submit_tx, submit_tx / loop_count, loop_count);
-//     println!(" ==> rx batching {}B: {} packets took {} cycles (avg = {})",
-//                         pkt_size, sum, rx_elapsed, rx_elapsed  / core::cmp::max(sum as u64, 1));
-//     println!(" ==> tx batching {}B: {} packets took {} cycles (avg = {})",
-//                         pkt_size, fwd_sum, tx_elapsed, tx_elapsed   / core::cmp::max(fwd_sum as u64, 1));
-//     println!("==> fwd batch {}B: {} iterations took {} cycles (avg = {})", pkt_size, fwd_sum, elapsed, elapsed  / core::cmp::max(fwd_sum as u64, 1));
-//     // dev.dump_stats();
-//     //dev.dump_tx_descs();
-// }
+                    // println!("Before set_len: {}", pkt.len());
+                    unsafe {
+                        pkt.set_len(padding + responsevec.len());
+                    }
+                    // println!("After set_len: padding={}, resposevec.len() = {}, set to {}", padding, responsevec.len(), pkt.len());
+
+                    //packettool::swap_udp_ips(pkt);
+                    //packettool::swap_mac(pkt);
+                    //packettool::fix_ip_length(pkt);
+                    //packettool::fix_ip_checksum(pkt);
+                    //packettool::fix_udp_length(pkt);
+                    //packettool::fix_udp_checksum(pkt);
+
+                    // println!("To send: {:x?}", pkt);
+                } else {
+                    println!("No sashstore???");
+                }
+            } else {
+                // println!("Not a UDP packet: {:x?}", &pkt);
+            }
+        }
+
+        lookup_elapsed += rdtsc() - lookup_start;
+
+        submit_tx += tx_packets.len();
+        submit_tx_hist.record(tx_packets.len() as u64);
+        let tx_start = rdtsc();
+        let ret = net.submit_and_poll(&mut tx_packets, &mut rx_packets, true).unwrap()?;
+        tx_elapsed += rdtsc() - tx_start;
+        fwd_sum += ret;
+
+        //print!("tx: submitted {} collect {}\n", ret, rx_packets.len());
+
+        if rx_packets.len() == 0 && tx_packets.len() < batch_sz * 4 {
+            //println!("-> Allocating new rx_ptx batch");
+            let alloc_rdstc_start = rdtsc();
+            for i in 0..batch_sz {
+                rx_packets.push_front(Vec::with_capacity(2048));
+            }
+            alloc_elapsed += rdtsc() - alloc_rdstc_start;
+        }
+
+        if rdtsc() > end {
+            break;
+        }
+    }
+
+    let elapsed = rdtsc() - start;
+
+    let mut stats_end = net.get_stats().unwrap()?;
+
+    stats_end.stats_diff(stats_start);
+
+    let adj_runtime = elapsed as f64 / CPU_MHZ as f64;
+
+    if sum > 0 && fwd_sum > 0 {
+        println!("runtime: {:.2} seconds", adj_runtime);
+
+        println!("Received packets: {} forwarded packets: {}", sum, fwd_sum);
+
+        println!("Rx: {} packets took {} cycles (avg = {})", sum, rx_elapsed, rx_elapsed as f64 / sum as f64);
+
+        println!("KV lookup: {} packets took {} cycles (avg = {})", sum, lookup_elapsed, lookup_elapsed as f64 / sum as f64);
+
+        println!("Tx: {} packets took {} cycles (avg = {})", fwd_sum, tx_elapsed, tx_elapsed  as f64 / fwd_sum as f64);
+
+        println!("Sashstore: {} packets took {} cycles (avg = {})", fwd_sum, elapsed,
+                                                                        elapsed as f64 / fwd_sum as f64);
+
+        let done_rx = net.poll(&mut rx_packets, false).unwrap()?;
+        let done_tx = net.poll(&mut tx_packets, true).unwrap()?;
+
+        println!("Reaped rx {} packets tx {} packets", done_rx, done_tx);
+
+        println!("Device Stats\n{}", stats_end);
+
+        println!("Tx Pkts/s {:.2}", stats_end.tx_dma_ok as f64 / adj_runtime as f64);
+        println!("Rx Pkts/s {:.2}", stats_end.rx_dma_ok as f64 / adj_runtime as f64);
+
+        println!("Number of new allocations {}, took {} cycles (avg = {})", alloc_count * batch_sz, alloc_elapsed,
+                                                        alloc_elapsed as f64 / (alloc_count * batch_sz) as f64);
+    } else {
+        println!("Test failed! No packets Forwarded! Rxed {}, Txed {}", sum, fwd_sum);
+    }
+
+    print_hist!(submit_rx_hist);
+
+    print_hist!(submit_tx_hist);
+
+    if let Some(mut sashstore) = unsafe { SASHSTORE.as_mut() } {
+        sashstore.print_stats();
+    }
+    Ok(())
+}
 
 pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
     #[cfg(feature = "noop")]
@@ -792,10 +856,10 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
     let mut loop_count: usize = 0;
     let mut hash_sum: usize = 0;
 
-    let delay = 950;
+    let delay = 350;
     loop {
 
-        //sys_ns_loopsleep(delay as u64);
+       // sys_ns_loopsleep(delay as u64);
 
         loop_count = loop_count.wrapping_add(1);
 
@@ -820,11 +884,14 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
                         let pkt_next2 = &tx_packets[i + 2];
                         unsafe {
                             core::intrinsics::prefetch_write_data(pkt_next.as_ptr(), 3);
+                            // core::arch::x86_64::_mm_prefetch(pkt_next.as_ptr() as *const i8, 3);
                             core::intrinsics::prefetch_write_data(pkt_next2.as_ptr(), 3);
+                            // core::arch::x86_64::_mm_prefetch(pkt_next2.as_ptr() as *const i8, 3);
                         }
                     }
                 }
             }
+
             let mut pkt = &mut tx_packets[i];
             let backend = {
                 if let Some(hash) = packettool::get_flowhash(&pkt) {
@@ -1149,7 +1216,14 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
         //println!("rx: submitted {} collect {}", ret, rx_collect_.len());
 
         let ms_start = rdtsc();
-        for pkt in rx_collect_.iter_mut() {
+
+
+        let mut pkt_iter = rx_collect_.iter_mut();
+
+        while let Some(pkt) = pkt_iter.next() {
+            let next = pkt_iter.next();
+            // TODO : Prefetch the next packet here
+            //
             let backend = {
                 if let Some(hash) = packettool::get_flowhash(pkt) {
                     Some(maglev.get_index_from_hash(hash))
@@ -1157,8 +1231,7 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
                     None
                 }
             };
-
-            /*
+ 
             if let Some(_) = backend {
                 /*
                 for i in 0..6 {
@@ -1170,12 +1243,7 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
                     ptr::copy(sender_mac.as_ptr(), pkt.as_mut_ptr().offset(0), sender_mac.capacity());
                 }
             }
-            */
-            unsafe {
-                ptr::copy(our_mac.as_ptr(), pkt.as_mut_ptr().offset(6), our_mac.capacity());
-                ptr::copy(sender_mac.as_ptr(), pkt.as_mut_ptr().offset(0), sender_mac.capacity());
-            }
-        }
+         }
 
         mswap_elapsed += rdtsc() - ms_start;
 

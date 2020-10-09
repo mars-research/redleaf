@@ -19,7 +19,6 @@ mod smoltcp_device_rref;
 extern crate malloc;
 extern crate alloc;
 extern crate b2histogram;
-extern crate sashstore_redleaf;
 
 #[cfg(target_os = "linux")]
 use error::plsbreakthebuild;
@@ -56,9 +55,7 @@ use libbenchnet::packettool;
 pub use usr::net::NetworkStats;
 use libtime::get_rdtsc as rdtsc;
 
-use sashstore_redleaf::SashStore;
 
-static mut SASHSTORE: Option<SashStore> = None;
 
 struct IxgbeInternal {
     vendor_id: u16,
@@ -227,6 +224,7 @@ impl pci_driver::PciDriver for Ixgbe {
     }
 }
 
+/*
 fn run_sashstoretest(dev: &Ixgbe, pkt_size: u16) {
     let batch_sz = 32;
     let mut rx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
@@ -355,6 +353,7 @@ fn run_sashstoretest(dev: &Ixgbe, pkt_size: u16) {
         //dev.dump_tx_descs();
     }
 }
+*/
 
 #[no_mangle]
 pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>,

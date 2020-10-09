@@ -31,7 +31,8 @@ use lru::LruCache;
 use core::default::Default;
 
 use hashbrown::HashMap;
-use sashstore_redleaf::indexmap::Index;
+// For Maglev, we use a really stripped-down version of Indexmap
+use sashstore_redleaf::cindexmap::CIndex;
 use console::println;
 
 const TABLE_SIZE: usize = 65537;
@@ -59,7 +60,7 @@ pub struct Maglev<N> {
     pub lookup: Vec<i8>,
     // pub cache: RefCell<LruCache<usize, usize>>, // hash -> backend
     // pub cache: RefCell<HashMap<usize, usize, FnvHashFactory>>,
-    pub cache: RefCell<Index<usize, usize>>,
+    pub cache: RefCell<CIndex<usize, usize>>,
 }
 
 impl<N: Hash + Eq> Maglev<N> {
@@ -69,7 +70,7 @@ impl<N: Hash + Eq> Maglev<N> {
         let lookup = Self::populate(&nodes);
         // let cache = RefCell::new(LruCache::new(CACHE_SIZE));
         // let cache = RefCell::new(HashMap::with_capacity_and_hasher(CACHE_SIZE, Default::default()));
-        let cache = RefCell::new(Index::with_capacity(CACHE_SIZE));
+        let cache = RefCell::new(CIndex::with_capacity(CACHE_SIZE));
 
         Maglev { nodes, lookup, cache }
     }
@@ -171,7 +172,7 @@ impl<N: Hash + Eq> Maglev<N> {
             Some(idx) => {
                 // Use cached backend
                 //unsafe { HIT_COUNT += 1; }
-                *idx
+                idx
             },
             None => {
                 // Use lookup directly
