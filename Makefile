@@ -182,6 +182,7 @@ clean:
 	-cargo clean --manifest-path=domains/Cargo.toml
 	-cargo clean --manifest-path=kernel/Cargo.toml
 	-rm -rf build
+	-make -C lib/external/memops clean
 
 .PHONY: clean-keys
 clean-keys:

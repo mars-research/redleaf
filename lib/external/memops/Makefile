@@ -4,3 +4,6 @@ libmemops.a: musl/lib/libc.a
 
 musl/lib/libc.a: musl/VERSION
 	make -C musl CC=clang ARCH=x86_64 -j lib/libc.a
+
+clean:
+	make -C musl clean
