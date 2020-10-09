@@ -61,6 +61,10 @@ impl<T> RRefVec<T> where T: 'static + RRefable + Copy + TypeIdentifiable  {
         unsafe { core::slice::from_raw_parts_mut(&mut *self.data, self.size) }
     }
 
+    pub fn size(&self) -> usize {
+        self.size
+    }
+
     pub fn move_to(&self, new_domain_id: u64) {
         self.data.move_to(new_domain_id);
     }

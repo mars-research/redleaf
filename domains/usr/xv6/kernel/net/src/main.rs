@@ -35,6 +35,7 @@ use usr_interface::rpc::RpcResult;
 use spin::Mutex;
 
 use smoltcp_device::SmolPhy;
+use smoltcp::time::Instant;
 use smoltcp::iface::{EthernetInterfaceBuilder, EthernetInterface, NeighborCache, Neighbor};
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
 use smoltcp::socket::{
@@ -100,7 +101,7 @@ impl Rv6NetInner {
             .ip_addrs(ip_addresses)
             .finalize();
 
-        let mut socketset = SocketSet::new(vec![]);
+        let mut socketset = SocketSet::new(Vec::with_capacity(512));
 
         Self {
             iface,
@@ -145,7 +146,7 @@ impl Rv6NetInner {
             self.iface.device_mut().do_tx();
 
             self.iface.device_mut().do_rx();
-            self.iface.poll(&mut self.socketset, current);
+            self.iface.poll(&mut self.socketset, Instant::from_millis(current as i64));
 
             self.last_polled = current;
         }
@@ -182,31 +183,44 @@ impl UsrNet for Rv6Net {
         }
     }
 
-    fn is_active(&self, server: usize) -> RpcResult<Result<bool>> {
+    // facepalm
+    fn is_usable(&self, socket: usize) -> RpcResult<Result<bool>> {
         let mut state = self.state.lock();
 
-        let handle = state.handles[server];
+        let handle = state.handles[socket];
+        let mut socket = state.socketset.get::<TcpSocket>(handle);
+
+        Ok(Ok(socket.is_active() || socket.is_listening()))
+    }
+
+    fn is_active(&self, socket: usize) -> RpcResult<Result<bool>> {
+        let mut state = self.state.lock();
+
+        let handle = state.handles[socket];
         let mut socket = state.socketset.get::<TcpSocket>(handle);
 
         Ok(Ok(socket.is_active()))
     }
 
-    fn close(&self, server: usize) -> RpcResult<Result<()>> {
+    fn close(&self, socket: usize) -> RpcResult<Result<()>> {
+        // FIXME: very bad - there should be a way to take app's
+        // access to the socket away
         let mut state = self.state.lock();
 
-        let handle = state.handles[server];
+        let handle = state.handles[socket];
         let mut socket = state.socketset.get::<TcpSocket>(handle);
 
         socket.close();
+        // we should consume the socket in this function
 
         Ok(Ok(()))
     }
 
-    fn read_socket(&self, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+    fn read_socket(&self, socket: usize, mut buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         let mut state = self.state.lock();
         state.poll();
 
-        let handle = state.handles[server];
+        let handle = state.handles[socket];
         let mut socket = state.socketset.get::<TcpSocket>(handle);
 
         let mut dstbuf = buffer.as_mut_slice();
@@ -226,20 +240,21 @@ impl UsrNet for Rv6Net {
         Ok(Ok((size, buffer)))
     }
 
-    fn write_socket(&self, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+    fn write_socket(&self, socket: usize, mut buffer: RRefVec<u8>, size: usize) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         let mut state = self.state.lock();
         state.poll();
 
-        let handle = state.handles[server];
+        let handle = state.handles[socket];
         let mut socket = state.socketset.get::<TcpSocket>(handle);
 
         let mut buf = buffer.as_mut_slice();
 
+        // buf.len() is not the actual size...
         let size = socket.recv(|dstbuf| {
-            let size = if buf.len() > dstbuf.len() {
+            let size = if size > dstbuf.len() {
                 dstbuf.len()
             } else {
-                buf.len()
+                size
             };
 
             dstbuf[..size].copy_from_slice(&buf[..size]);

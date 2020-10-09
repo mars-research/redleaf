@@ -1082,12 +1082,12 @@ impl UsrNet for Rv6Proxy {
 
         r
     }
-    fn write_socket(&self, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+    fn write_socket(&self, socket: usize, buffer: RRefVec<u8>, size: usize) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
         buffer.move_to(self.domain_id);
-        let r = self.domain.write_socket(socket, buffer);
+        let r = self.domain.write_socket(socket, buffer, size);
         if let Ok(Ok(r)) = r.as_ref() {
             r.1.move_to(caller_domain);
         }
@@ -1270,12 +1270,12 @@ impl UsrNet for UsrNetProxy {
         r
     }
 
-    fn write_socket(&self, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+    fn write_socket(&self, socket: usize, buffer: RRefVec<u8>, size: usize) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
         buffer.move_to(self.domain_id);
-        let r = self.domain.write_socket(socket, buffer);
+        let r = self.domain.write_socket(socket, buffer, size);
         if let Ok(Ok(r)) = r.as_ref() {
             r.1.move_to(caller_domain);
         }

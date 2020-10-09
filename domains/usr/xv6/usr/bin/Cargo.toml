@@ -24,3 +24,7 @@ utils = { path = "../../lib/utils" }
 
 syscalls = { path = "../../../../../lib/core/interfaces/syscalls" }
 usr_interfaces = { package = "usr", path = "../../../../../lib/core/interfaces/usr" }
+
+[dependencies.arrayvec]
+version = "0.5.1"
+default-features = false
