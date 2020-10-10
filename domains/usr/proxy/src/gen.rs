@@ -1049,6 +1049,31 @@ impl UsrVFS for Rv6Proxy {
     fn sys_pipe(&self) -> RpcResult<Result<(usize, usize)>> {
         self.domain.sys_pipe()
     }
+    fn sys_link(&self, old_path: RRefVec<u8>, new_path: RRefVec<u8>) -> RpcResult<Result<()>> {
+        // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        old_path.move_to(self.domain_id);
+        new_path.move_to(self.domain_id);
+        let r = self.domain.sys_spawn_thread(old_path, new_path);
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
+    }
+    fn sys_unlink(&self, path: RRefVec<u8>) -> RpcResult<Result<()>> {
+        // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        path.move_to(self.domain_id);
+        let r = self.domain.sys_unlink(path);
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
+    }
     fn sys_mkdir(&self, path: &str) -> RpcResult<Result<()>> {
         self.domain.sys_mkdir(path)
     }
@@ -1064,8 +1089,14 @@ impl UsrNet for Rv6Proxy {
     fn listen(&self, port: u16) -> RpcResult<Result<usize>> {
         self.domain.listen(port)
     }
-    fn accept(&self, server: usize) -> RpcResult<Result<usize>> {
-        self.domain.accept(server)
+    fn is_usable(&self, server: usize) -> RpcResult<Result<bool>> {
+        self.domain.is_usable(server)
+    }
+    fn is_active(&self, socket: usize) -> RpcResult<Result<bool>> {
+        self.domain.is_active(socket)
+    }
+    fn close(&self, server: usize) -> RpcResult<Result<()>> {
+        self.domain.close(server)
     }
     fn read_socket(&self, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         // move thread to next domain
@@ -1250,10 +1281,6 @@ impl UsrNet for UsrNetProxy {
         self.domain.listen(port)
     }
 
-    fn accept(&self, server: usize) -> RpcResult<Result<usize>> {
-        self.domain.accept(server)
-    }
-
     fn read_socket(&self, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
@@ -1284,6 +1311,18 @@ impl UsrNet for UsrNetProxy {
         unsafe { sys_update_current_domain_id(caller_domain) };
 
         r
+    }
+
+    fn is_usable(&self, server: usize) -> RpcResult<Result<bool>> {
+        self.domain.is_usable(server)
+    }
+
+    fn is_active(&self, socket: usize) -> RpcResult<Result<bool>> {
+        self.domain.is_active(socket)
+    }
+
+    fn close(&self, server: usize) -> RpcResult<Result<()>> {
+        self.domain.close(server)
     }
 }
 
