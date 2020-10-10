@@ -17,6 +17,7 @@ libsyscalls = { path = "../../../lib/core/libsyscalls" }
 syscalls = { path = "../../../lib/core/interfaces/syscalls" }
 proxy = { path = "../../../lib/core/interfaces/proxy" }
 usr = { path = "../../../lib/core/interfaces/usr" }
+rref = { path = "../../../lib/core/rref" }
 create = { path = "../../../lib/core/interfaces/create" }
 console = { path = "../../../lib/core/console" }
 malloc = { path = "../../../lib/core/malloc" }

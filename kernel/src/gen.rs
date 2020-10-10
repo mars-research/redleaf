@@ -1026,7 +1026,8 @@ pub fn build_domain_init(name: &str,
                          binary_range: (*const u8, *const u8))
                          -> Box<dyn syscalls::Domain>
 {
-    type UserInit = fn(Box<dyn syscalls::Syscall>,
+    type UserInit = fn(Box<dyn syscalls::Syscall + Send + Sync>,
+                       Box<dyn syscalls::Heap + Send + Sync>,
                        Box<dyn syscalls::Interrupt>,
                        Box<dyn proxy::CreateProxy>,
                        Arc<dyn create::CreateXv6>,
@@ -1071,6 +1072,7 @@ pub fn build_domain_init(name: &str,
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     user_ep(Box::new(PDomain::new(Arc::clone(&dom))),
+            Box::new(PHeap::new()),
             Box::new(Interrupt::new()),
             Box::new(PDomain::new(Arc::clone(&dom))),
             Arc::new(PDomain::new(Arc::clone(&dom))),

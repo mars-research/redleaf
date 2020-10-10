@@ -16,6 +16,7 @@ use core::panic::PanicInfo;
 use libsyscalls::syscalls::{sys_create_thread, sys_yield, sys_recv_int, sys_backtrace, sys_readch_kbd};
 use console::println;
 use create::*;
+use rref::RRefVec;
 use proxy;
 
 #[cfg(feature = "test_guard_page")]
@@ -91,6 +92,7 @@ fn test_dummy_syscall() {
 // We have to re-write in an ugly way
 #[no_mangle]
 pub fn trusted_entry(s: Box<dyn syscalls::Syscall + Send + Sync>,
+            heap: Box<dyn syscalls::Heap + Send + Sync>,
             ints: Box<dyn syscalls::Interrupt + Send + Sync>,
             create_proxy: Box<dyn proxy::CreateProxy>,
             create_xv6: Arc<dyn create::CreateXv6>,
@@ -115,6 +117,7 @@ pub fn trusted_entry(s: Box<dyn syscalls::Syscall + Send + Sync>,
             create_tpm: Arc<dyn create::CreateTpm>,
             create_shadow: Arc<dyn create::CreateShadow>) {
     libsyscalls::syscalls::init(s);
+    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     let ints_clone = ints.int_clone(); 
     libsyscalls::syscalls::init_interrupts(ints);
@@ -260,7 +263,7 @@ pub fn trusted_entry(s: Box<dyn syscalls::Syscall + Send + Sync>,
         println!("Starting xv6 kernel");
         let (dom_xv6, rv6) = proxy.as_create_xv6().create_domain_xv6kernel(ints_clone, proxy.as_create_xv6fs(), proxy.as_create_xv6net(), proxy.as_create_xv6usr(), bdev, net, nvme);
         println!("Starting xv6 user init");
-        rv6.sys_spawn_domain(rv6.clone().unwrap(), "/init", "/init", array_init::array_init(|_| None)).unwrap();
+        rv6.sys_spawn_domain(rv6.clone().unwrap(), RRefVec::from_slice("/init".as_bytes()), RRefVec::from_slice("/init".as_bytes()), array_init::array_init(|_| None)).unwrap();
     }
 }
 

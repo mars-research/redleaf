@@ -90,14 +90,16 @@ impl Xv6 for Rv6Syscalls {
     fn sys_spawn_domain(
         &self,
         rv6: Box<dyn Xv6>,
-        path: &str,
-        args: &str,
+        path: RRefVec<u8>,
+        args: RRefVec<u8>,
         fds: [Option<usize>; NFILE],
     ) -> RpcResult<Result<Box<dyn Thread>>> {
         Ok((|| {
             // Load bin into memory
-            println!("sys_spawn_domain {} {}", path, args);
-            let fd = self.fs.sys_open(path, FileMode::READ)??;
+            let path_slice = core::str::from_utf8(path.as_slice())?;
+            let args_slice = core::str::from_utf8(args.as_slice())?;
+            println!("sys_spawn_domain {} {}", path_slice, args_slice);
+            let fd = self.fs.sys_open(path_slice, FileMode::READ)??;
             let size = self.fs.sys_fstat(fd)??.size; // fstat will filter out non INode files
             let blob = RRefVec::new(0, size as usize);
             let (bytes_read, blob) = self.fs.sys_read(fd, blob)??;
@@ -106,11 +108,10 @@ impl Xv6 for Rv6Syscalls {
             // Create a seperate copy of all the objects we want to pass to the new thread
             // and transfer the ownership over
             let fs_copy = self.fs.clone();
-            let path_copy = path.to_owned();
+            let path_copy = path_slice.to_owned();
             let create_copy = self.create_xv6usr.clone();
-            let args_copy = args.to_owned();
+            let args_copy = args_slice.to_owned();
             let tmp_storage_id = fs_copy.sys_save_threadlocal(fds)?;
-            let path = RRefVec::from_slice(path.as_bytes());
             Ok(self.sys_spawn_thread(
                 path,
                 Box::new(move || {

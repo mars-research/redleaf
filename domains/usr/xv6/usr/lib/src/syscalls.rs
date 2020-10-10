@@ -11,7 +11,11 @@ pub fn init(s: Box<dyn Xv6>) {
     SYSCALL.call_once(|| s);
 }
 
-pub fn sys_spawn_domain(path: &str, args: &str, fds: &[Option<usize>]) -> Result<Box<dyn Thread>> {
+pub fn sys_spawn_domain_slice_slow(path: &str, args: &str, fds: &[Option<usize>]) -> Result<Box<dyn Thread>> {
+    sys_spawn_domain(RRefVec::from_slice(path.as_bytes()), RRefVec::from_slice(args.as_bytes()), fds)
+}
+
+pub fn sys_spawn_domain(path: RRefVec<u8>, args: RRefVec<u8>, fds: &[Option<usize>]) -> Result<Box<dyn Thread>> {
     assert!(fds.len() <= NFILE);
     let mut arr: [Option<usize>; NFILE] = array_init::array_init(|_| None);
     arr[..fds.len()].clone_from_slice(&fds);

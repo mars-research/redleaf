@@ -19,7 +19,7 @@ pub trait Xv6: Send + Sync + UsrVFS + Net + UsrNet {
     fn get_usrnet(&self) -> RpcResult<Box<dyn UsrNet>>;
     fn sys_spawn_thread(&self, name: RRefVec<u8>, func: alloc::boxed::Box<dyn FnOnce() + Send>) -> RpcResult<Result<Box<dyn Thread>>>;
     // We need to pass a new instance of `rv6` as a parameter so that the proxy can be properly propagated.
-    fn sys_spawn_domain(&self, rv6: Box<dyn Xv6>, path: &str, args: &str, fds: [Option<usize>; NFILE]) -> RpcResult<Result<Box<dyn Thread>>>;
+    fn sys_spawn_domain(&self, rv6: Box<dyn Xv6>, path: RRefVec<u8>, args: RRefVec<u8>, fds: [Option<usize>; NFILE]) -> RpcResult<Result<Box<dyn Thread>>>;
     fn sys_getpid(&self) -> RpcResult<Result<u64>>;
     fn sys_uptime(&self) -> RpcResult<Result<u64>>;
     fn sys_sleep(&self, ns: u64) -> RpcResult<Result<()>>;

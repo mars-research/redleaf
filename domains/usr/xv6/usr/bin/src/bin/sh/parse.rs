@@ -5,7 +5,7 @@ use core::cell::RefCell;
 
 use usr_interfaces::vfs::FileMode;
 use usr_interfaces::xv6::Thread;
-use usrlib::syscalls::{sys_close, sys_open, sys_spawn_domain};
+use usrlib::syscalls::{sys_close, sys_open, sys_spawn_domain_slice_slow};
 
 #[derive(Debug)]
 pub struct Redir {
@@ -79,7 +79,7 @@ impl ExecCommand {
 
 impl Command for ExecCommand {
     fn run(&self, redir: Redir) -> LinkedList<Box<dyn Thread>> {
-        let result = sys_spawn_domain(
+        let result = sys_spawn_domain_slice_slow(
             &self.cmd,
             &self.args,
             &[Some(redir.stdin), Some(redir.stdout), Some(redir.stderr)],

@@ -12,7 +12,7 @@ use core::panic::PanicInfo;
 use syscalls::{Heap, Syscall};
 use usr_interfaces::vfs::FileMode;
 use usr_interfaces::xv6::Xv6;
-use usrlib::syscalls::{sys_spawn_domain, sys_open, sys_mknod, sys_dup};
+use usrlib::syscalls::{sys_spawn_domain_slice_slow, sys_open, sys_mknod, sys_dup};
 use usrlib::{dbg, println};
 
 #[no_mangle]
@@ -43,7 +43,7 @@ pub fn trusted_entry(
     assert_eq!(sys_dup(0).unwrap(), 2);
 
     dbg!("Init finished");
-    sys_spawn_domain("/sh", "", &[Some(0), Some(1), Some(2)]).unwrap();
+    sys_spawn_domain_slice_slow("/sh", "", &[Some(0), Some(1), Some(2)]).unwrap();
 }
 
 // This function is called on panic.

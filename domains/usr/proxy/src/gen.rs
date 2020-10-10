@@ -1161,10 +1161,18 @@ impl Xv6 for Rv6Proxy {
 
         r
     }
+    fn sys_spawn_domain(&self, rv6: Box<dyn Xv6>, path: RRefVec<u8>, args: RRefVec<u8>, fds: [Option<usize>; NFILE]) -> RpcResult<Result<Box<dyn Thread>>> {
+        // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
-    fn sys_spawn_domain(&self, rv6: Box<dyn Xv6>, path: &str, args: &str, fds: [Option<usize>; NFILE]) -> RpcResult<Result<Box<dyn Thread>>> {
-        console::dbg!();
-        self.domain.sys_spawn_domain(rv6, path, args, fds)
+        path.move_to(self.domain_id);
+        args.move_to(self.domain_id);
+        let r = self.domain.sys_spawn_domain(rv6, path, args, fds);
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
     }
     fn sys_getpid(&self) -> RpcResult<Result<u64>> {
         self.domain.sys_getpid()
@@ -1172,7 +1180,6 @@ impl Xv6 for Rv6Proxy {
     fn sys_uptime(&self) -> RpcResult<Result<u64>> {
         self.domain.sys_uptime()
     }
-
     fn sys_sleep(&self, ns: u64) -> RpcResult<Result<()>> {
         self.domain.sys_sleep(ns)
     }
