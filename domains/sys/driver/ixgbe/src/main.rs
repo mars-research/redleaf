@@ -14,6 +14,7 @@ mod ixgbe_desc;
 mod nullnet;
 mod redhttpd;
 mod smoltcp_device;
+mod smoltcp_device_rref;
 
 extern crate malloc;
 extern crate alloc;
@@ -479,6 +480,51 @@ fn smoltcp_main(dev: &Ixgbe) {
         idev.dump_stats();
         //dev.dump_tx_descs();
     }
+}
+
+fn smoltcp_rref_main(net: Box<dyn usr::net::Net>) {
+    use smoltcp_device_rref::SmolPhy as SmolIxgbe;
+
+    use smoltcp::time::Instant;
+
+    use smoltcp::iface::{EthernetInterfaceBuilder, NeighborCache};
+    use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
+
+    use smoltcp::socket::SocketSet;
+
+    // smol boi is good boi
+    let smol = SmolIxgbe::new(net);
+
+    let mut neighbor_cache_entries = [None; 8];
+    let neighbor_cache = NeighborCache::new(&mut neighbor_cache_entries[..]);
+
+    // FIXME: Change this
+    let ip_addrs = [IpCidr::new(IpAddress::v4(10, 0, 0, 2), 24)];
+    let mac_address = [0x90, 0xe2, 0xba, 0xac, 0x16, 0x59];
+    let mut iface = EthernetInterfaceBuilder::new(smol)
+        .ethernet_addr(EthernetAddress::from_bytes(&mac_address))
+        .neighbor_cache(neighbor_cache)
+        .ip_addrs(ip_addrs)
+        .finalize();
+
+    let mut sockets = SocketSet::new(vec![]);
+    let mut dummy_clock: i64 = 0;
+
+    // redhttpd!
+    let mut httpd = redhttpd::Httpd::new();
+
+    loop {
+        iface.device_mut().do_rx();
+
+        // any smoltcp stuff here
+        let timestamp = Instant::from_millis(dummy_clock);
+        iface.poll(&mut sockets, timestamp);
+        httpd.handle(&mut sockets);
+        dummy_clock += 1;
+
+        iface.device_mut().do_tx();
+    }
+
 }
 
 // This function is called on panic.
