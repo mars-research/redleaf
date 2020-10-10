@@ -45,6 +45,8 @@ pub fn trusted_entry(
         String::from("ls > foo"), 
         String::from("mkdir bar"), 
         String::from("ls"),
+        String::from("rm foo"),
+        String::from("ls"),
         String::from("httpd"),
         // alloc::format!("benchfs r large {}", 30usize * 1024 * 1024 * 1024),
         // alloc::format!("benchfs w large {}", 4usize * 1024 * 1024 * 1024),

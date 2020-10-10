@@ -13,7 +13,7 @@ use libsyscalls::syscalls::sys_println;
 use syscalls::{Heap, Syscall};
 use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usr_interfaces::xv6::Xv6;
-use usrlib::syscalls::sys_mkdir;
+use usrlib::syscalls::sys_link_slice_slow;
 use usrlib::{eprintln, println};
 
 #[no_mangle]
@@ -26,17 +26,18 @@ pub fn trusted_entry(
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
     usrlib::init(rv6.clone().unwrap());
-    println!("Starting rv6 mkdir with args: {}", args);
+    println!("Starting rv6 ln with args: {}", args);
 
     let mut args = args.split_whitespace();
-    let path = args.next().unwrap();
+    let old_path = args.next().unwrap();
+    let new_path = args.next().unwrap();
 
-    mkdir(path).unwrap();
+    ln(old_path, new_path).unwrap();
 }
 
-fn mkdir(path: &str) -> Result<(), String> {
-    println!("mkdir <{}>", path);
-    sys_mkdir(path).map_err(|e| alloc::format!("mkdir: cannot mkdir {}. {:?}", path, e))?;
+fn ln(old_path: &str, new_path: &str) -> Result<(), String> {
+    println!("ln <{}> <{}>", old_path, new_path);
+    sys_link_slice_slow(old_path, new_path).map_err(|e| alloc::format!("ln: cannot ln {:?}", e))?;
     Ok(())
 }
 

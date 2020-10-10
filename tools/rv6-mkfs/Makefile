@@ -38,6 +38,8 @@ BINS=\
 	ls\
 	wc\
 	mkdir\
+	rm\
+	ln\
 	getpid\
 	uptime\
 	sleep\
