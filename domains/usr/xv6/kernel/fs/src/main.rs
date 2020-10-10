@@ -105,6 +105,19 @@ impl UsrVFS for Rv6FS {
     fn sys_pipe(&self) -> RpcResult<Result<(usize, usize)>> {
         Ok(sysfile::sys_pipe())
     }
+    fn sys_link(&self, old_path: RRefVec<u8>, new_path: RRefVec<u8>) -> RpcResult<Result<()>> {
+        Ok((|| {
+            let old_path = core::str::from_utf8(old_path.as_slice())?;
+            let new_path = core::str::from_utf8(new_path.as_slice())?;
+            sysfile::sys_link(&old_path, &new_path)
+        })())
+    }
+    fn sys_unlink(&self, path: RRefVec<u8>) -> RpcResult<Result<()>> {
+        Ok((|| {
+            let path = core::str::from_utf8(path.as_slice())?;
+            sysfile::sys_unlink(&path)
+        })())
+    }
     fn sys_mkdir(&self, path: &str) -> RpcResult<Result<()>> {
         Ok(sysfile::sys_mkdir(path))
     }

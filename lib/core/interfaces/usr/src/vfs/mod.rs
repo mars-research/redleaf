@@ -24,6 +24,8 @@ pub trait UsrVFS: Send + Sync {
     fn sys_mknod(&self, path: &str, major: i16, minor: i16) -> RpcResult<Result<()>>;
     fn sys_dup(&self, fd: usize) -> RpcResult<Result<usize>>;
     fn sys_pipe(&self) -> RpcResult<Result<(usize, usize)>>;
+    fn sys_link(&self, old_path: RRefVec<u8>, new_path: RRefVec<u8>) -> RpcResult<Result<()>>;
+    fn sys_unlink(&self, path: RRefVec<u8>) -> RpcResult<Result<()>>;
     fn sys_mkdir(&self, path: &str) -> RpcResult<Result<()>>;
     fn sys_dump_inode(&self) -> RpcResult<Result<()>>;
 }

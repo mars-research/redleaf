@@ -81,6 +81,22 @@ pub fn sys_pipe() -> Result<(usize, usize)> {
     SYSCALL.r#try().unwrap().sys_pipe()?
 }
 
+pub fn sys_link_slice_slow(old_path: &str, new_path: &str) -> Result<()> {
+    sys_link(RRefVec::from_slice(old_path.as_bytes()), RRefVec::from_slice(new_path.as_bytes()))
+}
+
+pub fn sys_link(old_path: RRefVec<u8>, new_path: RRefVec<u8>) -> Result<()> {
+    SYSCALL.r#try().unwrap().sys_link(old_path, new_path)?
+}
+
+pub fn sys_unlink_slice_slow(path: &str) -> Result<()> {
+    sys_unlink(RRefVec::from_slice(path.as_bytes()))
+}
+
+pub fn sys_unlink(path: RRefVec<u8>) -> Result<()> {
+    SYSCALL.r#try().unwrap().sys_unlink(path)?
+}
+
 pub fn sys_mkdir(path: &str) -> Result<()> {
     SYSCALL.r#try().unwrap().sys_mkdir(path)?
 }

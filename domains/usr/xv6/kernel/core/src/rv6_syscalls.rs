@@ -168,6 +168,12 @@ impl UsrVFS for Rv6Syscalls {
     fn sys_pipe(&self) -> RpcResult<Result<(usize, usize)>> {
         self.fs.sys_pipe()
     }
+    fn sys_link(&self, old_path: RRefVec<u8>, new_path: RRefVec<u8>) -> RpcResult<Result<()>> {
+        self.fs.sys_link(old_path, new_path)
+    }
+    fn sys_unlink(&self, path: RRefVec<u8>) -> RpcResult<Result<()>> {
+        self.fs.sys_unlink(path)
+    }
     fn sys_mkdir(&self, path: &str) -> RpcResult<Result<()>> {
         self.fs.sys_mkdir(path)
     }

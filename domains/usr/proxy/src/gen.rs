@@ -1055,7 +1055,7 @@ impl UsrVFS for Rv6Proxy {
 
         old_path.move_to(self.domain_id);
         new_path.move_to(self.domain_id);
-        let r = self.domain.sys_spawn_thread(old_path, new_path);
+        let r = self.domain.sys_link(old_path, new_path);
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };
