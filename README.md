@@ -6,14 +6,14 @@
 RedLeaf is a research operating system developed from scratch in Rust to explore the impact of language safety on operating system organization.
 
 
-# Setup
+## Setup
 
-## Dependencies installation
+### Dependencies installation
 ``` bash
 ./setup.rs
 ```
 
-## Benchmark Setup
+### Benchmark Setup
 First, install a new linux kernel from Zhaofang by running
 ```bash
 wget https://github.com/mars-research/redleaf/releases/download/bcache_v2/linux-image-5.6.7-meow_5.6.7-meow-6_amd64.deb
