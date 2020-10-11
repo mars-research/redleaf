@@ -5,6 +5,34 @@
 
 RedLeaf is a research operating system developed from scratch in Rust to explore the impact of language safety on operating system organization.
 
+
+# Setup
+
+## Dependencies installation
+``` bash
+./setup.rs
+```
+
+## Benchmark Setup
+First, install a new linux kernel from Zhaofang by running
+```bash
+wget https://github.com/mars-research/redleaf/releases/download/bcache_v2/linux-image-5.6.7-meow_5.6.7-meow-6_amd64.deb
+sudo dpkg -i linux-image-5.6.7-meow_5.6.7-meow-6_amd64.deb
+```
+and use add https://make-linux-fast-again.com/ to your __/etc/default/grub__ line `/etc/default/grub`
+then `sudo update-grub` and reboot.
+
+
+<br/>
+
+Then, disable Hyper Threading and fix CPU frequency to a constant by running
+```bash
+./disable_hyperthreading.sh && ./constant_freq.sh
+```
+
+To use your eyeballs to confirm that we have a stable frequency, run `watch -n1 grep MHz /proc/cpuinfo`.
+
+
 ## Building
 
 You need a very recent nightly Rust toolchain with the `rust-src` component, and also the `nasm` assembler.
