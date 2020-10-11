@@ -15,7 +15,7 @@ RUST_HOME=$CARGO_HOME/bin
 
 # Install Rust and Cargo dependencies
 echo -e "Cargo home: $CARGO_HOME\nRustup home: $RUSTUP_HOME"
-curl https://sh.rustup.rs -sSf | CARGO_HOME=$CARGO_HOME RUSTUP_HOME=$RUSTUP_HOME bash -s -- --default-toolchain nightly-2020-08-22 -y
+curl https://sh.rustup.rs -sSf | CARGO_HOME=$CARGO_HOME RUSTUP_HOME=$RUSTUP_HOME bash -s -- --default-toolchain nightly -y
 $RUST_HOME/rustup component add llvm-tools-preview rust-src
 $RUST_HOME/cargo install stack-sizes
 
