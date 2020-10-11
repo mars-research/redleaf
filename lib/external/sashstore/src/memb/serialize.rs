@@ -26,8 +26,15 @@ fn slice_to_u32(x: &[u8]) -> u32 {
     return b1 | b2 | b3 | b4;
 }
 
-pub const KEY_SIZE: usize = 16;
-pub const VALUE_SIZE: usize = 16;
+static mut TOTAL_SET: usize = 0;
+static mut TOTAL_STORED: usize = 0;
+static mut TOTAL_NOT_STORED: usize = 0;
+static mut TOTAL_GET: usize = 0;
+static mut TOTAL_RETRIEVED: usize = 0;
+static mut TOTAL_NOT_FOUND: usize = 0;
+
+pub const KEY_SIZE: usize = 64;
+pub const VALUE_SIZE: usize = 64;
 
 #[repr(C,packed)]
 #[derive(Debug)]
@@ -172,6 +179,7 @@ pub fn buf_encode(value: &ServerValue, buf: &mut Vec<u8>) {
             buf.extend_from_slice(v);
             buf.extend_from_slice(b"\r\n");
             buf.extend_from_slice(b"END\r\n");
+            unsafe { TOTAL_RETRIEVED += 1; }
         }
         ServerValue::Stored(request_id) => {
             //println!("stored");
@@ -187,6 +195,9 @@ pub fn buf_encode(value: &ServerValue, buf: &mut Vec<u8>) {
                 core::ptr::copy(resp_bytes, buf.as_mut_ptr(), resp_len);
                 buf.set_len(resp_len);
             }*/
+            unsafe {
+                TOTAL_STORED += 1;
+            }
         }
         ServerValue::NotStored(request_id) => {
             println!("notstored");
@@ -194,11 +205,13 @@ pub fn buf_encode(value: &ServerValue, buf: &mut Vec<u8>) {
             buf.extend_from_slice(&u16::to_be_bytes(0)); // seq number
             buf.extend_from_slice(&u16::to_be_bytes(1)); // #datagram
             buf.extend_from_slice(&u16::to_be_bytes(0)); // reserved
-            buf.extend_from_slice(b"NOT_STORED\r\n")
+            buf.extend_from_slice(b"NOT_STORED\r\n");
+            unsafe { TOTAL_NOT_STORED += 1; }
         }
         _ => {
             //println!("not found");
-            buf.extend_from_slice(b"NOT_FOUND\r\n")
+            buf.extend_from_slice(b"NOT_FOUND\r\n");
+            unsafe { TOTAL_NOT_FOUND += 1; }
             //unreachable!("Unexpected response"),
         }
     }
@@ -491,6 +504,8 @@ impl Decoder {
                     core::mem::forget(v);
                 };*/
                 //println!("self.reader {:x?}", self.reader.as_ptr());
+            
+                unsafe { TOTAL_SET += 1; }
                 Ok(ClientValue::Set(u32::from_le_bytes(req_hdr.request_id) as u32,
                                     &set_req.key,
                                     u32::from_le_bytes(set_req.flags),
@@ -498,6 +513,8 @@ impl Decoder {
             }
             b"get " => {
                 log::trace!("Get");
+
+                unsafe { TOTAL_GET += 1; }
 
                 let get_req: &'static GetRequest = unsafe {
                     &*(self.reader.as_ptr().offset(mem::size_of::<RequestHeader>() as isize) as *mut u8 as *mut GetRequest)
@@ -508,5 +525,16 @@ impl Decoder {
             }
             _ => return Err(DecodeError::InvalidOpCode),
         }
+    }
+}
+
+pub fn print_stats() {
+	println!("key_size {}, value_size {}",
+			KEY_SIZE, VALUE_SIZE);
+    unsafe {
+	    println!("total_set {}, total_stored {} total_not_stored {} \
+		total_get {}, total_retrieved {} total_not_found {}",
+		TOTAL_SET, TOTAL_STORED, TOTAL_NOT_STORED,
+		TOTAL_GET, TOTAL_RETRIEVED, TOTAL_NOT_FOUND);
     }
 }

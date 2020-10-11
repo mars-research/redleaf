@@ -726,9 +726,8 @@ where
         // /* PERF */ let hash_start = unsafe { core::arch::x86_64::_rdtsc() };
         // let hash = make_hash(&self.params.hasher_builder, &key) as usize;
         let hash = fnv_2(&key, crate::KEY_SIZE as isize) as usize;
-        let num_bytes = core::mem::size_of::<K>() as isize;
-        //println!(" {:x?} num_bytes {} set_hash = {:x}",
-        //         unsafe { &key as *const _ as *const u8 }, num_bytes, hash);
+        //let num_bytes = core::mem::size_of::<K>() as isize;
+        //println!(" set_hash = {:x}", hash);
         // /* PERF */ let hash_end = unsafe { core::arch::x86_64::_rdtsc() };
         // /* PERF */ record_hist!(TSC_HASH_HISTOGRAM, TSC_HASH_TOTAL, hash_end - hash_start);
         /*unsafe {
@@ -877,12 +876,9 @@ where
         //let hash = make_hash(self.hasher(), &key) as usize;
         /* PERF */ //let hash_end = unsafe { core::arch::x86_64::_rdtsc() };
         /* PERF */ //record_hist!(TSC_HASH_HISTOGRAM, TSC_HASH_TOTAL, hash_end - hash_start);
-
-        use crate::KEY_SIZE; 
-        let hash = fnv_2(key, KEY_SIZE as isize) as usize;
+        let hash = fnv_2(key, crate::KEY_SIZE as isize) as usize;
         //let num_bytes = core::mem::size_of::<K>() as isize;
-        //println!(" {:x?} num_bytes {} get_hash = {:x}",
-        //            unsafe { &key as *const _ as *const u8 }, num_bytes, hash);
+        // println!(" get_hash = {:x}", hash);
         /* PERF */ //let find_start = unsafe { core::arch::x86_64::_rdtsc() };
 
         #[cfg(not(feature="c-style-insert"))]
@@ -901,8 +897,7 @@ where
         /* PERF */ //let find_end = unsafe { core::arch::x86_64::_rdtsc() };
         /* PERF */ //record_hist!(TSC_FIND_HISTOGRAM, TSC_FIND_TOTAL, find_end - find_start);
 
-        /* PERF */ //let get_end = unsafe { core::arch::x86_64::_rdtsc() };
-        /* PERF */ //record_hist!(TSC_GET_HISTOGRAM, TSC_GET_TOTAL, get_end - get_start);
+        /* PERF */ //let get_end = unsafe { core::arch::x86_64::_rdtsc() };     /* PERF */ //record_hist!(TSC_GET_HISTOGRAM, TSC_GET_TOTAL, get_end - get_start);
 
         #[cfg(feature="c-style-insert")]
         { 

@@ -67,11 +67,6 @@ struct IxgbeInternal {
 
 impl IxgbeInternal {
     fn new() -> Self {
-        unsafe {
-            // SASHSTORE = Some(SashStore::with_capacity((1 << 20)));
-            SASHSTORE = Some(SashStore::with_capacity(1 << 21));
-        }
-
         Self {
             vendor_id: 0x8086,
             device_id: 0x10fb,

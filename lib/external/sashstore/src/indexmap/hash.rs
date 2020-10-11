@@ -4,6 +4,7 @@
 //!
 //! [`Index`]: struct.Index.html
 
+use console::print;
 use core::hash::{BuildHasher, Hash, Hasher};
 
 #[inline]

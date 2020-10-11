@@ -1,7 +1,6 @@
 #![no_std]
-#![feature(slice_fill,
-            core_intrinsics
-           )] // for vec::fill
+#![feature(slice_fill)] // for vec::fill
+#![feature(core_intrinsics)] // prefetch helpers
 
 extern crate alloc;
 extern crate core;
@@ -616,6 +615,8 @@ pub fn dump_packet_rref(pkt: &[u8; 1514], len: usize) {
 
 static mut SASHSTORE: Option<SashStore> = None;
 
+pub const CAPACITY: usize = (1 << 20) * 16;
+
 pub fn run_sashstoretest(net: &dyn Net, pkt_size: u16) -> Result<()> {
     let batch_sz = BATCH_SIZE;
     let mut rx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
@@ -625,7 +626,7 @@ pub fn run_sashstoretest(net: &dyn Net, pkt_size: u16) -> Result<()> {
 
     unsafe {
         // SASHSTORE = Some(SashStore::with_capacity((1 << 20)));
-        SASHSTORE = Some(SashStore::with_capacity(1 << 21));
+        SASHSTORE = Some(SashStore::with_capacity(CAPACITY));
     }
 
 
@@ -640,7 +641,7 @@ pub fn run_sashstoretest(net: &dyn Net, pkt_size: u16) -> Result<()> {
     let stats_start = net.get_stats().unwrap()?;
 
     let start = rdtsc();
-    let end = start + 60 * CPU_MHZ;
+    let end = start + 300 * CPU_MHZ;
 
     let mut alloc_count = 0;
     let mut alloc_elapsed = 0;

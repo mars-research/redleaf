@@ -21,7 +21,7 @@ use core::mem;
 use arrayvec::ArrayVec;
 
 use log::trace;
-use console::println;
+use console::{println,print};
 
 pub mod indexmap;
 pub mod cindexmap;
@@ -123,7 +123,9 @@ impl SashStore {
 
     pub fn print_stats(&self) {
         println!("capacity={}, len={}", self.map.capacity(), self.map.len());
-        print_stat!(TSC_PARSE_HISTOGRAM, TSC_PARSE_TOTAL);
+
+        //print_stat!(TSC_PARSE_HISTOGRAM, TSC_PARSE_TOTAL);
+        memb::serialize::print_stats();
     }
 
     /// Execute the content of a packet buffer in our KV store.
@@ -166,15 +168,14 @@ impl SashStore {
                 trace!("Execute .get for {:?}", key);
                 // println!("Get for {}", core::str::from_utf8(key).unwrap());
 
-                if key.len() > 64 {
+                /*if key.len() > 64 {
                     // Illegal key
                     panic!("key too long");
                     return ServerValue::NoReply;
-                }
+                }*/
 
                 /*unsafe {
-                        print!("get for {:?} ", String::from_utf8(core::slice::from_raw_parts(key.as_ptr(), KEY_SIZE).to_vec())
-                                                    .unwrap());
+                        print!("get for {:?} ", String::from_raw_parts(key.as_ptr() as *mut u8, KEY_SIZE, KEY_SIZE));
                 }*/
 
                 let r = self.map.get(key);
@@ -192,7 +193,7 @@ impl SashStore {
                             println!("{}: {} -> {:?}", i, core::str::from_utf8(&kv.0).unwrap(), core::str::from_utf8(&(kv.1).1).unwrap());
                         }
                         */
-                        // println!("No value for {}", core::str::from_utf8(key).unwrap());
+                       // println!("No value for {}", core::str::from_utf8(key).unwrap());
                         // unreachable!("didn't find value for key {:?}", key);
                         ret = ServerValue::NoReply
                     },
@@ -220,10 +221,8 @@ impl SashStore {
                     value_vec.try_extend_from_slice(&value).expect("rua");
 
                     /*unsafe {
-                        print!("set for {:?} {:?}", String::from_utf8(slice::from_raw_parts(key.as_ptr(), KEY_SIZE).to_vec())
-                                                    .unwrap(),
-                                                    String::from_utf8(slice::from_raw_parts(value.as_ptr(), VALUE_SIZE).to_vec())
-                                                    .unwrap());
+                        print!("set for {:?} {:?}", String::from_raw_parts(key.as_ptr() as *mut u8, KEY_SIZE, KEY_SIZE),
+                                                    String::from_raw_parts(value.as_ptr() as *mut u8, VALUE_SIZE, VALUE_SIZE));
                     }*/
                     self.map.insert(key_vec, (flags, value_vec));
                     ServerValue::Stored(req_id)
