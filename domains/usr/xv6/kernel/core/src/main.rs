@@ -44,6 +44,9 @@ pub fn trusted_entry(
     // Init fs
     let (_dom_xv6fs, fs) = create_xv6fs.create_domain_xv6fs(bdev);
     // Init usrnet
+    #[cfg(feature = "shadow")]
+    let (_dom_xv6net, usrnet) = create_xv6net_shadow.create_domain_xv6net_shadow(create_xv6net, net.clone_net().unwrap());
+    #[cfg(not(feature = "shadow"))]
     let (_dom_xv6net, usrnet) = create_xv6net.create_domain_xv6net(net.clone_net().unwrap());
     // Init kernel
     box rv6_syscalls::Rv6Syscalls::new(create_xv6usr, fs.clone(), usrnet, net, nvme)

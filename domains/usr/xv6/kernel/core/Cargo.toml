@@ -5,7 +5,10 @@ authors = ["RedLeaf Team"]
 edition = "2018"
 
 [features]
-default = []
+default = [
+    #"shadow",
+]
+shadow = []
 test_threads = []
 test_sleeplock = []
 
