@@ -991,6 +991,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "usrnet_shadow"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "create",
+ "lazy_static",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "num-traits",
+ "proxy",
+ "rref",
+ "spin 0.5.3",
+ "syscalls",
+ "usr",
+]
+
+[[package]]
 name = "utils"
 version = "0.1.0"
 dependencies = [

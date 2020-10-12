@@ -9,6 +9,7 @@ members = [
 	"usr/proxy",
 	"usr/shadow/bdev",
 	"usr/shadow/net",
+	"usr/shadow/usrnet",
 	"usr/shadow/nvme",
 	"usr/test/benchhash",
 	"usr/test/benchnet_inside",

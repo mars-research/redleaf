@@ -1,0 +1,32 @@
+[package]
+name = "usrnet_shadow"
+version = "0.1.0"
+authors = ["RedLeaf Team"]
+edition = "2018"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+debug = true
+
+[dependencies]
+syscalls = { path = "../../../../lib/core/interfaces/syscalls" }
+usr = { path = "../../../../lib/core/interfaces/usr" }
+create = { path = "../../../../lib/core/interfaces/create" }
+proxy = { path = "../../../../lib/core/interfaces/proxy" }
+libsyscalls = { path = "../../../../lib/core/libsyscalls" }
+libtime = { path = "../../../../lib/core/libtime" }
+console = { path = "../../../../lib/core/console" }
+malloc = { path = "../../../../lib/core/malloc" }
+rref = { path = "../../../../lib/core/rref" }
+spin = { path = "../../../../lib/core/spin-rs" }
+
+[dependencies.lazy_static]
+version = "1.3.0"
+features = ["spin_no_std"]
+
+[dependencies.num-traits]
+version = "0.2.8"
+default-features = false
