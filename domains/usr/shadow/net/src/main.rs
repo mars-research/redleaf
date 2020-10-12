@@ -3,7 +3,7 @@
 #![feature(
     box_syntax,
 )]
-// #![forbid(unsafe_code)]
+#![forbid(unsafe_code)]
 extern crate malloc;
 extern crate alloc;
 use libsyscalls;
@@ -100,7 +100,7 @@ pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Sen
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
-    println!("Init bdev shadow domain");
+    println!("Init net shadow domain");
 
     box Shadow::new(create, pci)
 }
@@ -108,7 +108,7 @@ pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Sen
 // This function is called on panic.
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    println!("domain bdev shadow panic: {:?}", info);
+    println!("domain net shadow panic: {:?}", info);
     libsyscalls::syscalls::sys_backtrace();
     loop {}
 }
