@@ -56,9 +56,7 @@ impl Shadow {
 
 impl Net for Shadow {
     fn clone_net(&self) -> RpcResult<Box<dyn Net>> {
-        Ok(box Self {
-            shadow: self.shadow.clone(),
-        })
+        self.shadow.lock().net.clone_net()
     }
 
     fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
