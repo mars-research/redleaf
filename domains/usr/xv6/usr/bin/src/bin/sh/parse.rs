@@ -5,7 +5,7 @@ use core::cell::RefCell;
 
 use usr_interfaces::vfs::FileMode;
 use usr_interfaces::xv6::Thread;
-use usrlib::syscalls::{sys_close, sys_open, sys_spawn_domain_slice_slow};
+use usrlib::syscalls::{sys_close, sys_open_slice_slow, sys_spawn_domain_slice_slow};
 
 #[derive(Debug)]
 pub struct Redir {
@@ -214,7 +214,7 @@ impl Command for RedirCommand {
             n => panic!("fd {} redirection is not intended", n),
         };
 
-        let fd1 = sys_open(&self.file, self.mode).unwrap();
+        let fd1 = sys_open_slice_slow(&self.file, self.mode).unwrap();
 
         *fd = fd1;
 

@@ -72,8 +72,11 @@ impl KernelVFS for Rv6FS {
 }
 
 impl UsrVFS for Rv6FS {
-    fn sys_open(&self, path: &str, mode: FileMode) -> RpcResult<Result<usize>> {
-        Ok(sysfile::sys_open(path, mode))
+    fn sys_open(&self, path: RRefVec<u8>, mode: FileMode) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+        Ok((|| {
+            let fd = sysfile::sys_open(core::str::from_utf8(path.as_slice())?, mode)?;
+            Ok((fd, path))
+        })())
     }
     fn sys_close(&self, fd: usize) -> RpcResult<Result<()>> {
         Ok(sysfile::sys_close(fd))

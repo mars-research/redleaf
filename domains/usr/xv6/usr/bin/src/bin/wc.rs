@@ -15,7 +15,7 @@ use syscalls::{Heap, Syscall};
 use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usr_interfaces::xv6::Xv6;
 use usrlib::println;
-use usrlib::syscalls::{sys_close, sys_fstat, sys_open, sys_read_slice_slow, sys_write_slice_slow};
+use usrlib::syscalls::{sys_close, sys_fstat, sys_open_slice_slow, sys_read_slice_slow, sys_write_slice_slow};
 
 #[no_mangle]
 pub fn trusted_entry(
@@ -38,7 +38,7 @@ pub fn trusted_entry(
     }
 
     for arg in args {
-        let fd = sys_open(arg, FileMode::READ).unwrap();
+        let fd = sys_open_slice_slow(arg, FileMode::READ).unwrap();
         wc(fd, arg).unwrap();
         sys_close(fd);
     }

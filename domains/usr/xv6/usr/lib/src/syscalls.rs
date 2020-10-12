@@ -1,3 +1,9 @@
+/// Syscall helpers for rv6 user domains.
+/// 
+/// Some syscalls offers `sys_xxx_slice_slow` variants that converts the 
+/// &str arguments to RRefVec<u8>. They are Slower than the `sys_xxx` variants
+/// but they are easier to use and good for prototyping.
+
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use spin::Once;
@@ -35,7 +41,12 @@ pub fn sys_sleep(ns: u64) -> Result<()> {
     SYSCALL.r#try().unwrap().sys_sleep(ns)?      
 }
 
-pub fn sys_open(path: &str, mode: FileMode) -> Result<usize> {
+pub fn sys_open_slice_slow(path: &str, mode: FileMode) -> Result<usize> {
+    let (fd, _) = sys_open(RRefVec::from_slice(path.as_bytes()), mode)?;
+    Ok(fd)
+}
+
+pub fn sys_open(path: RRefVec<u8>, mode: FileMode) -> Result<(usize, RRefVec<u8>)> {
     SYSCALL.r#try().unwrap().sys_open(path, mode)?
 }
 
@@ -57,8 +68,6 @@ pub fn sys_read(fd: usize, buffer: RRefVec<u8>) -> Result<(usize, RRefVec<u8>)> 
     SYSCALL.r#try().unwrap().sys_read(fd, buffer)?
 }
 
-// Implicitly convert the slice to a RRefVec.
-// Slower than `sys_write` but good for prototyping
 pub fn sys_write_slice_slow(fd: usize, buffer: &[u8]) -> Result<usize> {
     let buffer = RRefVec::from_slice(buffer);
     let (size, _buffer) = sys_write(fd, buffer)?;

@@ -15,7 +15,7 @@ use syscalls::{Heap, Syscall};
 use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usr_interfaces::xv6::Xv6;
 use usrlib::println;
-use usrlib::syscalls::{sys_close, sys_fstat, sys_open, sys_read_slice_slow, sys_write_slice_slow};
+use usrlib::syscalls::{sys_close, sys_fstat, sys_open_slice_slow, sys_read_slice_slow, sys_write_slice_slow};
 
 const ONE_MS: u64 = 2_400_000;
 const TEN_MS: u64 = 10 * ONE_MS;
@@ -53,7 +53,7 @@ fn bench_throughput(rv6: &dyn Xv6, options: &str, file: &str) {
         let mut buffer = alloc::vec![123u8; *bsize];
 
         if options.contains('w') {
-            let fd = sys_open(file, FileMode::WRITE | FileMode::CREATE).unwrap();
+            let fd = sys_open_slice_slow(file, FileMode::WRITE | FileMode::CREATE).unwrap();
 
             // warm up
             sys_write_slice_slow(fd, buffer.as_slice()).unwrap();
@@ -71,7 +71,7 @@ fn bench_throughput(rv6: &dyn Xv6, options: &str, file: &str) {
         }
 
         if options.contains('r') {
-            let fd = sys_open(file, FileMode::READ).unwrap();
+            let fd = sys_open_slice_slow(file, FileMode::READ).unwrap();
 
             let start = libtime::get_rdtsc();
             let mut total_size = 0;
@@ -102,7 +102,7 @@ fn bench_restart(rv6: &dyn Xv6, options: &str, file: &str) {
         assert!(total_size % bsize == 0);
         if options.contains('w') {
             println!("begin fs write benchmark");
-            let fd = sys_open(file, FileMode::WRITE | FileMode::CREATE).unwrap();
+            let fd = sys_open_slice_slow(file, FileMode::WRITE | FileMode::CREATE).unwrap();
 
             // warm up
             sys_write_slice_slow(fd, buffer.as_slice()).unwrap();
@@ -170,7 +170,7 @@ fn bench_restart(rv6: &dyn Xv6, options: &str, file: &str) {
         assert!(total_size % bsize == 0);
         if options.contains('r') {
             println!("begin fs read benchmark");
-            let fd = sys_open(file, FileMode::READ).unwrap();
+            let fd = sys_open_slice_slow(file, FileMode::READ).unwrap();
 
             // warm up
             sys_read_slice_slow(fd, buffer.as_mut_slice()).unwrap();

@@ -14,7 +14,7 @@ use libsyscalls::syscalls::sys_println;
 use syscalls::{Heap, Syscall};
 use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usr_interfaces::xv6::Xv6;
-use usrlib::syscalls::{sys_close, sys_fstat, sys_open, sys_read_slice_slow, sys_write_slice_slow};
+use usrlib::syscalls::{sys_close, sys_fstat, sys_open_slice_slow, sys_read_slice_slow, sys_write_slice_slow};
 use usrlib::{eprintln, println};
 
 #[no_mangle]
@@ -38,7 +38,7 @@ pub fn trusted_entry(
 
 fn ls(path: &str) -> Result<(), String> {
     println!("ls <{}>", path);
-    let fd = sys_open(path, FileMode::READ)
+    let fd = sys_open_slice_slow(path, FileMode::READ)
         .map_err(|e| alloc::format!("ls: cannot open {}. {:?}", path, e))?;
     let stat = sys_fstat(fd).map_err(|e| alloc::format!("ls: cannot stat {}. {:?}", path, e))?;
 
@@ -62,7 +62,7 @@ fn ls(path: &str) -> Result<(), String> {
                 let filename = utils::cstr::to_string(de.name)
                     .map_err(|_| String::from("ls: cannot convert filename to utf8 string"))?;
                 let file_path = alloc::format!("{}/{}", path, filename);
-                let file_fd = sys_open(&file_path, FileMode::READ)
+                let file_fd = sys_open_slice_slow(&file_path, FileMode::READ)
                     .map_err(|e| alloc::format!("ls: cannot open {} {:?}", file_path, e))?;
                 let file_stat = sys_fstat(file_fd)
                     .map_err(|e| alloc::format!("ls: cannot stat {} {:?}", file_path, e))?;

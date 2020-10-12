@@ -1124,7 +1124,7 @@ impl Net for Rv6Proxy {
 use usr::vfs::{NFILE, FileStat, FileMode};
 
 impl UsrVFS for Rv6Proxy {
-    fn sys_open(&self, path: &str, mode: FileMode) -> RpcResult<Result<usize>> {
+    fn sys_open(&self, path: RRefVec<u8>, mode: FileMode) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         self.domain.sys_open(path, mode)
     }
     fn sys_close(&self, fd: usize) -> RpcResult<Result<()>> {
