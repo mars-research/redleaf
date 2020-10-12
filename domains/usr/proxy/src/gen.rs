@@ -407,7 +407,6 @@ impl BDev for BDevProxy {
         #[cfg(not(feature = "tramp"))]
         let r = self.domain.read(block, data);
         #[cfg(feature = "tramp")]
-
         let mut r = unsafe { bdev_read_tramp(&self.domain, block, data) };
         if let Ok(r) = r.as_ref() {
             r.move_to(caller_domain);
@@ -972,6 +971,60 @@ extern {
 
 trampoline!(rv6_submit_and_poll_rref);
 
+/* 
+ * Code to unwind rv6_read_socket
+ */
+
+#[no_mangle]
+pub extern fn rv6_read_socket(s: &Box<dyn Xv6>, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+    //println!("rv6_read_socket: x:{}", x);
+    s.read_socket(socket, buffer)
+}
+
+#[no_mangle]
+pub extern fn rv6_read_socket_err(s: &Box<dyn Xv6>, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+    println!("rv6_read_socket was aborted");
+    Err(unsafe{RpcError::panic()})
+}
+
+#[no_mangle]
+pub extern "C" fn rv6_read_socket_addr() -> u64 {
+    rv6_read_socket_err as u64
+}
+
+extern {
+    fn rv6_read_socket_tramp(s: &Box<dyn Xv6>, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>>;
+}
+
+trampoline!(rv6_read_socket);
+
+/* 
+ * Code to unwind rv6_write_socket
+ */
+
+#[no_mangle]
+pub extern fn rv6_write_socket(s: &Box<dyn Xv6>, socket: usize, buffer: RRefVec<u8>, size: usize) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+    //println!("rv6_write_socket: x:{}", x);
+    s.write_socket(socket, buffer, size)
+}
+
+#[no_mangle]
+pub extern fn rv6_write_socket_err(s: &Box<dyn Xv6>, socket: usize, buffer: RRefVec<u8>, size: usize) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+    println!("rv6_write_socket was aborted");
+    Err(unsafe{RpcError::panic()})
+}
+
+#[no_mangle]
+pub extern "C" fn rv6_write_socket_addr() -> u64 {
+    rv6_write_socket_err as u64
+}
+
+extern {
+    fn rv6_write_socket_tramp(s: &Box<dyn Xv6>, socket: usize, buffer: RRefVec<u8>, size: usize) -> RpcResult<Result<(usize, RRefVec<u8>)>>;
+}
+
+trampoline!(rv6_write_socket);
+
 // Rv6 proxy
 struct Rv6Proxy {
     domain: Box<dyn Xv6>,
@@ -1176,7 +1229,10 @@ impl UsrNet for Rv6Proxy {
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
         buffer.move_to(self.domain_id);
+        #[cfg(not(feature = "tramp"))]
         let r = self.domain.read_socket(socket, buffer);
+        #[cfg(feature = "tramp")]
+        let r = unsafe { rv6_read_socket_tramp(&self.domain, socket, buffer) };
         if let Ok(Ok(r)) = r.as_ref() {
             r.1.move_to(caller_domain);
         }
@@ -1191,7 +1247,10 @@ impl UsrNet for Rv6Proxy {
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
         buffer.move_to(self.domain_id);
+        #[cfg(not(feature = "tramp"))]
         let r = self.domain.write_socket(socket, buffer, size);
+        #[cfg(feature = "tramp")]
+        let r = unsafe { rv6_write_socket_tramp(&self.domain, socket, buffer, size) };
         if let Ok(Ok(r)) = r.as_ref() {
             r.1.move_to(caller_domain);
         }
