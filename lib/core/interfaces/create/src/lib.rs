@@ -49,6 +49,10 @@ pub trait CreateXv6Net: Send + Sync {
     fn create_domain_xv6net(&self, net: Box<dyn Net>) ->(Box<dyn Domain>, Box<dyn UsrNet>);
 }
 
+pub trait CreateXv6NetShadow: Send + Sync {
+    fn create_domain_xv6net_shadow(&self, create: Arc<dyn CreateXv6Net>, net: Box<dyn Net>) ->(Box<dyn Domain>, Box<dyn UsrNet>);
+}
+
 pub trait CreateXv6Usr: Send + Sync {
     fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn syscalls::Domain>>;
 }
@@ -59,6 +63,7 @@ pub trait CreateXv6: Send + Sync {
                                ints: Box<dyn Interrupt>,
                                create_xv6fs: Arc<dyn CreateXv6FS>,
                                create_xv6net: Arc<dyn CreateXv6Net>,
+                               create_xv6net_shadow: Arc<dyn CreateXv6NetShadow>,
                                create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>,
                                bdev: Box<dyn BDev>,
                                net: Box<dyn usr::net::Net>,

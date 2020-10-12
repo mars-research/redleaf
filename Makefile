@@ -68,6 +68,7 @@ domain_list := $(addprefix domains/build/, \
 	xv6kernel \
 	xv6fs \
 	xv6net \
+	xv6net_shadow \
 	pci \
 	ixgbe \
 	nvme \
