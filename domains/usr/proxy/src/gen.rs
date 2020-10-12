@@ -902,6 +902,60 @@ impl usr::dom_c::DomC for DomCProxy {
 }
 
 
+/* 
+ * Code to unwind rv6_submit_and_poll_rref
+ */
+
+#[no_mangle]
+pub extern fn rv6_submit_and_poll_rref(
+    s: &Box<dyn Xv6>,
+    packets: RRefDeque<[u8; 1514], 32>,
+    collect: RRefDeque<[u8; 1514], 32>,
+    tx: bool,
+    pkt_len: usize) -> RpcResult<Result<(
+        usize,
+        RRefDeque<[u8; 1514], 32>,
+        RRefDeque<[u8; 1514], 32>
+    )>> {
+    //println!("rv6_submit_and_poll_rref: x:{}", x);
+    s.submit_and_poll_rref(packets, collect, tx, pkt_len)
+}
+
+#[no_mangle]
+pub extern fn rv6_submit_and_poll_rref_err(
+    s: &Box<dyn Xv6>,
+    packets: RRefDeque<[u8; 1514], 32>,
+    collect: RRefDeque<[u8; 1514], 32>,
+    tx: bool,
+    pkt_len: usize) -> RpcResult<Result<(
+        usize,
+        RRefDeque<[u8; 1514], 32>,
+        RRefDeque<[u8; 1514], 32>
+    )>> {
+    println!("rv6_submit_and_poll_rref was aborted");
+    Err(unsafe{RpcError::panic()})
+}
+
+#[no_mangle]
+pub extern "C" fn rv6_submit_and_poll_rref_addr() -> u64 {
+    rv6_submit_and_poll_rref_err as u64
+}
+
+extern {
+    fn rv6_submit_and_poll_rref_tramp(
+        s: &Box<dyn Xv6>,
+        packets: RRefDeque<[u8; 1514], 32>,
+        collect: RRefDeque<[u8; 1514], 32>,
+        tx: bool,
+        pkt_len: usize) -> RpcResult<Result<(
+            usize,
+            RRefDeque<[u8; 1514], 32>,
+            RRefDeque<[u8; 1514], 32>
+        )>>;
+}
+
+trampoline!(rv6_submit_and_poll_rref);
+
 // Rv6 proxy
 struct Rv6Proxy {
     domain: Box<dyn Xv6>,
@@ -952,7 +1006,10 @@ impl Net for Rv6Proxy {
 
         packets.move_to(self.domain_id);
         collect.move_to(self.domain_id);
+        #[cfg(not(feature = "tramp"))]
         let r = self.domain.submit_and_poll_rref(packets, collect, tx, pkt_len);
+        #[cfg(feature = "tramp")]
+        let r = unsafe { rv6_submit_and_poll_rref(&self.domain, packets, collect, tx, pkt_len) };
         if let Ok(Ok(r)) = r.as_ref() {
             r.1.move_to(caller_domain);
             r.2.move_to(caller_domain);
