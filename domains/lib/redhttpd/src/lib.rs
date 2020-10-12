@@ -118,7 +118,6 @@ struct HttpSession {
     handle: SocketHandle,
     response: Option<HttpResponse>,
     state: HttpState,
-    free: bool,
     request_buf: ArrayVec<[u8; 1024]>,
 }
 
@@ -136,7 +135,6 @@ impl HttpSession {
             handle,
             response: None,
             state: HttpState::ReadRequest,
-            free: false,
             request_buf: ArrayVec::new(),
         };
 
@@ -167,20 +165,10 @@ impl HttpSession {
                 self.request_buf.clear();
             }
 
-            if !self.free {
-                // Just disconnected or first time
-                self.free = true;
-            }
-
             if !socket.is_listening() {
                 socket.listen(80).unwrap();
             }
             return;
-        }
-
-        if self.free {
-            // Just established
-            self.free = false;
         }
 
         if !socket.is_active() {
