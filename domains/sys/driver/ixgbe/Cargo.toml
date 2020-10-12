@@ -30,6 +30,8 @@ rref = { path = "../../../../lib/core/rref" }
 spin = { path = "../../../../lib/core/spin-rs" }
 sashstore-redleaf = { path = "../../../../lib/external/sashstore" }
 libbenchnet = { path = "../../../lib/libbenchnet" }
+smolnet = { path = "../../../lib/smolnet" }
+redhttpd = { path = "../../../lib/redhttpd" }
 
 # Interfaces
 syscalls = { path = "../../../../lib/core/interfaces/syscalls" }
