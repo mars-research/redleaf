@@ -415,7 +415,6 @@ dependencies = [
  "hashbrown 0.7.2",
  "libsyscalls",
  "libtime",
- "lru",
  "rref",
  "sashstore-redleaf",
  "twox-hash",
@@ -507,14 +506,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4fabed175da42fed1fa0746b0ea71f412aa9d35e76e95e59b192c64b9dc2bf8b"
 dependencies = [
  "cfg-if",
-]
-
-[[package]]
-name = "lru"
-version = "0.4.3"
-source = "git+https://github.com/zhaofengli/lru-rs#60a0fe3a9e731abe615143f8c2a9e02b5ba8b79a"
-dependencies = [
- "hashbrown 0.6.3",
 ]
 
 [[package]]

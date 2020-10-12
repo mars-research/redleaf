@@ -2,6 +2,7 @@
 members = [
 	"lib/redhttpd",
 	"lib/smolnet",
+	"lib/libbenchnet",
 	"sys/driver/ixgbe",
 	"sys/driver/membdev",
 	"sys/driver/nvme",

@@ -26,7 +26,6 @@ use core::alloc::Layout;
 
 use fnv::FnvHasher;
 use twox_hash::XxHash;
-use lru::LruCache;
 
 use core::default::Default;
 
@@ -58,8 +57,6 @@ type XxHashFactory = BuildHasherDefault<XxHash>;
 pub struct Maglev<N> {
     pub nodes: Vec<N>,
     pub lookup: Vec<i8>,
-    // pub cache: RefCell<LruCache<usize, usize>>, // hash -> backend
-    // pub cache: RefCell<HashMap<usize, usize, FnvHashFactory>>,
     pub cache: RefCell<CIndex<usize, usize>>,
 }
 
@@ -68,8 +65,6 @@ impl<N: Hash + Eq> Maglev<N> {
     pub fn new<I: IntoIterator<Item = N>>(nodes: I) -> Self {
         let nodes = nodes.into_iter().collect::<Vec<_>>();
         let lookup = Self::populate(&nodes);
-        // let cache = RefCell::new(LruCache::new(CACHE_SIZE));
-        // let cache = RefCell::new(HashMap::with_capacity_and_hasher(CACHE_SIZE, Default::default()));
         let cache = RefCell::new(CIndex::with_capacity(CACHE_SIZE));
 
         Maglev { nodes, lookup, cache }
