@@ -1,6 +1,8 @@
 // An implementation of smoltcp::phy::Device for RedLeaf Net
 
-extern crate smoltcp;
+#![no_std]
+
+extern crate alloc;
 
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
@@ -184,7 +186,10 @@ impl TxToken for SmolPhyTxToken {
                 // unsafe {
                 //     frame.set_len(len);
                 // }
-                let result = f(&mut *frame);
+                //let result = f(&mut *frame);
+                let result = f(&mut frame[..len]);
+                // println!("tx/smoltcp: real length {}", len);
+                // println!("tx/smoltcp: real packet: {:02x?}", &frame[..len]);
                 
                 {
                     let mut tx_guard = self.tx.lock();
@@ -223,7 +228,19 @@ impl RxToken for SmolPhyRxToken {
     fn consume<R, F>(mut self, _timestamp: Instant, f: F) -> SmolResult<R>
         where F: FnOnce(&mut [u8]) -> SmolResult<R>
     {
-        let result = f(&mut *self.frame);
+        // HACK
+        let pkt_len = {
+            ((self.frame[14 + 2] as usize) << 8) + (self.frame[14 + 3] as usize) + 14
+        };
+        let frame = if pkt_len <= self.frame.len() {
+            // println!("rx/smoltcp: Received {} - Valid IPv4??", pkt_len);
+            // println!("rx/smoltcp: packet: {:x?}", &self.frame[..30]);
+            &mut self.frame[..pkt_len]
+        } else {
+            // println!("rx/smoltcp: Received {} - Too long??", pkt_len);
+            &mut *self.frame
+        };
+        let result = f(frame);
 
         let mut pool_guard = self.pool.lock();
         let mut pool = pool_guard.take().unwrap();

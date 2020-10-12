@@ -17,7 +17,6 @@ extern crate lazy_static;
 #[macro_use]
 extern crate byteorder;
 
-mod smoltcp_device;
 
 use alloc::boxed::Box;
 use alloc::vec::Vec;
@@ -34,7 +33,7 @@ use usr_interface::usrnet::UsrNet;
 use usr_interface::rpc::RpcResult;
 use spin::Mutex;
 
-use smoltcp_device::SmolPhy;
+use smolnet::SmolPhy;
 use smoltcp::time::Instant;
 use smoltcp::iface::{EthernetInterfaceBuilder, EthernetInterface, NeighborCache, Neighbor};
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};

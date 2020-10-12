@@ -14,7 +14,6 @@ mod ixgbe_desc;
 mod nullnet;
 mod redhttpd;
 mod smoltcp_device;
-mod smoltcp_device_rref;
 
 extern crate malloc;
 extern crate alloc;
@@ -477,7 +476,7 @@ fn smoltcp_main(dev: &Ixgbe) {
 }
 
 fn smoltcp_rref_main(net: Box<dyn usr::net::Net>) {
-    use smoltcp_device_rref::SmolPhy as SmolIxgbe;
+    use smolnet::SmolPhy as SmolIxgbe;
 
     use smoltcp::time::Instant;
 

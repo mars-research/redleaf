@@ -363,6 +363,7 @@ dependencies = [
  "protocol",
  "rref",
  "sashstore-redleaf",
+ "smolnet",
  "smoltcp",
  "spin 0.5.3",
  "syscalls",
@@ -848,6 +849,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "smolnet"
+version = "0.1.0"
+dependencies = [
+ "arrayvec",
+ "console",
+ "rref",
+ "smoltcp",
+ "spin 0.5.3",
+ "usr",
+]
+
+[[package]]
 name = "smoltcp"
 version = "0.6.0"
 dependencies = [
@@ -1072,6 +1085,7 @@ dependencies = [
  "malloc",
  "num-traits",
  "rref",
+ "smolnet",
  "smoltcp",
  "spin 0.5.3",
  "sync",
