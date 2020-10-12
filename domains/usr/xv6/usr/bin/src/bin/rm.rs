@@ -29,6 +29,7 @@ pub fn trusted_entry(
     println!("Starting rv6 rm with args: {}", args);
 
     let mut args = args.split_whitespace();
+    assert!(args.next().is_some());
     let path = args.next().unwrap();
 
     rm(path).unwrap();

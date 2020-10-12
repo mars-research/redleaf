@@ -29,6 +29,7 @@ pub fn trusted_entry(
     println!("Starting rv6 mkdir with args: {}", args);
 
     let mut args = args.split_whitespace();
+    assert!(args.next().is_some());
     let path = args.next().unwrap();
 
     mkdir(path).unwrap();
