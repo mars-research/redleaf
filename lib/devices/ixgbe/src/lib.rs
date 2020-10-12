@@ -1016,6 +1016,18 @@ impl IxgbeDevice {
             if debug {
                 //println!("packet len {}", pkt_len);
             }
+
+            // HACK: Fix pkt_len here
+            // Assuming all we send is IPv4
+            // 14 + 2, 14 + 2
+            //let pkt_len_hi = packet[14 + 2];
+            //let pkt_len_lo = packet[14 + 3];
+            let real_pkt_len = {
+                ((packet[14 + 2] as usize) << 8) + (packet[14 + 3] as usize) + 14
+            };
+            // println!("tx/ixgbe: packet len {}", real_pkt_len);
+            // println!("tx/ixgbe: packet: {:02x?}", &packet[..real_pkt_len]);
+
             unsafe {
                 if self.tx_slot[tx_index] {
                     if let Some(mut buf) = self.transmit_rrefs[tx_index].take() {
@@ -1054,12 +1066,12 @@ impl IxgbeDevice {
                                 | IXGBE_ADVTXD_DCMD_IFCS
                                 | IXGBE_ADVTXD_DCMD_DEXT
                                 | IXGBE_ADVTXD_DTYP_DATA
-                                | pkt_len as u32,
+                                | real_pkt_len as u32,
                 );
 
                 core::ptr::write_volatile(
                         &(*self.transmit_ring.as_ptr().add(tx_index)).read.olinfo_status as *const u32 as *mut u32,
-                        (pkt_len as u32) << IXGBE_ADVTXD_PAYLEN_SHIFT,
+                        (real_pkt_len as u32) << IXGBE_ADVTXD_PAYLEN_SHIFT,
                 );
             }
 
