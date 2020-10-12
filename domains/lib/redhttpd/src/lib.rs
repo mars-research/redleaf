@@ -3,6 +3,9 @@
 // A very naive HTTP 1.1 server that supports serving multiple clients at
 // once.
 
+#![no_std]
+extern crate alloc;
+
 #[cfg(not(target_os = "linux"))]
 use console::println;
 
@@ -12,7 +15,6 @@ use alloc::vec;
 use core::fmt;
 use core::fmt::Write;
 
-extern crate arrayvec;
 use arrayvec::{ArrayVec, ArrayString};
 
 use smoltcp::socket::{SocketSet, SocketHandle};
@@ -22,14 +24,14 @@ use smoltcp::socket::{Socket, SocketRef, TcpSocket, TcpSocketBuffer};
 use core::include_bytes;
 
 // All sessions are pre-allocated in advance
-const MAX_SESSIONS: usize = 100;
+const MAX_SESSIONS: usize = 1024;
 
 /// Our dummy backing storage :)
-fn read_file(url: &str) -> Option<&'static [u8]> {
+fn read_file(url: &[u8]) -> Option<&'static [u8]> {
     match url {
-        "/index.html" | "/" | "" => Some(include_bytes!("htdocs/index.html")),
-        "/style.css" => Some(include_bytes!("htdocs/style.css")),
-        "/404.html" => Some(include_bytes!("htdocs/404.html")),
+        b"/index.html" | b"/" | b"" => Some(include_bytes!("htdocs/index.html")),
+        b"/style.css" => Some(include_bytes!("htdocs/style.css")),
+        b"/404.html" => Some(include_bytes!("htdocs/404.html")),
         _ => None,
     }
 }
@@ -116,6 +118,8 @@ struct HttpSession {
     handle: SocketHandle,
     response: Option<HttpResponse>,
     state: HttpState,
+    free: bool,
+    request_buf: ArrayVec<[u8; 1024]>,
 }
 
 impl HttpSession {
@@ -132,16 +136,41 @@ impl HttpSession {
             handle,
             response: None,
             state: HttpState::ReadRequest,
+            free: false,
+            request_buf: ArrayVec::new(),
         };
 
         r
     }
 
+    fn buffer_request(&mut self, buf: &[u8]) -> bool {
+        /*
+        for chr in &buf[..] {
+            self.request_buf.push(*chr);
+        }
+        */
+        self.request_buf.try_extend_from_slice(buf).expect("Failed to write to request buffer");
+        let buflen = self.request_buf.len();
+        if self.request_buf.len() > 5 && &self.request_buf[buflen - 4..] == "\r\n\r\n".as_bytes() {
+            return true;
+        }
+        return false;
+    }
+
     pub fn handle(&mut self, sockets: &mut SocketSet) {
         let mut socket = sockets.get::<TcpSocket>(self.handle);
 
-        if !socket.is_active() {
+        if !socket.is_active() || !socket.is_open() {
             self.state = HttpState::ReadRequest;
+
+            if self.request_buf.len() != 0 {
+                self.request_buf.clear();
+            }
+
+            if !self.free {
+                // Just disconnected or first time
+                self.free = true;
+            }
 
             if !socket.is_listening() {
                 socket.listen(80).unwrap();
@@ -149,26 +178,40 @@ impl HttpSession {
             return;
         }
 
+        if self.free {
+            // Just established
+            self.free = false;
+        }
+
+        if !socket.is_active() {
+            // Wait until it's actually active
+            return;
+        }
+
         // Connection active
         match self.state {
             HttpState::ReadRequest => {
                 if socket.may_recv() {
-                    let send_res = socket.recv(|buf| {
-                        if buf.len() == 0 {
+                    let send_res = socket.recv(|pbuf| {
+                        if pbuf.len() == 0 {
                             return (0, false);
                         }
 
-                        if buf.len() < 5 {
-                            // Too short
-                            self.emit_error(HttpStatus::BadRequest);
-                            return (buf.len(), true);
-                        }
-                        if &buf[..4] != "GET ".as_bytes() || &buf[buf.len() - 4..] != "\r\n\r\n".as_bytes() {
-                            // Not GET, or request not complete in one
-                            // packet (against specs)
-                            self.emit_error(HttpStatus::BadRequest);
-                            return (buf.len(), true);
-                        }
+                        let consumed = pbuf.len();
+
+                        // ok let's do request buffering...
+                        let buf = {
+                            if self.request_buf.len() == 0 && pbuf.len() > 5 && &pbuf[pbuf.len() - 4..] == "\r\n\r\n".as_bytes() {
+                                // Cool, everything in one single packet
+                                &pbuf
+                            } else if self.buffer_request(pbuf) {
+                                // Request complete!
+                                &*self.request_buf
+                            } else {
+                                // Wait for next packet
+                                return (consumed, false);
+                            }
+                        };
 
                         let mut urlend: usize = 4;
                         for i in 4..buf.len() {
@@ -179,17 +222,21 @@ impl HttpSession {
                         }
                         if urlend == 4 {
                             // No path
-                            self.emit_error(HttpStatus::BadRequest);
-                            return (buf.len(), true);
+                            self.response = Self::emit_error(HttpStatus::BadRequest);
+                            return (consumed, true);
                         }
 
+                        let url = &buf[4..urlend];
+
+                        /*
                         let url = if let Ok(url) = core::str::from_utf8(&buf[4..urlend]) {
                             url
                         } else {
                             // Invalid UTF-8
-                            self.emit_error(HttpStatus::BadRequest);
-                            return (buf.len(), true);
+                            self.response = Self::emit_error(HttpStatus::BadRequest);
+                            return (consumed, true);
                         };
+                        */
 
                         match read_file(url) {
                             Some(body) => {
@@ -197,18 +244,18 @@ impl HttpSession {
                                     status: HttpStatus::Success,
                                     body,
                                 });
-                                self.state = HttpState::SendResponse(false, 0, 0);
                             }
                             None => {
                                 // 404
-                                self.emit_error(HttpStatus::NotFound);
+                                self.response = Self::emit_error(HttpStatus::NotFound);
                             }
                         }
 
-                        return (buf.len(), true);
+                        return (consumed, true);
                     }).expect("Failed to receive");
 
                     if send_res {
+                        self.state = HttpState::SendResponse(false, 0, 0);
                         self.send_response(&mut socket);
                     }
                 }
@@ -279,6 +326,7 @@ impl HttpSession {
                 if complete {
                     // We are done! Keep alive?
                     self.state = HttpState::ReadRequest;
+                    self.request_buf.clear();
                     // socket.close(); // FIXME
                 }
             }
@@ -287,23 +335,22 @@ impl HttpSession {
         }
     }
 
-    fn emit_error(&mut self, error: HttpStatus) {
+    fn emit_error(error: HttpStatus) -> Option<HttpResponse> {
         match error {
             HttpStatus::NotFound => {
-                self.response = Some(HttpResponse {
+                Some(HttpResponse {
                     status: HttpStatus::NotFound,
-                    body: read_file("/404.html").unwrap_or("Not Found".as_bytes()),
-                });
+                    body: read_file(b"/404.html").unwrap_or("Not Found".as_bytes()),
+                })
             }
             HttpStatus::BadRequest => {
-                self.response = Some(HttpResponse {
+                Some(HttpResponse {
                     status: HttpStatus::BadRequest,
-                    body: read_file("/400.html").unwrap_or("Bad Request".as_bytes()),
-                });
+                    body: read_file(b"/400.html").unwrap_or("Bad Request".as_bytes()),
+                })
             }
             _ => unimplemented!(),
         }
-        self.state = HttpState::SendResponse(false, 0, 0);
     }
 }
 

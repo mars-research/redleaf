@@ -745,6 +745,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "redhttpd"
+version = "0.1.0"
+dependencies = [
+ "arrayvec",
+ "console",
+ "smoltcp",
+]
+
+[[package]]
 name = "redleaf_init"
 version = "0.1.0"
 dependencies = [

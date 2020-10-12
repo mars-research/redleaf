@@ -1,0 +1,19 @@
+[package]
+name = "redhttpd"
+version = "0.1.0"
+authors = ["Zhaofeng Li <hello@zhaofeng.li>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+console = { path = "../../../lib/core/console" }
+
+[dependencies.smoltcp]
+path = "../../../lib/external/smoltcp"
+default-features = false
+features = ["alloc", "proto-ipv4", "socket-tcp", "socket-icmp", "ethernet"]
+
+[dependencies.arrayvec]
+version = "0.5.1"
+default-features = false

@@ -28,6 +28,7 @@ tls = { path = "../../../../../lib/core/tls" }
 utils = { path = "../../lib/utils" }
 rref = { path = "../../../../../lib/core/rref" }
 smolnet = { path = "../../../../lib/smolnet" }
+redhttpd = { path = "../../../../lib/redhttpd" }
 
 [dependencies.lazy_static]
 version = "1.3.0"

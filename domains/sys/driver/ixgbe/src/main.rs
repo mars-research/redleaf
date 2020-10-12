@@ -12,7 +12,6 @@
 mod device;
 mod ixgbe_desc;
 mod nullnet;
-mod redhttpd;
 mod smoltcp_device;
 
 extern crate malloc;

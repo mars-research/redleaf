@@ -1,5 +1,6 @@
 [workspace]
 members = [
+	"lib/redhttpd",
 	"lib/smolnet",
 	"sys/driver/ixgbe",
 	"sys/driver/membdev",
