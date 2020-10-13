@@ -25,6 +25,8 @@ utils = { path = "../../lib/utils" }
 syscalls = { path = "../../../../../lib/core/interfaces/syscalls" }
 usr_interfaces = { package = "usr", path = "../../../../../lib/core/interfaces/usr" }
 
+redhttpd = { path = "../../../../lib/redhttpd" }
+
 [dependencies.arrayvec]
 version = "0.5.1"
 default-features = false

@@ -57,11 +57,20 @@ impl UsrNet for Shadow {
     fn clone_usrnet(&self) -> RpcResult<Box<dyn UsrNet>> {
         self.shadow.lock().usrnet.clone_usrnet()
     }
-    fn listen(&self, port: u16) -> RpcResult<Result<usize>> {
-        self.shadow.lock().usrnet.listen(port)
+    fn create(&self) -> RpcResult<Result<usize>> {
+        self.shadow.lock().usrnet.create()
     }
-    fn is_usable(&self, server: usize) -> RpcResult<Result<bool>> {
-        self.shadow.lock().usrnet.is_usable(server)
+    fn listen(&self, socket: usize, port: u16) -> RpcResult<Result<()>> {
+        self.shadow.lock().usrnet.listen(socket, port)
+    }
+    fn poll(&self, tx: bool) -> RpcResult<Result<()>> {
+        self.shadow.lock().usrnet.poll(tx)
+    }
+    fn can_recv(&self, server: usize) -> RpcResult<Result<bool>> {
+        self.shadow.lock().usrnet.can_recv(server)
+    }
+    fn is_listening(&self, server: usize) -> RpcResult<Result<bool>> {
+        self.shadow.lock().usrnet.is_listening(server)
     }
     fn is_active(&self, socket: usize) -> RpcResult<Result<bool>> {
         self.shadow.lock().usrnet.is_active(socket)

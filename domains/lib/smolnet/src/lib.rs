@@ -189,7 +189,7 @@ impl TxToken for SmolPhyTxToken {
                 //let result = f(&mut *frame);
                 let result = f(&mut frame[..len]);
                 // println!("tx/smoltcp: real length {}", len);
-                // println!("tx/smoltcp: real packet: {:02x?}", &frame[..len]);
+                // println!("tx/smoltcp: real packet: {:02X?}", &frame[..len]);
                 
                 {
                     let mut tx_guard = self.tx.lock();
@@ -234,7 +234,7 @@ impl RxToken for SmolPhyRxToken {
         };
         let frame = if pkt_len <= self.frame.len() {
             // println!("rx/smoltcp: Received {} - Valid IPv4??", pkt_len);
-            // println!("rx/smoltcp: packet: {:x?}", &self.frame[..30]);
+            // println!("rx/smoltcp: packet: {:02X?}", &self.frame[..pkt_len]);
             &mut self.frame[..pkt_len]
         } else {
             // println!("rx/smoltcp: Received {} - Too long??", pkt_len);

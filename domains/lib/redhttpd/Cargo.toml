@@ -8,6 +8,9 @@ edition = "2018"
 
 [dependencies]
 console = { path = "../../../lib/core/console" }
+libsyscalls = { path = "../../../lib/core/libsyscalls" }
+usr = { path = "../../../lib/core/interfaces/usr" }
+rref = { path = "../../../lib/core/rref" }
 
 [dependencies.smoltcp]
 path = "../../../lib/external/smoltcp"

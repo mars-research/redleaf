@@ -136,6 +136,7 @@ dependencies = [
  "libsyscalls",
  "libtime",
  "malloc",
+ "redhttpd",
  "rref",
  "syscalls",
  "usr",
@@ -742,7 +743,10 @@ version = "0.1.0"
 dependencies = [
  "arrayvec",
  "console",
+ "libsyscalls",
+ "rref",
  "smoltcp",
+ "usr",
 ]
 
 [[package]]
@@ -855,6 +859,7 @@ version = "0.1.0"
 dependencies = [
  "arrayvec",
  "console",
+ "libsyscalls",
  "rref",
  "smoltcp",
  "spin 0.5.3",

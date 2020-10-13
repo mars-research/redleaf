@@ -1212,11 +1212,20 @@ impl UsrNet for Rv6Proxy {
     fn clone_usrnet(&self) -> RpcResult<Box<dyn UsrNet>> {
         Ok(box UsrNetProxy::new(self.domain_id, self.domain.clone_usrnet()?))
     }
-    fn listen(&self, port: u16) -> RpcResult<Result<usize>> {
-        self.domain.listen(port)
+    fn create(&self) -> RpcResult<Result<usize>> {
+        self.domain.create()
     }
-    fn is_usable(&self, server: usize) -> RpcResult<Result<bool>> {
-        self.domain.is_usable(server)
+    fn listen(&self, socket: usize, port: u16) -> RpcResult<Result<()>> {
+        self.domain.listen(socket, port)
+    }
+    fn poll(&self, tx: bool) -> RpcResult<Result<()>> {
+        UsrNet::poll(&*self.domain, tx)
+    }
+    fn can_recv(&self, server: usize) -> RpcResult<Result<bool>> {
+        self.domain.can_recv(server)
+    }
+    fn is_listening(&self, server: usize) -> RpcResult<Result<bool>> {
+        self.domain.is_listening(server)
     }
     fn is_active(&self, socket: usize) -> RpcResult<Result<bool>> {
         self.domain.is_active(socket)
@@ -1471,8 +1480,12 @@ impl UsrNet for UsrNetProxy {
         Ok(box Self::new(self.domain_id, self.domain.clone_usrnet()?))
     }
 
-    fn listen(&self, port: u16) -> RpcResult<Result<usize>> {
-        self.domain.listen(port)
+    fn create(&self) -> RpcResult<Result<usize>> {
+        self.domain.create()
+    }
+
+    fn listen(&self, socket: usize, port: u16) -> RpcResult<Result<()>> {
+        self.domain.listen(socket, port)
     }
 
     fn read_socket(&self, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
@@ -1513,8 +1526,16 @@ impl UsrNet for UsrNetProxy {
         r
     }
 
-    fn is_usable(&self, server: usize) -> RpcResult<Result<bool>> {
-        self.domain.is_usable(server)
+    fn poll(&self, tx: bool) -> RpcResult<Result<()>> {
+        UsrNet::poll(&*self.domain, tx)
+    }
+
+    fn can_recv(&self, server: usize) -> RpcResult<Result<bool>> {
+        self.domain.can_recv(server)
+    }
+
+    fn is_listening(&self, server: usize) -> RpcResult<Result<bool>> {
+        self.domain.is_listening(server)
     }
 
     fn is_active(&self, socket: usize) -> RpcResult<Result<bool>> {

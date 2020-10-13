@@ -10,6 +10,7 @@ edition = "2018"
 console = { path = "../../../lib/core/console" }
 rref = { path = "../../../lib/core/rref" }
 spin = { path = "../../../lib/core/spin-rs" }
+libsyscalls = { path = "../../../lib/core/libsyscalls" }
 
 # Interfaces
 usr = { path = "../../../lib/core/interfaces/usr" }

@@ -67,17 +67,15 @@ struct Rv6NetInner {
     // 'e routes
     iface: EthernetInterface<'static, 'static, 'static, SmolPhy>,
 
-    ip_addresses: [IpCidr; 3],
+    ip_addresses: [IpCidr; 1],
     num_ip_addresses: usize,
 
     mac_address: [u8; 6],
     // neighbor_cache_entries: [Option<(IpAddress, Neighbor)>; 8],
     // neighbor_cache_entries: Vec<Option<(IpAddress, Neighbor)>>,
 
-    last_polled: u64,
-
     socketset: SocketSet<'static, 'static, 'static>,
-    handles: ArrayVec<[SocketHandle; 512]>,
+    handles: ArrayVec<[SocketHandle; 1024]>,
 }
 
 impl Rv6NetInner {
@@ -89,11 +87,9 @@ impl Rv6NetInner {
         let neighbor_cache = NeighborCache::new(BTreeMap::new());
 
         let ip_addresses = [
-            IpCidr::new(IpAddress::v4(10, 0, 0, 2), 24),
-            IpCidr::new(IpAddress::v4(10, 0, 0, 2), 24),
-            IpCidr::new(IpAddress::v4(10, 0, 0, 2), 24),
+            IpCidr::new(IpAddress::v4(10, 10, 1, 1), 24),
         ];
-        let mac_address = [0x90, 0xe2, 0xba, 0xac, 0x16, 0x59];
+        let mac_address = [0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x10];
         let mut iface = EthernetInterfaceBuilder::new(smol)
             .ethernet_addr(EthernetAddress::from_bytes(&mac_address))
             .neighbor_cache(neighbor_cache)
@@ -110,21 +106,13 @@ impl Rv6NetInner {
 
             mac_address,
             // neighbor_cache_entries,
-            last_polled: 0,
 
             socketset,
             handles: ArrayVec::new(),
         }
     }
 
-    fn find_vacant_socket(&mut self) -> Option<usize> {
-        for (i, &handle) in self.handles.iter().enumerate() {
-            let socket = self.socketset.get::<TcpSocket>(handle);
-            if !socket.is_active() && !socket.is_listening() {
-                return Some(i);
-            }
-        }
-
+    fn create_socket(&mut self) -> Option<usize> {
         // Create new socket
         let socket = TcpSocket::new(
             TcpSocketBuffer::new(vec![0; 1024]),
@@ -137,17 +125,14 @@ impl Rv6NetInner {
         Some(self.handles.len() - 1)
     }
 
-    fn poll(&mut self) {
-        let current = libtime::get_ns_time();
+    fn poll(&mut self, tx: bool) {
+        let current = libtime::get_ns_time() / 1000000;
 
-        if (current - self.last_polled) > 100_000_000 || self.last_polled == 0 {
-            // try to tx first
+        if tx {
             self.iface.device_mut().do_tx();
-
+        } else {
             self.iface.device_mut().do_rx();
             self.iface.poll(&mut self.socketset, Instant::from_millis(current as i64));
-
-            self.last_polled = current;
         }
     }
 }
@@ -165,31 +150,50 @@ impl UsrNet for Rv6Net {
         })
     }
 
-    fn listen(&self, port: u16) -> RpcResult<Result<usize>> {
+    fn create(&self) -> RpcResult<Result<usize>> {
         let mut state = self.state.lock();
 
-        if let Some(i) = state.find_vacant_socket() {
-            let handle = state.handles[i];
-            let mut socket = state.socketset.get::<TcpSocket>(handle);
-
-            if let Ok(_) = socket.listen(port) {
-                Ok(Ok(i))
-            } else {
-                Ok(Err(ErrorKind::InvalidFileDescriptor))
-            }
-        } else {
-            Ok(Err(ErrorKind::AddrNotAvailable))
+        match state.create_socket() {
+            Some(socket) => Ok(Ok(socket)),
+            _ => Ok(Err(ErrorKind::AddrNotAvailable)),
         }
     }
 
-    // facepalm
-    fn is_usable(&self, socket: usize) -> RpcResult<Result<bool>> {
+    fn listen(&self, socket: usize, port: u16) -> RpcResult<Result<()>> {
         let mut state = self.state.lock();
 
         let handle = state.handles[socket];
         let mut socket = state.socketset.get::<TcpSocket>(handle);
 
-        Ok(Ok(socket.is_active() || socket.is_listening()))
+        if let Ok(_) = socket.listen(port) {
+            Ok(Ok(()))
+        } else {
+            Ok(Err(ErrorKind::InvalidFileDescriptor))
+        }
+    }
+
+    fn poll(&self, tx: bool) -> RpcResult<Result<()>> {
+        let mut state = self.state.lock();
+        state.poll(tx);
+        Ok(Ok(()))
+    }
+
+    fn can_recv(&self, socket: usize) -> RpcResult<Result<bool>> {
+        let mut state = self.state.lock();
+
+        let handle = state.handles[socket];
+        let mut socket = state.socketset.get::<TcpSocket>(handle);
+
+        Ok(Ok(socket.can_recv()))
+    }
+
+    fn is_listening(&self, socket: usize) -> RpcResult<Result<bool>> {
+        let mut state = self.state.lock();
+
+        let handle = state.handles[socket];
+        let mut socket = state.socketset.get::<TcpSocket>(handle);
+
+        Ok(Ok(socket.is_listening()))
     }
 
     fn is_active(&self, socket: usize) -> RpcResult<Result<bool>> {
@@ -217,14 +221,13 @@ impl UsrNet for Rv6Net {
 
     fn read_socket(&self, socket: usize, mut buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         let mut state = self.state.lock();
-        state.poll();
 
         let handle = state.handles[socket];
         let mut socket = state.socketset.get::<TcpSocket>(handle);
 
         let mut dstbuf = buffer.as_mut_slice();
 
-        let size = socket.recv(|buf| {
+        let r = socket.recv(|buf| {
             let size = if buf.len() > dstbuf.len() {
                 dstbuf.len()
             } else {
@@ -234,34 +237,41 @@ impl UsrNet for Rv6Net {
             dstbuf[..size].copy_from_slice(&buf[..size]);
 
             (size, size)
-        }).expect("Failed to receive");
+        });
 
-        Ok(Ok((size, buffer)))
+        match r {
+            Ok(size) => Ok(Ok((size, buffer))),
+            Err(_) => Ok(Err(ErrorKind::Other)),
+        }
+        
     }
 
     fn write_socket(&self, socket: usize, mut buffer: RRefVec<u8>, size: usize) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         let mut state = self.state.lock();
-        state.poll();
 
         let handle = state.handles[socket];
+
         let mut socket = state.socketset.get::<TcpSocket>(handle);
 
         let mut buf = buffer.as_mut_slice();
 
         // buf.len() is not the actual size...
-        let size = socket.recv(|dstbuf| {
-            let size = if size > dstbuf.len() {
+        let r = socket.send(|dstbuf| {
+            let to_send = if size > dstbuf.len() {
                 dstbuf.len()
             } else {
                 size
             };
 
-            dstbuf[..size].copy_from_slice(&buf[..size]);
+            dstbuf[..to_send].copy_from_slice(&buf[..to_send]);
 
-            (size, size)
-        }).expect("Failed to send");
-
-        Ok(Ok((size, buffer)))
+            (to_send, to_send)
+        });
+        
+        match r {
+            Ok(sent) => Ok(Ok((sent, buffer))),
+            Err(_) => Ok(Err(ErrorKind::Other)),
+        }
     }
 }
 

@@ -1,12 +1,11 @@
-// redhttpd
+// redhttpd for usrnet
 //
-// A very naive HTTP 1.1 server that supports serving multiple clients at
-// once.
+// A quick hack to support usrnet in redhttpd
+//
+// TODO: Figure out a cleanway to support both
+// vanilla smoltcp and redleaf usrnet semantics.
 
 #![no_std]
-
-pub mod usrnet;
-
 extern crate alloc;
 
 #[cfg(not(target_os = "linux"))]
@@ -20,8 +19,8 @@ use core::fmt::Write;
 
 use arrayvec::{ArrayVec, ArrayString};
 
-use smoltcp::socket::{SocketSet, SocketHandle};
-use smoltcp::socket::{Socket, SocketRef, TcpSocket, TcpSocketBuffer};
+use rref::RRefVec;
+use usr::usrnet::UsrNet;
 
 #[macro_use]
 use core::include_bytes;
@@ -62,21 +61,21 @@ impl Httpd {
         }
     }
 
-    pub fn handle(&mut self, sockets: &mut SocketSet) {
-        self.autoscale(sockets);
+    pub fn handle(&mut self, net: &dyn UsrNet) {
+        self.autoscale(net);
 
         for session in self.sessions.iter_mut() {
-            session.handle(sockets);
+            session.handle(net);
         }
     }
 
     /// Auto-scales the HttpSessions
-    fn autoscale(&mut self, sockets: &mut SocketSet) {
+    fn autoscale(&mut self, net: &dyn UsrNet) {
         // As mentioned above, let's just create all the sockets up
         // to MAX_SESSIONS :)
 
         while self.sessions.len() < self.sessions.capacity() {
-            self.sessions.push(HttpSession::new(sockets));
+            self.sessions.push(HttpSession::new(net));
         }
     }
 }
@@ -119,29 +118,29 @@ struct HttpResponse {
     body: &'static [u8],
 }
 
+type SocketHandle = usize;
+
 /// An HTTP session.
 struct HttpSession {
     handle: SocketHandle,
     response: Option<HttpResponse>,
     state: HttpState,
     request_buf: ArrayVec<[u8; 1024]>,
+    buf: Option<RRefVec<u8>>,
 }
 
-impl HttpSession {
-    pub fn new<'a, 'b, 'c>(sockets: &mut SocketSet<'a, 'b, 'c>) -> Self {
-        let socket = TcpSocket::new(
-            TcpSocketBuffer::new(vec![0; 1024]),
-            TcpSocketBuffer::new(vec![0; 1024]),
-        );
-        let socket: Socket<'b, 'c> = socket.into();
 
-        let handle = sockets.add(socket);
+impl HttpSession {
+    pub fn new(net: &dyn UsrNet) -> Self {
+        // FIXME: Better error handling
+        let handle = net.create().unwrap().unwrap();
 
         let r = HttpSession {
             handle,
             response: None,
             state: HttpState::ReadRequest,
             request_buf: ArrayVec::new(),
+            buf: Some(RRefVec::new(0, 1024)),
         };
 
         r
@@ -161,111 +160,119 @@ impl HttpSession {
         return false;
     }
 
-    pub fn handle(&mut self, sockets: &mut SocketSet) {
-        let mut socket = sockets.get::<TcpSocket>(self.handle);
+    fn read_request(&mut self, pbuf: &[u8]) -> (usize, bool) {
+        if pbuf.len() == 0 {
+            return (0, false);
+        }
 
-        if !socket.is_active() || !socket.is_open() {
+        let consumed = pbuf.len();
+
+        // ok let's do request buffering...
+        let buf = {
+            if self.request_buf.len() == 0 && pbuf.len() > 5 && &pbuf[pbuf.len() - 4..] == "\r\n\r\n".as_bytes() {
+                // Cool, everything in one single packet
+                &pbuf
+            } else if self.buffer_request(pbuf) {
+                // Request complete!
+                &*self.request_buf
+            } else {
+                // Wait for next packet
+                return (consumed, false);
+            }
+        };
+
+        let mut urlend: usize = 4;
+        for i in 4..buf.len() {
+            if buf[i] == ' ' as u8 {
+                urlend = i;
+                break;
+            }
+        }
+        if urlend == 4 {
+            // No path
+            self.response = Self::emit_error(HttpStatus::BadRequest);
+            return (consumed, true);
+        }
+
+        let url = &buf[4..urlend];
+
+        /*
+        let url = if let Ok(url) = core::str::from_utf8(&buf[4..urlend]) {
+            url
+        } else {
+            // Invalid UTF-8
+            self.response = Self::emit_error(HttpStatus::BadRequest);
+            return (consumed, true);
+        };
+        */
+
+        match read_file(url) {
+            Some(body) => {
+                self.response = Some(HttpResponse {
+                    status: HttpStatus::Success,
+                    body,
+                });
+            }
+            None => {
+                // 404
+                self.response = Self::emit_error(HttpStatus::NotFound);
+            }
+        }
+
+        return (consumed, true);
+    }
+
+    pub fn handle(&mut self, net: &dyn UsrNet) {
+        let active = net.is_active(self.handle).unwrap().unwrap();
+        let listening = net.is_listening(self.handle).unwrap().unwrap();
+
+        if !active {
             self.state = HttpState::ReadRequest;
 
             if self.request_buf.len() != 0 {
                 self.request_buf.clear();
             }
 
-            if !socket.is_listening() {
-                socket.listen(80).unwrap();
+            if !listening {
+                net.listen(self.handle, 80).unwrap().unwrap();
             }
-            return;
-        }
-
-        if !socket.is_active() {
-            // Wait until it's actually active
             return;
         }
 
         // Connection active
         match self.state {
             HttpState::ReadRequest => {
-                if socket.may_recv() {
-                    let send_res = socket.recv(|pbuf| {
-                        if pbuf.len() == 0 {
-                            return (0, false);
-                        }
-
-                        let consumed = pbuf.len();
-
-                        // ok let's do request buffering...
-                        let buf = {
-                            if self.request_buf.len() == 0 && pbuf.len() > 5 && &pbuf[pbuf.len() - 4..] == "\r\n\r\n".as_bytes() {
-                                // Cool, everything in one single packet
-                                &pbuf
-                            } else if self.buffer_request(pbuf) {
-                                // Request complete!
-                                &*self.request_buf
-                            } else {
-                                // Wait for next packet
-                                return (consumed, false);
-                            }
-                        };
-
-                        let mut urlend: usize = 4;
-                        for i in 4..buf.len() {
-                            if buf[i] == ' ' as u8 {
-                                urlend = i;
-                                break;
-                            }
-                        }
-                        if urlend == 4 {
-                            // No path
-                            self.response = Self::emit_error(HttpStatus::BadRequest);
-                            return (consumed, true);
-                        }
-
-                        let url = &buf[4..urlend];
-
-                        /*
-                        let url = if let Ok(url) = core::str::from_utf8(&buf[4..urlend]) {
-                            url
-                        } else {
-                            // Invalid UTF-8
-                            self.response = Self::emit_error(HttpStatus::BadRequest);
-                            return (consumed, true);
-                        };
-                        */
-
-                        match read_file(url) {
-                            Some(body) => {
-                                self.response = Some(HttpResponse {
-                                    status: HttpStatus::Success,
-                                    body,
-                                });
-                            }
-                            None => {
-                                // 404
-                                self.response = Self::emit_error(HttpStatus::NotFound);
-                            }
-                        }
-
-                        return (consumed, true);
-                    }).expect("Failed to receive");
-
-                    if send_res {
-                        self.state = HttpState::SendResponse(false, 0, 0);
-                        self.send_response(&mut socket);
+                if !net.can_recv(self.handle).unwrap().unwrap() {
+                    return;
+                }
+                let buf = self.buf.take().unwrap();
+                let (size, buf) = match net.read_socket(self.handle, buf).unwrap() {
+                    Ok((size, buf)) => (size, buf),
+                    Err(e) => {
+                        // FIXME
+                        println!("Read error: {:?}", e);
+                        self.buf = Some(RRefVec::new(0, 1024));
+                        return;
                     }
+                };
+
+                // now buf supposedly has valid data
+                let (_, send_res) = self.read_request(&buf.as_slice()[..size]);
+                self.buf.replace(buf);
+
+                if send_res {
+                    self.state = HttpState::SendResponse(false, 0, 0);
+                    self.send_response(net);
                 }
             }
             HttpState::SendResponse(_, _, _) => {
                 // Continue sending response
-                self.send_response(&mut socket);
+                self.send_response(net);
             }
         }
     }
 
-    fn send_response(&mut self, socket: &mut SocketRef<TcpSocket>) {
-        if !socket.may_send() {
-            return;
-        }
-
+    fn send_response(&mut self, net: &dyn UsrNet) {
         if let HttpState::SendResponse(header_complete, header_sent, body_sent) = self.state {
             // We must have content-length to do keep-alive
             let response = self.response.as_ref().unwrap();
@@ -276,52 +283,57 @@ impl HttpSession {
                 let mut header = ResponseHeader::new();
                 let header = header.emit(response.body.len());
 
-                let complete = socket.send(|mut buf| {
-                    let remaining = header.len() - header_sent;
-                    let to_send = if remaining < buf.len() {
-                        remaining
-                    } else {
-                        buf.len()
-                    };
+                // FIXME: This is ugly. Maybe use a closure
+                let mut bufvec = self.buf.take().unwrap();
+                let buf = bufvec.as_mut_slice();
 
-                    let hslice = &header[header_sent..header_sent + to_send];
-                    buf[..hslice.len()].copy_from_slice(hslice);
+                let remaining = header.len() - header_sent;
+                let to_send = if remaining < buf.len() {
+                    remaining
+                } else {
+                    buf.len()
+                };
 
-                    let complete = to_send == remaining;
-                    self.state = HttpState::SendResponse(complete, header_sent + to_send, 0);
+                let hslice = &header[header_sent..header_sent + to_send];
+                buf[..hslice.len()].copy_from_slice(hslice);
 
-                    (hslice.len(), complete)
-                }).expect("Failed to send");
+                let (sent, bufvec) = net.write_socket(self.handle, bufvec, to_send).unwrap().unwrap();
+                self.buf.replace(bufvec);
+
+                let complete = sent == remaining;
+                self.state = HttpState::SendResponse(complete, header_sent + sent, 0);
 
                 if complete {
                     // Continue to send body
-                    self.send_response(socket);
+                    self.send_response(net);
                 }
             } else {
                 // Send body
                 let body = response.body;
-                let complete = socket.send(|mut buf| {
-                    let remaining = body.len() - body_sent;
-                    let to_send = if remaining < buf.len() {
-                        remaining
-                    } else {
-                        buf.len()
-                    };
 
-                    let bslice = &body[body_sent..body_sent + to_send];
-                    buf[..bslice.len()].copy_from_slice(bslice);
+                let mut bufvec = self.buf.take().unwrap();
+                let buf = bufvec.as_mut_slice();
 
-                    let complete = to_send == remaining;
-                    self.state = HttpState::SendResponse(complete, header_sent, body_sent + to_send);
+                let remaining = body.len() - body_sent;
+                let to_send = if remaining < buf.len() {
+                    remaining
+                } else {
+                    buf.len()
+                };
 
-                    (bslice.len(), complete)
-                }).expect("Failed to send");
+                let bslice = &body[body_sent..body_sent + to_send];
+                buf[..bslice.len()].copy_from_slice(bslice);
+
+                let (sent, bufvec) = net.write_socket(self.handle, bufvec, to_send).unwrap().unwrap();
+                self.buf.replace(bufvec);
+
+                let complete = sent == remaining;
+                self.state = HttpState::SendResponse(complete, header_sent, body_sent + sent);
 
                 if complete {
                     // We are done! Keep alive?
                     self.state = HttpState::ReadRequest;
                     self.request_buf.clear();
-                    // socket.close(); // FIXME
                 }
             }
         } else {

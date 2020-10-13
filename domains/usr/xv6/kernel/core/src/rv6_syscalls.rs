@@ -188,11 +188,20 @@ impl UsrNet for Rv6Syscalls {
     fn clone_usrnet(&self) -> RpcResult<Box<dyn UsrNet>> {
         self.usrnet.clone_usrnet()
     }
-    fn listen(&self, port: u16) -> RpcResult<Result<usize>> {
-        self.usrnet.listen(port)
+    fn listen(&self, socket: usize, port: u16) -> RpcResult<Result<()>> {
+        self.usrnet.listen(socket, port)
     }
-    fn is_usable(&self, server: usize) -> RpcResult<Result<bool>> {
-        self.usrnet.is_usable(server)
+    fn create(&self) -> RpcResult<Result<usize>> {
+        self.usrnet.create()
+    }
+    fn poll(&self, tx: bool) -> RpcResult<Result<()>> {
+        self.usrnet.poll(tx)
+    }
+    fn can_recv(&self, server: usize) -> RpcResult<Result<bool>> {
+        self.usrnet.can_recv(server)
+    }
+    fn is_listening(&self, server: usize) -> RpcResult<Result<bool>> {
+        self.usrnet.is_listening(server)
     }
     fn is_active(&self, server: usize) -> RpcResult<Result<bool>> {
         self.usrnet.is_active(server)

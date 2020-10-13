@@ -7,8 +7,11 @@ use crate::error::Result;
 /// UsrNet interface
 pub trait UsrNet: Send + Sync {
     fn clone_usrnet(&self) -> RpcResult<Box<dyn UsrNet>>;
-    fn listen(&self, port: u16) -> RpcResult<Result<usize>>;
-    fn is_usable(&self, server: usize) -> RpcResult<Result<bool>>;
+    fn create(&self) -> RpcResult<Result<usize>>;
+    fn listen(&self, socket: usize, port: u16) -> RpcResult<Result<()>>;
+    fn poll(&self, tx: bool) -> RpcResult<Result<()>>;
+    fn can_recv(&self, server: usize) -> RpcResult<Result<bool>>;
+    fn is_listening(&self, server: usize) -> RpcResult<Result<bool>>;
     fn is_active(&self, socket: usize) -> RpcResult<Result<bool>>;
     fn close(&self, server: usize) -> RpcResult<Result<()>>;
     fn read_socket(&self, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>>;
