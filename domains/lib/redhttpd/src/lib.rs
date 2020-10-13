@@ -125,13 +125,14 @@ struct HttpSession {
     response: Option<HttpResponse>,
     state: HttpState,
     request_buf: ArrayVec<[u8; 1024]>,
+    was_alive: bool,
 }
 
 impl HttpSession {
     pub fn new<'a, 'b, 'c>(sockets: &mut SocketSet<'a, 'b, 'c>) -> Self {
         let socket = TcpSocket::new(
-            TcpSocketBuffer::new(vec![0; 1024]),
-            TcpSocketBuffer::new(vec![0; 1024]),
+            TcpSocketBuffer::new(vec![0; 2048]),
+            TcpSocketBuffer::new(vec![0; 2048]),
         );
         let socket: Socket<'b, 'c> = socket.into();
 
@@ -142,6 +143,7 @@ impl HttpSession {
             response: None,
             state: HttpState::ReadRequest,
             request_buf: ArrayVec::new(),
+            was_alive: true,
         };
 
         r
@@ -166,6 +168,7 @@ impl HttpSession {
 
         if !socket.is_active() || !socket.is_open() {
             self.state = HttpState::ReadRequest;
+            self.was_alive = false;
 
             if self.request_buf.len() != 0 {
                 self.request_buf.clear();
@@ -177,19 +180,25 @@ impl HttpSession {
             return;
         }
 
-        if !socket.is_active() {
-            // Wait until it's actually active
-            return;
-        }
-
         // Connection active
         match self.state {
             HttpState::ReadRequest => {
+                let id = self as *const HttpSession;
                 if socket.may_recv() {
                     let send_res = socket.recv(|pbuf| {
                         if pbuf.len() == 0 {
                             return (0, false);
                         }
+
+                        /*
+                        if self.request_buf.len() == 0 {
+                            if self.was_alive {
+                                println!("{:X?}: Keep-Alive request", id);
+                            } else {
+                                println!("{:X?}: New connection", id);
+                            }
+                        }
+                        */
 
                         let consumed = pbuf.len();
 
@@ -217,6 +226,7 @@ impl HttpSession {
                         if urlend == 4 {
                             // No path
                             self.response = Self::emit_error(HttpStatus::BadRequest);
+                            panic!("Should not return 400 at all");
                             return (consumed, true);
                         }
 
@@ -241,6 +251,7 @@ impl HttpSession {
                             }
                             None => {
                                 // 404
+                                panic!("Should not return 404 at all: {:?}", url);
                                 self.response = Self::emit_error(HttpStatus::NotFound);
                             }
                         }
@@ -249,6 +260,7 @@ impl HttpSession {
                     }).expect("Failed to receive");
 
                     if send_res {
+                        // println!("{:X?}: Transition to sendresponse", id);
                         self.state = HttpState::SendResponse(false, 0, 0);
                         self.send_response(&mut socket);
                     }
@@ -276,52 +288,35 @@ impl HttpSession {
                 let mut header = ResponseHeader::new();
                 let header = header.emit(response.body.len());
 
-                let complete = socket.send(|mut buf| {
-                    let remaining = header.len() - header_sent;
-                    let to_send = if remaining < buf.len() {
-                        remaining
-                    } else {
-                        buf.len()
-                    };
+                let remaining_slice = &header[header_sent..];
+                let sent = socket.send_slice(remaining_slice).expect("Failed to send");
+                let new_cursor = header_sent + sent;
 
-                    let hslice = &header[header_sent..header_sent + to_send];
-                    buf[..hslice.len()].copy_from_slice(hslice);
-
-                    let complete = to_send == remaining;
-                    self.state = HttpState::SendResponse(complete, header_sent + to_send, 0);
-
-                    (hslice.len(), complete)
-                }).expect("Failed to send");
-
-                if complete {
+                if new_cursor == header.len() {
                     // Continue to send body
+                    self.state = HttpState::SendResponse(true, 0, 0);
                     self.send_response(socket);
+                } else {
+                    self.state = HttpState::SendResponse(false, new_cursor, 0);
                 }
             } else {
                 // Send body
                 let body = response.body;
-                let complete = socket.send(|mut buf| {
-                    let remaining = body.len() - body_sent;
-                    let to_send = if remaining < buf.len() {
-                        remaining
-                    } else {
-                        buf.len()
-                    };
+                // let id = self as *const HttpSession;
 
-                    let bslice = &body[body_sent..body_sent + to_send];
-                    buf[..bslice.len()].copy_from_slice(bslice);
+                let remaining_slice = &body[body_sent..];
 
-                    let complete = to_send == remaining;
-                    self.state = HttpState::SendResponse(complete, header_sent, body_sent + to_send);
+                let sent = socket.send_slice(remaining_slice).expect("Failed to send");
+                let new_cursor = body_sent + sent;
 
-                    (bslice.len(), complete)
-                }).expect("Failed to send");
-
-                if complete {
+                if new_cursor == body.len() {
                     // We are done! Keep alive?
+                    // println!("keep-alive");
                     self.state = HttpState::ReadRequest;
+                    self.was_alive = true;
                     self.request_buf.clear();
-                    // socket.close(); // FIXME
+                } else {
+                    self.state = HttpState::SendResponse(true, 0, new_cursor);
                 }
             }
         } else {
