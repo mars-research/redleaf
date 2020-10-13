@@ -13,7 +13,7 @@ use libsyscalls::syscalls::sys_println;
 use syscalls::{Heap, Syscall};
 use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usr_interfaces::xv6::Xv6;
-use usrlib::syscalls::sys_mkdir;
+use usrlib::syscalls::sys_mkdir_slice_slow;
 use usrlib::{eprintln, println};
 
 #[no_mangle]
@@ -37,7 +37,7 @@ pub fn trusted_entry(
 
 fn mkdir(path: &str) -> Result<(), String> {
     println!("mkdir <{}>", path);
-    sys_mkdir(path).map_err(|e| alloc::format!("mkdir: cannot mkdir {}. {:?}", path, e))?;
+    sys_mkdir_slice_slow(path).map_err(|e| alloc::format!("mkdir: cannot mkdir {}. {:?}", path, e))?;
     Ok(())
 }
 

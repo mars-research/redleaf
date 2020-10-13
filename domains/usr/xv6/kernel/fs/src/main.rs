@@ -99,8 +99,11 @@ impl UsrVFS for Rv6FS {
     fn sys_fstat(&self, fd: usize) -> RpcResult<Result<FileStat>> {
         Ok(sysfile::sys_fstat(fd))
     }
-    fn sys_mknod(&self, path: &str, major: i16, minor: i16) -> RpcResult<Result<()>> {
-        Ok(sysfile::sys_mknod(path, major, minor))
+    fn sys_mknod(&self, path: RRefVec<u8>, major: i16, minor: i16) -> RpcResult<Result<()>> {
+        Ok((|| {
+            let path = core::str::from_utf8(path.as_slice())?;
+            sysfile::sys_mknod(path, major, minor)
+        })())
     }
     fn sys_dup(&self, fd: usize) -> RpcResult<Result<usize>> {
         Ok(sysfile::sys_dup(fd))
@@ -121,8 +124,11 @@ impl UsrVFS for Rv6FS {
             sysfile::sys_unlink(&path)
         })())
     }
-    fn sys_mkdir(&self, path: &str) -> RpcResult<Result<()>> {
-        Ok(sysfile::sys_mkdir(path))
+    fn sys_mkdir(&self, path: RRefVec<u8>) -> RpcResult<Result<()>> {
+        Ok((|| {
+            let path = core::str::from_utf8(path.as_slice())?;
+            sysfile::sys_mkdir(path)
+        })())
     }
     fn sys_dump_inode(&self) -> RpcResult<Result<()>> {
         Ok(sysfile::sys_dump_inode())

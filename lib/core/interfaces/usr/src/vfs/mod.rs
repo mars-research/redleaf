@@ -1,5 +1,7 @@
 /// Virtual file system interface
 /// Implemented by xv6 file system
+/// Some of the syscalls do no return the buffer back to the caller. Feel free
+/// to change it if it's needed.
 use alloc::boxed::Box;
 use rref::RRefVec;
 
@@ -21,12 +23,12 @@ pub trait UsrVFS: Send + Sync {
     fn sys_write(&self, fd: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>>;
     fn sys_seek(&self, fd: usize, offset: usize) -> RpcResult<Result<()>>;
     fn sys_fstat(&self, fd: usize) -> RpcResult<Result<FileStat>>;
-    fn sys_mknod(&self, path: &str, major: i16, minor: i16) -> RpcResult<Result<()>>;
+    fn sys_mknod(&self, path: RRefVec<u8>, major: i16, minor: i16) -> RpcResult<Result<()>>;
     fn sys_dup(&self, fd: usize) -> RpcResult<Result<usize>>;
     fn sys_pipe(&self) -> RpcResult<Result<(usize, usize)>>;
     fn sys_link(&self, old_path: RRefVec<u8>, new_path: RRefVec<u8>) -> RpcResult<Result<()>>;
     fn sys_unlink(&self, path: RRefVec<u8>) -> RpcResult<Result<()>>;
-    fn sys_mkdir(&self, path: &str) -> RpcResult<Result<()>>;
+    fn sys_mkdir(&self, path: RRefVec<u8>) -> RpcResult<Result<()>>;
     fn sys_dump_inode(&self) -> RpcResult<Result<()>>;
 }
 

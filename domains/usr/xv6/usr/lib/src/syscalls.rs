@@ -82,7 +82,11 @@ pub fn sys_fstat(fd: usize) -> Result<FileStat> {
     SYSCALL.r#try().unwrap().sys_fstat(fd)?
 }
 
-pub fn sys_mknod(path: &str, major: i16, minor: i16) -> Result<()> {
+pub fn sys_mknod_slice_slow(path: &str, major: i16, minor: i16) -> Result<()> {
+    sys_mknod(RRefVec::from_slice(path.as_bytes()), major, minor)
+}
+
+pub fn sys_mknod(path: RRefVec<u8>, major: i16, minor: i16) -> Result<()> {
     SYSCALL.r#try().unwrap().sys_mknod(path, major, minor)?
 }
 
@@ -110,7 +114,11 @@ pub fn sys_unlink(path: RRefVec<u8>) -> Result<()> {
     SYSCALL.r#try().unwrap().sys_unlink(path)?
 }
 
-pub fn sys_mkdir(path: &str) -> Result<()> {
+pub fn sys_mkdir_slice_slow(path: &str) -> Result<()> {
+    sys_mkdir(RRefVec::from_slice(path.as_bytes()))
+}
+
+pub fn sys_mkdir(path: RRefVec<u8>) -> Result<()> {
     SYSCALL.r#try().unwrap().sys_mkdir(path)?
 }
 

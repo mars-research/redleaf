@@ -12,7 +12,7 @@ use core::panic::PanicInfo;
 use syscalls::{Heap, Syscall};
 use usr_interfaces::vfs::FileMode;
 use usr_interfaces::xv6::Xv6;
-use usrlib::syscalls::{sys_spawn_domain_slice_slow, sys_open_slice_slow, sys_mknod, sys_dup};
+use usrlib::syscalls::{sys_spawn_domain_slice_slow, sys_open_slice_slow, sys_mknod_slice_slow, sys_dup};
 use usrlib::{dbg, println};
 
 #[no_mangle]
@@ -31,7 +31,7 @@ pub fn trusted_entry(
     // Create console device if it not there yet
     match sys_open_slice_slow("/console", FileMode::READWRITE) {
         Err(_) => {
-            sys_mknod("/console", 1, 1).unwrap();
+            sys_mknod_slice_slow("/console", 1, 1).unwrap();
             assert_eq!(sys_open_slice_slow("/console", FileMode::READWRITE).unwrap(), 0);
         }
         Ok(fd) => {
