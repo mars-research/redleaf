@@ -718,6 +718,10 @@ pub fn run_sashstoretest(net: &dyn Net, pkt_size: u16) -> Result<()> {
         rx_packets.push_front(Vec::with_capacity(2048));
     }
 
+    for (i, v) in rx_packets.iter().enumerate() {
+        println!("{} : {:x?}", i, v.as_ptr());
+    }
+
     let mut sum: usize = 0;
     let mut fwd_sum: usize = 0;
 
@@ -756,18 +760,20 @@ pub fn run_sashstoretest(net: &dyn Net, pkt_size: u16) -> Result<()> {
         for i in 0..tx_packets.len() {
             // Prefetch ahead
             {
-                if i < (tx_packets.len() - 1) {
+                if (i + 1) < tx_packets.len() {
                     let pkt_next = &tx_packets[i + 1];
                     unsafe {
-                        core::intrinsics::prefetch_write_data(pkt_next.as_ptr(), 3);
-                        core::intrinsics::prefetch_write_data(pkt_next.as_ptr().offset(64), 3);
-                        core::intrinsics::prefetch_write_data(pkt_next.as_ptr().offset(128), 3);
+                        let pkt_addr = pkt_next.as_ptr();
+                        core::intrinsics::prefetch_read_data(pkt_addr, 3);
+                        core::intrinsics::prefetch_read_data(pkt_addr.offset(64), 3);
+                        //core::intrinsics::prefetch_read_data(pkt_addr.offset(128), 3);
                     }
                 }
             }
 
             let mut pkt = &mut tx_packets[i];
 
+            //print!(" cur pkt {:x?}\n", pkt.as_ptr());
             if let Some((padding, payload)) = packettool::get_mut_udp_payload(pkt) {
                 if let Some(mut sashstore) = unsafe { SASHSTORE.as_mut() } {
                     let payloadptr = payload as *mut _ as *mut u8;
@@ -785,12 +791,12 @@ pub fn run_sashstoretest(net: &dyn Net, pkt_size: u16) -> Result<()> {
                     // assert!(responsevec.as_ptr() == payloadptr);
                     // println!("Handled: {:x?} -> {:x?}", responsevec.as_ptr(), payloadptr);
                     // println!("After handle: responsevec.capacity() = {}, len() = {}", responsevec.capacity(), responsevec.len());
-                    if responsevec.as_ptr() != payloadptr {
+                    /*if responsevec.as_ptr() != payloadptr {
                         unsafe {
                             ptr::copy(responsevec.as_ptr(), payloadptr, responsevec.len());
                         }
                         println!("copied");
-                    }
+                    }*/
 
                     // println!("Before set_len: {}", pkt.len());
                     unsafe {
