@@ -11,11 +11,12 @@ use alloc::string::String;
 use alloc::string::ToString;
 use core::panic::PanicInfo;
 
+use rref::RRefVec;
 use syscalls::{Heap, Syscall};
 use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usr_interfaces::xv6::Xv6;
 use usrlib::println;
-use usrlib::syscalls::{sys_close, sys_fstat, sys_open_slice_slow, sys_read_slice_slow, sys_write_slice_slow};
+use usrlib::syscalls::{sys_close, sys_fstat, sys_open_slice_slow, sys_read, sys_write};
 
 const ONE_MS: u64 = 2_400_000;
 const TEN_MS: u64 = 10 * ONE_MS;
@@ -50,19 +51,20 @@ fn bench_throughput(rv6: &dyn Xv6, options: &str, file: &str) {
     let sizes = [512, 1024, 4096, 8192, 16 * 1024, 256 * 1024, 1024 * 1024, 4 * 1024 * 1024, 16 * 1024 * 1024, 64 * 1024 * 1024];
 
     for bsize in sizes.iter() {
-        let mut buffer = alloc::vec![123u8; *bsize];
+        let mut buffer = RRefVec::new(123u8, *bsize);
 
         if options.contains('w') {
             let fd = sys_open_slice_slow(file, FileMode::WRITE | FileMode::CREATE).unwrap();
 
             // warm up
-            sys_write_slice_slow(fd, buffer.as_slice()).unwrap();
+            buffer = sys_write(fd, buffer).unwrap().1;
 
             let start = libtime::get_rdtsc();
             let mut total_size = 0;
             for _ in 0..1024 {
                 if total_size > 64 * 1024 * 1024  { break; }
-                let size = sys_write_slice_slow(fd, buffer.as_slice()).unwrap();
+                let (size, buffer_back) = sys_write(fd, buffer).unwrap();
+                buffer = buffer_back;
                 total_size += size;
             }
             println!("Write: buffer size: {}, total bytes: {}, cycles: {}", bsize, total_size, libtime::get_rdtsc() - start);
@@ -73,10 +75,14 @@ fn bench_throughput(rv6: &dyn Xv6, options: &str, file: &str) {
         if options.contains('r') {
             let fd = sys_open_slice_slow(file, FileMode::READ).unwrap();
 
+            // warm up
+            buffer = sys_read(fd, buffer).unwrap().1;
+
             let start = libtime::get_rdtsc();
             let mut total_size = 0;
             loop {
-                let size = sys_read_slice_slow(fd, buffer.as_mut_slice()).unwrap();
+                let (size, buffer_back) = sys_read(fd, buffer).unwrap();
+                buffer = buffer_back;
                 if size == 0 { break; }
                 total_size += size;
             }
@@ -95,7 +101,7 @@ fn bench_restart(rv6: &dyn Xv6, options: &str, file: &str) {
 
     for bsize in buffer_sizes.iter() {
         let bsize = *bsize;
-        let mut buffer = alloc::vec![123u8; bsize];
+        let mut buffer = RRefVec::new(123u8, bsize);
 
         // 4GB
         let total_size = 4 * 1024 * 1024 * 1024;
@@ -105,7 +111,7 @@ fn bench_restart(rv6: &dyn Xv6, options: &str, file: &str) {
             let fd = sys_open_slice_slow(file, FileMode::WRITE | FileMode::CREATE).unwrap();
 
             // warm up
-            sys_write_slice_slow(fd, buffer.as_slice()).unwrap();
+            buffer = sys_write(fd, buffer).unwrap().1;
             rv6.sys_seek(fd, 0).unwrap();
 
             let mut recording: [(u64, f64); 100_000] = [(0, 0.0); 100_000];
@@ -133,7 +139,9 @@ fn bench_restart(rv6: &dyn Xv6, options: &str, file: &str) {
                     rv6.sys_seek(fd, 0).unwrap();
                     seek_count += 1;
                 }
-                interval_read += sys_write_slice_slow(fd, buffer.as_slice()).unwrap();
+                let (bytes_read, buffer_back) = sys_write(fd, buffer).unwrap();
+                buffer = buffer_back;
+                interval_read += bytes_read;
             }
             let curr_time = libtime::get_rdtsc();
             let elapse = curr_time - intervel_start;
@@ -173,7 +181,7 @@ fn bench_restart(rv6: &dyn Xv6, options: &str, file: &str) {
             let fd = sys_open_slice_slow(file, FileMode::READ).unwrap();
 
             // warm up
-            sys_read_slice_slow(fd, buffer.as_mut_slice()).unwrap();
+            buffer = sys_read(fd, buffer).unwrap().1;
             rv6.sys_seek(fd, 0).unwrap();
 
             let mut recording: [(u64, f64); 100_000] = [(0, 0.0); 100_000];
@@ -201,7 +209,9 @@ fn bench_restart(rv6: &dyn Xv6, options: &str, file: &str) {
                     rv6.sys_seek(fd, 0).unwrap();
                     seek_count += 1;
                 }
-                interval_read += sys_read_slice_slow(fd, buffer.as_mut_slice()).unwrap();
+                let (bytes_read, buffer_back) = sys_read(fd, buffer).unwrap();
+                buffer = buffer_back;
+                interval_read += bytes_read;
             }
             let curr_time = libtime::get_rdtsc();
             let elapse = curr_time - intervel_start;
