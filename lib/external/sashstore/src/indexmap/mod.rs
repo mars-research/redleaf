@@ -588,7 +588,7 @@ where
 
             let buf = unsafe {alloc::alloc::alloc(layout) as *mut Bucket<K,V> };
             //println!("vector aligned buf {:?}", buf);
-            let mut v: Vec<Bucket<K,V>> = unsafe { Vec::from_raw_parts(buf, capacity, capacity)} ;
+            let mut v: Vec<Bucket<K,V>> = unsafe { Vec::from_raw_parts(buf, capacity, num_bytes)} ;
             //println!("vec len {} cap {}", v.len(), v.capacity());
             Index {
                 params,
@@ -622,8 +622,8 @@ where
         }
 
         // useless but that paranoia
-        assert_eq!(capacity, table.len());
-        assert_eq!(capacity, table.capacity());
+        //assert_eq!(capacity, table.len());
+        //assert_eq!(capacity, table.capacity());
     }
 
     // methods

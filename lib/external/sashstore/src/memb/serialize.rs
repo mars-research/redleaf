@@ -33,16 +33,22 @@ static mut TOTAL_GET: usize = 0;
 static mut TOTAL_RETRIEVED: usize = 0;
 static mut TOTAL_NOT_FOUND: usize = 0;
 
-pub const KEY_SIZE: usize = 64;
-pub const VALUE_SIZE: usize = 64;
+pub const KEY_SIZE: usize = 8;
+pub const VALUE_SIZE: usize = 8;
 
 #[repr(C,packed)]
 #[derive(Debug)]
-pub struct RequestHeader {
+pub struct Header {
     request_id: [u8; 4],
     seq_nr: [u8; 2],
     dgram_tot: [u8; 2],
     rsvd: [u8; 2],
+}
+
+#[repr(C,packed)]
+#[derive(Debug)]
+pub struct RequestHeader {
+    hdr: Header, 
     mode_str: [u8; 4],
 }
 
@@ -64,11 +70,11 @@ pub struct GetRequest {
     key: [u8; KEY_SIZE],
     line_end: [u8; 2],
 }
-/*
+
 #[repr(C,packed)]
 #[derive(Debug)]
 pub struct SetResponse {
-    header: RequestHeader,
+    header: Header,
     stored: [u8; 6],
     line_end: [u8; 2],
 }
@@ -76,7 +82,7 @@ pub struct SetResponse {
 impl SetResponse {
     fn new(req_id: u32) -> Self {
         SetResponse {
-            header: RequestHeader {
+            header: Header {
                 request_id: u32::to_be_bytes(req_id),
                 seq_nr: u16::to_le_bytes(0),
                 dgram_tot: u16::to_le_bytes(0),
@@ -91,7 +97,7 @@ impl SetResponse {
 #[repr(C,packed)]
 #[derive(Debug)]
 pub struct GetResponse {
-    header: RequestHeader,
+    header: Header,
     value_str: [u8; 5], // "VALUE"
     space: u8,
     key: [u8; KEY_SIZE],
@@ -101,25 +107,34 @@ pub struct GetResponse {
     line_end: [u8; 2],
     value: [u8; VALUE_SIZE],
     line_end1: [u8; 2],
-    end: [u8, 3], // "END"
+    end: [u8; 3], // "END"
     line_end2: [u8; 2],
 }
-*/
-/*
+
 impl GetResponse {
     fn new(req_id: u32) -> Self {
+
         GetResponse {
-            header: RequestHeader {
+            header: Header {
                 request_id: u32::to_be_bytes(req_id),
                 seq_nr: u16::to_le_bytes(0),
                 dgram_tot: u16::to_le_bytes(0),
                 rsvd: u16::to_le_bytes(0),
             },
-            value: [b'V', b'A', b'L', b'U', b'E'],
+            value_str: [b'V', b'A', b'L', b'U', b'E'],
+            space: b' ',
+            key: [0u8; KEY_SIZE],
+            space1: b' ',
+            flags: [0, 0, 0, 0],
+            len: [0, 0, 0, 0],
             line_end: [b'\r', b'\n'],
+            value: [0u8; VALUE_SIZE],
+            line_end1: [b'\r', b'\n'],
+            end : [b'E', b'N', b'D'],
+            line_end2: [b'\r', b'\n'],
         }
     }
-}*/
+}
 
 /// Encode return value:
 ///
@@ -161,7 +176,7 @@ pub fn buf_encode(value: &ServerValue, buf: &mut Vec<u8>) {
             let v = &bundle.1;
 
             // Construct UDP header
-            buf.extend_from_slice(&u32::to_be_bytes(*request_id));
+            /*buf.extend_from_slice(&u32::to_be_bytes(*request_id));
             buf.extend_from_slice(&u16::to_be_bytes(0)); // seq number
             buf.extend_from_slice(&u16::to_be_bytes(1)); // #datagram
             buf.extend_from_slice(&u16::to_be_bytes(0)); // reserved
@@ -178,23 +193,35 @@ pub fn buf_encode(value: &ServerValue, buf: &mut Vec<u8>) {
             // println!("len: {}", v.len());
             buf.extend_from_slice(v);
             buf.extend_from_slice(b"\r\n");
-            buf.extend_from_slice(b"END\r\n");
+            buf.extend_from_slice(b"END\r\n");*/
+            let resp = GetResponse::new(*request_id);
+
+            unsafe {
+                let resp_bytes = &resp as *const _ as *const u8;
+                let resp_len = mem::size_of::<GetResponse>();
+                core::ptr::copy(resp_bytes, buf.as_mut_ptr(), resp_len);
+
+                core::ptr::copy(k.as_ptr(), buf.as_mut_ptr().offset(16), KEY_SIZE);
+                core::ptr::copy(v.as_ptr(), buf.as_mut_ptr().offset(16 + KEY_SIZE as isize + 11), VALUE_SIZE);
+                buf.set_len(resp_len);
+            }
+
             unsafe { TOTAL_RETRIEVED += 1; }
         }
         ServerValue::Stored(request_id) => {
             //println!("stored");
-            //let resp = SetResponse::new(*request_id);
-            buf.extend_from_slice(&u32::to_be_bytes(*request_id));
+            let resp = SetResponse::new(*request_id);
+            /*buf.extend_from_slice(&u32::to_be_bytes(*request_id));
             buf.extend_from_slice(&u16::to_be_bytes(0)); // seq number
             buf.extend_from_slice(&u16::to_be_bytes(1)); // #datagram
             buf.extend_from_slice(&u16::to_be_bytes(0)); // reserved
-            buf.extend_from_slice(b"STORED\r\n");
-            /*unsafe {
+            buf.extend_from_slice(b"STORED\r\n");*/
+            unsafe {
                 let resp_bytes = &resp as *const _ as *const u8;
                 let resp_len = mem::size_of::<SetResponse>();
                 core::ptr::copy(resp_bytes, buf.as_mut_ptr(), resp_len);
                 buf.set_len(resp_len);
-            }*/
+            }
             unsafe {
                 TOTAL_STORED += 1;
             }
@@ -506,7 +533,7 @@ impl Decoder {
                 //println!("self.reader {:x?}", self.reader.as_ptr());
             
                 unsafe { TOTAL_SET += 1; }
-                Ok(ClientValue::Set(u32::from_le_bytes(req_hdr.request_id) as u32,
+                Ok(ClientValue::Set(u32::from_le_bytes(req_hdr.hdr.request_id) as u32,
                                     &set_req.key,
                                     u32::from_le_bytes(set_req.flags),
                                     &set_req.value))
@@ -520,7 +547,7 @@ impl Decoder {
                     &*(self.reader.as_ptr().offset(mem::size_of::<RequestHeader>() as isize) as *mut u8 as *mut GetRequest)
                 };
 
-                Ok(ClientValue::Get(u32::from_le_bytes(req_hdr.request_id) as u32,
+                Ok(ClientValue::Get(u32::from_le_bytes(req_hdr.hdr.request_id) as u32,
                                     &get_req.key))
             }
             _ => return Err(DecodeError::InvalidOpCode),
