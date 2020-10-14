@@ -382,7 +382,7 @@ pub extern fn bdev_write(s: &Box<usr::bdev::BDev>, block: u32, data: &RRef<[u8; 
 
 #[no_mangle]
 pub extern fn bdev_write_err(s: &Box<usr::bdev::BDev>, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()> {
-    println!("bdev.read was aborted, block:{}", block);
+    println!("bdev.write was aborted, block:{}", block);
     Err(unsafe{RpcError::panic()})
 }
 
