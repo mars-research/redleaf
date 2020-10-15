@@ -71,7 +71,7 @@ large:
 
 .PHONY: bin
 bin:
-	cd $(RV6_BIN) && cargo rb
+	cd $(RV6_BIN) && cargo rb --release
 
 .PHONY: $(BINS)
 $(BINS): bin
