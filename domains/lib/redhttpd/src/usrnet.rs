@@ -140,7 +140,7 @@ impl HttpSession {
             response: None,
             state: HttpState::ReadRequest,
             request_buf: ArrayVec::new(),
-            buf: Some(RRefVec::new(0, 1024)),
+            buf: Some(RRefVec::new(0, 2048)),
         };
 
         r
@@ -300,12 +300,14 @@ impl HttpSession {
                 let (sent, bufvec) = net.write_socket(self.handle, bufvec, to_send).unwrap().unwrap();
                 self.buf.replace(bufvec);
 
-                let complete = sent == remaining;
-                self.state = HttpState::SendResponse(complete, header_sent + sent, 0);
+                let new_cursor = header_sent + sent;
 
-                if complete {
+                if new_cursor == header.len() {
                     // Continue to send body
+                    self.state = HttpState::SendResponse(true, 0, 0);
                     self.send_response(net);
+                } else {
+                    self.state = HttpState::SendResponse(false, new_cursor, 0);
                 }
             } else {
                 // Send body
@@ -327,13 +329,15 @@ impl HttpSession {
                 let (sent, bufvec) = net.write_socket(self.handle, bufvec, to_send).unwrap().unwrap();
                 self.buf.replace(bufvec);
 
-                let complete = sent == remaining;
-                self.state = HttpState::SendResponse(complete, header_sent, body_sent + sent);
+                let new_cursor = body_sent + sent;
 
-                if complete {
+                if new_cursor == body.len() {
                     // We are done! Keep alive?
+                    // println!("keep-alive");
                     self.state = HttpState::ReadRequest;
                     self.request_buf.clear();
+                } else {
+                    self.state = HttpState::SendResponse(true, 0, new_cursor);
                 }
             }
         } else {

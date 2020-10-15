@@ -115,8 +115,8 @@ impl Rv6NetInner {
     fn create_socket(&mut self) -> Option<usize> {
         // Create new socket
         let socket = TcpSocket::new(
-            TcpSocketBuffer::new(vec![0; 1024]),
-            TcpSocketBuffer::new(vec![0; 1024]),
+            TcpSocketBuffer::new(vec![0; 2048]),
+            TcpSocketBuffer::new(vec![0; 2048]),
         );
         let socket: Socket = socket.into();
         let handle = self.socketset.add(socket);
