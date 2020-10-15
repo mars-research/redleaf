@@ -32,6 +32,8 @@ pub fn trusted_entry(
 
     let net = rv6.as_net().unwrap();
 
+    libbenchnet::run_domain_crossing(&*net);
+
     for _ in 0..5 {
         libbenchnet::run_tx_udptest_rref(&*net, 64, false);
     }

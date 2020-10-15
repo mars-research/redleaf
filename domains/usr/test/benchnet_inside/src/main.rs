@@ -21,6 +21,8 @@ pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Sen
 
     println!("Init domain benchnet_inside");
 
+    libbenchnet::run_domain_crossing(&*net);
+
     /*
     for _ in 0..5 {
         libbenchnet::run_tx_udptest_rref(&*net, 64, false);

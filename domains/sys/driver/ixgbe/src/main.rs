@@ -186,6 +186,10 @@ impl usr::net::Net for Ixgbe {
             Ok(ret) 
         })())       
     }
+
+    fn test_domain_crossing(&self) -> RpcResult<()> {
+        Ok(())
+    }
 }
 
 impl pci_driver::PciDriver for Ixgbe {

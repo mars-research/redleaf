@@ -58,4 +58,8 @@ impl usr::net::Net for NullNet {
     fn get_stats(&self) -> RpcResult<Result<NetworkStats>> {
         Ok(Ok(NetworkStats::new()))
     }
+
+    fn test_domain_crossing(&self) -> RpcResult<()> {
+        Ok(())
+    }
 }

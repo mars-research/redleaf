@@ -90,7 +90,9 @@ impl Net for Shadow {
         self.shadow.lock().net.get_stats()
     }
 
-
+    fn test_domain_crossing(&self) -> RpcResult<()> {
+        self.shadow.lock().net.test_domain_crossing()
+    }
 }
 
 #[no_mangle]

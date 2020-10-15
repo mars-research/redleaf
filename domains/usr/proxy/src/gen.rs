@@ -706,6 +706,10 @@ impl Net for IxgbeProxy {
 
         r
     }
+
+    fn test_domain_crossing(&self) -> RpcResult<()> {
+        self.domain.test_domain_crossing()
+    }
 }
 
 struct DomAProxy {
@@ -1117,6 +1121,10 @@ impl Net for Rv6Proxy {
         unsafe { sys_update_current_domain_id(caller_domain) };
 
         r
+    }
+
+    fn test_domain_crossing(&self) -> RpcResult<()> {
+        self.domain.test_domain_crossing()
     }
 }
 

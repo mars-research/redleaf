@@ -66,4 +66,6 @@ pub trait Net: Send + Sync {
     fn poll_rref(&self, collect: RRefDeque<[u8; 1514], 512>, tx: bool) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>>;
 
     fn get_stats(&self) -> RpcResult<Result<NetworkStats>>;
+    
+    fn test_domain_crossing(&self) -> RpcResult<()>;
 }

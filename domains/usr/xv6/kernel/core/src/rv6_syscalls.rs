@@ -256,6 +256,10 @@ impl Net for Rv6Syscalls {
     fn get_stats(&self) -> RpcResult<Result<NetworkStats>> {
         self.net.get_stats()
     }
+
+    fn test_domain_crossing(&self) -> RpcResult<()> {
+        self.net.test_domain_crossing()
+    }
 }
 
 impl NvmeBDev for Rv6Syscalls {

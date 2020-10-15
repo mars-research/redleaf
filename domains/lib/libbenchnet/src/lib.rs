@@ -38,6 +38,17 @@ macro_rules! print_hist {
 const BATCH_SIZE: usize = 32;
 const CPU_MHZ: u64 = 2_600_000_000;
 
+pub fn run_domain_crossing(net: &dyn Net) -> Result<()> {
+    let start = libtime::get_rdtsc();
+    let iter = 100_000;
+    for i in 0..iter {
+        net.test_domain_crossing()?;
+    }
+    let elapse = libtime::get_rdtsc() - start;
+    println!("net.test_domain_crossing: avg: {}, total: {}, iter: {}", elapse as f64 / iter as f64, elapse, iter);
+    Ok(())
+}
+
 pub fn run_tx_udptest_rref(net: &dyn Net, pkt_len: usize, mut debug: bool) -> Result<()> {
     #[cfg(feature = "noop")]
     return Ok(());
