@@ -456,7 +456,6 @@ fn smoltcp_main(dev: &Ixgbe) {
             .finalize();
 
         let mut sockets = SocketSet::new(vec![]);
-        let mut dummy_clock: i64 = 0;
 
         // redhttpd!
         let mut httpd = redhttpd::Httpd::new();
@@ -465,10 +464,10 @@ fn smoltcp_main(dev: &Ixgbe) {
             iface.device_mut().do_rx();
 
             // any smoltcp stuff here
-            let timestamp = Instant::from_millis(dummy_clock);
+            let current = libtime::get_ns_time() / 1000000;
+            let timestamp = Instant::from_millis(current as i64);
             iface.poll(&mut sockets, timestamp);
             httpd.handle(&mut sockets);
-            dummy_clock += 1;
 
             iface.device_mut().do_tx();
         }
@@ -504,7 +503,6 @@ fn smoltcp_rref_main(net: Box<dyn usr::net::Net>) {
         .finalize();
 
     let mut sockets = SocketSet::new(vec![]);
-    let mut dummy_clock: i64 = 0;
 
     // redhttpd!
     let mut httpd = redhttpd::Httpd::new();
@@ -513,10 +511,10 @@ fn smoltcp_rref_main(net: Box<dyn usr::net::Net>) {
         iface.device_mut().do_rx();
 
         // any smoltcp stuff here
-        let timestamp = Instant::from_millis(dummy_clock);
+        let current = libtime::get_ns_time() / 1000000;
+        let timestamp = Instant::from_millis(current as i64);
         iface.poll(&mut sockets, timestamp);
         httpd.handle(&mut sockets);
-        dummy_clock += 1;
 
         iface.device_mut().do_tx();
     }
