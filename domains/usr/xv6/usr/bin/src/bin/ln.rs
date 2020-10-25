@@ -45,7 +45,7 @@ fn ln(old_path: &str, new_path: &str) -> Result<(), String> {
 // This function is called on panic.
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    eprintln!("mkdir panic: {:?}", info);
+    eprintln!("ln panic: {:?}", info);
     libsyscalls::syscalls::sys_backtrace();
     loop {}
 }
