@@ -28,6 +28,9 @@ build/mkfs: mkfs.c fs.h param.h stat.h types.h
 # http://www.gnu.org/software/make/manual/html_node/Chained-Rules.html
 .PRECIOUS: %.o
 
+HTDOCS_DIR = $(root)/domains/usr/xv6/usr/bin/src/bin/htdocs/
+HTDOCS=$(shell ls $(HTDOCS_DIR) -1)
+
 FILES=\
 	README\
 	large\
@@ -49,9 +52,9 @@ BINS=\
 	benchnet\
 	benchnvme\
 
-build/fs.img: build/mkfs $(FILES) $(BINS) Makefile
+build/fs.img: build/mkfs $(FILES) $(BINS) $(HTDOCS) Makefile
 	mkdir -p build
-	cd build/ && ./mkfs fs.img $(FILES) $(BINS)
+	cd build/ && ./mkfs fs.img $(FILES) $(BINS) $(HTDOCS)
 
 build/fs.o: build/fs.img
 	objcopy -I binary -O elf64-x86-64 -B i386 build/fs.img build/fs.o
@@ -76,6 +79,10 @@ bin:
 .PHONY: $(BINS)
 $(BINS): bin
 	cp $(RV6_BIN)/build/$@ build/ -f
+
+.PHONY: HTDOCS
+$(HTDOCS):
+	cp $(HTDOCS_DIR)/$@ build/ -f
 
 .PHONY: clean
 clean: 
