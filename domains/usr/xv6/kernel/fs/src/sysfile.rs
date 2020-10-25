@@ -90,7 +90,7 @@ pub fn sys_fstat(fd: usize) -> Result<FileStat> {
 
 // TODO(tianjiao): this can be cleaned up a bit
 pub fn sys_link(old_path: &str, new_path: &str) -> Result<()> {
-    console::println!("sys_link {} {}", old_path, new_path);
+    // console::println!("sys_link {} {}", old_path, new_path);
     let mut trans = LOG.r#try().unwrap().begin_transaction();
     let inode = ICache::namei(&mut trans, old_path)?;
     let mut iguard = inode.lock();
@@ -126,7 +126,7 @@ pub fn sys_link(old_path: &str, new_path: &str) -> Result<()> {
 }
 
 pub fn sys_unlink(path: &str) -> Result<()> {
-    console::println!("sys_unlink {}", path);
+    // console::println!("sys_unlink {}", path);
     let mut trans = LOG.r#try().unwrap().begin_transaction();
     let (parent_inode, name) = ICache::nameiparent(&mut trans, path)?;
     let mut parent_iguard = parent_inode.lock();
@@ -177,7 +177,7 @@ pub fn sys_unlink(path: &str) -> Result<()> {
 }
 
 pub fn sys_mknod(path: &str, major: i16, minor: i16) -> Result<()> {
-    console::println!("sys_mknod {} {}", major, minor);
+    // console::println!("sys_mknod {} {}", major, minor);
     let mut trans = LOG.r#try().unwrap().begin_transaction();
     let inode = ICache::create(&mut trans, path, INodeFileType::Device, major, minor)?;
     ICache::put(&mut trans, inode);
@@ -185,7 +185,7 @@ pub fn sys_mknod(path: &str, major: i16, minor: i16) -> Result<()> {
 }
 
 pub fn sys_open(path: &str, mode: FileMode) -> Result<usize> {
-    console::println!("sys_open {} {:?}", path, mode);
+    // console::println!("sys_open {} {:?}", path, mode);
     let mut trans = LOG.r#try().unwrap().begin_transaction();
     let inode: Arc<INode> = match mode.contains(FileMode::CREATE) {
         true => ICache::create(&mut trans, path, INodeFileType::File, 0, 0),
@@ -284,7 +284,7 @@ pub fn sys_pipe() -> Result<(usize, usize)> {
 }
 
 pub fn sys_mkdir(path: &str) -> Result<()> {
-    console::println!("sys_mkdir {}", path);
+    // console::println!("sys_mkdir {}", path);
     let mut trans = LOG.r#try().unwrap().begin_transaction();
     let inode = ICache::create(&mut trans, path, INodeFileType::Directory, 0, 0)?;
     ICache::put(&mut trans, inode);
