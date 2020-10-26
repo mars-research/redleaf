@@ -35,7 +35,7 @@ FILES=\
 	README\
 	large\
 
-BINS=$(shell find domains/usr/xv6/usr/bin/src/bin -maxdepth 1 -mindepth 1 ! -name htdocs\|target -exec basename {} .rs \;)
+BINS=$(shell find $(root)/domains/usr/xv6/usr/bin/src/bin -maxdepth 1 -mindepth 1 ! -name htdocs ! -name target -exec basename {} .rs \;)
 
 build/fs.img: build/mkfs $(FILES) $(BINS) $(HTDOCS) Makefile
 	mkdir -p build
