@@ -35,22 +35,7 @@ FILES=\
 	README\
 	large\
 
-BINS=\
-	init\
-	sh\
-	ls\
-	wc\
-	mkdir\
-	rm\
-	ln\
-	getpid\
-	uptime\
-	sleep\
-	httpd\
-	dump_inode\
-	benchfs\
-	benchnet\
-	benchnvme\
+BINS=$(shell find domains/usr/xv6/usr/bin/src/bin -maxdepth 1 -mindepth 1 ! -name htdocs\|target -exec basename {} .rs \;)
 
 build/fs.img: build/mkfs $(FILES) $(BINS) $(HTDOCS) Makefile
 	mkdir -p build
