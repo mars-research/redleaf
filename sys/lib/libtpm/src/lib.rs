@@ -523,7 +523,7 @@ pub fn tpm_get_pcr_allocation(tpm: &TpmDev, locality: u32) -> TpmDevInfo {
 /// Extend PCR register.
 /// The value sent to the TPM will be concatenated with the original value and hashed.
 pub fn tpm_pcr_extend(tpm: &TpmDev, locality: u32, tpm_info: &TpmDevInfo,
-                      pcr_idx: usize, digest_values: Vec<TpmDigest>) -> bool {
+                      pcr_idx: usize, digest_values: Vec<TpmTHa>) -> bool {
     let mut buf: Vec<u8>;
 
     // header: TPM_HEADER

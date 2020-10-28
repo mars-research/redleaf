@@ -8,66 +8,6 @@ use byteorder::{ByteOrder, BigEndian};
 
 pub use crate::regs::*;
 
-pub struct TpmSPcrSelection {
-    pub hash_alg:           u16,
-    pub size_of_select: u8,
-    pub pcr_select:     Vec<u8>,
-}
-
-impl TpmSPcrSelection {
-    pub fn new(hash_alg: u16, size_of_select: u8, pcr_select: Vec<u8>) -> Self {
-        Self {
-            hash_alg: hash_alg,
-            size_of_select: size_of_select,
-            pcr_select: pcr_select,
-        }
-    }
-
-    pub fn size(&self) -> usize {
-        let ret: usize = mem::size_of::<u16>() + mem::size_of::<u8>() * (1 + self.size_of_select as usize);
-        ret
-    }
-
-    pub fn to_vec(&self) -> Vec<u8> {
-        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
-        buf.extend_from_slice(&u16::to_be_bytes(self.hash_alg));
-        buf.extend_from_slice(&u8::to_be_bytes(self.size_of_select));
-        buf.extend_from_slice(&self.pcr_select);
-        buf
-    }
-}
-
-pub struct TpmLPcrSelection {
-    pub count: u32,
-    pub pcr_selections: Vec<TpmSPcrSelection>,
-}
-
-impl TpmLPcrSelection {
-    pub fn new(count: u32, pcr_selections: Vec<TpmSPcrSelection>) -> Self {
-        Self {
-            count: count,
-            pcr_selections: pcr_selections,
-        }
-    }
-
-    pub fn size(&self) -> usize {
-        let mut ret: usize = mem::size_of::<u32>();
-        for s in self.pcr_selections.iter() {
-            ret = ret + s.size();
-        }
-        ret
-    }
-
-    pub fn to_vec(&self) -> Vec<u8> {
-        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
-        buf.extend_from_slice(&u32::to_be_bytes(self.count));
-        for s in self.pcr_selections.iter() {
-            buf.extend_from_slice(&s.to_vec());
-        }
-        buf
-    }
-}
-
 /// TpmHandle is required when tag of a command or response is
 /// TPM_ST_SESSIONS (c.f., Part 3, Section 4.4)
 #[repr(packed)]
@@ -104,6 +44,69 @@ impl TpmHandle {
     }
 }
 
+// Table 3:93 - TPMS_PCR_SELECTION
+pub struct TpmSPcrSelection {
+    pub hash_alg:           u16,
+    pub size_of_select: u8,
+    pub pcr_select:     Vec<u8>,
+}
+
+impl TpmSPcrSelection {
+    pub fn new(hash_alg: u16, size_of_select: u8, pcr_select: Vec<u8>) -> Self {
+        Self {
+            hash_alg: hash_alg,
+            size_of_select: size_of_select,
+            pcr_select: pcr_select,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let ret: usize = mem::size_of::<u16>() + mem::size_of::<u8>() * (1 + self.size_of_select as usize);
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&u16::to_be_bytes(self.hash_alg));
+        buf.extend_from_slice(&u8::to_be_bytes(self.size_of_select));
+        buf.extend_from_slice(&self.pcr_select);
+        buf
+    }
+}
+
+// Table 3:111 - TPML_PCR_SELECTION
+pub struct TpmLPcrSelection {
+    pub count: u32,
+    pub pcr_selections: Vec<TpmSPcrSelection>,
+}
+
+impl TpmLPcrSelection {
+    pub fn new(count: u32, pcr_selections: Vec<TpmSPcrSelection>) -> Self {
+        Self {
+            count: count,
+            pcr_selections: pcr_selections,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        let mut ret: usize = mem::size_of::<u32>();
+        for s in self.pcr_selections.iter() {
+            ret = ret + s.size();
+        }
+        ret
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
+        buf.extend_from_slice(&u32::to_be_bytes(self.count));
+        for s in self.pcr_selections.iter() {
+            buf.extend_from_slice(&s.to_vec());
+        }
+        buf
+    }
+}
+
+// Table 3:45 - TPMI_DH_PCR
 pub struct TpmIDhPcr {
     pub pcr_idx: u32,
     pub pcr_handle: TpmHandle,
@@ -130,12 +133,13 @@ impl TpmIDhPcr {
     }
 }
 
-pub struct TpmDigest {
+// Table 3:79 - TPMT_HA
+pub struct TpmTHa {
     pub hash_alg: u16,
     pub digest: Vec<u8>,
 }
 
-impl TpmDigest {
+impl TpmTHa {
     pub fn new(hash_alg: u16, digest: Vec<u8>) -> Self {
         Self {
             hash_alg: hash_alg,
@@ -156,13 +160,14 @@ impl TpmDigest {
     }
 }
 
+// Table 3:110 - TPM2B_DIGEST_VALUES
 pub struct TpmLDigestValues {
     pub count: u32,
-    pub digests: Vec<TpmDigest>,
+    pub digests: Vec<TpmTHa>,
 }
 
 impl TpmLDigestValues {
-    pub fn new(count: u32, digests: Vec<TpmDigest>) -> Self {
+    pub fn new(count: u32, digests: Vec<TpmTHa>) -> Self {
         Self {
             count: count,
             digests: digests,
@@ -187,6 +192,7 @@ impl TpmLDigestValues {
     }
 }
 
+// Table 3:80 - TPM2B_DIGEST
 pub struct Tpm2BDigest {
     pub size: u16,
     pub buffer: Vec<u8>,
@@ -215,6 +221,7 @@ impl Tpm2BDigest {
     }
 }
 
+// Table 3:81 - TPM2B_DIGEST
 pub struct Tpm2BData {
     pub size: u16,
     pub buffer: Vec<u8>,
@@ -243,6 +250,7 @@ impl Tpm2BData {
     }
 }
 
+// Table 3:83 - TPM2B_AUTH
 pub struct Tpm2BAuth {
     pub size: u16,
     pub buffer: Vec<u8>,
@@ -271,6 +279,7 @@ impl Tpm2BAuth {
     }
 }
 
+// Table 3:148 - TPM2B_SENSITIVE_DATA
 pub struct Tpm2BSensitiveData {
     pub size: u16,
     pub buffer: Vec<u8>,
@@ -306,6 +315,7 @@ impl Tpm2BSensitiveData {
     }
 }
 
+// Table 3:149 - TPMS_SENSITIVE_CREATE
 pub struct TpmSSensitiveCreate {
     pub user_auth: Tpm2BAuth,
     pub data: Tpm2BSensitiveData,
@@ -332,6 +342,7 @@ impl TpmSSensitiveCreate {
     }
 }
 
+// Table 3:147 - TPM2B_SENSITIVE_CREATE
 pub struct Tpm2BSensitiveCreate {
     pub size: u16,
     pub sensitive: TpmSSensitiveCreate,
@@ -360,6 +371,7 @@ impl Tpm2BSensitiveCreate {
     }
 }
 
+// Table 3:151 - TPMS_SCHEME_HASH
 pub struct TpmSSchemeHash {
     pub hash_alg: TpmIAlgHash,
 }
@@ -383,6 +395,7 @@ impl TpmSSchemeHash {
     }
 }
 
+// Table 3:154 - TPMS_SCHEME_HMAC
 pub struct TpmSSchemeHmac {
     pub hash_alg: TpmIAlgHash,
 }
@@ -406,6 +419,7 @@ impl TpmSSchemeHmac {
     }
 }
 
+// Table 3:155 - TPMS_SCHEME_XOR
 pub struct TpmSSchemeXor {
     pub hash_alg: TpmIAlgHash,
     pub kdf: TpmIAlgKdf,
@@ -432,6 +446,7 @@ impl TpmSSchemeXor {
     }
 }
 
+// Table 3:152 - TPMS_SCHEME_ECDAA
 pub struct TpmSSchemeEcdaa {
     pub hash_alg: TpmIAlgHash,
     pub count: u16,
@@ -458,6 +473,7 @@ impl TpmSSchemeEcdaa {
     }
 }
 
+// Table 3:156 - TPMU_SCHEME_KEYEDHASH
 pub struct TpmUSchemeKeyedHash {
     pub selector: TpmAlgorithms,
     pub scheme_hmac: Option<TpmSSchemeHmac>,
@@ -515,6 +531,7 @@ impl TpmUSchemeKeyedHash {
     }
 }
 
+// Table 3:157 - TPMT_KEYEDHASH_SCHEME
 pub struct TpmTKeyedhashScheme {
     pub scheme: u16, // TPM_ALG_HMAC, TPM_ALG_XOR, or TPM_ALG_NULL
     pub details: TpmUSchemeKeyedHash,
@@ -541,6 +558,7 @@ impl TpmTKeyedhashScheme {
     }
 }
 
+// Table 3:194 - TPMT_KEYEDHASH_SCHEME
 pub struct TpmSKeyedhashParms {
     pub scheme: TpmTKeyedhashScheme,
 }
@@ -564,6 +582,7 @@ impl TpmSKeyedhashParms {
     }
 }
 
+// Table 3:71 - TPMI_ALG_SIG_SCHEME
 pub struct TpmIAlgSigScheme {
     pub sig_scheme: u16,
 }
@@ -587,6 +606,7 @@ impl TpmIAlgSigScheme {
     }
 }
 
+// Table 3:160 - TPMU_SIG_SCHEME
 pub struct TpmUSigScheme {
     pub selector: TpmAlgorithms,
     pub scheme_hmac: Option<TpmSSchemeHmac>,
@@ -655,6 +675,7 @@ impl TpmUSigScheme {
     }
 }
 
+// Table 3:161 - TPMT_SIG_SCHEME
 pub struct TpmTSigScheme {
     pub scheme: TpmIAlgSigScheme,
     pub details: TpmUSigScheme,
@@ -681,6 +702,7 @@ impl TpmTSigScheme {
     }
 }
 
+// Table 3:70 - TPMI_ALG_KDF
 pub struct TpmIAlgKdf {
     pub kdf: u16,
 }
@@ -704,6 +726,7 @@ impl TpmIAlgKdf {
     }
 }
 
+// Table 3:65 - TPMI_ALG_HASH
 pub struct TpmIAlgHash {
     pub hash: u16,
 }
@@ -727,6 +750,7 @@ impl TpmIAlgHash {
     }
 }
 
+// Table 3:67 - TPMI_ALG_SYM
 pub struct TpmIAlgSym {
     pub sym: u16,
 }
@@ -750,6 +774,7 @@ impl TpmIAlgSym {
     }
 }
 
+// Table 3:68 - TPMI_ALG_SYM_OBJECT
 pub struct TpmIAlgSymObject {
     pub sym_obj: u16, // Only TPM_ALG_AES is currently supported
 }
@@ -773,6 +798,7 @@ impl TpmIAlgSymObject {
     }
 }
 
+// Table 3:xx - TPMI_AES_KEY_BITS (4.12.5)
 pub struct TpmIAesKeyBits {
     pub aes_key_sizes_bits: u16, // Only 128 or 256 is supported
 }
@@ -796,6 +822,7 @@ impl TpmIAesKeyBits {
     }
 }
 
+// Table 3:137 - TPMU_SYM_KEY_BITS
 pub struct TpmUSymKeyBits {
     pub aes_key_bits: TpmIAesKeyBits, // Only AES is supported
 }
@@ -819,6 +846,7 @@ impl TpmUSymKeyBits {
     }
 }
 
+// Table 3:69 - TPMI_ALG_SYM_MODE
 pub struct TpmIAlgSymMode {
     pub mode: u16,
 }
@@ -842,6 +870,8 @@ impl TpmIAlgSymMode {
     }
 }
 
+// Table 3:138 - TPMU_SYM_MODE
+// TODO: Support other algorithms
 pub struct TpmUSymMode {
     pub aes: TpmIAlgSymMode, // Only AES is supported
 }
@@ -865,6 +895,7 @@ impl TpmUSymMode{
     }
 }
 
+// Table 3:140 - TPMT_SYM_DEF
 pub struct TpmTSymDef {
     pub algorithm: TpmIAlgSym,
     pub key_bits: Option<TpmUSymKeyBits>,
@@ -909,6 +940,7 @@ impl TpmTSymDef {
     }
 }
 
+// Table 3:141 - TPMT_SYM_DEF_OBJECT
 pub struct TpmTSymDefObject {
     pub algorithm: TpmIAlgSymObject,
     pub key_bits: Option<TpmUSymKeyBits>,
@@ -953,6 +985,7 @@ impl TpmTSymDefObject {
     }
 }
 
+// Table 3:171 - TPMT_RSA_SCHEME
 pub struct TpmTRsaScheme {
     pub scheme: u16,
     pub details: Option<u16>,
@@ -986,6 +1019,7 @@ impl TpmTRsaScheme {
     }
 }
 
+// Table 3:196 - TPMS_RSA_PARMS
 pub struct TpmSRsaParms {
     pub symmetric: TpmTSymDefObject,
     pub scheme: TpmTRsaScheme,
@@ -1022,6 +1056,7 @@ impl TpmSRsaParms {
     }
 }
 
+// Table 3:143 - TPMS_SYMCIPHER_PARMS
 pub struct TpmSSymcipherParms {
     pub sym: TpmTSymDefObject,
 }
@@ -1045,6 +1080,7 @@ impl TpmSSymcipherParms {
     }
 }
 
+// Table 3:198 - TPMU_PUBLIC_PARMS
 pub struct TpmUPublicParms {
     pub selector: TpmAlgorithms,
     pub keyedhash_parms: Option<TpmSKeyedhashParms>,
@@ -1107,6 +1143,7 @@ impl TpmUPublicParms {
     }
 }
 
+// Table 3:174 - TPM2B_PUBLIC_KEY_RSA
 pub struct Tpm2BPublicKeyRsa {
     pub size: u16,
     pub buffer: Vec<u8>,
@@ -1136,6 +1173,7 @@ impl Tpm2BPublicKeyRsa {
     }
 }
 
+// Table 3:200 - TPMT_PUBLIC
 pub struct TpmTPublic {
     pub alg_type: u16,
     pub name_alg: u16,
@@ -1180,6 +1218,7 @@ impl TpmTPublic {
     }
 }
 
+// Table 3:201 - TPM2B_PUBLIC
 pub struct Tpm2BPublic {
     pub size: u16,
     pub public_area: TpmTPublic,
@@ -1209,6 +1248,7 @@ impl Tpm2BPublic {
     }
 }
 
+// Table 3:41 - TPMI_DH_OBJECT
 pub struct TpmIDhObject {
     pub object: u32,
 }
@@ -1232,6 +1272,7 @@ impl TpmIDhObject {
     }
 }
 
+// Table 3:44 - TPMI_DH_ENTITY
 pub struct TpmIDhEntity {
     pub entity: u32,
 }
@@ -1255,6 +1296,7 @@ impl TpmIDhEntity {
     }
 }
 
+// Table 3:82 - TPM2B_NONCE
 pub struct Tpm2BNonce {
     pub size: u16,
     pub nonce: Vec<u8>,
@@ -1283,6 +1325,7 @@ impl Tpm2BNonce {
     }
 }
 
+// Table 3:191 - TPM2B_ENCRYPTED_SECRET
 pub struct Tpm2BEncryptedSecret {
     pub size: u16,
     pub secret: Vec<u8>,
@@ -1311,6 +1354,7 @@ impl Tpm2BEncryptedSecret {
     }
 }
 
+// Table 3:48 - TPMI_SH_POLICY
 pub struct TpmIShPolicy {
     pub policy: u32,
 }

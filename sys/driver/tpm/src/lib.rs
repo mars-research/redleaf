@@ -165,11 +165,11 @@ pub fn tpm_init(s: Box<dyn Syscall + Send + Sync>,
     // First we obtain "banks" that are allocated in the TPM.
     // In TPM2, there can be multiple banks, each implementing different hash algorithms.
     let tpm_info = tpm_get_pcr_allocation(&tpm, locality);
-    let mut digests: Vec<TpmDigest> = Vec::new();
+    let mut digests: Vec<TpmTHa> = Vec::new();
     for i in 0..(tpm_info.nr_allocated_banks as usize) {
         let mut digest: Vec<u8> = Vec::new();
         digest.extend([0].repeat(tpm_info.allocated_banks[i].digest_size as usize));
-        let tpm_digest = TpmDigest::new(tpm_info.allocated_banks[i].alg_id, digest);
+        let tpm_digest = TpmTHa::new(tpm_info.allocated_banks[i].alg_id, digest);
         digests.push(tpm_digest);
     }
     let mut pcr_size: u16 = 0 as u16;
