@@ -1,6 +1,10 @@
-// Implementation of TPM datastructures
-// Taken from TPM2.0 Specification Part 2
-// (https://trustedcomputinggroup.org/wp-content/uploads/TCG_TPM2_r1p59_Part2_Structures_pub.pdf)
+/*
+This library implements TPM datastructures.
+Please refer to the individual specification shown in the specification
+for more detail.
+This library implements the specification proposed in the following link:
+https://trustedcomputinggroup.org/wp-content/uploads/TCG_TPM2_r1p59_Part2_Structures_pub.pdf
+*/
 
 use alloc::vec::Vec;
 use core::mem;

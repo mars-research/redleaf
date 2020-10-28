@@ -1,3 +1,15 @@
+/*
+This library implements TPM Commands from the Trusted Computing Group
+TPM 2.0 Library specification.
+TPM Commands are APIs exposed to the user application so that the
+application can utilize functions implemented in the TPM, such as
+crypto operations.
+Please refer to the individual specification shown in the specification
+for more detail.
+This library implements the specification proposed in the following link:
+https://trustedcomputinggroup.org/wp-content/uploads/TCG_TPM2_r1p59_Part3_Commands_pub.pdf
+*/
+
 #![no_std]
 
 extern crate alloc;
