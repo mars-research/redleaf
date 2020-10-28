@@ -27,6 +27,8 @@ pub fn trusted_entry(
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
     usrlib::init(rv6.clone().unwrap());
     println!("Starting rv6 testtpm with args: {}", args);
+
+    
 }
 
 // This function is called on panic.

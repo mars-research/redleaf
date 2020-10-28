@@ -14,3 +14,4 @@ console = { path = "../../../lib/core/console" }
 malloc = { path = "../../../lib/core/malloc" }
 bitfield = "0.13.2"
 byteorder = { version = "1.3.4", default-features = false }
+sha2 = { path = "../../../lib/external/hashes/sha2", version = "0.9.1", default-features = false }

@@ -4,3 +4,6 @@
 [submodule "lib/memcpy/musl"]
 	path = lib/external/memops/musl
 	url = git://git.musl-libc.org/musl
+[submodule "lib/external/hashes"]
+	path = lib/external/hashes
+	url = https://github.com/mars-research/hashes

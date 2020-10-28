@@ -14,10 +14,17 @@ pub enum TpmRegs {
     TPM_RID = 0x0F04,
 }
 
+// Driver -> TPM interface
 pub trait TpmDev: Send {
     fn read_u8(&self, locality: u32, reg: TpmRegs) -> u8;
     fn write_u8(&self, locality: u32, reg: TpmRegs, val: u8);
 
     fn read_u32(&self, locality: u32, reg: TpmRegs) -> u32;
     fn write_u32(&self, locality: u32, reg: TpmRegs, val: u32);
+}
+
+
+// Rv6 user -[UsrTpm]-> driver -[TpmDev]-> TPM
+pub trait UsrTpm: Send {
+    
 }
