@@ -57,15 +57,15 @@ pub fn write_data(tpm: &dyn TpmDev, locality: u32, reg: TpmRegs, buf: &[u8]) {
     }
 }
 
-fn tpm_buf_append_u16(buf: &mut Vec<u8>, data: u16) {
+pub fn tpm_buf_append_u16(buf: &mut Vec<u8>, data: u16) {
     buf.extend_from_slice(&u16::to_be_bytes(data));
 }
 
-fn tpm_buf_append_u32(buf: &mut Vec<u8>, data: u32) {
+pub fn tpm_buf_append_u32(buf: &mut Vec<u8>, data: u32) {
     buf.extend_from_slice(&u32::to_be_bytes(data));
 }
 
-fn tpm_buf_append(buf: &mut Vec<u8>, data: &Vec <u8>) {
+pub fn tpm_buf_append(buf: &mut Vec<u8>, data: &Vec <u8>) {
     buf.extend(data);
 }
 /// ## Locality related functions
@@ -90,7 +90,7 @@ pub fn tpm_validate_locality(tpm: &dyn TpmDev, locality: u32) -> bool {
 
 /// Explicitly giveup locality. This may not be useful if there is only a single process/user using
 /// TPM in an OS. In multi-user scenario, this is more applicable.
-fn relinquish_locality(tpm: &dyn TpmDev, locality: u32) -> bool {
+pub fn relinquish_locality(tpm: &dyn TpmDev, locality: u32) -> bool {
     let mut reg_acc = TpmAccess(0);
     reg_acc.set_active_locality(true);
 
@@ -168,7 +168,7 @@ pub fn tpm_get_burst(tpm: &TpmDev, locality: u32) -> u16 {
 }
 
 /// Busy-wait in a loop for a particular status flag to be set
-fn wait_for_status_flag(tpm: &TpmDev, locality: u32, flag: u8, timeout_ms: usize) -> bool {
+pub fn wait_for_status_flag(tpm: &TpmDev, locality: u32, flag: u8, timeout_ms: usize) -> bool {
 
     for _ in 0..timeout_ms {
         let mut reg_sts = tpm.read_u8(locality, TpmRegs::TPM_STS);
@@ -184,7 +184,7 @@ fn wait_for_status_flag(tpm: &TpmDev, locality: u32, flag: u8, timeout_ms: usize
 
 /// Writes data to the TPM FIFO.
 /// Here, `data.len < burst_count`
-fn tpm_write_data(tpm: &dyn TpmDev, locality: u32, data: &[u8]) -> usize {
+pub fn tpm_write_data(tpm: &dyn TpmDev, locality: u32, data: &[u8]) -> usize {
     let burst_count = tpm_get_burst(tpm, locality) as usize;
 
     if data.len() > burst_count {
@@ -207,7 +207,7 @@ fn tpm_write_data(tpm: &dyn TpmDev, locality: u32, data: &[u8]) -> usize {
 }
 
 /// Checks TPM status register to see if there is any data available
-fn is_data_available(tpm: &dyn TpmDev, locality: u32) -> bool {
+pub fn is_data_available(tpm: &dyn TpmDev, locality: u32) -> bool {
     let reg_sts = tpm.read_u8(locality, TpmRegs::TPM_STS);
     let status = TpmStatus(reg_sts);
 
@@ -222,7 +222,7 @@ fn is_data_available(tpm: &dyn TpmDev, locality: u32) -> bool {
 /// Read data from TPM
 /// * Wait for data to be available
 /// * Receive as much as burst_count
-fn tpm_read_data(tpm: &dyn TpmDev, locality: u32, data: &mut [u8]) -> usize {
+pub fn tpm_read_data(tpm: &dyn TpmDev, locality: u32, data: &mut [u8]) -> usize {
     let reg_sts = tpm.read_u8(locality, TpmRegs::TPM_STS);
     let mut status = TpmStatus(reg_sts);
 
@@ -263,7 +263,7 @@ fn tpm_read_data(tpm: &dyn TpmDev, locality: u32, data: &mut [u8]) -> usize {
 /// payload data.
 /// Then it issues a second read for the length of payload data subtract TPM_HEADER_SIZE
 /// Payload consists of the argument that was sent to the TPM during tpm_send_data and the response
-fn tpm_recv_data(tpm: &TpmDev, locality: u32, buf: &mut Vec<u8>, rc: &mut u32) -> usize {
+pub fn tpm_recv_data(tpm: &TpmDev, locality: u32, buf: &mut Vec<u8>, rc: &mut u32) -> usize {
     let size = buf.len();
     let mut ret = 0;
 
@@ -308,7 +308,7 @@ fn tpm_recv_data(tpm: &TpmDev, locality: u32, buf: &mut Vec<u8>, rc: &mut u32) -
 
 /// Wrapper for `tpm_write_data`
 /// This function waits for TPM to be in a state to accept commands before writing data to FIFO.
-fn tpm_send_data(tpm: &TpmDev, locality: u32, buf: &mut Vec<u8>) -> usize {
+pub fn tpm_send_data(tpm: &TpmDev, locality: u32, buf: &mut Vec<u8>) -> usize {
     let mut reg_sts = tpm.read_u8(locality, TpmRegs::TPM_STS);
     let mut status = TpmStatus(reg_sts);
 
@@ -332,7 +332,7 @@ fn tpm_send_data(tpm: &TpmDev, locality: u32, buf: &mut Vec<u8>) -> usize {
 /// This function does a bi-directional communication with TPM.
 /// First, it sends a command with headers
 /// If successful, try to read the response buffer from TPM
-fn tpm_transmit_cmd(tpm: &TpmDev, locality: u32, buf: &mut Vec<u8>) {
+pub fn tpm_transmit_cmd(tpm: &TpmDev, locality: u32, buf: &mut Vec<u8>) {
     let hdr = TpmHeader::from_vec(&buf);
     let mut rc: u32 = Tpm2ReturnCodes::TPM2_RC_NOT_USED as u32;
     let mut delay_msec: u64 = ONE_MS_IN_NS;
@@ -455,7 +455,7 @@ pub fn tpm_pcr_read(tpm: &TpmDev, locality: u32, pcr_idx: usize, hash: u16,
 }
 
 /// Obtain information about banks that are allocated in TPM
-fn tpm_init_bank_info(tpm: &TpmDev, locality: u32, hash_alg: u16) -> TpmBankInfo {
+pub fn tpm_init_bank_info(tpm: &TpmDev, locality: u32, hash_alg: u16) -> TpmBankInfo {
     let (mut crypto_id, mut digest_size) = match hash_alg {
         // Determine crypto_id and digest_size from hash_alg without calling tpm2_pcr_read
         hash_alg if hash_alg == TpmAlgorithms::TPM_ALG_SHA1 as u16 => 
@@ -1153,7 +1153,7 @@ pub fn tpm_policy_get_digest(tpm: &TpmDev, locality: u32, session_handle: u32,
     true
 }
 
-fn create_symcipher(policy: Vec<u8>) -> Vec<u8> {
+pub fn create_symcipher(policy: Vec<u8>) -> Vec<u8> {
     let mut buf: Vec<u8> = Vec::new();
     // inSensitive: Tpm2BSensitiveCreate
     let user_auth = Tpm2BAuth::new(Vec::<u8>::new());
