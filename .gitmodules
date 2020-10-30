@@ -7,3 +7,6 @@
 [submodule "lib/external/hashes"]
 	path = lib/external/hashes
 	url = https://github.com/mars-research/hashes
+[submodule "tools/redIDL"]
+	path = tools/redIDL
+	url = git@github.com:mars-research/redIDL.git
