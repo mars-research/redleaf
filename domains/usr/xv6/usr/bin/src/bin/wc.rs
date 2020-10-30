@@ -13,7 +13,7 @@ use core::panic::PanicInfo;
 use libsyscalls::syscalls::sys_println;
 use syscalls::{Heap, Syscall};
 use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
-use usr_interfaces::rv6::Xv6;
+use usr_interfaces::rv6::Rv6;
 use usrlib::println;
 use usrlib::syscalls::{sys_close, sys_fstat, sys_open_slice_slow, sys_read_slice_slow, sys_write_slice_slow};
 
@@ -21,7 +21,7 @@ use usrlib::syscalls::{sys_close, sys_fstat, sys_open_slice_slow, sys_read_slice
 pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
     heap: Box<dyn Heap + Send + Sync>,
-    rv6: Box<dyn Xv6>,
+    rv6: Box<dyn Rv6>,
     args: &str,
 ) {
     libsyscalls::syscalls::init(s);

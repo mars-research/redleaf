@@ -7,17 +7,17 @@ use alloc::vec::Vec;
 use spin::Mutex;
 
 use console::println;
-use create::CreateXv6Usr;
+use create::CreateRv6Usr;
 use rref::{RRefDeque, RRefVec};
 use usr_interface::bdev::{BlkReq, NvmeBDev};
 use usr_interface::net::{Net, NetworkStats};
 use usr_interface::usrnet::UsrNet;
 use usr_interface::rpc::RpcResult;
 use usr_interface::vfs::{FileMode, FileStat, Result, UsrVFS, NFILE, VFS};
-use usr_interface::rv6::{Thread, Xv6};
+use usr_interface::rv6::{Thread, Rv6};
 
 pub struct Rv6Syscalls {
-    create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>,
+    create_xv6usr: Arc<dyn CreateRv6Usr + Send + Sync>,
     fs: Box<dyn VFS>,
     usrnet: Box<dyn UsrNet>,
     net: Box<dyn Net>,
@@ -27,7 +27,7 @@ pub struct Rv6Syscalls {
 
 impl Rv6Syscalls {
     pub fn new(
-        create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>,
+        create_xv6usr: Arc<dyn CreateRv6Usr + Send + Sync>,
         fs: Box<dyn VFS>,
         usrnet: Box<dyn UsrNet>,
         net: Box<dyn Net>,
@@ -55,8 +55,8 @@ impl Rv6Syscalls {
     }
 }
 
-impl Xv6 for Rv6Syscalls {
-    fn clone(&self) -> RpcResult<Box<dyn Xv6>> {
+impl Rv6 for Rv6Syscalls {
+    fn clone(&self) -> RpcResult<Box<dyn Rv6>> {
         Ok(box self._clone()?)
     }
 
@@ -89,7 +89,7 @@ impl Xv6 for Rv6Syscalls {
 
     fn sys_spawn_domain(
         &self,
-        rv6: Box<dyn Xv6>,
+        rv6: Box<dyn Rv6>,
         path: RRefVec<u8>,
         args: RRefVec<u8>,
         fds: [Option<usize>; NFILE],

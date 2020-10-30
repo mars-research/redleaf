@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain_id};
 use syscalls::{Heap, Domain, Interrupt};
-use usr::{bdev::{BDev, BSIZE, NvmeBDev, BlkReq}, vfs::{UsrVFS, VFS}, rv6::Xv6, dom_a::DomA, dom_c::DomC, net::{Net, NetworkStats}, usrnet::UsrNet, pci::{PCI, PciBar, PciResource}};
+use usr::{bdev::{BDev, BSIZE, NvmeBDev, BlkReq}, vfs::{UsrVFS, VFS}, rv6::Rv6, dom_a::DomA, dom_c::DomC, net::{Net, NetworkStats}, usrnet::UsrNet, pci::{PCI, PciBar, PciResource}};
 use usr::rpc::{RpcResult, RpcError};
 use usr::error::Result;
 use core::mem::transmute;
@@ -28,11 +28,11 @@ pub struct Proxy {
     create_nvme_shadow: Arc<dyn create::CreateNvmeShadow>,
     create_benchnet: Arc<dyn create::CreateBenchnet>,
     create_benchnvme: Arc<dyn create::CreateBenchnvme>,
-    create_xv6fs: Arc<dyn create::CreateXv6FS>,
-    create_xv6net: Arc<dyn create::CreateXv6Net>,
-create_xv6net_shadow: Arc<dyn create::CreateXv6NetShadow>,
-    create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
-    create_xv6: Arc<dyn create::CreateXv6>,
+    create_xv6fs: Arc<dyn create::CreateRv6FS>,
+    create_xv6net: Arc<dyn create::CreateRv6Net>,
+create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
+    create_xv6usr: Arc<dyn create::CreateRv6Usr + Send + Sync>,
+    create_xv6: Arc<dyn create::CreateRv6>,
     create_dom_a: Arc<dyn create::CreateDomA>,
     create_dom_b: Arc<dyn create::CreateDomB>,
     create_dom_c: Arc<dyn create::CreateDomC>,
@@ -55,11 +55,11 @@ impl Proxy {
         create_nvme_shadow: Arc<dyn create::CreateNvmeShadow>,
         create_benchnet: Arc<dyn create::CreateBenchnet>,
         create_benchnvme: Arc<dyn create::CreateBenchnvme>,
-        create_xv6fs: Arc<dyn create::CreateXv6FS>,
-        create_xv6net: Arc<dyn create::CreateXv6Net>,
-        create_xv6net_shadow: Arc<dyn create::CreateXv6NetShadow>,
-        create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
-        create_xv6: Arc<dyn create::CreateXv6>,
+        create_xv6fs: Arc<dyn create::CreateRv6FS>,
+        create_xv6net: Arc<dyn create::CreateRv6Net>,
+        create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
+        create_xv6usr: Arc<dyn create::CreateRv6Usr + Send + Sync>,
+        create_xv6: Arc<dyn create::CreateRv6>,
         create_dom_a: Arc<dyn create::CreateDomA>,
         create_dom_b: Arc<dyn create::CreateDomB>,
         create_dom_c: Arc<dyn create::CreateDomC>,
@@ -123,19 +123,19 @@ impl proxy::Proxy for Proxy {
     fn as_create_nvme(&self) -> Arc<dyn create::CreateNvme> {
         Arc::new(self.clone())
     }
-    fn as_create_xv6fs(&self) -> Arc<dyn create::CreateXv6FS> {
+    fn as_create_xv6fs(&self) -> Arc<dyn create::CreateRv6FS> {
         Arc::new(self.clone())
     }
-    fn as_create_xv6net(&self) -> Arc<dyn create::CreateXv6Net> {
+    fn as_create_xv6net(&self) -> Arc<dyn create::CreateRv6Net> {
         Arc::new(self.clone())
     }
-    fn as_create_xv6net_shadow(&self) -> Arc<dyn create::CreateXv6NetShadow> {
+    fn as_create_xv6net_shadow(&self) -> Arc<dyn create::CreateRv6NetShadow> {
         Arc::new(self.clone())
     }
-    fn as_create_xv6usr(&self) -> Arc<dyn create::CreateXv6Usr + Send + Sync> {
+    fn as_create_xv6usr(&self) -> Arc<dyn create::CreateRv6Usr + Send + Sync> {
         Arc::new(self.clone())
     }
-    fn as_create_xv6(&self) -> Arc<dyn create::CreateXv6> {
+    fn as_create_xv6(&self) -> Arc<dyn create::CreateRv6> {
         Arc::new(self.clone())
     }
     fn as_create_dom_a(&self) -> Arc<dyn create::CreateDomA> {
@@ -225,14 +225,14 @@ impl create::CreateNvme for Proxy {
     }
 }
 
-impl create::CreateXv6FS for Proxy {
+impl create::CreateRv6FS for Proxy {
     fn create_domain_xv6fs(&self, bdev: Box<dyn BDev>) -> (Box<dyn Domain>, Box<dyn VFS>) {
-        // TODO: write Xv6FSProxy
+        // TODO: write Rv6FSProxy
         self.create_xv6fs.create_domain_xv6fs(bdev)
     }
 }
 
-impl create::CreateXv6Net for Proxy {
+impl create::CreateRv6Net for Proxy {
     fn create_domain_xv6net(&self, net: Box<dyn Net>) -> (Box<dyn Domain>, Box<dyn UsrNet>) {
         let (domain, xv6net) = self.create_xv6net.create_domain_xv6net(net);
         let domain_id = domain.get_domain_id();
@@ -240,31 +240,31 @@ impl create::CreateXv6Net for Proxy {
     }
 }
 
-impl create::CreateXv6NetShadow for Proxy {
-    fn create_domain_xv6net_shadow(&self, create: Arc<dyn create::CreateXv6Net>, net: Box<dyn Net>) -> (Box<dyn Domain>, Box<dyn UsrNet>) {
+impl create::CreateRv6NetShadow for Proxy {
+    fn create_domain_xv6net_shadow(&self, create: Arc<dyn create::CreateRv6Net>, net: Box<dyn Net>) -> (Box<dyn Domain>, Box<dyn UsrNet>) {
         let (domain, xv6net) = self.create_xv6net_shadow.create_domain_xv6net_shadow(create, net);
         let domain_id = domain.get_domain_id();
         (domain, Box::new(UsrNetProxy::new(domain_id, xv6net)))
     }
 }
 
-impl create::CreateXv6Usr for Proxy {
-    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::rv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn Domain>> {
-        // TODO: write Xv6UsrProxy
+impl create::CreateRv6Usr for Proxy {
+    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::rv6::Rv6>, blob: &[u8], args: &str) -> Result<Box<dyn Domain>> {
+        // TODO: write Rv6UsrProxy
         self.create_xv6usr.create_domain_xv6usr(name, xv6, blob, args)
     }
 }
 
-impl create::CreateXv6 for Proxy {
+impl create::CreateRv6 for Proxy {
     fn create_domain_xv6kernel(&self,
                                ints: Box<dyn Interrupt>,
-                               create_xv6fs: Arc<dyn create::CreateXv6FS>,
-                               create_xv6net: Arc<dyn create::CreateXv6Net>,
-                               create_xv6net_shadow: Arc<dyn create::CreateXv6NetShadow>,
-                               create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
+                               create_xv6fs: Arc<dyn create::CreateRv6FS>,
+                               create_xv6net: Arc<dyn create::CreateRv6Net>,
+                               create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
+                               create_xv6usr: Arc<dyn create::CreateRv6Usr + Send + Sync>,
                                bdev: Box<dyn BDev>,
                                net: Box<dyn usr::net::Net>,
-                               nvme: Box<dyn usr::bdev::NvmeBDev>) -> (Box<dyn Domain>, Box<dyn Xv6>) {
+                               nvme: Box<dyn usr::bdev::NvmeBDev>) -> (Box<dyn Domain>, Box<dyn Rv6>) {
         let (domain, rv6) = self.create_xv6.create_domain_xv6kernel(ints, create_xv6fs, create_xv6net, create_xv6net_shadow, create_xv6usr, bdev, net, nvme);
         let domain_id = domain.get_domain_id();
         (domain, Box::new(Rv6Proxy::new(domain_id, rv6)))
@@ -927,7 +927,7 @@ impl usr::dom_c::DomC for DomCProxy {
 
 #[no_mangle]
 pub extern fn rv6_submit_and_poll_rref(
-    s: &Box<dyn Xv6>,
+    s: &Box<dyn Rv6>,
     packets: RRefDeque<[u8; 1514], 32>,
     collect: RRefDeque<[u8; 1514], 32>,
     tx: bool,
@@ -942,7 +942,7 @@ pub extern fn rv6_submit_and_poll_rref(
 
 #[no_mangle]
 pub extern fn rv6_submit_and_poll_rref_err(
-    s: &Box<dyn Xv6>,
+    s: &Box<dyn Rv6>,
     packets: RRefDeque<[u8; 1514], 32>,
     collect: RRefDeque<[u8; 1514], 32>,
     tx: bool,
@@ -962,7 +962,7 @@ pub extern "C" fn rv6_submit_and_poll_rref_addr() -> u64 {
 
 extern {
     fn rv6_submit_and_poll_rref_tramp(
-        s: &Box<dyn Xv6>,
+        s: &Box<dyn Rv6>,
         packets: RRefDeque<[u8; 1514], 32>,
         collect: RRefDeque<[u8; 1514], 32>,
         tx: bool,
@@ -980,13 +980,13 @@ trampoline!(rv6_submit_and_poll_rref);
  */
 
 #[no_mangle]
-pub extern fn rv6_read_socket(s: &Box<dyn Xv6>, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+pub extern fn rv6_read_socket(s: &Box<dyn Rv6>, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
     //println!("rv6_read_socket: x:{}", x);
     s.read_socket(socket, buffer)
 }
 
 #[no_mangle]
-pub extern fn rv6_read_socket_err(s: &Box<dyn Xv6>, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+pub extern fn rv6_read_socket_err(s: &Box<dyn Rv6>, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
     println!("rv6_read_socket was aborted");
     Err(unsafe{RpcError::panic()})
 }
@@ -997,7 +997,7 @@ pub extern "C" fn rv6_read_socket_addr() -> u64 {
 }
 
 extern {
-    fn rv6_read_socket_tramp(s: &Box<dyn Xv6>, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>>;
+    fn rv6_read_socket_tramp(s: &Box<dyn Rv6>, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>>;
 }
 
 trampoline!(rv6_read_socket);
@@ -1007,13 +1007,13 @@ trampoline!(rv6_read_socket);
  */
 
 #[no_mangle]
-pub extern fn rv6_write_socket(s: &Box<dyn Xv6>, socket: usize, buffer: RRefVec<u8>, size: usize) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+pub extern fn rv6_write_socket(s: &Box<dyn Rv6>, socket: usize, buffer: RRefVec<u8>, size: usize) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
     //println!("rv6_write_socket: x:{}", x);
     s.write_socket(socket, buffer, size)
 }
 
 #[no_mangle]
-pub extern fn rv6_write_socket_err(s: &Box<dyn Xv6>, socket: usize, buffer: RRefVec<u8>, size: usize) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+pub extern fn rv6_write_socket_err(s: &Box<dyn Rv6>, socket: usize, buffer: RRefVec<u8>, size: usize) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
     println!("rv6_write_socket was aborted");
     Err(unsafe{RpcError::panic()})
 }
@@ -1024,14 +1024,14 @@ pub extern "C" fn rv6_write_socket_addr() -> u64 {
 }
 
 extern {
-    fn rv6_write_socket_tramp(s: &Box<dyn Xv6>, socket: usize, buffer: RRefVec<u8>, size: usize) -> RpcResult<Result<(usize, RRefVec<u8>)>>;
+    fn rv6_write_socket_tramp(s: &Box<dyn Rv6>, socket: usize, buffer: RRefVec<u8>, size: usize) -> RpcResult<Result<(usize, RRefVec<u8>)>>;
 }
 
 trampoline!(rv6_write_socket);
 
 // Rv6 proxy
 struct Rv6Proxy {
-    domain: Box<dyn Xv6>,
+    domain: Box<dyn Rv6>,
     domain_id: u64,
 }
 
@@ -1039,7 +1039,7 @@ unsafe impl Sync for Rv6Proxy {}
 unsafe impl Send for Rv6Proxy {}
 
 impl Rv6Proxy {
-    fn new(domain_id: u64, domain: Box<dyn Xv6>) -> Self {
+    fn new(domain_id: u64, domain: Box<dyn Rv6>) -> Self {
         Self {
             domain,
             domain_id,
@@ -1282,8 +1282,8 @@ impl UsrNet for Rv6Proxy {
 
 use usr::rv6::Thread;
 
-impl Xv6 for Rv6Proxy {
-    fn clone(&self) -> RpcResult<Box<dyn Xv6>> {
+impl Rv6 for Rv6Proxy {
+    fn clone(&self) -> RpcResult<Box<dyn Rv6>> {
         Ok(box Self::new(self.domain_id, self.domain.clone()?))
     }
     fn as_net(&self) -> RpcResult<Box<dyn Net>> {
@@ -1310,7 +1310,7 @@ impl Xv6 for Rv6Proxy {
 
         r
     }
-    fn sys_spawn_domain(&self, rv6: Box<dyn Xv6>, path: RRefVec<u8>, args: RRefVec<u8>, fds: [Option<usize>; NFILE]) -> RpcResult<Result<Box<dyn Thread>>> {
+    fn sys_spawn_domain(&self, rv6: Box<dyn Rv6>, path: RRefVec<u8>, args: RRefVec<u8>, fds: [Option<usize>; NFILE]) -> RpcResult<Result<Box<dyn Thread>>> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 

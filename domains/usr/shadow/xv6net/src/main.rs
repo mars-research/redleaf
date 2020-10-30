@@ -21,17 +21,17 @@ use usr::error::Result;
 use usr::net::Net;
 use usr::usrnet::UsrNet;
 use usr::rpc::RpcResult;
-use create::CreateXv6Net;
+use create::CreateRv6Net;
 use spin::Mutex;
 
 struct ShadowInternal {
-    create: Arc<dyn CreateXv6Net>,
+    create: Arc<dyn CreateRv6Net>,
     usrnet: Box<dyn UsrNet>,
     dom: Option<Box<dyn syscalls::Domain>>,
 }
 
 impl ShadowInternal {
-    fn new(create: Arc<dyn CreateXv6Net>, net: Box<dyn Net>) -> Self {
+    fn new(create: Arc<dyn CreateRv6Net>, net: Box<dyn Net>) -> Self {
         let (dom, usrnet) = create.create_domain_xv6net(net);
         Self {
             create,
@@ -46,7 +46,7 @@ struct Shadow {
 }
 
 impl Shadow {
-    fn new(create: Arc<dyn CreateXv6Net>, net: Box<dyn Net>) -> Self {
+    fn new(create: Arc<dyn CreateRv6Net>, net: Box<dyn Net>) -> Self {
         Self {
             shadow: Arc::new(Mutex::new(ShadowInternal::new(create, net))),
         }
@@ -89,7 +89,7 @@ impl UsrNet for Shadow {
 }
 
 #[no_mangle]
-pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, create: Arc<dyn CreateXv6Net>, net: Box<dyn Net>) -> Box<dyn UsrNet> {
+pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, create: Arc<dyn CreateRv6Net>, net: Box<dyn Net>) -> Box<dyn UsrNet> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 

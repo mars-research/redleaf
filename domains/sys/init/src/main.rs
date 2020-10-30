@@ -84,7 +84,7 @@ fn test_dummy_syscall() {
 // AB: XXX: The following is is not supported in Rust at the moment
 //
 //pub fn init(s: Box<dyn syscalls::Syscall 
-//                    + create::CreateXv6 + create::CreateXv6FS /* + CreateXv6User */
+//                    + create::CreateRv6 + create::CreateRv6FS /* + CreateRv6User */
 //                    + create::CreatePCI + create::CreateAHCI + Send + Sync>) 
 // See
 //   rustc --explain E0225
@@ -95,11 +95,11 @@ pub fn trusted_entry(s: Box<dyn syscalls::Syscall + Send + Sync>,
             heap: Box<dyn syscalls::Heap + Send + Sync>,
             ints: Box<dyn syscalls::Interrupt + Send + Sync>,
             create_proxy: Box<dyn proxy::CreateProxy>,
-            create_xv6: Arc<dyn create::CreateXv6>,
-            create_xv6fs: Arc<dyn create::CreateXv6FS>,
-            create_xv6net: Arc<dyn create::CreateXv6Net>,
-            create_xv6net_shadow: Arc<dyn create::CreateXv6NetShadow>,
-            create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
+            create_xv6: Arc<dyn create::CreateRv6>,
+            create_xv6fs: Arc<dyn create::CreateRv6FS>,
+            create_xv6net: Arc<dyn create::CreateRv6Net>,
+            create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
+            create_xv6usr: Arc<dyn create::CreateRv6Usr + Send + Sync>,
             create_pci: Arc<dyn create::CreatePCI>,
             create_ixgbe: Arc<dyn create::CreateIxgbe>,
             create_nvme: Arc<dyn create::CreateNvme>,

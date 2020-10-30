@@ -13,7 +13,7 @@ use libsyscalls::syscalls::sys_println;
 use syscalls::{Heap, Syscall};
 use usr_interfaces::error::Result;
 use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
-use usr_interfaces::rv6::Xv6;
+use usr_interfaces::rv6::Rv6;
 use usr_interfaces::usrnet::UsrNet;
 use usrlib::syscalls::sys_sleep;
 use usrlib::{eprintln, println};
@@ -35,7 +35,7 @@ use redhttpd::usrnet::Httpd;
 pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
     heap: Box<dyn Heap + Send + Sync>,
-    rv6: Box<dyn Xv6>,
+    rv6: Box<dyn Rv6>,
     args: &str,
 ) {
     libsyscalls::syscalls::init(s);
@@ -46,7 +46,7 @@ pub fn trusted_entry(
     main(rv6).unwrap();
 }
 
-fn main(rv6: Box<dyn Xv6>) -> Result<()> {
+fn main(rv6: Box<dyn Rv6>) -> Result<()> {
     let usrnet = rv6.get_usrnet()?;
 
     let mut httpd = Httpd::new();

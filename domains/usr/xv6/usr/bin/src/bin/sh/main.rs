@@ -18,7 +18,7 @@ use alloc::string::String;
 use core::panic::PanicInfo;
 
 use syscalls::{Heap, Syscall};
-use usr_interfaces::rv6::Xv6;
+use usr_interfaces::rv6::Rv6;
 use usrlib::syscalls::{sys_read_slice_slow, sys_spawn_domain};
 use usrlib::{print, println};
 
@@ -30,7 +30,7 @@ use crate::parse::{Command, Redir};
 pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
     heap: Box<dyn Heap + Send + Sync>,
-    rv6: Box<dyn Xv6>,
+    rv6: Box<dyn Rv6>,
     args: &str,
 ) {
     libsyscalls::syscalls::init(s);

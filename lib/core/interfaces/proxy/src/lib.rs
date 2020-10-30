@@ -14,11 +14,11 @@ use create::{CreatePCI,
              CreateNvmeShadow,
              CreateBenchnet,
              CreateBenchnvme,
-             CreateXv6FS,
-             CreateXv6Net,
-             CreateXv6NetShadow, 
-             CreateXv6Usr, 
-             CreateXv6, 
+             CreateRv6FS,
+             CreateRv6Net,
+             CreateRv6NetShadow, 
+             CreateRv6Usr, 
+             CreateRv6, 
              CreateDomA, 
              CreateDomB, 
              CreateDomC, 
@@ -39,11 +39,11 @@ pub trait CreateProxy {
         create_nvme_shadow: Arc<dyn create::CreateNvmeShadow>,
         create_benchnet: Arc<dyn CreateBenchnet>,
         create_benchnvme: Arc<dyn create::CreateBenchnvme>,
-        create_xv6fs: Arc<dyn CreateXv6FS>,
-        create_xv6net: Arc<dyn create::CreateXv6Net>,
-        create_xv6net_shadow: Arc<dyn create::CreateXv6NetShadow>,
-        create_xv6usr: Arc<dyn CreateXv6Usr>,
-        create_xv6: Arc<dyn CreateXv6>,
+        create_xv6fs: Arc<dyn CreateRv6FS>,
+        create_xv6net: Arc<dyn create::CreateRv6Net>,
+        create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
+        create_xv6usr: Arc<dyn CreateRv6Usr>,
+        create_xv6: Arc<dyn CreateRv6>,
         create_dom_a: Arc<dyn CreateDomA>,
         create_dom_b: Arc<dyn CreateDomB>,
         create_dom_c: Arc<dyn CreateDomC>,
@@ -60,9 +60,9 @@ pub trait Proxy: CreatePCI +
                  CreateNvmeShadow +
                  CreateBenchnet +
                  CreateBenchnvme +
-                 CreateXv6FS + 
-                 CreateXv6Usr + 
-                 CreateXv6 + 
+                 CreateRv6FS + 
+                 CreateRv6Usr + 
+                 CreateRv6 + 
                  CreateDomA + 
                  CreateDomB + 
                  CreateDomC + 
@@ -79,11 +79,11 @@ pub trait Proxy: CreatePCI +
     fn as_create_nvme_shadow(&self) -> Arc<dyn CreateNvmeShadow>;
     fn as_create_benchnet(&self) -> Arc<dyn CreateBenchnet>;
     fn as_create_benchnvme(&self) -> Arc<dyn CreateBenchnvme>;
-    fn as_create_xv6fs(&self) -> Arc<dyn CreateXv6FS>;
-    fn as_create_xv6net(&self) -> Arc<dyn CreateXv6Net>;
-    fn as_create_xv6net_shadow(&self) -> Arc<dyn CreateXv6NetShadow>;
-    fn as_create_xv6usr(&self) -> Arc<dyn CreateXv6Usr + Send + Sync>;
-    fn as_create_xv6(&self) -> Arc<dyn CreateXv6>;
+    fn as_create_xv6fs(&self) -> Arc<dyn CreateRv6FS>;
+    fn as_create_xv6net(&self) -> Arc<dyn CreateRv6Net>;
+    fn as_create_xv6net_shadow(&self) -> Arc<dyn CreateRv6NetShadow>;
+    fn as_create_xv6usr(&self) -> Arc<dyn CreateRv6Usr + Send + Sync>;
+    fn as_create_xv6(&self) -> Arc<dyn CreateRv6>;
     fn as_create_dom_a(&self) -> Arc<dyn CreateDomA>;
     fn as_create_dom_b(&self) -> Arc<dyn CreateDomB>;
     fn as_create_dom_c(&self) -> Arc<dyn CreateDomC>;

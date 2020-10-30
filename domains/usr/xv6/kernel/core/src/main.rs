@@ -20,21 +20,21 @@ use rref;
 use syscalls::{Heap, Syscall};
 use usr_interface::bdev::BDev;
 use usr_interface::vfs::{FileMode, VFS};
-use usr_interface::rv6::{Thread, Xv6};
+use usr_interface::rv6::{Thread, Rv6};
 
 #[no_mangle]
 pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
     heap: Box<dyn Heap + Send + Sync>,
     ints: Box<dyn syscalls::Interrupt + Send + Sync>,
-    create_xv6fs: Arc<dyn create::CreateXv6FS>,
-    create_xv6net: Arc<dyn create::CreateXv6Net>,
-    create_xv6net_shadow: Arc<dyn create::CreateXv6NetShadow>,
-    create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
+    create_xv6fs: Arc<dyn create::CreateRv6FS>,
+    create_xv6net: Arc<dyn create::CreateRv6Net>,
+    create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
+    create_xv6usr: Arc<dyn create::CreateRv6Usr + Send + Sync>,
     bdev: Box<dyn BDev>,
     net: Box<dyn usr_interface::net::Net>,
     nvme: Box<dyn usr_interface::bdev::NvmeBDev>,
-) -> Box<dyn Xv6> {
+) -> Box<dyn Rv6> {
     libsyscalls::syscalls::init(s);
     libsyscalls::syscalls::init_interrupts(ints);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
