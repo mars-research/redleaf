@@ -18,7 +18,7 @@ use alloc::string::String;
 use core::panic::PanicInfo;
 
 use syscalls::{Heap, Syscall};
-use usr_interfaces::xv6::Xv6;
+use usr_interfaces::rv6::Xv6;
 use usrlib::syscalls::{sys_read_slice_slow, sys_spawn_domain};
 use usrlib::{print, println};
 

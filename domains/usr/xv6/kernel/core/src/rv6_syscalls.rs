@@ -14,7 +14,7 @@ use usr_interface::net::{Net, NetworkStats};
 use usr_interface::usrnet::UsrNet;
 use usr_interface::rpc::RpcResult;
 use usr_interface::vfs::{FileMode, FileStat, Result, UsrVFS, NFILE, VFS};
-use usr_interface::xv6::{Thread, Xv6};
+use usr_interface::rv6::{Thread, Xv6};
 
 pub struct Rv6Syscalls {
     create_xv6usr: Arc<dyn CreateXv6Usr + Send + Sync>,

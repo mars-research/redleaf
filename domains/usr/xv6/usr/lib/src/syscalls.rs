@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use spin::Once;
 use usr_interface::vfs::NFILE;
-use usr_interface::xv6::{FileMode, FileStat, Result, Thread, Xv6};
+use usr_interface::rv6::{FileMode, FileStat, Result, Thread, Xv6};
 use rref::RRefVec;
 
 static SYSCALL: Once<Box<dyn Xv6>> = Once::new();

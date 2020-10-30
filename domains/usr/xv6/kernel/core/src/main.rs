@@ -20,7 +20,7 @@ use rref;
 use syscalls::{Heap, Syscall};
 use usr_interface::bdev::BDev;
 use usr_interface::vfs::{FileMode, VFS};
-use usr_interface::xv6::{Thread, Xv6};
+use usr_interface::rv6::{Thread, Xv6};
 
 #[no_mangle]
 pub fn trusted_entry(

@@ -11,7 +11,7 @@ use core::panic::PanicInfo;
 
 use syscalls::{Heap, Syscall};
 use usr_interfaces::vfs::FileMode;
-use usr_interfaces::xv6::Xv6;
+use usr_interfaces::rv6::Xv6;
 use usrlib::syscalls::{sys_spawn_domain_slice_slow, sys_open_slice_slow, sys_mknod_slice_slow, sys_dup};
 use usrlib::{dbg, println};
 

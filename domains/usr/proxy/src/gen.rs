@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain_id};
 use syscalls::{Heap, Domain, Interrupt};
-use usr::{bdev::{BDev, BSIZE, NvmeBDev, BlkReq}, vfs::{UsrVFS, VFS}, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::{Net, NetworkStats}, usrnet::UsrNet, pci::{PCI, PciBar, PciResource}};
+use usr::{bdev::{BDev, BSIZE, NvmeBDev, BlkReq}, vfs::{UsrVFS, VFS}, rv6::Xv6, dom_a::DomA, dom_c::DomC, net::{Net, NetworkStats}, usrnet::UsrNet, pci::{PCI, PciBar, PciResource}};
 use usr::rpc::{RpcResult, RpcError};
 use usr::error::Result;
 use core::mem::transmute;
@@ -249,7 +249,7 @@ impl create::CreateXv6NetShadow for Proxy {
 }
 
 impl create::CreateXv6Usr for Proxy {
-    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn Domain>> {
+    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::rv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn Domain>> {
         // TODO: write Xv6UsrProxy
         self.create_xv6usr.create_domain_xv6usr(name, xv6, blob, args)
     }
@@ -1280,7 +1280,7 @@ impl UsrNet for Rv6Proxy {
 } 
 
 
-use usr::xv6::Thread;
+use usr::rv6::Thread;
 
 impl Xv6 for Rv6Proxy {
     fn clone(&self) -> RpcResult<Box<dyn Xv6>> {

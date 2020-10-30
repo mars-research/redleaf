@@ -12,7 +12,7 @@ use core::panic::PanicInfo;
 use libsyscalls::syscalls::sys_println;
 use syscalls::{Heap, Syscall};
 use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
-use usr_interfaces::xv6::Xv6;
+use usr_interfaces::rv6::Xv6;
 use usrlib::syscalls::sys_sleep;
 use usrlib::{eprintln, println};
 

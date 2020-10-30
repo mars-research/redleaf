@@ -105,7 +105,7 @@ impl create::CreateXv6 for PDomain {
                                create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
                                bdev: Box<dyn usr::bdev::BDev>,
                                net: Box<dyn usr::net::Net>,
-                               nvme: Box<dyn usr::bdev::NvmeBDev>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::xv6::Xv6>) {
+                               nvme: Box<dyn usr::bdev::NvmeBDev>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::rv6::Xv6>) {
         disable_irq();
         let r = create_domain_xv6kernel(ints,
                                         create_xv6fs,
@@ -148,7 +148,7 @@ impl create::CreateXv6NetShadow for PDomain {
 }
 
 impl create::CreateXv6Usr for PDomain {
-    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn syscalls::Domain>> {
+    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::rv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn syscalls::Domain>> {
         disable_irq();
         let r = create_domain_xv6usr(name, xv6, blob, args);
         enable_irq();
@@ -468,7 +468,7 @@ pub fn create_domain_xv6kernel(ints: Box<dyn syscalls::Interrupt>,
                                create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
                                bdev: Box<dyn usr::bdev::BDev>,
                                net: Box<dyn usr::net::Net>,
-                               nvme: Box<dyn usr::bdev::NvmeBDev>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::xv6::Xv6>) {
+                               nvme: Box<dyn usr::bdev::NvmeBDev>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::rv6::Xv6>) {
     extern "C" {
         fn _binary_domains_build_xv6kernel_start();
         fn _binary_domains_build_xv6kernel_end();
@@ -501,7 +501,7 @@ pub fn create_domain_xv6fs(bdev: Box<dyn usr::bdev::BDev>) ->(Box<dyn syscalls::
 // AB: We have to split ukern syscalls into some that are
 // accessible to xv6 user, e.g., memory management, and the rest
 // which is hidden, e.g., create_thread, etc.
-pub fn create_domain_xv6usr(name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn syscalls::Domain>> {
+pub fn create_domain_xv6usr(name: &str, xv6: Box<dyn usr::rv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn syscalls::Domain>> {
     // TODO: verify that the blob is signed
     // if !signed(blob) return Err("Not signed")
 
@@ -1377,7 +1377,7 @@ pub fn build_domain_xv6kernel(name: &str,
                               create_xv6usr: Arc<dyn create::CreateXv6Usr + Send + Sync>,
                               bdev: Box<dyn usr::bdev::BDev>,
                               net: Box<dyn usr::net::Net>,
-                              nvme: Box<dyn usr::bdev::NvmeBDev>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::xv6::Xv6>)
+                              nvme: Box<dyn usr::bdev::NvmeBDev>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::rv6::Xv6>)
 {
     type UserInit = fn(Box<dyn syscalls::Syscall>,
                        Box<dyn syscalls::Heap>,
@@ -1388,7 +1388,7 @@ pub fn build_domain_xv6kernel(name: &str,
                        create_xv6kernel: Arc<dyn create::CreateXv6Usr>,
                        bdev: Box<dyn usr::bdev::BDev>,
                        net: Box<dyn usr::net::Net>,
-                       nvme: Box<dyn usr::bdev::NvmeBDev>) -> Box<dyn usr::xv6::Xv6>;
+                       nvme: Box<dyn usr::bdev::NvmeBDev>) -> Box<dyn usr::rv6::Xv6>;
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)
@@ -1425,11 +1425,11 @@ pub fn build_domain_xv6kernel(name: &str,
 }
 
 pub fn build_domain_xv6usr(name: &str,
-                           xv6: Box<dyn usr::xv6::Xv6>,
+                           xv6: Box<dyn usr::rv6::Xv6>,
                            blob: &[u8],
                            args: &str) -> Box<dyn syscalls::Domain>
 {
-    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, Box<dyn usr::xv6::Xv6>, &str);
+    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, Box<dyn usr::rv6::Xv6>, &str);
 
     let begin = blob.as_ptr();
     let end = unsafe { begin.offset(blob.len() as isize) };

@@ -4,7 +4,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use syscalls::{Heap, Domain, Interrupt};
-use usr::{bdev::{BDev, NvmeBDev}, vfs::VFS, usrnet::UsrNet, xv6::Xv6, dom_a::DomA, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}};
+use usr::{bdev::{BDev, NvmeBDev}, vfs::VFS, usrnet::UsrNet, rv6::Xv6, dom_a::DomA, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}};
 use usr::error::Result;
 
 /* AB: XXX: first thing: change all names to create_domain -- it's absurd */
@@ -54,7 +54,7 @@ pub trait CreateXv6NetShadow: Send + Sync {
 }
 
 pub trait CreateXv6Usr: Send + Sync {
-    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::xv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn syscalls::Domain>>;
+    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::rv6::Xv6>, blob: &[u8], args: &str) -> Result<Box<dyn syscalls::Domain>>;
 }
 pub type CreateXv6UsrPtr = Box<dyn CreateXv6Usr + Send + Sync>;
 

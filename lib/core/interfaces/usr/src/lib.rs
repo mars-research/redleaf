@@ -16,5 +16,5 @@ pub mod pci;
 pub mod rpc;
 pub mod usrnet;
 pub mod vfs;
-pub mod xv6;
+pub mod rv6;
 pub mod tpm;

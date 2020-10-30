@@ -7,7 +7,7 @@ use pc_keyboard::DecodedKey;
 
 use console::{print, println};
 use libsyscalls::syscalls::{sys_readch_kbd, sys_yield};
-use usr_interface::xv6::File;
+use usr_interface::rv6::File;
 
 struct ConsoleDeviceInternal {
     // The buffer is supposed be in the driver. I'm just too lazy to do the refactoring.
