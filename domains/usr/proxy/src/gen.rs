@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain_id};
 use syscalls::{Heap, Domain, Interrupt};
-use usr::{bdev::{BDev, BSIZE, NvmeBDev, BlkReq}, vfs::{UsrVFS, VFS}, rv6::Rv6, dom_a::DomA, dom_c::DomC, net::{Net, NetworkStats}, usrnet::UsrNet, pci::{PCI, PciBar, PciResource}};
+use usr::{bdev::{BDev, BSIZE, NvmeBDev, BlkReq}, vfs::{UsrVFS, VFS}, rv6::Rv6, dom_a::DomA, dom_c::DomC, net::{Net, NetworkStats}, usrnet::UsrNet, pci::{PCI, PciBar, PciResource}, tpm::UsrTpm};
 use usr::rpc::{RpcResult, RpcError};
 use usr::error::Result;
 use core::mem::transmute;
@@ -1297,6 +1297,11 @@ impl Rv6 for Rv6Proxy {
     }
     fn get_usrnet(&self) -> RpcResult<Box<dyn usr::usrnet::UsrNet>> {
         Ok(box UsrNetProxy::new(self.domain_id, self.domain.get_usrnet()?))
+    }
+    fn get_usrtpm(&self) -> RpcResult<Box<dyn usr::tpm::UsrTpm>> {
+        // TODO: build UsrTpmProxy
+        // Ok(box UsrTpmProxy::new(self.domain_id, self.domain.get_usrtpm()?))
+        self.domain.get_usrtpm()
     }
     fn sys_spawn_thread(&self, name: RRefVec<u8>, func: alloc::boxed::Box<dyn FnOnce() + Send>) -> RpcResult<Result<Box<dyn Thread>>> {
         // move thread to next domain

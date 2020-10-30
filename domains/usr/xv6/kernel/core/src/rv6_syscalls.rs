@@ -12,6 +12,7 @@ use rref::{RRefDeque, RRefVec};
 use usr_interface::bdev::{BlkReq, NvmeBDev};
 use usr_interface::net::{Net, NetworkStats};
 use usr_interface::usrnet::UsrNet;
+use usr_interface::tpm::UsrTpm;
 use usr_interface::rpc::RpcResult;
 use usr_interface::vfs::{FileMode, FileStat, Result, UsrVFS, NFILE, VFS};
 use usr_interface::rv6::{Thread, Rv6};
@@ -66,6 +67,11 @@ impl Rv6 for Rv6Syscalls {
 
     fn get_usrnet(&self) -> RpcResult<Box<dyn UsrNet>> {
         self.usrnet.clone_usrnet()
+    }
+
+    fn get_usrtpm(&self) -> RpcResult<Box<dyn UsrTpm>> {
+        // self.usrtpm.clone_usrtpm()
+        unimplemented!()
     }
 
     fn as_net(&self) -> RpcResult<Box<dyn Net>> {
