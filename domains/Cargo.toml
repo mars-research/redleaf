@@ -30,6 +30,10 @@ members = [
 	"usr/xv6/usr/lib",
 ]
 
+[profile.dev]
+panic = "abort"
+
 [profile.release]
+panic = "abort"
 lto = true
 debug = true

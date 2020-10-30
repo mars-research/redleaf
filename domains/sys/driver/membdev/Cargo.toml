@@ -9,13 +9,6 @@ name = "membdev"
 test = false
 bench = false
 
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"
-debug = true
-
 [dependencies]
 libsyscalls = { path = "../../../../lib/core/libsyscalls" }
 libtime = { path = "../../../../lib/core/libtime" }

@@ -4,13 +4,6 @@ version = "0.1.0"
 authors = ["RedLeaf Team"]
 edition = "2018"
 
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"
-debug = true
-
 [dependencies]
 syscalls = { path = "../../../../lib/core/interfaces/syscalls" }
 usr = { path = "../../../../lib/core/interfaces/usr" }

@@ -4,14 +4,6 @@ version = "0.1.0"
 authors = ["RedLeaf Team"]
 edition = "2018"
 
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"
-debug = true
-lto = false
-
 [dependencies]
 syscalls = { path = "../../../../lib/core/interfaces/syscalls" }
 libsyscalls = { path = "../../../../lib/core/libsyscalls" }

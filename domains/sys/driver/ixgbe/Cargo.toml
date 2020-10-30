@@ -9,14 +9,6 @@ edition = "2018"
 #test = false
 #bench = false
 
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"
-debug = true
-lto = false
-
 [dependencies]
 bitflags = "1.0.4"
 b2histogram = "1.0"
@@ -48,7 +40,6 @@ features = ["spin_no_std"]
 [dependencies.num-traits]
 version = "0.2.8"
 default-features = false
-
 
 [dependencies.smoltcp]
 path = "../../../../lib/external/smoltcp"

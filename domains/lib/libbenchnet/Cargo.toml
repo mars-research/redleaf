@@ -6,10 +6,6 @@ edition = "2018"
 [lib]
 crate-type = ["lib"]
 
-[profile.release]
-lto = true
-debug = true
-
 [dependencies]
 b2histogram = "1.0"
 byteorder = { version = "1.2", default-features = false }

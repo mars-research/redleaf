@@ -5,13 +5,6 @@ authors = ["RedLeaf Team"]
 edition = "2018"
 #autobins = false
 
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"
-debug = true
-
 [dependencies]
 libsyscalls = { path = "../../../../../lib/core/libsyscalls" }
 malloc = { path = "../../../../../lib/core/malloc" }

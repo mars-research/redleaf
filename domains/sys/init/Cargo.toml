@@ -4,13 +4,6 @@ version = "0.1.0"
 authors = ["RedLeaf Team"]
 edition = "2018"
 
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"
-debug = true
-
 [dependencies]
 array-init = "0.1.1"
 libsyscalls = { path = "../../../lib/core/libsyscalls" }

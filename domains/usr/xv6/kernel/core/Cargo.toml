@@ -12,13 +12,6 @@ shadow = []
 test_threads = []
 test_sleeplock = []
 
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"
-debug = true
-
 [dependencies]
 array-init = "0.1.1"
 rv6_sync = { package = "sync", path = "../../lib/sync", version = "0.1.0" }

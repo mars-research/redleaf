@@ -9,13 +9,6 @@ name = "bdev_shadow"
 test = false
 bench = false
 
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"
-debug = true
-
 [dependencies]
 syscalls = { path = "../../../../lib/core/interfaces/syscalls" }
 usr = { path = "../../../../lib/core/interfaces/usr" }
