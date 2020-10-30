@@ -43,6 +43,36 @@ pub struct Continuation {
   pub rsp: u64,
 }
 
+impl Continuation {
+    pub fn zeroed() -> Self {
+        Self {
+            func: 0,
+            /* Caller saved registers (we need them since 
+             * function arguments are passed in registers and 
+             * we loose them for the restart */
+            rax: 0,
+            rcx: 0,
+            rdx: 0,
+            rsi: 0,
+            rdi: 0,
+            r8: 0,
+            r9: 0,
+            r10: 0,
+
+            /* Callee saved registers */
+            rflags: 0,
+            r15: 0,
+            r14: 0,
+            r13: 0,
+            r12: 0,
+            r11: 0,
+            rbx: 0,
+            rbp: 0,
+            rsp: 0,
+        }
+    }
+}
+
 pub mod errors;
 
 pub trait Syscall {
@@ -56,6 +86,7 @@ pub trait Syscall {
     fn sys_get_current_domain_id(&self) -> u64;
     unsafe fn sys_update_current_domain_id(&self, new_domain_id: u64) -> u64;
     unsafe fn sys_register_cont(&self, cont: &Continuation);
+    unsafe fn sys_discard_cont(&self);
     fn sys_alloc(&self) -> *mut u8;
     fn sys_free(&self, p: *mut u8);
     fn sys_alloc_huge(&self, sz: u64) -> *mut u8;

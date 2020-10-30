@@ -169,6 +169,7 @@ mod tests {
         fn sys_readch_kbd(&self) -> core::result::Result<Option<pc_keyboard::DecodedKey>, &'static str> { todo!() }
         fn sys_make_condvar(&self) -> Box<(dyn syscalls::CondVar + Send + Sync + 'static)> { todo!() }
         unsafe fn sys_register_cont(&self, _: &syscalls::Continuation) { todo!() }
+        unsafe fn sys_discard_cont(&self) { todo!() }
         fn sys_test_unwind(&self) { todo!() }
     }
 

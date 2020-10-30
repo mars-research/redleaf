@@ -122,6 +122,11 @@ pub unsafe fn sys_register_cont(cont: &Continuation) {
     return scalls.sys_register_cont(cont);
 }
 
+pub unsafe fn sys_discard_cont() {
+    let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
+    return scalls.sys_discard_cont();
+}
+
 /* AB: XXX: Remove this system it's for testing only */
 pub fn sys_test_unwind() {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");

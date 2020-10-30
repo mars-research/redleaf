@@ -4,7 +4,7 @@
 
 // AB: XXX: this should be a privileged system call 
 // at the moment it's marked as unsafe
-use libsyscalls::syscalls::sys_register_cont;
+use libsyscalls::syscalls::{sys_register_cont, sys_discard_cont};
 use syscalls::Continuation;
 
 
@@ -111,6 +111,13 @@ foo_tramp:
 pub extern "C" fn register_cont(cont: &Continuation)  {
     unsafe {
         sys_register_cont(cont);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn discard_cont(cont: &Continuation)  {
+    unsafe {
+        sys_discard_cont();
     }
 }
 

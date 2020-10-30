@@ -15,7 +15,7 @@ use platform::PciBarAddr;
 use crate::kbd::{KBDCTRL};
 use pc_keyboard::{DecodedKey};
 use crate::unwind::unwind;
-use crate::thread::push_continuation;
+use crate::thread::{push_continuation, pop_continuation};
 use syscalls::Continuation; 
 
 //extern crate syscalls; 
@@ -206,6 +206,12 @@ impl syscalls::Syscall for PDomain {
     unsafe fn sys_register_cont(&self, cont: &Continuation) {
         disable_irq();
         push_continuation(cont);
+        enable_irq();
+    }
+
+    unsafe fn sys_discard_cont(&self) {
+        disable_irq();
+        pop_continuation();
         enable_irq();
     }
 
