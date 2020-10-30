@@ -2,37 +2,7 @@
 //#![feature(llvm_asm)]
 
 use syscalls::Continuation;
-
-static mut CONT: Continuation 
-    = Continuation { 
-        func: 0, rflags: 0, r15: 0, r14: 0, r13: 0, r12: 0, r11: 0, rbx: 0, rbp: 0, rsp:0,
-        rax: 0, rcx: 0, rdx: 0, rsi: 0, rdi: 0, r8: 0, r9: 0, r10: 0,
-    };
-
-pub fn register_cont(cont: &Continuation)  {
-    unsafe {
-        //CONT = *cont;
-        /* memcpy is slower than field copy by 50 cycles */
-        CONT.func = cont.func;
-        CONT.rflags = cont.rflags;
-        CONT.r15 = cont.r15;
-        CONT.r14 = cont.r14;
-        CONT.r13 = cont.r13;
-        CONT.r12 = cont.r12;
-        CONT.r11 = cont.r11;
-        CONT.rbx = cont.rbx;
-        CONT.rbp = cont.rbp;
-        CONT.rsp = cont.rsp; 
-        CONT.rax = cont.rax;
-        CONT.rcx = cont.rcx;
-        CONT.rdx = cont.rdx;
-        CONT.rsi = cont.rsi;
-        CONT.rdi = cont.rdi;
-        CONT.r8 = cont.r8;
-        CONT.r9 = cont.r9; 
-        CONT.r10 = cont.r10;
-    }
-}
+use super::thread::{pop_continuation, push_continuation};
 
 extern {
     fn __unwind(cont: &Continuation);
@@ -40,8 +10,9 @@ extern {
 
 pub fn unwind() {
     unsafe {
-        println!("Unwinding continuation: {:#x?}", CONT);
-        __unwind(&CONT);
+        let continuation = pop_continuation();
+        println!("Unwinding continuation: {:#x?}", continuation);
+        __unwind(continuation);
     }
 }
 

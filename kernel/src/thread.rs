@@ -19,10 +19,16 @@ use core::alloc::Layout;
 use crate::memory::buddy::BUDDY;
 use crate::memory::{PhysicalAllocator, Frame};
 use crate::active_cpus; 
+use core::ptr;
+
+use syscalls::Continuation;
 
 extern "C" {
     fn switch(prev_ctx: *mut Context, next_ctx: *mut Context);
 }
+
+static mut CONT_STACK: *mut [Continuation; MAX_CONT] = 0 as *mut _;
+static mut CONT_INDEX: *mut usize = 0 as *mut _;
 
 /// This should be a cryptographically secure number, for now 
 /// just sequential ID
@@ -30,6 +36,7 @@ static THREAD_ID: AtomicU64 = AtomicU64::new(0);
 
 const MAX_PRIO: usize = 15;
 const MAX_CPUS: usize = 64;
+const MAX_CONT: usize = 10;
 const NULL_RETURN_MARKER: usize = 0x0000_0000;
 
 /// Per-CPU scheduler
@@ -234,6 +241,9 @@ pub struct Thread {
     // Next thread on the interrupt wait queue list 
     pub next_iwq: Option<Arc<Mutex<Thread>>>,
 
+    /// A stack of continuations
+    continuations: [Continuation; MAX_CONT],
+    continuation_index: usize,
 }
 
 struct SchedulerQueue {
@@ -278,7 +288,62 @@ pub unsafe fn alloc_stack() -> *mut u8 {
     stack_u8
 }
 
-impl  Thread {
+/// Pop and discard the top continuation
+///
+/// Assumes IRQs are already turned off.
+/// Panics if there is no continuation on the
+/// stack.
+pub unsafe fn pop_continuation() -> &'static Continuation {
+    let index: usize = ptr::read_volatile(CONT_INDEX);
+
+    if index == 0 {
+        panic!("Tried to pop on an empty continuation stack");
+    }
+
+    ptr::write_volatile(CONT_INDEX, index - 1);
+
+    &(*CONT_STACK)[index]
+}
+
+/// Push a new Continuation to the stack
+///
+/// Returns a mutable reference that is
+/// technically valid for the lifetime of
+/// the thread.
+///
+/// Panics if the continuation stack is full.
+pub unsafe fn push_continuation(cont: &Continuation) {
+    let index: usize = ptr::read_volatile(CONT_INDEX);
+
+    if index >= MAX_CONT {
+        panic!("Tried to push to a full continuation stack");
+    }
+
+    let mut dst = (*CONT_STACK)[index];
+
+    dst.func = cont.func;
+    dst.rflags = cont.rflags;
+    dst.r15 = cont.r15;
+    dst.r14 = cont.r14;
+    dst.r13 = cont.r13;
+    dst.r12 = cont.r12;
+    dst.r11 = cont.r11;
+    dst.rbx = cont.rbx;
+    dst.rbp = cont.rbp;
+    dst.rsp = cont.rsp;
+    dst.rax = cont.rax;
+    dst.rcx = cont.rcx;
+    dst.rdx = cont.rdx;
+    dst.rsi = cont.rsi;
+    dst.rdi = cont.rdi;
+    dst.r8 = cont.r8;
+    dst.r9 = cont.r9;
+    dst.r10 = cont.r10;
+
+    ptr::write_volatile(CONT_INDEX, index + 1);
+}
+
+impl Thread {
   
     fn init_stack(&mut self, func: extern fn()) {
        
@@ -331,6 +396,8 @@ impl  Thread {
             next: None, 
             next_domain: None,
             next_iwq: None, 
+            continuations: [Continuation::zeroed(); MAX_CONT],
+            continuation_index: 0,
         };
 
         t.init_stack(func);
@@ -702,6 +769,10 @@ pub fn schedule() {
         switch(&mut prev.context, &mut next.context);
     }
 
+    unsafe {
+        CONT_STACK = &next.continuations as *const _ as *mut _;
+        CONT_INDEX = &next.continuation_index as *const _ as *mut _;
+    }
 }
 
 
