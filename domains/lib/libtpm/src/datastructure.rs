@@ -138,31 +138,7 @@ impl TpmIDhPcr {
 }
 
 // Table 3:79 - TPMT_HA
-pub struct TpmTHa {
-    pub hash_alg: u16,
-    pub digest: Vec<u8>,
-}
-
-impl TpmTHa {
-    pub fn new(hash_alg: u16, digest: Vec<u8>) -> Self {
-        Self {
-            hash_alg: hash_alg,
-            digest: digest,
-        }
-    }
-
-    pub fn size(&self) -> usize {
-        let ret: usize = mem::size_of::<u16>() + self.digest.len() * mem::size_of::<u8>();
-        ret
-    }
-
-    pub fn to_vec(&self) -> Vec<u8> {
-        let mut buf: Vec<u8> = Vec::with_capacity(self.size());
-        buf.extend_from_slice(&u16::to_be_bytes(self.hash_alg));
-        buf.extend_from_slice(&self.digest);
-        buf
-    }
-}
+pub use usr::tpm::TpmTHa;
 
 // Table 3:110 - TPM2B_DIGEST_VALUES
 pub struct TpmLDigestValues {

@@ -4,6 +4,7 @@
 //
 use alloc::vec::Vec;
 use byteorder::{ByteOrder, BigEndian};
+pub use usr::tpm::{TpmBankInfo, TpmDevInfo, TpmAlgorithms, TpmSE};
 
 pub const TPM_HEADER_SIZE: usize = 10;
 pub const TPM_PLATRFORM_PCR: usize = 24;
@@ -198,12 +199,6 @@ pub enum TpmRH {
     // TPM_RS_LAST        = 0x4000011F,
 }
 
-pub enum TpmSE {
-    TPM_SE_HMAC   = 0x00,
-    TPM_SE_POLICY = 0x01,
-    TPM_SE_TRIAL  = 0x03,
-}
-
 pub const TIMEOUT_A:       usize = 750;
 pub const TIMEOUT_B:       usize = 2000;
 pub const TIMEOUT_C:       usize = 200;
@@ -211,32 +206,6 @@ pub const TIMEOUT_D:       usize = 30;
 pub const DURATION_SHORT:  usize = 20;
 pub const DURATION_MEDIUM: usize = 750;
 pub const DURATION_LONG:   usize = 2000;
-
-// Generously borrowed from linux/drivers/char/tpm/tpm.h
-#[derive(Copy, Clone)]
-pub enum TpmAlgorithms {
-    TPM_ALG_ERROR		= 0x0000,
-    TPM_ALG_RSA		    = 0x0001,
-    TPM_ALG_SHA1		= 0x0004,
-    TPM_ALG_HMAC		= 0x0005,
-    TPM_ALG_AES		    = 0x0006,
-    TPM_ALG_KEYEDHASH	= 0x0008,
-    TPM_ALG_XOR		    = 0x000A,
-    TPM_ALG_SHA256		= 0x000B,
-    TPM_ALG_SHA384		= 0x000C,
-    TPM_ALG_SHA512		= 0x000D,
-    TPM_ALG_NULL		= 0x0010,
-    TPM_ALG_SM3_256		= 0x0012,
-    TPM_ALG_RSASSA		= 0x0014,
-    TPM_ALG_ECDAA		= 0x001A,
-    TPM_ALG_ECC		    = 0x0023,
-    TPM_ALG_SYMCIPHER   = 0x0025,
-    TPM_ALG_CTR		    = 0x0040,
-    TPM_ALG_OFB		    = 0x0041,
-    TPM_ALG_CBC		    = 0x0042,
-    TPM_ALG_CFB		    = 0x0043,
-    TPM_ALG_ECB		    = 0x0044,
-}
 
 // Generously borrowed from include/uapi/linux/hash_info.h
 pub enum HashAlgorithms {
@@ -272,23 +241,6 @@ pub enum Tpm2Capabilities {
 }
 
 #[repr(packed)]
-pub struct TpmBankInfo {
-    pub alg_id: u16,
-    pub digest_size: u16,
-    pub crypto_id: u16,
-}
-
-impl TpmBankInfo {
-    pub fn new(alg_id: u16, digest_size: u16, crypto_id: u16) -> Self {
-        Self {
-            alg_id:      alg_id.swap_bytes().to_be(),
-            digest_size: digest_size.swap_bytes().to_be(),
-            crypto_id:   crypto_id.swap_bytes().to_be(),
-        }
-    }
-}
-
-#[repr(packed)]
 pub struct TpmHeader {
 	pub tag: u16,
 	pub length: u32,
@@ -318,20 +270,6 @@ impl TpmHeader {
             tag:     tag.swap_bytes().to_be(),
             length:  length.swap_bytes().to_be(),
             ordinal: ordinal.swap_bytes().to_be(),
-        }
-    }
-}
-
-pub struct TpmDevInfo {
-    pub nr_allocated_banks: u32,
-    pub allocated_banks: Vec<TpmBankInfo>,
-}
-
-impl TpmDevInfo {
-    pub fn new(nr_allocated_banks: u32, allocated_banks: Vec<TpmBankInfo>) -> Self {
-        Self {
-            nr_allocated_banks: nr_allocated_banks,
-            allocated_banks: allocated_banks,
         }
     }
 }
