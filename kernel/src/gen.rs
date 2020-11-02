@@ -239,7 +239,7 @@ impl create::CreateHashStore for PDomain {
 }
 
 impl create::CreateTpm for PDomain {
-    fn create_domain_tpm(&self) -> (Box<dyn syscalls::Domain>, Box<dyn usr::tpm::TpmDev>) {
+    fn create_domain_tpm(&self) -> (Box<dyn syscalls::Domain>, Box<dyn usr::tpm::UsrTpm>) {
         disable_irq();
         let r = create_domain_tpm();
         enable_irq();
@@ -667,7 +667,7 @@ pub fn create_domain_hashstore() -> Box<dyn syscalls::Domain> {
     build_domain_hashstore("benchhash", binary_range)
 }
 
-pub fn create_domain_tpm() -> (Box<dyn syscalls::Domain>, Box<dyn usr::tpm::TpmDev>) {
+pub fn create_domain_tpm() -> (Box<dyn syscalls::Domain>, Box<dyn usr::tpm::UsrTpm>) {
 
     extern "C" {
         fn _binary_domains_build_tpm_start();
@@ -1779,8 +1779,8 @@ pub fn build_domain_hashstore(name: &str,
 }
 
 pub fn build_domain_tpm(name: &str,
-                        binary_range: (*const u8, *const u8)) -> (Box<dyn syscalls::Domain>, Box<dyn usr::tpm::TpmDev>) {
-    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>) -> Box<dyn usr::tpm::TpmDev>;
+                        binary_range: (*const u8, *const u8)) -> (Box<dyn syscalls::Domain>, Box<dyn usr::tpm::UsrTpm>) {
+    type UserInit = fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>) -> Box<dyn usr::tpm::UsrTpm>;
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)

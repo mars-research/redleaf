@@ -51,7 +51,7 @@ pub const ONE_MS_IN_NS: u64 = 1000 * 1000;
 
 #[no_mangle]
 pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>,
-                 heap: Box<dyn Heap + Send + Sync>) -> Box<dyn usr::tpm::TpmDev> {
+                 heap: Box<dyn Heap + Send + Sync>) -> Box<dyn usr::tpm::UsrTpm> {
     libsyscalls::syscalls::init(s);
 
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
@@ -193,7 +193,7 @@ pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>,
     println!("out_pcr_digest {:x?}", out_pcr_digest);
     println!("out_sig {:x?}", out_sig);
 
-    tpm
+    box usr_tpm::UsrTpm::new(tpm)
 }
 
 // This function is called on panic.

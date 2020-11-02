@@ -104,5 +104,5 @@ pub trait CreateHashStore: Send + Sync {
 }
 
 pub trait CreateTpm: Send + Sync {
-    fn create_domain_tpm(&self) -> (Box<dyn Domain>, Box<dyn usr::tpm::TpmDev>);
+    fn create_domain_tpm(&self) -> (Box<dyn Domain>, Box<dyn usr::tpm::UsrTpm>);
 }

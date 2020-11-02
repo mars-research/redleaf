@@ -7,9 +7,13 @@ macro_rules! generate_tpm {
             tpm: ::alloc::boxed::Box<dyn ::usr::tpm::TpmDev>,
         }
     
-        // impl usr::tpm::UsrTpm for Tpm {
-    
-        // }
+        impl UsrTpm {
+            pub fn new(tpm: ::alloc::boxed::Box<dyn ::usr::tpm::TpmDev>) -> Self {
+                Self {
+                    tpm,
+                }
+            }
+        }
 
         impl ::usr::tpm::UsrTpm for UsrTpm {
             fn clone_tpm(&self) -> alloc::boxed::Box<dyn ::usr::tpm::UsrTpm> {
