@@ -34,6 +34,7 @@ pub fn trusted_entry(
     bdev: Box<dyn BDev>,
     net: Box<dyn usr_interface::net::Net>,
     nvme: Box<dyn usr_interface::bdev::NvmeBDev>,
+    usr_tpm: Box<dyn usr_interface::tpm::UsrTpm>,
 ) -> Box<dyn Rv6> {
     libsyscalls::syscalls::init(s);
     libsyscalls::syscalls::init_interrupts(ints);
@@ -49,7 +50,7 @@ pub fn trusted_entry(
     #[cfg(not(feature = "shadow"))]
     let (_dom_xv6net, usrnet) = create_xv6net.create_domain_xv6net(net.clone_net().unwrap());
     // Init kernel
-    box rv6_syscalls::Rv6Syscalls::new(create_xv6usr, fs.clone(), usrnet, net, nvme)
+    box rv6_syscalls::Rv6Syscalls::new(create_xv6usr, fs.clone(), usrnet, net, nvme, usr_tpm)
 }
 
 // This function is called on panic.

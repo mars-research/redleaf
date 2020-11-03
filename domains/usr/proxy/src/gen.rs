@@ -264,8 +264,10 @@ impl create::CreateRv6 for Proxy {
                                create_xv6usr: Arc<dyn create::CreateRv6Usr + Send + Sync>,
                                bdev: Box<dyn BDev>,
                                net: Box<dyn usr::net::Net>,
-                               nvme: Box<dyn usr::bdev::NvmeBDev>) -> (Box<dyn Domain>, Box<dyn Rv6>) {
-        let (domain, rv6) = self.create_xv6.create_domain_xv6kernel(ints, create_xv6fs, create_xv6net, create_xv6net_shadow, create_xv6usr, bdev, net, nvme);
+                               nvme: Box<dyn usr::bdev::NvmeBDev>,
+                               usr_tpm: Box<dyn usr::tpm::UsrTpm>,
+                            ) -> (Box<dyn Domain>, Box<dyn Rv6>) {
+        let (domain, rv6) = self.create_xv6.create_domain_xv6kernel(ints, create_xv6fs, create_xv6net, create_xv6net_shadow, create_xv6usr, bdev, net, nvme, usr_tpm);
         let domain_id = domain.get_domain_id();
         (domain, Box::new(Rv6Proxy::new(domain_id, rv6)))
     }
@@ -868,7 +870,6 @@ trampoline!(one_rref);
 
 impl usr::dom_c::DomC for DomCProxy {
     fn no_arg(&self) -> RpcResult<()> {
-        println!("proxy");
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 

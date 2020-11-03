@@ -105,7 +105,8 @@ impl create::CreateRv6 for PDomain {
                                create_xv6usr: Arc<dyn create::CreateRv6Usr + Send + Sync>,
                                bdev: Box<dyn usr::bdev::BDev>,
                                net: Box<dyn usr::net::Net>,
-                               nvme: Box<dyn usr::bdev::NvmeBDev>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::rv6::Rv6>) {
+                               nvme: Box<dyn usr::bdev::NvmeBDev>,
+                               usr_tpm: Box<dyn usr::tpm::UsrTpm>,) -> (Box<dyn syscalls::Domain>, Box<dyn usr::rv6::Rv6>) {
         disable_irq();
         let r = create_domain_xv6kernel(ints,
                                         create_xv6fs,
@@ -114,7 +115,9 @@ impl create::CreateRv6 for PDomain {
                                         create_xv6usr,
                                         bdev,
                                         net,
-                                        nvme);
+                                        nvme,
+                                        usr_tpm,
+                                    );
         enable_irq();
         r
     }
@@ -468,7 +471,9 @@ pub fn create_domain_xv6kernel(ints: Box<dyn syscalls::Interrupt>,
                                create_xv6usr: Arc<dyn create::CreateRv6Usr + Send + Sync>,
                                bdev: Box<dyn usr::bdev::BDev>,
                                net: Box<dyn usr::net::Net>,
-                               nvme: Box<dyn usr::bdev::NvmeBDev>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::rv6::Rv6>) {
+                               nvme: Box<dyn usr::bdev::NvmeBDev>,
+                               usr_tpm: Box<dyn usr::tpm::UsrTpm>,
+                            ) -> (Box<dyn syscalls::Domain>, Box<dyn usr::rv6::Rv6>) {
     extern "C" {
         fn _binary_domains_build_xv6kernel_start();
         fn _binary_domains_build_xv6kernel_end();
@@ -479,7 +484,7 @@ pub fn create_domain_xv6kernel(ints: Box<dyn syscalls::Interrupt>,
         _binary_domains_build_xv6kernel_end as *const u8
     );
 
-    build_domain_xv6kernel("xv6kernel", binary_range, ints, create_xv6fs, create_xv6net, create_xv6net_shadow, create_xv6usr, bdev, net, nvme)
+    build_domain_xv6kernel("xv6kernel", binary_range, ints, create_xv6fs, create_xv6net, create_xv6net_shadow, create_xv6usr, bdev, net, nvme, usr_tpm)
 }
 
 
@@ -1377,7 +1382,9 @@ pub fn build_domain_xv6kernel(name: &str,
                               create_xv6usr: Arc<dyn create::CreateRv6Usr + Send + Sync>,
                               bdev: Box<dyn usr::bdev::BDev>,
                               net: Box<dyn usr::net::Net>,
-                              nvme: Box<dyn usr::bdev::NvmeBDev>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::rv6::Rv6>)
+                              nvme: Box<dyn usr::bdev::NvmeBDev>,
+                              usr_tpm: Box<dyn usr::tpm::UsrTpm>,
+                            ) -> (Box<dyn syscalls::Domain>, Box<dyn usr::rv6::Rv6>)
 {
     type UserInit = fn(Box<dyn syscalls::Syscall>,
                        Box<dyn syscalls::Heap>,
@@ -1388,7 +1395,9 @@ pub fn build_domain_xv6kernel(name: &str,
                        create_xv6kernel: Arc<dyn create::CreateRv6Usr>,
                        bdev: Box<dyn usr::bdev::BDev>,
                        net: Box<dyn usr::net::Net>,
-                       nvme: Box<dyn usr::bdev::NvmeBDev>) -> Box<dyn usr::rv6::Rv6>;
+                       nvme: Box<dyn usr::bdev::NvmeBDev>,
+                       usr_tpm: Box<dyn usr::tpm::UsrTpm>,
+                    ) -> Box<dyn usr::rv6::Rv6>;
 
     let (dom, entry) = unsafe {
         load_domain(name, binary_range)
@@ -1412,7 +1421,7 @@ pub fn build_domain_xv6kernel(name: &str,
 
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
-    let rv6 = user_ep(pdom, pheap, ints, create_xv6fs, create_xv6net, create_xv6net_shadow, create_xv6usr, bdev, net, nvme);
+    let rv6 = user_ep(pdom, pheap, ints, create_xv6fs, create_xv6net, create_xv6net_shadow, create_xv6usr, bdev, net, nvme, usr_tpm);
     disable_irq();
 
     // change domain id back

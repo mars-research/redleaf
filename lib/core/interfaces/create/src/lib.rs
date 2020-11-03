@@ -67,7 +67,9 @@ pub trait CreateRv6: Send + Sync {
                                create_xv6usr: Arc<dyn CreateRv6Usr + Send + Sync>,
                                bdev: Box<dyn BDev>,
                                net: Box<dyn usr::net::Net>,
-                               nvme: Box<dyn usr::bdev::NvmeBDev>) -> (Box<dyn Domain>, Box<dyn Rv6>);
+                               nvme: Box<dyn usr::bdev::NvmeBDev>,
+                               usr_tpm: Box<dyn usr::tpm::UsrTpm>,
+                            ) -> (Box<dyn Domain>, Box<dyn Rv6>);
 }
 
 pub trait CreateDomA: Send + Sync {

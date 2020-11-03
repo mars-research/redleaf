@@ -15,7 +15,7 @@ pub enum TpmRegs {
 }
 
 // Driver -> TPM interface
-pub trait TpmDev: Send {
+pub trait TpmDev: Send + Sync {
     fn read_u8(&self, locality: u32, reg: TpmRegs) -> u8;
     fn write_u8(&self, locality: u32, reg: TpmRegs, val: u8);
 

@@ -219,11 +219,9 @@ pub fn trusted_entry(s: Box<dyn syscalls::Syscall + Send + Sync>,
         let (dom_shadow, dom_c) = proxy.as_create_shadow().create_domain_shadow(proxy.as_create_dom_c());
         let dom_dom_d = proxy.as_create_dom_d().create_domain_dom_d(dom_c);
     }
-
-    /*
+    
     #[cfg(feature="tpm")]
-    let (dom_tpm, tpmdev) = create_tpm.create_domain_tpm();
-    */
+    let (dom_tpm, usr_tpm) = create_tpm.create_domain_tpm();
 
     #[cfg(feature="hashbench")]
     let dom_hashstore = create_hashstore.create_domain_hashstore();
@@ -263,7 +261,7 @@ pub fn trusted_entry(s: Box<dyn syscalls::Syscall + Send + Sync>,
     #[cfg(not(any(feature = "benchnet", feature = "benchnvme")))]
     {
         println!("Starting xv6 kernel");
-        let (dom_xv6, rv6) = proxy.as_create_xv6().create_domain_xv6kernel(ints_clone, proxy.as_create_xv6fs(), proxy.as_create_xv6net(), proxy.as_create_xv6net_shadow(), proxy.as_create_xv6usr(), bdev, net, nvme);
+        let (dom_xv6, rv6) = proxy.as_create_xv6().create_domain_xv6kernel(ints_clone, proxy.as_create_xv6fs(), proxy.as_create_xv6net(), proxy.as_create_xv6net_shadow(), proxy.as_create_xv6usr(), bdev, net, nvme, usr_tpm);
         println!("Starting xv6 user init");
         rv6.sys_spawn_domain(rv6.clone().unwrap(), RRefVec::from_slice("/init".as_bytes()), RRefVec::from_slice("/init".as_bytes()), array_init::array_init(|_| None)).unwrap().unwrap();
     }
