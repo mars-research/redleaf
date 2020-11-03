@@ -161,14 +161,14 @@ pub fn read_tpm_id(tpm: &dyn TpmDev, locality: u32) {
 
 /// Reads the burst_count from TPM register. Burst count is the amount of bytes the TPM device is
 /// capable of handling in oneshot.
-pub fn tpm_get_burst(tpm: &TpmDev, locality: u32) -> u16 {
+pub fn tpm_get_burst(tpm: &dyn TpmDev, locality: u32) -> u16 {
     let reg_sts = tpm.read_u32(locality, TpmRegs::TPM_STS);
     println!("{:x?}", u32::to_le_bytes(reg_sts));
     (reg_sts >> 8) as u16 & 0xFFFF
 }
 
 /// Busy-wait in a loop for a particular status flag to be set
-pub fn wait_for_status_flag(tpm: &TpmDev, locality: u32, flag: u8, timeout_ms: usize) -> bool {
+pub fn wait_for_status_flag(tpm: &dyn TpmDev, locality: u32, flag: u8, timeout_ms: usize) -> bool {
 
     for _ in 0..timeout_ms {
         let mut reg_sts = tpm.read_u8(locality, TpmRegs::TPM_STS);
@@ -263,7 +263,7 @@ pub fn tpm_read_data(tpm: &dyn TpmDev, locality: u32, data: &mut [u8]) -> usize 
 /// payload data.
 /// Then it issues a second read for the length of payload data subtract TPM_HEADER_SIZE
 /// Payload consists of the argument that was sent to the TPM during tpm_send_data and the response
-pub fn tpm_recv_data(tpm: &TpmDev, locality: u32, buf: &mut Vec<u8>, rc: &mut u32) -> usize {
+pub fn tpm_recv_data(tpm: &dyn TpmDev, locality: u32, buf: &mut Vec<u8>, rc: &mut u32) -> usize {
     let size = buf.len();
     let mut ret = 0;
 
@@ -308,7 +308,7 @@ pub fn tpm_recv_data(tpm: &TpmDev, locality: u32, buf: &mut Vec<u8>, rc: &mut u3
 
 /// Wrapper for `tpm_write_data`
 /// This function waits for TPM to be in a state to accept commands before writing data to FIFO.
-pub fn tpm_send_data(tpm: &TpmDev, locality: u32, buf: &mut Vec<u8>) -> usize {
+pub fn tpm_send_data(tpm: &dyn TpmDev, locality: u32, buf: &mut Vec<u8>) -> usize {
     let mut reg_sts = tpm.read_u8(locality, TpmRegs::TPM_STS);
     let mut status = TpmStatus(reg_sts);
 
@@ -332,7 +332,7 @@ pub fn tpm_send_data(tpm: &TpmDev, locality: u32, buf: &mut Vec<u8>) -> usize {
 /// This function does a bi-directional communication with TPM.
 /// First, it sends a command with headers
 /// If successful, try to read the response buffer from TPM
-pub fn tpm_transmit_cmd(tpm: &TpmDev, locality: u32, buf: &mut Vec<u8>) {
+pub fn tpm_transmit_cmd(tpm: &dyn TpmDev, locality: u32, buf: &mut Vec<u8>) {
     let hdr = TpmHeader::from_vec(&buf);
     let mut rc: u32 = Tpm2ReturnCodes::TPM2_RC_NOT_USED as u32;
     let mut delay_msec: u64 = ONE_MS_IN_NS;
@@ -370,7 +370,7 @@ pub fn tpm_transmit_cmd(tpm: &TpmDev, locality: u32, buf: &mut Vec<u8>) {
 /// Table 3:68 - TPM2_GetRandom Command
 /// Get a random number from TPM. 
 /// `num_octets` represents the length of the random number in bytes
-pub fn tpm_get_random(tpm: &TpmDev, locality: u32, num_octets: usize) -> bool {
+pub fn tpm_get_random(tpm: &dyn TpmDev, locality: u32, num_octets: usize) -> bool {
     let mut buf: Vec<u8>;
 
     // header: TPM_HEADER
@@ -398,7 +398,7 @@ pub fn tpm_get_random(tpm: &TpmDev, locality: u32, num_octets: usize) -> bool {
 /// Read a PCR register.
 /// Since the communication channel between the process and the TPM is untrusted,
 /// TPM2_Quote should be the command to retreive PCR values, not TPM2_PCR_Read
-pub fn tpm_pcr_read(tpm: &TpmDev, locality: u32, pcr_idx: usize, hash: u16,
+pub fn tpm_pcr_read(tpm: &dyn TpmDev, locality: u32, pcr_idx: usize, hash: u16,
                     digest_size: &mut u16, digest: &mut Vec<u8>) -> bool {
     let mut buf: Vec<u8>;
 
@@ -455,7 +455,7 @@ pub fn tpm_pcr_read(tpm: &TpmDev, locality: u32, pcr_idx: usize, hash: u16,
 }
 
 /// Obtain information about banks that are allocated in TPM
-pub fn tpm_init_bank_info(tpm: &TpmDev, locality: u32, hash_alg: u16) -> TpmBankInfo {
+pub fn tpm_init_bank_info(tpm: &dyn TpmDev, locality: u32, hash_alg: u16) -> TpmBankInfo {
     let (mut crypto_id, mut digest_size) = match hash_alg {
         // Determine crypto_id and digest_size from hash_alg without calling tpm2_pcr_read
         hash_alg if hash_alg == TpmAlgorithms::TPM_ALG_SHA1 as u16 => 
@@ -482,7 +482,7 @@ pub fn tpm_init_bank_info(tpm: &TpmDev, locality: u32, hash_alg: u16) -> TpmBank
 /// Table 3:208 - TPM2_PCR_GetCapability Command
 /// Obtain the banks that are allocated in TPM
 /// TODO: Return true/false, not structure
-pub fn tpm_get_pcr_allocation(tpm: &TpmDev, locality: u32) -> TpmDevInfo {
+pub fn tpm_get_pcr_allocation(tpm: &dyn TpmDev, locality: u32) -> TpmDevInfo {
     let mut buf: Vec<u8>;
 
     // header: TPM_HEADER
@@ -534,7 +534,7 @@ pub fn tpm_get_pcr_allocation(tpm: &TpmDev, locality: u32) -> TpmDevInfo {
 /// Table 3:110 - TPM2_PCR_Read Command
 /// Extend PCR register.
 /// The value sent to the TPM will be concatenated with the original value and hashed.
-pub fn tpm_pcr_extend(tpm: &TpmDev, locality: u32, tpm_info: &TpmDevInfo,
+pub fn tpm_pcr_extend(tpm: &dyn TpmDev, locality: u32, tpm_info: &TpmDevInfo,
                       pcr_idx: usize, digest_values: Vec<TpmTHa>) -> bool {
     let mut buf: Vec<u8>;
 
@@ -570,7 +570,7 @@ pub fn tpm_pcr_extend(tpm: &TpmDev, locality: u32, tpm_info: &TpmDevInfo,
 
 /// Table 3:78 - TPM2_HashSequenceStart Command
 /// Conduct hash calculation in TPM
-pub fn tpm_hash_sequence_start(tpm: &TpmDev, locality: u32, hash: TpmAlgorithms, 
+pub fn tpm_hash_sequence_start(tpm: &dyn TpmDev, locality: u32, hash: TpmAlgorithms, 
                                object: &mut u32) -> bool {
     let mut buf: Vec<u8>;
 
@@ -611,7 +611,7 @@ pub fn tpm_hash_sequence_start(tpm: &TpmDev, locality: u32, hash: TpmAlgorithms,
 
 /// Table 3:80 - TPM2_SequenceUpdate
 /// Update hash calculation in TPM
-pub fn tpm_sequence_update(tpm: &TpmDev, locality: u32,
+pub fn tpm_sequence_update(tpm: &dyn TpmDev, locality: u32,
                            object: u32, buffer: Vec<u8>) -> bool {
     let mut buf: Vec<u8>;
 
@@ -650,7 +650,7 @@ pub fn tpm_sequence_update(tpm: &TpmDev, locality: u32,
 
 /// Table 3:82 - TPM2_SequenceComplete
 /// Finalize hash calculation in TPM
-pub fn tpm_sequence_complete(tpm: &TpmDev, locality: u32, object: u32, buffer: Vec<u8>, 
+pub fn tpm_sequence_complete(tpm: &dyn TpmDev, locality: u32, object: u32, buffer: Vec<u8>, 
                              hash_size: &mut u16, hash: &mut Vec<u8>) -> bool {
     let mut buf: Vec<u8>;
 
@@ -714,7 +714,7 @@ pub fn tpm_sequence_complete(tpm: &TpmDev, locality: u32, object: u32, buffer: V
 
 /// Table 3:62 - TPM2_Hash
 /// Generic hash calculation in TPM when data size is known
-pub fn tpm_hash(tpm: &TpmDev, locality: u32, hash: TpmAlgorithms, buffer: Vec<u8>, 
+pub fn tpm_hash(tpm: &dyn TpmDev, locality: u32, hash: TpmAlgorithms, buffer: Vec<u8>, 
                 hash_size: &mut u16, hash_val: &mut Vec<u8>) -> bool {
     let mut buf: Vec<u8>;
 
@@ -772,7 +772,7 @@ pub fn tpm_hash(tpm: &TpmDev, locality: u32, hash: TpmAlgorithms, buffer: Vec<u8
 /// Table 3:164 - TPM2_PCR_CreatePrimary Command
 /// Create Primary Key.
 /// This includes Storate Root Keys and Attestation Identity Keys.
-pub fn tpm_create_primary(tpm: &TpmDev, locality: u32,
+pub fn tpm_create_primary(tpm: &dyn TpmDev, locality: u32,
                           pcr_idx: Option<usize>, unique_base: &[u8],
                           restricted: bool, decrypt: bool, sign: bool,
                           parent_handle: &mut u32, pubkey_size: &mut usize,
@@ -992,7 +992,7 @@ pub fn tpm_create_primary(tpm: &TpmDev, locality: u32,
 
 /// Table 3:15 - TPM2_StartAuthSession Command
 /// Start Authenticated Session and returns a session handle
-pub fn tpm_start_auth_session(tpm: &TpmDev, locality: u32, session_type: TpmSE,
+pub fn tpm_start_auth_session(tpm: &dyn TpmDev, locality: u32, session_type: TpmSE,
                               nonce: Vec<u8>, session_handle: &mut u32) -> bool {
     let mut buf: Vec<u8>;
     // header
@@ -1054,7 +1054,7 @@ pub fn tpm_start_auth_session(tpm: &TpmDev, locality: u32, session_type: TpmSE,
 
 /// Table 3:132 - TPM2_PolicyPCR Command
 /// Bind a policy to a particular PCR
-pub fn tpm_policy_pcr(tpm: &TpmDev, locality: u32, session_handle: u32,
+pub fn tpm_policy_pcr(tpm: &dyn TpmDev, locality: u32, session_handle: u32,
                       digest: Vec<u8>, pcr_idx: usize) -> bool {
     let mut buf: Vec<u8>;
 
@@ -1112,7 +1112,7 @@ pub fn tpm_policy_pcr(tpm: &TpmDev, locality: u32, session_handle: u32,
 
 /// Table 3:156 - TPM2_PolicyGetDigest Command
 /// Get Policy digest from current policy
-pub fn tpm_policy_get_digest(tpm: &TpmDev, locality: u32, session_handle: u32,
+pub fn tpm_policy_get_digest(tpm: &dyn TpmDev, locality: u32, session_handle: u32,
                              policy_digest: &mut Vec<u8>) -> bool {
     let mut buf: Vec<u8>;
 
@@ -1192,7 +1192,7 @@ pub fn create_symcipher(policy: Vec<u8>) -> Vec<u8> {
 
 /// Table 3:19 - TPM2_Create Command
 /// Create child key
-pub fn tpm_create(tpm: &TpmDev, locality: u32, pcr_idx: Option<usize>,
+pub fn tpm_create(tpm: &dyn TpmDev, locality: u32, pcr_idx: Option<usize>,
                   parent_handle: u32, policy: Vec<u8>, sensitive_data: Vec<u8>,
                   restricted: bool, decrypt: bool, sign: bool,
                   out_private: &mut Vec<u8>, out_public: &mut Vec<u8>) -> bool {
@@ -1330,7 +1330,7 @@ pub fn tpm_create(tpm: &TpmDev, locality: u32, pcr_idx: Option<usize>,
 /// Load objects into the TPM.
 /// The TPM2B_PUBLIC and TPM2B_PRIVATE objects created by the TPM2_Create command 
 /// are to be loaded.
-pub fn tpm_load(tpm: &TpmDev, locality: u32, parent_handle: u32,
+pub fn tpm_load(tpm: &dyn TpmDev, locality: u32, parent_handle: u32,
                 in_private: Vec<u8>, in_public: Vec<u8>, item_handle: &mut u32) -> bool {
     let mut buf: Vec<u8>;
 
@@ -1378,7 +1378,7 @@ pub fn tpm_load(tpm: &TpmDev, locality: u32, parent_handle: u32,
 
 /// Table 3:31 - TPM2_Unseal Command
 /// Unseal data sealed via TPM_CC_CREATE
-pub fn tpm_unseal(tpm: &TpmDev, locality: u32, session_handle: u32, item_handle: u32,
+pub fn tpm_unseal(tpm: &dyn TpmDev, locality: u32, session_handle: u32, item_handle: u32,
                   out_data: &mut Vec<u8>) -> bool {
     let mut buf: Vec<u8>;
 
@@ -1426,7 +1426,7 @@ pub fn tpm_unseal(tpm: &TpmDev, locality: u32, session_handle: u32, item_handle:
 /// Generate Quote.
 /// Since the communication channel between the process and the TPM is untrusted,
 /// TPM2_Quote should be the command to retreive PCR values, not TPM2_PCR_Read
-pub fn tpm_quote(tpm: &TpmDev, locality: u32, handle: u32, hash: u16,
+pub fn tpm_quote(tpm: &dyn TpmDev, locality: u32, handle: u32, hash: u16,
                  nonce: Vec<u8>, pcr_idxs: Vec<usize>,
                  out_pcr_digest: &mut Vec<u8>, out_sig: &mut Vec<u8>) -> bool {
     let mut buf: Vec<u8>;
@@ -1546,7 +1546,7 @@ pub fn tpm_quote(tpm: &TpmDev, locality: u32, handle: u32, hash: u16,
 
 /// Table 3:198 - TPM2_FlushContext Command
 /// Remove loaded objects, sequence objects, and/or sessions from TPM memory
-pub fn tpm_flush_context(tpm: &TpmDev, locality: u32, flush_handle: u32) -> bool {
+pub fn tpm_flush_context(tpm: &dyn TpmDev, locality: u32, flush_handle: u32) -> bool {
     let mut buf: Vec<u8>;
 
     // header
