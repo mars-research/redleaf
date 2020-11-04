@@ -16,6 +16,7 @@ malloc = { path = "../../../lib/core/malloc" }
 rref = { path = "../../../lib/core/rref" }
 spin = { path = "../../../lib/core/spin-rs" }
 unwind = { path = "../../../lib/core/unwind" }
+codegen-lib = { path = "../../../tools/redIDL/codegen/codegen-lib" }
 
 [dependencies.lazy_static]
 version = "1.3.0"

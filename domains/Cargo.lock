@@ -190,6 +190,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
 
 [[package]]
+name = "codegen-lib"
+version = "0.1.0"
+dependencies = [
+ "paste",
+]
+
+[[package]]
 name = "console"
 version = "0.1.0"
 dependencies = [
@@ -317,6 +324,7 @@ dependencies = [
 name = "dom_proxy"
 version = "0.1.0"
 dependencies = [
+ "codegen-lib",
  "console",
  "create",
  "lazy_static",
@@ -691,6 +699,12 @@ name = "opaque-debug"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
+
+[[package]]
+name = "paste"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba7ae1a2180ed02ddfdb5ab70c70d596a26dd642e097bb6fe78b1bde8588ed97"
 
 [[package]]
 name = "pc-keyboard"
