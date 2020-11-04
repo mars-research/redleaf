@@ -1,0 +1,16 @@
+[package]
+name = "libbenchtpm"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+libsyscalls = { path = "../../../lib/core/libsyscalls" }
+libtime = { path = "../../../lib/core/libtime" }
+rref = { path = "../../../lib/core/rref" }
+usr = { path = "../../../lib/core/interfaces/usr" }
+console = { path = "../../../lib/core/console" }
+libtpm = { path= "../libtpm" }
+
