@@ -12,6 +12,7 @@ usrlib = { package = "lib", path = "../lib" }
 rref = { path = "../../../../../lib/core/rref" }
 libbenchnvme = { path = "../../../../lib/libbenchnvme" }
 libbenchnet = { path = "../../../../lib/libbenchnet" }
+libbenchtpm = { path = "../../../../lib/libbenchtpm" }
 libtime = { path = "../../../../../lib/core/libtime" }
 utils = { path = "../../lib/utils" }
 

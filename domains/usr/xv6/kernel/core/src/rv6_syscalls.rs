@@ -23,7 +23,7 @@ pub struct Rv6Syscalls {
     usrnet: Box<dyn UsrNet>,
     net: Box<dyn Net>,
     nvme: Arc<Mutex<Box<dyn NvmeBDev>>>,
-    tpm: Box<dyn UsrTpm>,
+    usrtpm: Box<dyn UsrTpm>,
     start_time: u64
 }
 
@@ -34,7 +34,7 @@ impl Rv6Syscalls {
         usrnet: Box<dyn UsrNet>,
         net: Box<dyn Net>,
         nvme: Box<dyn NvmeBDev>,
-        tpm: Box<dyn UsrTpm>,
+        usrtpm: Box<dyn UsrTpm>,
     ) -> Self {
         Self {
             create_xv6usr,
@@ -42,7 +42,7 @@ impl Rv6Syscalls {
             usrnet,
             net,
             nvme: Arc::new(Mutex::new(nvme)),
-            tpm,
+            usrtpm,
             start_time: libtime::get_ns_time(),
         }
     }
@@ -55,7 +55,7 @@ impl Rv6Syscalls {
             usrnet: self.usrnet.clone_usrnet()?,
             net: self.net.clone_net()?,
             nvme: self.nvme.clone(),
-            tpm: self.tpm.clone_tpm(),
+            usrtpm: self.usrtpm.clone_usrtpm(),
         })
     }
 }
@@ -74,8 +74,7 @@ impl Rv6 for Rv6Syscalls {
     }
 
     fn get_usrtpm(&self) -> RpcResult<Box<dyn UsrTpm>> {
-        // self.usrtpm.clone_usrtpm()
-        unimplemented!()
+        Ok(self.usrtpm.clone_usrtpm())
     }
 
     fn as_net(&self) -> RpcResult<Box<dyn Net>> {

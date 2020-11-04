@@ -28,7 +28,7 @@ pub fn trusted_entry(
     usrlib::init(rv6.clone().unwrap());
     println!("Starting rv6 testtpm with args: {}", args);
 
-    
+    libbenchtpm::test_tpm(&*rv6.get_usrtpm().unwrap());
 }
 
 // This function is called on panic.

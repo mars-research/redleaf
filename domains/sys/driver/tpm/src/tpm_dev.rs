@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use usr::tpm::TpmRegs;
 use tpm_device::TpmDevice;
 
@@ -57,6 +58,10 @@ impl Tpm {
 }
 
 impl usr::tpm::TpmDev for Tpm {
+    fn clone_tpmdev(&self) -> Box<dyn usr::tpm::TpmDev> {
+        box Self::new()
+    }
+
     fn read_u8(&self, locality: u32, reg: TpmRegs) -> u8 {
         self.device.read_u8(locality, reg)
     }

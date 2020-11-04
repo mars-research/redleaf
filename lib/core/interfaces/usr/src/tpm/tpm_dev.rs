@@ -1,4 +1,4 @@
-use alloc::{collections::VecDeque, vec::Vec};
+use alloc::boxed::Box;
 
 #[derive(Copy, Clone, Debug)]
 pub enum TpmRegs {
@@ -16,6 +16,8 @@ pub enum TpmRegs {
 
 // Driver -> TPM interface
 pub trait TpmDev: Send + Sync {
+    fn clone_tpmdev(&self) -> Box<dyn TpmDev>;
+
     fn read_u8(&self, locality: u32, reg: TpmRegs) -> u8;
     fn write_u8(&self, locality: u32, reg: TpmRegs, val: u8);
 

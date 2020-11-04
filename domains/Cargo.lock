@@ -133,6 +133,7 @@ dependencies = [
  "lib",
  "libbenchnet",
  "libbenchnvme",
+ "libbenchtpm",
  "libsyscalls",
  "libtime",
  "malloc",
@@ -465,6 +466,18 @@ dependencies = [
  "console",
  "libsyscalls",
  "libtime",
+ "rref",
+ "usr",
+]
+
+[[package]]
+name = "libbenchtpm"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "libsyscalls",
+ "libtime",
+ "libtpm",
  "rref",
  "usr",
 ]
@@ -1002,6 +1015,7 @@ dependencies = [
  "bitflags",
  "byteorder",
  "console",
+ "libbenchtpm",
  "libsyscalls",
  "libtime",
  "libtpm",
