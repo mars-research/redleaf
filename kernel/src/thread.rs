@@ -766,12 +766,12 @@ pub fn schedule() {
     drop(next_thread); 
 
     unsafe {
-        switch(&mut prev.context, &mut next.context);
+        CONT_STACK = &next.continuations as *const _ as *mut _;
+        CONT_INDEX = &next.continuation_index as *const _ as *mut _;
     }
 
     unsafe {
-        CONT_STACK = &next.continuations as *const _ as *mut _;
-        CONT_INDEX = &next.continuation_index as *const _ as *mut _;
+        switch(&mut prev.context, &mut next.context);
     }
 }
 
