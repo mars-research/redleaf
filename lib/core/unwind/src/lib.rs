@@ -8,10 +8,6 @@
 use libsyscalls::syscalls::{sys_register_cont, sys_discard_cont};
 use syscalls::Continuation;
 
-#[thread_local]
-#[no_mangle]
-static mut TRAMPOLINE_RETURN_ADDR: usize = 0;
-
 /* 
  * Macro to create a continuation trampoline for the function. 
  *
@@ -73,39 +69,7 @@ macro_rules! trampoline {
             pop %r10
             popfq
             add $64, %rsp
-
-            # rsp -> ra
-            pop %r10
-            mov %r10, TRAMPOLINE_RETURN_ADDR
-
-            call "#, core::stringify!($func),
-            r#"
-            pushfq
-            push %rax
-            push %rcx
-            push %rdx
-            push %rsi
-            push %rdi
-            push %r8
-            push %r9
-            push %r10
-            push %r11
-            call discard_cont
-            pop %r11
-            pop %r10
-            pop %r9
-            pop %r8
-            pop %rdi
-            pop %rsi
-            pop %rdx
-            pop %rcx
-            pop %rax
-            popfq
-
-            mov TRAMPOLINE_RETURN_ADDR, %r10
-            push %r10
-            ret
-            "#
+            jmp "#, core::stringify!($func),
         );
     );
     }

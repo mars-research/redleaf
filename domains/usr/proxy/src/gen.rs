@@ -4,7 +4,7 @@ use create;
 use rref::{RRef, RRefDeque, RRefVec, traits::CustomCleanup};
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain_id};
+use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain_id, sys_discard_cont};
 use syscalls::{Heap, Domain, Interrupt};
 use usr::{bdev::{BDev, BSIZE, NvmeBDev, BlkReq}, vfs::{UsrVFS, VFS}, rv6::Rv6, dom_a::DomA, dom_c::DomC, net::{Net, NetworkStats}, usrnet::UsrNet, pci::{PCI, PciBar, PciResource}, tpm::UsrTpm};
 use usr::rpc::{RpcResult, RpcError};
@@ -410,6 +410,12 @@ impl BDev for BDevProxy {
         let r = self.domain.read(block, data);
         #[cfg(feature = "tramp")]
         let mut r = unsafe { bdev_read_tramp(&self.domain, block, data) };
+
+        #[cfg(feature = "tramp")]
+        unsafe {
+            sys_discard_cont();
+        }
+
         if let Ok(r) = r.as_ref() {
             r.move_to(caller_domain);
         }
@@ -430,6 +436,11 @@ impl BDev for BDevProxy {
         let r = self.domain.write(block, data);
         #[cfg(feature = "tramp")]
         let r = unsafe { bdev_write_tramp(&self.domain, block, data) };
+
+        #[cfg(feature = "tramp")]
+        unsafe {
+            sys_discard_cont();
+        }
 
         data.forfeit();
 
@@ -621,6 +632,11 @@ impl Net for IxgbeProxy {
         #[cfg(feature = "tramp")]
         let r = unsafe { net_submit_and_poll_tramp(&self.domain, packets, reap_queue, tx) };
 
+        #[cfg(feature = "tramp")]
+        unsafe {
+            sys_discard_cont();
+        }
+
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };
 
@@ -635,6 +651,11 @@ impl Net for IxgbeProxy {
         let r = self.domain.poll(collect, tx);
         #[cfg(feature = "tramp")]
         let r = unsafe { net_poll_tramp(&self.domain, collect, tx) };
+
+        #[cfg(feature = "tramp")]
+        unsafe {
+            sys_discard_cont();
+        }
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };
@@ -665,6 +686,11 @@ impl Net for IxgbeProxy {
         #[cfg(feature = "tramp")]
         let r = unsafe{ net_submit_and_poll_rref_tramp(&self.domain, packets, collect, tx, pkt_len) };
 
+        #[cfg(feature = "tramp")]
+        unsafe {
+            sys_discard_cont();
+        }
+
         if let Ok(Ok(r)) = r.as_ref() {
             r.1.move_to(caller_domain);
             r.2.move_to(caller_domain);
@@ -687,6 +713,11 @@ impl Net for IxgbeProxy {
         #[cfg(feature = "tramp")]
         let r = unsafe { net_poll_rref_tramp(&self.domain, collect, tx) };
 
+        #[cfg(feature = "tramp")]
+        unsafe {
+            sys_discard_cont();
+        }
+
         if let Ok(Ok(r)) = r.as_ref() {
             r.1.move_to(caller_domain);
         }
@@ -702,6 +733,11 @@ impl Net for IxgbeProxy {
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
         let r = unsafe{ get_stats_tramp(&self.domain) };
+
+        #[cfg(feature = "tramp")]
+        unsafe {
+            sys_discard_cont();
+        }
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };
@@ -853,6 +889,11 @@ impl usr::dom_c::DomC for DomCProxy {
         #[cfg(feature = "tramp")]
         let r = unsafe { no_arg_tramp(&self.domain) };
 
+        #[cfg(feature = "tramp")]
+        unsafe {
+            sys_discard_cont();
+        }
+
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };
 
@@ -867,6 +908,11 @@ impl usr::dom_c::DomC for DomCProxy {
         let r = self.domain.one_arg(x);
         #[cfg(feature = "tramp")]
         let r = unsafe { one_arg_tramp(&self.domain, x) };
+
+        #[cfg(feature = "tramp")]
+        unsafe {
+            sys_discard_cont();
+        }
 
         // move thread back
         unsafe { sys_update_current_domain_id(caller_domain) };
@@ -884,6 +930,11 @@ impl usr::dom_c::DomC for DomCProxy {
         let r = self.domain.one_rref(x);
         #[cfg(feature = "tramp")]
         let r = unsafe { one_rref_tramp(&self.domain, x) };
+
+        #[cfg(feature = "tramp")]
+        unsafe {
+            sys_discard_cont();
+        }
 
         if let Ok(r) = r.as_ref() {
             r.move_to(caller_domain);
@@ -1226,6 +1277,12 @@ impl UsrNet for Rv6Proxy {
         let r = self.domain.read_socket(socket, buffer);
         #[cfg(feature = "tramp")]
         let r = unsafe { rv6_read_socket_tramp(&self.domain, socket, buffer) };
+
+        #[cfg(feature = "tramp")]
+        unsafe {
+            sys_discard_cont();
+        }
+
         if let Ok(Ok(r)) = r.as_ref() {
             r.1.move_to(caller_domain);
         }
@@ -1244,6 +1301,12 @@ impl UsrNet for Rv6Proxy {
         let r = self.domain.write_socket(socket, buffer, size);
         #[cfg(feature = "tramp")]
         let r = unsafe { rv6_write_socket_tramp(&self.domain, socket, buffer, size) };
+
+        #[cfg(feature = "tramp")]
+        unsafe {
+            sys_discard_cont();
+        }
+
         if let Ok(Ok(r)) = r.as_ref() {
             r.1.move_to(caller_domain);
         }
@@ -1486,6 +1549,12 @@ impl UsrNet for UsrNetProxy {
         let r = self.domain.read_socket(socket, buffer);
         #[cfg(feature = "tramp")]
         let r = unsafe { usrnet_read_socket_tramp(&self.domain, socket, buffer) };
+
+        #[cfg(feature = "tramp")]
+        unsafe {
+            sys_discard_cont();
+        }
+
         if let Ok(Ok(r)) = r.as_ref() {
             r.1.move_to(caller_domain);
         }
@@ -1505,6 +1574,12 @@ impl UsrNet for UsrNetProxy {
         let r = self.domain.write_socket(socket, buffer, size);
         #[cfg(feature = "tramp")]
         let r = unsafe { usrnet_write_socket_tramp(&self.domain, socket, buffer, size) };
+
+        #[cfg(feature = "tramp")]
+        unsafe {
+            sys_discard_cont();
+        }
+
         if let Ok(Ok(r)) = r.as_ref() {
             r.1.move_to(caller_domain);
         }
