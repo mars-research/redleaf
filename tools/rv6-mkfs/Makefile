@@ -20,7 +20,7 @@ all: build/libfs.a
 	
 build/mkfs: mkfs.c fs.h param.h stat.h types.h
 	mkdir -p build
-	gcc -Werror -Wall -g -o $@ mkfs.c
+	gcc -Werror -Wall -Wno-error=stringop-truncation -g -o $@ mkfs.c
 
 # Prevent deletion of intermediate files, e.g. cat.o, after first build, so
 # that disk image changes after first build are persistent until clean.  More
