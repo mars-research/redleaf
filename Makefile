@@ -115,8 +115,9 @@ ifeq ($(GDB),true)
 qemu_common     += -S
 endif
 
-QEMU            ?= qemu-system-x86_64
-KVM             := sudo taskset -c 4 ${QEMU}
+QEMU            ?= $(shell which qemu-system-x86_64)
+TASKSET         := $(shell which taskset)
+KVM             := sudo ${TASKSET} -c 4 ${QEMU}
 qemu_kvm_args	:= --enable-kvm
 
 # https://superuser.com/a/1412150
