@@ -18,16 +18,11 @@ jobs:
     name: Run test in release(${{ matrix.mode }}) mode
 
     steps:
-      - name: Install dependencies
-        run: sudo apt update && sudo apt install -y nasm
-      - uses: actions/checkout@v2
+      - name: Checkout sources
+        uses: actions/checkout@v2
         with:
           submodules: 'true'
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          profile: minimal
-          components: rust-src
-          default: true
+      - name: Install Nix
+        uses: cachix/install-nix-action@v12
       - name: Test
-        run: cargo test -Z unstable-options --manifest-path lib/core/rref/Cargo.toml --profile ${{ matrix.mode }}
+        run: nix-shell --command "cargo test -Z unstable-options --manifest-path lib/core/rref/Cargo.toml --profile ${{ matrix.mode }}"

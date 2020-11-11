@@ -19,16 +19,11 @@ jobs:
     name: DEBUG=${{ matrix.debug }} LARGE_MEM=${{ matrix.large_mem }}
 
     steps:
-      - name: Install dependencies
-        run: sudo apt update && sudo apt install -y nasm
-      - uses: actions/checkout@v2
+      - name: Checkout sources
+        uses: actions/checkout@v2
         with:
           submodules: 'true'
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          profile: minimal
-          components: rust-src
-          default: true
+      - name: Install Nix
+        uses: cachix/install-nix-action@v12
       - name: Build
-        run:  make DEBUG=${{ matrix.debug }} LARGE_MEM=${{ matrix.large_mem }}
+        run:  nix-shell --command "make DEBUG=${{ matrix.debug }} LARGE_MEM=${{ matrix.large_mem }}"

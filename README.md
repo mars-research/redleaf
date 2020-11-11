@@ -5,15 +5,27 @@
 
 RedLeaf is a research operating system developed from scratch in Rust to explore the impact of language safety on operating system organization.
 
-
 ## Setup
 
-### Dependencies installation
+### Nix
+
+The easiest way to set up a reproducible environment with all dependencies is with [Nix](https://nixos.org/download.html).
+With Nix installed, simply enter the provided nix-shell environment with:
+
+```
+nix-shell --pure
+```
+
+### Bash Script
+
+There is also a bash script meant for Debian-based distributions and does not ensure reproducible builds:
+
 ``` bash
-./setup.rs
+./setup.sh
 ```
 
 ### Benchmark Setup
+
 First, install a new linux kernel from Zhaofang by running
 ```bash
 wget https://github.com/mars-research/redleaf/releases/download/bcache_v2/linux-image-5.6.7-meow_5.6.7-meow-6_amd64.deb
@@ -31,7 +43,6 @@ Then, disable Hyper Threading and fix CPU frequency to a constant by running
 ```
 
 To use your eyeballs to confirm that we have a stable frequency, run `watch -n1 grep MHz /proc/cpuinfo`.
-
 
 ## Building
 
