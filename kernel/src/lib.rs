@@ -13,6 +13,7 @@
     untagged_unions,
     naked_functions,
     panic_info_message,
+    asm,
     llvm_asm, 
     global_asm
 )]
