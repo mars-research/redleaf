@@ -1,0 +1,7 @@
+# --- Auto generated begin ---
+[dependencies.unwind]
+path = "../../../lib/core/unwind"
+
+[dependencies.libsyscalls]
+path = "../../../lib/core/libsyscalls"
+# --- Auto generated end ---
