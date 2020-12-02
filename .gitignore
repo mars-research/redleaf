@@ -18,3 +18,4 @@ sata.img
 **/*.swp
 **/*.sw*
 **/*.log
+**/_gen.rs
