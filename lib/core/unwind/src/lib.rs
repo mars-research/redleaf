@@ -78,7 +78,7 @@ macro_rules! trampoline {
             movq %rbp, 0x80(%rbx)
             movq %rsp, 0x88(%rbx)
 
-            pushfq
+            #pushfq
             push %r10
             push %r9
             push %r8
@@ -91,7 +91,7 @@ macro_rules! trampoline {
             r#"
 
             # func
-            mov %rax, 0x48(%rsp)
+            mov %rax, 0x0(%rbx)
 
             # Increment cont stack pointer
             addq $144, %rbx
@@ -105,7 +105,7 @@ macro_rules! trampoline {
             pop %r8
             pop %r9
             pop %r10
-            popfq
+            #popfq
 
             # Restore rbx, now stack is fully rewound
             pop %rbx
