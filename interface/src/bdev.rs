@@ -53,7 +53,7 @@ impl BlkReq {
 
 }
 
-#[interface]
+// #[interface]
 pub trait NvmeBDev : Send {
     fn submit_and_poll_rref(
         &self,

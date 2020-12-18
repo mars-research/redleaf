@@ -13,6 +13,8 @@ use core::mem::transmute;
 use console::{println, print};
 use unwind::trampoline;
 
+use codegen::bdev::BDevProxy;
+
 // TODO: remove once ixgbe on rrefdeque
 use alloc::{vec::Vec, collections::VecDeque};
 
@@ -325,136 +327,6 @@ impl create::CreateBenchnet for Proxy {
 impl create::CreateBenchnvme for Proxy {
     fn create_domain_benchnvme(&self, nvme: Box<dyn usr::bdev::NvmeBDev>) ->(Box<dyn Domain>) {
         self.create_benchnvme.create_domain_benchnvme(nvme)
-    }
-}
-
-struct BDevProxy {
-    domain: Box<dyn usr::bdev::BDev>,
-    domain_id: u64,
-}
-
-unsafe impl Sync for BDevProxy {}
-unsafe impl Send for BDevProxy {}
-
-impl BDevProxy {
-    fn new(domain_id: u64, domain: Box<dyn usr::bdev::BDev>) -> Self {
-        Self {
-            domain,
-            domain_id,
-        }
-    }
-}
-
-/* 
- * Code to unwind bdev.read
- */
-
-#[no_mangle]
-pub extern fn bdev_read(s: &Box<usr::bdev::BDev>, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>> {
-    //println!("one_arg: x:{}", x);
-    s.read(block, data)
-}
-
-#[no_mangle]
-pub extern fn bdev_read_err(s: &Box<usr::bdev::BDev>, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>> {
-    println!("bdev.read was aborted, block:{}", block);
-    Err(unsafe{RpcError::panic()})
-}
-
-#[no_mangle]
-pub extern "C" fn bdev_read_addr() -> u64 {
-    bdev_read_err as u64
-}
-
-extern {
-    fn bdev_read_tramp(s: &Box<usr::bdev::BDev>, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>>;
-}
-
-trampoline!(bdev_read);
-
-/* 
- * Code to unwind bdev.write
- */
-
-#[no_mangle]
-pub extern fn bdev_write(s: &Box<usr::bdev::BDev>, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()> {
-    //println!("one_arg: x:{}", x);
-    s.write(block, data)
-}
-
-#[no_mangle]
-pub extern fn bdev_write_err(s: &Box<usr::bdev::BDev>, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()> {
-    println!("bdev.write was aborted, block:{}", block);
-    Err(unsafe{RpcError::panic()})
-}
-
-#[no_mangle]
-pub extern "C" fn bdev_write_addr() -> u64 {
-    bdev_write_err as u64
-}
-
-extern {
-    fn bdev_write_tramp(s: &Box<usr::bdev::BDev>, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()>;
-}
-
-trampoline!(bdev_write);
-
-impl BDev for BDevProxy {
-    fn read(&self, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>> {
-        // move thread to next domain
-        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
-
-        data.move_to(self.domain_id);
-
-        #[cfg(not(feature = "tramp"))]
-        let r = self.domain.read(block, data);
-        #[cfg(feature = "tramp")]
-        let mut r = unsafe { bdev_read_tramp(&self.domain, block, data) };
-
-        #[cfg(feature = "tramp")]
-        unsafe {
-            sys_discard_cont();
-        }
-
-        if let Ok(r) = r.as_ref() {
-            r.move_to(caller_domain);
-        }
-
-        // move thread back
-        unsafe { sys_update_current_domain_id(caller_domain) };
-
-        r
-    }
-
-    fn write(&self, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()> {
-        // move thread to next domain
-        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
-
-        data.borrow();
-
-        #[cfg(not(feature = "tramp"))]
-        let r = self.domain.write(block, data);
-        #[cfg(feature = "tramp")]
-        let r = unsafe { bdev_write_tramp(&self.domain, block, data) };
-
-        #[cfg(feature = "tramp")]
-        unsafe {
-            sys_discard_cont();
-        }
-
-        data.forfeit();
-
-        // TODO: impl domain_is_dead
-        if /* sys_domain_is_dead(caller_domain) */ false && data.borrow_count() == 0 {
-            let mut_ref = unsafe { &mut *(data as *const _ as *mut RRef<[u8; BSIZE]>) };
-            mut_ref.cleanup();
-            // TODO: don't return into dead domain, exit instead
-        }
-
-        // move thread back
-        unsafe { sys_update_current_domain_id(caller_domain) };
-
-        r
     }
 }
 

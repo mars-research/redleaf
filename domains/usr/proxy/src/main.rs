@@ -3,6 +3,7 @@
 #![feature(
     global_asm,
     box_syntax,
+    type_ascription,
 )]
 mod gen;
 

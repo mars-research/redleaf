@@ -29,6 +29,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08c48aae112d48ed9f069b33538ea9e3e90aa263cfa3d1c24309612b1f7472de"
 
 [[package]]
+name = "codegen"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
+ "byteorder",
+ "codegen-lib",
+ "codegen-proc",
+ "num-derive",
+ "num-traits",
+ "pci_driver",
+ "rref",
+ "syscalls",
+]
+
+[[package]]
 name = "codegen-lib"
 version = "0.1.0"
 dependencies = [
@@ -171,18 +186,3 @@ name = "unicode-xid"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7fe0bb3479651439c9112f72b6c505038574c9fbb575ed1bf3b797fa39dd564"
-
-[[package]]
-name = "usr"
-version = "0.1.0"
-dependencies = [
- "bitflags",
- "byteorder",
- "codegen-lib",
- "codegen-proc",
- "num-derive",
- "num-traits",
- "pci_driver",
- "rref",
- "syscalls",
-]

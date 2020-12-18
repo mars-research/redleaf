@@ -2,7 +2,7 @@
 use alloc::boxed::Box;
 use rref::{RRef, RRefDeque};
 
-#[interface]
+// #[interface]
 pub trait DomA {
     fn ping_pong(&self, buffer: RRef<[u8; 1024]>) -> RRef<[u8; 1024]>;
     fn tx_submit_and_poll(&mut self,

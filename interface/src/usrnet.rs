@@ -4,7 +4,7 @@ use rref::RRefVec;
 use crate::rpc::RpcResult;
 use crate::error::Result;
 
-#[interface]
+// #[interface]
 /// UsrNet interface
 pub trait UsrNet: Send + Sync {
     fn clone_usrnet(&self) -> RpcResult<Box<dyn UsrNet>>;

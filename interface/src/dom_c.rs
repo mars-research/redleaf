@@ -2,7 +2,7 @@ use rref::RRef;
 
 use crate::rpc::RpcResult;
 
-#[interface]
+// #[interface]
 pub trait DomC {
     fn no_arg(&self) -> RpcResult<()>;
     fn one_arg(&self, x: usize) -> RpcResult<usize>;

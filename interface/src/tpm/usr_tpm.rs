@@ -93,7 +93,7 @@ pub enum TpmSE {
 }
 
 // Rv6 user -[UsrTpm]-> driver -[TpmDev]-> TPM
-#[interface]
+// #[interface]
 pub trait UsrTpm: Send + Sync {
     /// Create a clone of the TPM interface that points to the same driver.
     fn clone_usrtpm(&self) -> Box<dyn UsrTpm>;

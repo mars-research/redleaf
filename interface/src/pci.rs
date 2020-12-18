@@ -3,7 +3,7 @@ use alloc::boxed::Box;
 use rref::{RRef, RRefDeque};
 use pci_driver::{PciDriver, PciClass, BarRegions, PciDrivers};
 
-#[interface]
+// #[interface]
 pub trait PCI: Send {
     fn pci_register_driver(&self, pci_driver: &mut dyn pci_driver::PciDriver, bar_index: usize, class: Option<(PciClass, u8)>) -> Result<(), ()>;
     /// Boxed trait objects cannot be cloned trivially!
@@ -11,13 +11,13 @@ pub trait PCI: Send {
     fn pci_clone(&self) -> Box<dyn PCI>;
 }
 
-#[interface]
+// #[interface]
 pub trait PciResource {
     fn read(&self, bus: u8, dev: u8, func: u8, offset: u8) -> u32;
     fn write(&self, bus: u8, dev: u8, func: u8, offset: u8, value: u32);
 }
 
-#[interface]
+// #[interface]
 pub trait PciBar {
     fn get_bar_region(&self, base: u64, size: usize,
                       pci_driver: pci_driver::PciDrivers) ->  pci_driver::BarRegions;

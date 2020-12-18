@@ -1,5 +1,5 @@
 [package]
-name = "usr"
+name = "codegen"
 version = "0.1.0"
 authors = ["Dan Appel <appeld@uci.edu>"]
 edition = "2018"
