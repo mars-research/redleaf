@@ -2,7 +2,7 @@
 #![allow(incomplete_features)]
 #![feature(const_generics)]
 #![feature(negative_impls)]
-#![feature(optin_builtin_traits)]
+#![feature(auto_traits)]
 #![feature(specialization)]
 #![feature(type_name_of_val)]
 
