@@ -1,10 +1,12 @@
 /// Rv6 system calls
 
 use alloc::boxed::Box;
-use rref::RRefVec;
+use alloc::vec::Vec;
+use alloc::collections::VecDeque;
+use rref::{RRefVec, RRefDeque};
 
 use crate::vfs::{UsrVFS, NFILE};
-use crate::net::Net;
+use crate::net::{Net, NetworkStats};
 use crate::usrnet::UsrNet;
 use crate::bdev::NvmeBDev;
 use crate::rpc::RpcResult;
@@ -12,7 +14,7 @@ use crate::tpm::UsrTpm;
 pub use crate::vfs::{FileMode, FileStat};
 pub use crate::error::{ErrorKind, Result};
 
-pub trait Rv6: Send + Sync + UsrVFS + Net + UsrNet {
+pub trait Rv6: Send + Sync + UsrVFS + UsrNet {
     fn clone(&self) -> RpcResult<Box<dyn Rv6>>;
     fn as_net(&self) -> RpcResult<Box<dyn Net>>;
     fn as_nvme(&self) -> RpcResult<Box<dyn NvmeBDev>>;
