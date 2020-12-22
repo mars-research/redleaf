@@ -966,97 +966,15 @@ impl Rv6Proxy {
 }
 
 use usr::vfs::{NFILE, FileStat, FileMode};
-
-impl UsrVFS for Rv6Proxy {
-    fn sys_open(&self, path: RRefVec<u8>, mode: FileMode) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
-        self.domain.sys_open(path, mode)
-    }
-    fn sys_close(&self, fd: usize) -> RpcResult<Result<()>> {
-        self.domain.sys_close(fd)
-    }
-    fn sys_read(&self, fd: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
-        // move thread to next domain
-        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
-
-        buffer.move_to(self.domain_id);
-        let r = self.domain.sys_read(fd, buffer);
-        if let Ok(Ok(r)) = r.as_ref() {
-            r.1.move_to(caller_domain);
-        }
-
-        // move thread back
-        unsafe { sys_update_current_domain_id(caller_domain) };
-
-        r
-    }
-    fn sys_write(&self, fd: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
-        // move thread to next domain
-        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
-
-        buffer.move_to(self.domain_id);
-        let r = self.domain.sys_write(fd, buffer);
-        if let Ok(Ok(r)) = r.as_ref() {
-            r.1.move_to(caller_domain);
-        }
-
-        // move thread back
-        unsafe { sys_update_current_domain_id(caller_domain) };
-
-        r
-    }
-    fn sys_seek(&self, fd: usize, offset: usize) -> RpcResult<Result<()>> {
-        self.domain.sys_seek(fd, offset)
-    }
-    fn sys_fstat(&self, fd: usize) -> RpcResult<Result<FileStat>> {
-        self.domain.sys_fstat(fd)
-    }
-    fn sys_mknod(&self, path: RRefVec<u8>, major: i16, minor: i16) -> RpcResult<Result<()>> {
-        self.domain.sys_mknod(path, major, minor)
-    }
-    fn sys_dup(&self, fd: usize) -> RpcResult<Result<usize>> {
-        self.domain.sys_dup(fd)
-    }
-    fn sys_pipe(&self) -> RpcResult<Result<(usize, usize)>> {
-        self.domain.sys_pipe()
-    }
-    fn sys_link(&self, old_path: RRefVec<u8>, new_path: RRefVec<u8>) -> RpcResult<Result<()>> {
-        // move thread to next domain
-        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
-
-        old_path.move_to(self.domain_id);
-        new_path.move_to(self.domain_id);
-        let r = self.domain.sys_link(old_path, new_path);
-
-        // move thread back
-        unsafe { sys_update_current_domain_id(caller_domain) };
-
-        r
-    }
-    fn sys_unlink(&self, path: RRefVec<u8>) -> RpcResult<Result<()>> {
-        // move thread to next domain
-        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
-
-        path.move_to(self.domain_id);
-        let r = self.domain.sys_unlink(path);
-
-        // move thread back
-        unsafe { sys_update_current_domain_id(caller_domain) };
-
-        r
-    }
-    fn sys_mkdir(&self, path: RRefVec<u8>) -> RpcResult<Result<()>> {
-        self.domain.sys_mkdir(path)
-    }
-    fn sys_dump_inode(&self) -> RpcResult<Result<()>> {
-        self.domain.sys_dump_inode()
-    }
-}
-
 use usr::rv6::Thread;
 
 impl Rv6 for Rv6Proxy {
     fn clone(&self) -> RpcResult<Box<dyn Rv6>> {
         Ok(box Self::new(self.domain_id, self.domain.clone()?))
+    }
+    fn as_vfs(&self) -> RpcResult<Box<dyn UsrVFS>> {
+        // TODO(tianjiao): add proxy
+        self.domain.as_vfs()
     }
     fn as_net(&self) -> RpcResult<Box<dyn Net>> {
         Ok(box IxgbeProxy::new(self.domain_id, self.domain.as_net()?))

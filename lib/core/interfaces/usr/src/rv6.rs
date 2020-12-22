@@ -14,8 +14,9 @@ use crate::tpm::UsrTpm;
 pub use crate::vfs::{FileMode, FileStat};
 pub use crate::error::{ErrorKind, Result};
 
-pub trait Rv6: Send + Sync + UsrVFS {
+pub trait Rv6: Send + Sync {
     fn clone(&self) -> RpcResult<Box<dyn Rv6>>;
+    fn as_vfs(&self) -> RpcResult<Box<dyn UsrVFS>>;
     fn as_net(&self) -> RpcResult<Box<dyn Net>>;
     fn as_nvme(&self) -> RpcResult<Box<dyn NvmeBDev>>;
     fn as_usrnet(&self) -> RpcResult<Box<dyn UsrNet>>;

@@ -65,6 +65,10 @@ impl Rv6 for Rv6Syscalls {
         Ok(box self._clone()?)
     }
 
+    fn as_vfs(&self) -> RpcResult<Box<dyn UsrVFS>> {
+        Ok(box self._clone()?)
+    }
+
     fn as_usrnet(&self) -> RpcResult<Box<dyn UsrNet>> {
         Ok(box self._clone()?)
     }
