@@ -16,7 +16,7 @@ use syscalls::{Heap, Syscall};
 use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usr_interfaces::rv6::Rv6;
 use usrlib::println;
-use usrlib::syscalls::{sys_close, sys_fstat, sys_open_slice_slow, sys_read, sys_write};
+use usrlib::syscalls::{sys_close, sys_fstat, sys_open_slice_slow, sys_read, sys_write, sys_seek};
 
 const ONE_MS: u64 = 2_400_000;
 const TEN_MS: u64 = 10 * ONE_MS;
@@ -112,7 +112,7 @@ fn bench_restart(rv6: &dyn Rv6, options: &str, file: &str) {
 
             // warm up
             buffer = sys_write(fd, buffer).unwrap().1;
-            rv6.sys_seek(fd, 0).unwrap();
+            sys_seek(fd, 0).unwrap();
 
             let mut recording: [(u64, f64); 100_000] = [(0, 0.0); 100_000];
             let mut recording_index = 0;
@@ -136,7 +136,7 @@ fn bench_restart(rv6: &dyn Rv6, options: &str, file: &str) {
                     interval_read = 0;
                 }
                 if offset % file_size == 0 {
-                    rv6.sys_seek(fd, 0).unwrap();
+                    sys_seek(fd, 0).unwrap();
                     seek_count += 1;
                 }
                 let (bytes_read, buffer_back) = sys_write(fd, buffer).unwrap();
@@ -182,7 +182,7 @@ fn bench_restart(rv6: &dyn Rv6, options: &str, file: &str) {
 
             // warm up
             buffer = sys_read(fd, buffer).unwrap().1;
-            rv6.sys_seek(fd, 0).unwrap();
+            sys_seek(fd, 0).unwrap();
 
             let mut recording: [(u64, f64); 100_000] = [(0, 0.0); 100_000];
             let mut recording_index = 0;
@@ -206,7 +206,7 @@ fn bench_restart(rv6: &dyn Rv6, options: &str, file: &str) {
                     interval_read = 0;
                 }
                 if offset % file_size == 0 {
-                    rv6.sys_seek(fd, 0).unwrap();
+                    sys_seek(fd, 0).unwrap();
                     seek_count += 1;
                 }
                 let (bytes_read, buffer_back) = sys_read(fd, buffer).unwrap();

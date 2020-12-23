@@ -29,7 +29,7 @@ fi
 
 # Install apt dependencies: Qemu, nasm, Grub, Xorriso
 sudo apt-get update
-sudo apt-get install qemu nasm grub-pc-bin xorriso numactl -y
+sudo apt-get install qemu nasm grub-pc-bin xorriso numactl clang -y
 
 echo "To get started you need Cargo's bin directory ($CARGO_HOME/bin) in your PATH environment variable. Next time you log in this will be done automatically."
 echo "To configure your current shell run 'source $CARGO_HOME/env'"

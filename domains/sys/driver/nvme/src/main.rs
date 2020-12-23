@@ -4,10 +4,9 @@
     const_fn,
     const_raw_ptr_to_usize_cast,
     untagged_unions,
-        maybe_uninit_extra,
+    maybe_uninit_extra,
     core_intrinsics,
 )]
-#![feature(const_int_pow)]
 //#![forbid(unsafe_code)]
 
 extern crate malloc;

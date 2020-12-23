@@ -1,5 +1,4 @@
 #![no_std]
-#![feature(const_int_pow)]
 
 extern crate alloc;
 extern crate core;

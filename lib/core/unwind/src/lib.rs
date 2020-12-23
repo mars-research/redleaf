@@ -36,15 +36,49 @@ macro_rules! trampoline {
             "#,
             core::concat!(core::stringify!($func), "_tramp:"),
             r#"
-            push %rsp
-            push %rbp
             push %rbx
-            push %r11
-            push %r12
-            push %r13
-            push %r14
-            push %r15
+
+            push %rcx # scratch
+
+            # cur
+            mov %gs:0x0, %rbx
+            # end
+            mov %gs:0x10, %rcx
+            cmp %rcx, %rbx
+            jl 1f
+            # Continuation stack full
+            # FIXME: what should we do?
+            hlt
+            pop %rcx # scratch
+            1:
+            pop %rcx # scratch
+
+            # [%rsp] -> saved rbx
+            movq %rax, 0x8(%rbx)
+            movq %rcx, 0x10(%rbx)
+            movq %rdx, 0x18(%rbx)
+            movq %rsi, 0x20(%rbx)
+            movq %rdi, 0x28(%rbx)
+            movq %r8, 0x30(%rbx)
+            movq %r9, 0x38(%rbx)
+            movq %r10, 0x40(%rbx)
+
             pushfq
+            movq [%rsp], 0x48(%rbx)
+            addq $8, %rsp
+
+            movq %r15, 0x50(%rbx)
+            movq %r14, 0x58(%rbx)
+            movq %r13, 0x60(%rbx)
+            movq %r12, 0x68(%rbx)
+            movq %r11, 0x70(%rbx)
+
+            # [%rsp] -> saved rbx
+            movq [%rsp], 0x78(%rbx)
+            movq %rbp, 0x80(%rbx)
+            movq %rsp, 0x88(%rbx)
+
+            #pushfq
             push %r10
             push %r9
             push %r8
@@ -55,10 +89,14 @@ macro_rules! trampoline {
             push %rax
             call "#, core::concat!(core::stringify!($func), "_addr"),
             r#"
-            push %rax
-            mov %rsp, %rdi
-            call register_cont
-            add $8, %rsp
+
+            # func
+            mov %rax, 0x0(%rbx)
+
+            # Increment cont stack pointer
+            addq $144, %rbx
+            mov %rbx, %gs:0x0
+
             pop %rax
             pop %rcx
             pop %rdx
@@ -67,11 +105,14 @@ macro_rules! trampoline {
             pop %r8
             pop %r9
             pop %r10
-            popfq
-            add $64, %rsp
+            #popfq
+
+            # Restore rbx, now stack is fully rewound
+            pop %rbx
+
             jmp "#, core::stringify!($func),
         );
-    );
+   );
     }
 }
 

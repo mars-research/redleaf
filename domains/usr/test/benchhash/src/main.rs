@@ -1,6 +1,6 @@
 #![no_std]
 #![no_main]
-#![feature(const_int_pow,optimize_attribute)]
+#![feature(optimize_attribute)]
 #![feature(llvm_asm)]
 
 extern crate malloc;

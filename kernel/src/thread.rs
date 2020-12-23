@@ -20,6 +20,7 @@ use crate::memory::buddy::BUDDY;
 use crate::memory::{PhysicalAllocator, Frame};
 use crate::active_cpus; 
 use core::ptr;
+use core::mem;
 
 use syscalls::Continuation;
 
@@ -27,8 +28,19 @@ extern "C" {
     fn switch(prev_ctx: *mut Context, next_ctx: *mut Context);
 }
 
-static mut CONT_STACK: *mut [Continuation; MAX_CONT] = 0 as *mut _;
-static mut CONT_INDEX: *mut usize = 0 as *mut _;
+#[repr(C)]
+#[no_mangle]
+struct ContinuationState {
+    cur: *mut Continuation,
+    start: *const Continuation,
+    end: *const Continuation,
+}
+
+static mut CONT_STATE: ContinuationState = ContinuationState {
+    cur: 0 as *mut Continuation,
+    start: 0 as *const Continuation,
+    end: 0 as *const Continuation,
+};
 
 /// This should be a cryptographically secure number, for now 
 /// just sequential ID
@@ -243,7 +255,9 @@ pub struct Thread {
 
     /// A stack of continuations
     continuations: [Continuation; MAX_CONT],
-    continuation_index: usize,
+
+    // HACK
+    continuation_ptr: *mut Continuation,
 }
 
 struct SchedulerQueue {
@@ -294,15 +308,14 @@ pub unsafe fn alloc_stack() -> *mut u8 {
 /// Panics if there is no continuation on the
 /// stack.
 pub unsafe fn pop_continuation() -> &'static Continuation {
-    let index: usize = ptr::read_volatile(CONT_INDEX);
-
-    if index == 0 {
+    if (CONT_STATE.cur as *const _) <= CONT_STATE.start {
         panic!("Tried to pop on an empty continuation stack");
     }
 
-    ptr::write_volatile(CONT_INDEX, index - 1);
+    let ptr = CONT_STATE.cur;
+    CONT_STATE.cur = CONT_STATE.cur.offset(-1);
 
-    &(*CONT_STACK)[index]
+    &(*ptr)
 }
 
 /// Push a new Continuation to the stack
@@ -313,13 +326,11 @@ pub unsafe fn pop_continuation() -> &'static Continuation {
 ///
 /// Panics if the continuation stack is full.
 pub unsafe fn push_continuation(cont: &Continuation) {
-    let index: usize = ptr::read_volatile(CONT_INDEX);
-
-    if index >= MAX_CONT {
+    if (CONT_STATE.cur as *const _) >= CONT_STATE.end {
         panic!("Tried to push to a full continuation stack");
     }
 
-    let mut dst = (*CONT_STACK)[index];
+    let mut dst = *(CONT_STATE.cur);
 
     dst.func = cont.func;
     dst.rflags = cont.rflags;
@@ -340,7 +351,7 @@ pub unsafe fn push_continuation(cont: &Continuation) {
     dst.r9 = cont.r9;
     dst.r10 = cont.r10;
 
-    ptr::write_volatile(CONT_INDEX, index + 1);
+    CONT_STATE.cur = CONT_STATE.cur.offset(1);
 }
 
 impl Thread {
@@ -397,7 +408,9 @@ impl Thread {
             next_domain: None,
             next_iwq: None, 
             continuations: [Continuation::zeroed(); MAX_CONT],
-            continuation_index: 0,
+
+            // We will update this when we switch to it the first time
+            continuation_ptr: 0 as *mut _,
         };
 
         t.init_stack(func);
@@ -766,8 +779,16 @@ pub fn schedule() {
     drop(next_thread); 
 
     unsafe {
-        CONT_STACK = &next.continuations as *const _ as *mut _;
-        CONT_INDEX = &next.continuation_index as *const _ as *mut _;
+        // Save current
+        prev.continuation_ptr = CONT_STATE.cur;
+
+        if next.continuation_ptr == (0 as *mut _) {
+            next.continuation_ptr = &next.continuations as *const _ as *mut _;
+        }
+
+        CONT_STATE.cur = next.continuation_ptr;
+        CONT_STATE.start = &next.continuations as *const _ as *mut _;
+        CONT_STATE.end = CONT_STATE.start.offset(MAX_CONT as isize);
     }
 
     unsafe {
@@ -912,10 +933,16 @@ pub fn init_threads() {
         let mut t = idle.lock();
         t.domain = Some(kernel_domain.clone());
         t.state = ThreadState::Idle;
+
+        t.continuation_ptr = &t.continuations as *const _ as *mut _;
     }
 
     let mut s = SCHED.borrow_mut();
     s.set_idle_thread(idle.clone());
+
+    unsafe {
+        asm!("wrgsbase {}", in(reg) (&mut CONT_STATE as *mut ContinuationState));
+    }
 
     // Make idle the current thread
     set_current(idle);   
