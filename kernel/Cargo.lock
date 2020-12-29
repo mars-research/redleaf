@@ -524,7 +524,7 @@ dependencies = [
  "rand",
  "rref",
  "signature",
- "slabmalloc-kernel",
+ "slabmalloc",
  "spin 0.5.3",
  "syscalls",
  "unwind",
@@ -610,11 +610,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29f060a7d147e33490ec10da418795238fd7545bba241504d6b31a409f2e6210"
 
 [[package]]
-name = "slabmalloc-kernel"
-version = "0.3.4"
+name = "slabmalloc"
+version = "0.7.0"
+source = "git+https://github.com/gz/rust-slabmalloc.git?branch=master#709463ae012f4f127eef07aa78de08b1be510221"
 dependencies = [
  "log",
- "spin 0.5.3",
 ]
 
 [[package]]
