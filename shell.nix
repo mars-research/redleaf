@@ -1,6 +1,6 @@
 {
   sources ? import ./nix/sources.nix,
-  rustNightly ? "2020-11-10",
+  rustNightly ? "2020-12-10",
   pkgs ? import sources.nixpkgs {
     overlays = [
       (import sources.nixpkgs-mozilla)
