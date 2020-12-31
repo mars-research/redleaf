@@ -4,4 +4,7 @@ path = "../../../lib/core/unwind"
 
 [dependencies.libsyscalls]
 path = "../../../lib/core/libsyscalls"
+
+[dependencies.usr]
+path = "../../../lib/core/interfaces/usr"
 # --- Auto generated end ---
