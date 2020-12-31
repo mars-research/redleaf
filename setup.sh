@@ -17,7 +17,7 @@ RUST_HOME=$CARGO_HOME/bin
 echo -e "Cargo home: $CARGO_HOME\nRustup home: $RUSTUP_HOME"
 curl https://sh.rustup.rs -sSf | CARGO_HOME=$CARGO_HOME RUSTUP_HOME=$RUSTUP_HOME bash -s -- --default-toolchain nightly -y
 $RUST_HOME/rustup component add llvm-tools-preview rust-src
-$RUST_HOME/cargo install stack-sizes
+$RUST_HOME/cargo install stack-sizes cargo-expand
 
 # # Setup CARGO_HOME and RUSTUP_HOME if using custom installation home
 if [ $USR_HOME != $INSTALL_HOME ] &&  [ $(grep -q "CARGO_HOME\|RUSTUP_HOME" ~/.profile) ]
