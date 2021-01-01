@@ -4,7 +4,7 @@ pub mod memory;
 pub mod vspace;
 
 use crate::memory::{Frame};
-use crate::arch::memory::{PAddr, BASE_PAGE_SIZE};
+use crate::arch::memory::{PAddr, BASE_PAGE_SIZE, HEAP_ALIGN};
 use crate::multibootv2::BootInformation;
 use crate::memory::PhysicalAllocator;
 use crate::memory::buddy::BUDDY;
@@ -49,6 +49,13 @@ pub fn init_buddy(bootinfo: &BootInformation) {
                 // TODO BAD: We can only add one region to the buddy allocator, so we need
                 // to pick a big one weee
                 if (base >= 1_0000_0000 as u64) && size > BASE_PAGE_SIZE && size >= MEM_THRESHOLD {
+                    // align to HEAP_ALIGN (2MB)
+                    if (base % HEAP_ALIGN != 0) {
+                        let pad = HEAP_ALIGN - (base % HEAP_ALIGN);
+                        base += pad;
+                        size -= pad as usize;
+                    }
+
                     // downsize the region to 4GiB
                     if size > 4 * 0x1_0000_0000 {
                         size = 4 * 0x1_0000_0000 as usize;

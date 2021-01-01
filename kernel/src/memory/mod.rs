@@ -4,7 +4,7 @@ use x86::bits64::paging;
 use core::mem::transmute;
 use core::alloc::{GlobalAlloc, Layout};
 use spin::Mutex;
-use slabmalloc::{Allocator, ZoneAllocator, AllocationError};
+use slabmalloc::{Allocator, ZoneAllocator, AllocationError, ObjectPage, LargeObjectPage};
 use crate::memory::buddy::{BUDDY, BuddyFrameAllocator};
 use log::trace;
 use crate::arch::KERNEL_END;
@@ -161,18 +161,38 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
             }
             0..=ZoneAllocator::MAX_ALLOC_SIZE => {
                 // Ask zone allocator
-                println!("Using zoneallocator");
                 let mut zone_allocator = self.allocator.lock();
                 match zone_allocator.allocate(layout) {
                     Ok(nptr) => nptr.as_ptr(),
                     Err(AllocationError::OutOfMemory) => {
                         // Allocator is hungry and needs new pages from
                         // the buddy :P
-                        let mut frame = buddy.allocate(layout)
-                            .expect("__rust_allocate: Out of memory (ZoneAllocator)");
 
-                        frame.zero();
-                        frame.kernel_vaddr().as_mut_ptr()
+                        if layout.size() <= ZoneAllocator::MAX_BASE_ALLOC_SIZE {
+                            let mut frame = buddy.allocate(layout)
+                                .expect("__rust_allocate: Out of memory (ZoneAllocator)");
+
+                            frame.zero();
+                            let vframe: *mut u8 = frame.kernel_vaddr().as_mut_ptr();
+
+                            zone_allocator.refill(layout, transmute(vframe as usize))
+                                .expect("Failed to refill ZoneAllocator");
+                        } else {
+                            let huge_layout = layout.align_to(2 * 1024 * 1024)
+                                .expect("Could not align?");
+                            let mut frame = buddy.allocate(huge_layout)
+                                .expect("__rust_allocate: Out of memory when allocating huge page (ZoneAllocator)");
+
+                            frame.zero();
+                            let vframe: *mut u8 = frame.kernel_vaddr().as_mut_ptr();
+                            zone_allocator.refill_large(layout, transmute(vframe as usize))
+                                .expect("Failed to refill ZoneAllocator with huge page");
+                        }
+
+                        // Let's try again
+                        zone_allocator.allocate(layout)
+                            .expect("Still failed to allocate after refill")
+                            .as_ptr()
                     }
                     Err(AllocationError::InvalidLayout) => {
                         panic!("__rust_allocate: Invalid layout size (ZoneAllocator)");
@@ -191,9 +211,6 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        // FIXME: ZoneAllocator dealloc
-        return;
-
         trace!("dealloc ptr = 0x{:x} layout={:?}", ptr as usize, layout);
         let mut buddy = self.buddy.lock();
         let mut buddy = buddy.as_mut()

@@ -6,6 +6,8 @@ pub use x86::bits64::paging::{PAddr, VAddr, BASE_PAGE_SIZE};
 /// Start of the kernel address space.
 pub const KERNEL_BASE: u64 = 0x000000000000;
 
+pub const HEAP_ALIGN: u64 = 2 * 1024 * 1024;
+
 /// Translate a kernel 'virtual' address to the physical address of the memory.
 pub fn kernel_vaddr_to_paddr(v: VAddr) -> PAddr {
     let vaddr_val: usize = v.into();

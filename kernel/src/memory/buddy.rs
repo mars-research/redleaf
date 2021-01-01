@@ -17,7 +17,7 @@ use crate::prelude::*;
 
 use log::{trace, info};
 use super::{Frame, PAddr, PhysicalAllocator, VAddr};
-use crate::arch::memory::{kernel_vaddr_to_paddr, BASE_PAGE_SIZE};
+use crate::arch::memory::{kernel_vaddr_to_paddr, BASE_PAGE_SIZE, HEAP_ALIGN};
 use spin::Mutex;
 
 /// A free block in our heap.
@@ -152,7 +152,7 @@ impl PhysicalAllocator for BuddyFrameAllocator {
 }
 
 impl BuddyFrameAllocator {
-    const MIN_HEAP_ALIGN: usize = BASE_PAGE_SIZE;
+    const MIN_HEAP_ALIGN: usize = HEAP_ALIGN as usize;
 
     pub fn init() {
         let buddy = BuddyFrameAllocator::new();
