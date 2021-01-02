@@ -40,7 +40,7 @@ pub fn trusted_entry(
 ) {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
-    usrlib::init(rv6.clone().unwrap());
+    usrlib::init(rv6.clone_rv6().unwrap());
     println!("Starting rv6 httpd with args: {}", args);
 
     main(rv6).unwrap();

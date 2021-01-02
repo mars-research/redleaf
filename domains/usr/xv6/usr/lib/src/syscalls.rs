@@ -29,7 +29,7 @@ pub fn sys_spawn_domain(path: RRefVec<u8>, args: RRefVec<u8>, fds: &[Option<usiz
     let mut arr: [Option<usize>; NFILE] = array_init::array_init(|_| None);
     arr[..fds.len()].clone_from_slice(&fds);
     let rv6 = &**SYSCALL.r#try().unwrap();
-    rv6.sys_spawn_domain(rv6.clone()?, path, args, arr)?
+    rv6.sys_spawn_domain(rv6.clone_rv6()?, path, args, arr)?
 }
 
 pub fn sys_getpid() -> Result<u64> {

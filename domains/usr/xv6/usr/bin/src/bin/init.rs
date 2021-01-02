@@ -24,7 +24,7 @@ pub fn trusted_entry(
 ) {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
-    usrlib::init(rv6.clone().unwrap());
+    usrlib::init(rv6.clone_rv6().unwrap());
 
     // stdout not initialized yet so we can't print it there yet
 
