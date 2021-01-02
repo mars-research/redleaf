@@ -1,5 +1,7 @@
 TEMP_DIR = target/codegen
 LIB_RS = $(TEMP_DIR)/src/lib.rs
+MANIFEST_PATH = $(TEMP_DIR)/Cargo.toml
+CLEANSE = cargo run --manifest-path $(ROOT)/tools/redIDL/codegen/cleanser/Cargo.toml
 ROOT := ../
 
 REMOVE_PRELUDE = awk -i inplace '!/\#!\[feature\(prelude_import)]|\#\[prelude_import]|use core::prelude::v1::\*;/' $(TEMP_DIR)/src/lib.rs
@@ -8,7 +10,7 @@ REMOVE_PRELUDE = awk -i inplace '!/\#!\[feature\(prelude_import)]|\#\[prelude_im
 all: $(TEMP_DIR)/expanded.rs
 
 # Copy Cargo.toml and fix dependency path
-$(TEMP_DIR)/Cargo.toml: Cargo.toml missing_dependencies.toml
+$(MANIFEST_PATH): Cargo.toml missing_dependencies.toml
 	sed -E 's/path\s*=\s*"/path = "..\/..\//' $< > $@
 	cat $(word 2,$^) >> $@
 
@@ -20,12 +22,22 @@ $(TEMP_DIR)/merged.rs:
 
 # Inject use statements
 $(TEMP_DIR)/fix_dependency.rs: $(TEMP_DIR)/merged.rs
-	cargo run --manifest-path $(ROOT)/tools/redIDL/codegen/codegen-proxy/Cargo.toml $< $@
+	$(CLEANSE) $< $@ --remove-prelude --inject-dependency --fix-use
 
-$(TEMP_DIR)/expanded.rs: $(TEMP_DIR)/fix_dependency.rs $(TEMP_DIR)/Cargo.toml
+$(TEMP_DIR)/pre_module_resolution.rs: $(TEMP_DIR)/fix_dependency.rs 
 	cp $< $(LIB_RS)
 	-rustfmt $(LIB_RS)
-	cargo expand --manifest-path $(word 2,$^) > $@
+	cargo expand --manifest-path $(MANIFEST_PATH) > $@
+
+$(TEMP_DIR)/module_resolved.rs: $(TEMP_DIR)/pre_module_resolution.rs
+	$(CLEANSE) $^ $(LIB_RS) --remove-prelude
+	cargo expand --manifest-path $(MANIFEST_PATH) > $@
+
+$(TEMP_DIR)/expanded.rs: $(TEMP_DIR)/module_resolved.rs
+	$(CLEANSE) $^ $(LIB_RS) --remove-prelude
+	sed -i -e 's/redidl_codegen_generate_proxy_placeholder_/redidl_generate_proxy/g' $(LIB_RS)
+	-rustfmt $(LIB_RS)
+	cargo expand --manifest-path $(MANIFEST_PATH) > $@
 
 
 
