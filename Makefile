@@ -169,8 +169,12 @@ qemu-nox-gdb:
 kernel:
 	make -C kernel
 
+.PHONY: idl_generation
+idl_generation:
+	make -C interface
+
 .PHONY: domains
-domains: $(xv6fs_img) memops
+domains: idl_generation $(xv6fs_img) memops
 	make -C domains
 
 mb2: $(mb2) checkstack
