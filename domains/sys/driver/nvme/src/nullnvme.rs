@@ -25,12 +25,12 @@ impl NvmeBDev for NullNvme {
         Ok(Ok((submit.len(), collect, submit)))
     }
 
-    fn poll_rref(&mut self, collect: RRefDeque<BlkReq, 1024>) ->
+    fn poll_rref(&self, collect: RRefDeque<BlkReq, 1024>) ->
             RpcResult<Result<(usize, RRefDeque<BlkReq, 1024>)>> {
         Ok(Ok((collect.len(), collect)))
     }
 
-    fn get_stats(&mut self) -> RpcResult<Result<(u64, u64)>> {
+    fn get_stats(&self) -> RpcResult<Result<(u64, u64)>> {
         Ok(Ok((0, 0)))
     }
 }

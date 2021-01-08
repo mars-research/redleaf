@@ -95,7 +95,7 @@ impl usr::bdev::NvmeBDev for Nvme {
     }
 
 
-    fn poll_rref(&mut self, mut collect: RRefDeque<BlkReq, 1024>) ->
+    fn poll_rref(&self, mut collect: RRefDeque<BlkReq, 1024>) ->
             RpcResult<Result<(usize, RRefDeque<BlkReq, 1024>)>>
     {
         Ok((||{
@@ -113,7 +113,7 @@ impl usr::bdev::NvmeBDev for Nvme {
         })())
     }
 
-    fn get_stats(&mut self) -> RpcResult<Result<(u64, u64)>> {
+    fn get_stats(&self) -> RpcResult<Result<(u64, u64)>> {
         Ok((||{
             let device = &mut self.device.borrow_mut();
             let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;

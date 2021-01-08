@@ -53,7 +53,7 @@ impl BlkReq {
 
 }
 
-// #[interface]
+#[interface]
 pub trait NvmeBDev : Send {
     fn submit_and_poll_rref(
         &self,
@@ -66,8 +66,8 @@ pub trait NvmeBDev : Send {
             RRefDeque<BlkReq, 128>,
         )>>;
 
-    fn poll_rref(&mut self, collect: RRefDeque<BlkReq, 1024>) ->
+    fn poll_rref(&self, collect: RRefDeque<BlkReq, 1024>) ->
             RpcResult<Result<(usize, RRefDeque<BlkReq, 1024>)>>;
 
-    fn get_stats(&mut self) -> RpcResult<Result<(u64, u64)>>;
+    fn get_stats(&self) -> RpcResult<Result<(u64, u64)>>;
 }

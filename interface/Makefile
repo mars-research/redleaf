@@ -11,26 +11,27 @@ all: $(TEMP_DIR)/expanded.rs
 
 # Copy Cargo.toml and fix dependency path
 $(MANIFEST_PATH): Cargo.toml missing_dependencies.toml
-	sed -E 's/path\s*=\s*"/path = "..\/..\//' $< > $@
+	mkdir -p $(TEMP_DIR)
+	sed -E 's/path\s*=\s*"/path = "..\/..\//' $(word 1,$^)  > $@
 	cat $(word 2,$^) >> $@
 
-# .PHONY: replace_definitions
-# replace_definitions:
-# 	rm -rf $(TEMP_DIR)/src
-# 	mkdir -p $(TEMP_DIR)/src
-# 	$(CLEANSE) './src/*' $(TEMP_DIR)/src --directory-mode --replace-definitions
-# 	sed -i '1i #![feature(extended_key_value_attributes)]' $(LIB_RS)
-
+.PHONY: $(TEMP_DIR)/replace_definitions.rs
+$(TEMP_DIR)/replace_definitions.rs: $(MANIFEST_PATH)
+	rm -rf $(TEMP_DIR)/src
+	mkdir -p $(TEMP_DIR)/src
+	$(CLEANSE) './src/*' $(TEMP_DIR)/src --directory-mode --replace-definitions
+	cargo expand --manifest-path $(MANIFEST_PATH) > $@
 
 # Merge all files and inject macro for expansion
 .PHONY: $(TEMP_DIR)/merged.rs
-$(TEMP_DIR)/merged.rs: $(MANIFEST_PATH)
+$(TEMP_DIR)/merged.rs: $(TEMP_DIR)/replace_definitions.rs
+	cp $< $(LIB_RS)
 	echo "#![feature(extended_key_value_attributes)]\n" > $@
-	cargo expand >> $@
+	cargo expand --manifest-path $(MANIFEST_PATH) >> $@
 
 # Inject use statements
 $(TEMP_DIR)/fix_dependency.rs: $(TEMP_DIR)/merged.rs
-	$(CLEANSE) $< $@ --remove-prelude --inject-dependency --fix-use --replace-definitions
+	$(CLEANSE) $< $@ --remove-prelude --inject-dependency --fix-use --replace-definitions --remove-auto-derived
 
 $(TEMP_DIR)/resolve_path_for_definition_replacement.rs: $(TEMP_DIR)/fix_dependency.rs
 	cp $< $(LIB_RS)
@@ -51,7 +52,7 @@ $(TEMP_DIR)/module_resolved.rs: $(TEMP_DIR)/definition_replaced.rs
 	cargo expand --manifest-path $(MANIFEST_PATH) > $@
 
 $(TEMP_DIR)/expanded.rs: $(TEMP_DIR)/module_resolved.rs
-	$(CLEANSE) $^ $(LIB_RS) --remove-prelude
+	$(CLEANSE) $^ $(LIB_RS) --remove-prelude --remove-auto-derived
 	sed -i -e 's/redidl_codegen_generate_proxy_placeholder_/redidl_generate_proxy/g' $(LIB_RS)
 	cargo expand --manifest-path $(MANIFEST_PATH) > $@
 

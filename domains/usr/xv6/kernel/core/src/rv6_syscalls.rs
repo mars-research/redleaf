@@ -61,7 +61,7 @@ impl Rv6Syscalls {
 }
 
 impl Rv6 for Rv6Syscalls {
-    fn clone(&self) -> RpcResult<Box<dyn Rv6>> {
+    fn clone_rv6(&self) -> RpcResult<Box<dyn Rv6>> {
         Ok(box self._clone()?)
     }
 
@@ -288,13 +288,13 @@ impl NvmeBDev for Rv6Syscalls {
     }
 
     fn poll_rref(
-        &mut self,
+        &self,
         collect: RRefDeque<BlkReq, 1024>,
     ) -> RpcResult<Result<(usize, RRefDeque<BlkReq, 1024>)>> {
         self.nvme.lock().poll_rref(collect)
     }
 
-    fn get_stats(&mut self) -> RpcResult<Result<(u64, u64)>> {
+    fn get_stats(&self) -> RpcResult<Result<(u64, u64)>> {
         self.nvme.lock().get_stats()
     }
 }

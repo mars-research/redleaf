@@ -7,4 +7,7 @@ path = "../../../lib/core/libsyscalls"
 
 [dependencies.usr]
 path = "../../../lib/core/interfaces/usr"
+
+[features]
+trampoline = []
 # --- Auto generated end ---

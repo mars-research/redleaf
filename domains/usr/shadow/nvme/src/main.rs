@@ -68,12 +68,12 @@ impl NvmeBDev for Shadow {
         self.shadow.lock().nvme.submit_and_poll_rref(submit, collect, write)
     }
 
-    fn poll_rref(&mut self, collect: RRefDeque<BlkReq, 1024>) ->
+    fn poll_rref(&self, collect: RRefDeque<BlkReq, 1024>) ->
             RpcResult<Result<(usize, RRefDeque<BlkReq, 1024>)>> {
         self.shadow.lock().nvme.poll_rref(collect)
     }
 
-    fn get_stats(&mut self) -> RpcResult<Result<(u64, u64)>> {
+    fn get_stats(&self) -> RpcResult<Result<(u64, u64)>> {
         self.shadow.lock().nvme.get_stats()
     }
 }
