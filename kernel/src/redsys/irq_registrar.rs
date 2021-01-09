@@ -1,9 +1,9 @@
-use core::mem::transmute;
-use alloc::sync::Arc;
-use spin::Mutex;
-use crate::interrupt::IRQManager;
-use crate::drivers::Driver;
 use super::resources::IRQ;
+use crate::drivers::Driver;
+use crate::interrupt::IRQManager;
+use alloc::sync::Arc;
+use core::mem::transmute;
+use spin::Mutex;
 
 pub struct IRQRegistrar<T: Driver + Send + 'static> {
     // Private fields
@@ -12,7 +12,10 @@ pub struct IRQRegistrar<T: Driver + Send + 'static> {
 }
 
 impl<T: Driver + Send + 'static> IRQRegistrar<T> {
-    pub unsafe fn new(driver: Arc<Mutex<T>>, irqManager: Arc<Mutex<IRQManager>>) -> IRQRegistrar<T> {
+    pub unsafe fn new(
+        driver: Arc<Mutex<T>>,
+        irqManager: Arc<Mutex<IRQManager>>,
+    ) -> IRQRegistrar<T> {
         IRQRegistrar {
             _driver: driver,
             _irqManager: irqManager,

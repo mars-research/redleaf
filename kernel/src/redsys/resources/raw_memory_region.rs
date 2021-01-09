@@ -1,6 +1,6 @@
+use core::marker::PhantomData;
 use core::ops::Deref;
 use core::{mem, slice};
-use core::marker::PhantomData;
 use num_traits::int::PrimInt;
 
 // A RawMemorySpace behaves roughly like a Rust pointer.
@@ -56,12 +56,12 @@ impl<T: PrimInt> RawMemoryRegion<T> {
     pub fn as_slice(&self) -> &[T] {
         let tsize: usize = mem::size_of::<T>();
         let count = self.length / tsize;
-        unsafe { slice::from_raw_parts(self.start as *const T, count)}
+        unsafe { slice::from_raw_parts(self.start as *const T, count) }
     }
 
     pub fn as_slice_mut(&self) -> &mut [T] {
         let tsize: usize = mem::size_of::<T>();
         let count = self.length / tsize;
-        unsafe { slice::from_raw_parts_mut(self.start as *mut T, count)}
+        unsafe { slice::from_raw_parts_mut(self.start as *mut T, count) }
     }
 }

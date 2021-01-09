@@ -7,8 +7,8 @@
 // - https://github.com/mit-pdos/xv6-public/blob/master/ide.c
 
 use super::Driver;
-use crate::redsys::IRQRegistrar;
 use crate::redsys::devices::ATAPIODevice;
+use crate::redsys::IRQRegistrar;
 use alloc::sync::Arc;
 use spin::Mutex;
 
@@ -88,7 +88,10 @@ impl IDE {
         device.lbaMid.outb(((sector >> 8) as u8) & 0xff).unwrap();
         device.lbaHi.outb(((sector >> 16) as u8) & 0xff).unwrap();
 
-        device.drive.outb(0xe0 | ((self.slavebit() & 1) << 4) | ((sector >> 24) as u8) & 0x0f).unwrap();
+        device
+            .drive
+            .outb(0xe0 | ((self.slavebit() & 1) << 4) | ((sector >> 24) as u8) & 0x0f)
+            .unwrap();
     }
 
     pub fn init(&self) {

@@ -64,11 +64,13 @@ impl<'a> Iterator for MemoryAreaIter<'a> {
         if self.current_area > self.last_area {
             None
         } else {
-            let area = unsafe{&*(self.current_area as *const MemoryArea)};
+            let area = unsafe { &*(self.current_area as *const MemoryArea) };
             self.current_area = self.current_area + (self.entry_size as u64);
             if area.typ == 1 {
                 Some(area)
-            } else {self.next()}
+            } else {
+                self.next()
+            }
         }
     }
 }

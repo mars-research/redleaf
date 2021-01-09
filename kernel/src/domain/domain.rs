@@ -1,24 +1,23 @@
 use alloc::string::String;
 use alloc::string::ToString;
 //use core::cell::RefCell;
-use log::{debug,info,trace};
-use x86::bits64::paging::{PAddr, VAddr, BASE_PAGE_SIZE, BASE_PAGE_SHIFT};
-use crate::arch::vspace::{VSpace, MapAction, ResourceType};
+use super::super::memory::paddr_to_kernel_vaddr;
 use crate::alloc::vec::Vec;
+use crate::arch::vspace::{MapAction, ResourceType, VSpace};
 use crate::memory::VSPACE;
-use super::super::memory::{paddr_to_kernel_vaddr};
 use crate::thread::Thread;
-use alloc::sync::Arc; 
+use alloc::sync::Arc;
+use log::{debug, info, trace};
 use spin::Mutex;
+use x86::bits64::paging::{PAddr, VAddr, BASE_PAGE_SHIFT, BASE_PAGE_SIZE};
 //use alloc::rc::Rc;
-use spin::Once;
-use crate::{round_up, is_page_aligned};
-use core::sync::atomic::{AtomicU64, Ordering};
-use alloc::boxed::Box;
-use crate::syscalls::PDomain;
 use crate::heap::PHeap;
+use crate::syscalls::PDomain;
+use crate::{is_page_aligned, round_up};
+use alloc::boxed::Box;
+use core::sync::atomic::{AtomicU64, Ordering};
 use libsyscalls;
-
+use spin::Once;
 
 /// This should be a cryptographically secure number, for now
 /// just sequential ID
@@ -28,7 +27,7 @@ static DOMAIN_ID: AtomicU64 = AtomicU64::new(0);
 pub static KERNEL_DOMAIN: Once<Arc<Mutex<Domain>>> = Once::new();
 
 //#[thread_local]
-//pub static BOOTING_DOMAIN: RefCell<Option<Box<PDomain>>> = RefCell::new(None); 
+//pub static BOOTING_DOMAIN: RefCell<Option<Box<PDomain>>> = RefCell::new(None);
 
 pub struct Domain {
     pub id: u64,
@@ -40,11 +39,11 @@ pub struct Domain {
     pub entry_point: VAddr,
     /// List of threads in the domain
     //threads: Option<Arc<Mutex<Rc<RefCell<Thread>>>>>,
-    threads: DomainThreads, 
+    threads: DomainThreads,
 }
 
 pub struct DomainThreads {
-    head: Option<Arc<Mutex<Thread>>>, 
+    head: Option<Arc<Mutex<Thread>>>,
 }
 
 unsafe impl Send for DomainThreads {}
@@ -52,9 +51,7 @@ unsafe impl Send for DomainThreads {}
 
 impl DomainThreads {
     pub fn new() -> DomainThreads {
-        DomainThreads {
-            head: None, 
-        }
+        DomainThreads { head: None }
     }
 }
 
@@ -66,28 +63,27 @@ impl Domain {
             mapping: Vec::with_capacity(64),
             offset: VAddr::from(0usize),
             entry_point: VAddr::from(0usize),
-            threads: DomainThreads::new(), 
+            threads: DomainThreads::new(),
         }
     }
 
     /// This function should be executed under a lock on domain
-    /// We explicitly avoid using another lock, but the assumption 
-    /// is that it's imposible to access the domain without holding 
+    /// We explicitly avoid using another lock, but the assumption
+    /// is that it's imposible to access the domain without holding
     /// a lock on the domain data structure
     pub fn add_thread(&mut self, t: Arc<Mutex<Thread>>) {
-        let previous_head = self.threads.head.take(); 
-        
+        let previous_head = self.threads.head.take();
+
         if let Some(node) = previous_head {
             t.lock().next_domain = Some(node);
         }
 
         self.threads.head = Some(t);
-     
     }
 }
 
-/// Create kernel domain (must be called before any threads are 
-/// created) 
+/// Create kernel domain (must be called before any threads are
+/// created)
 pub fn init_domains() {
     let kernel = Arc::new(Mutex::new(Domain::new("kernel")));
     libsyscalls::syscalls::init(Box::new(PDomain::new(Arc::clone(&kernel))));
@@ -95,7 +91,6 @@ pub fn init_domains() {
     // init global references to syscalls (mostly for RRef deallocation)
     rref::init(Box::new(PHeap::new()), 0);
 }
-
 
 impl elfloader::ElfLoader for Domain {
     /// Makes sure the domain vspace is backed for the regions
@@ -195,9 +190,9 @@ impl elfloader::ElfLoader for Domain {
         // for security reasons, we need to change the permission bits of those pages and restore
         // it when we free those pages
         //for (_base, size, _alignment, action) in self.mapping.iter() {
-            //self.vspace
-            //    .map_generic(self.offset, (pbase, *size), *action)
-            //    .expect("Can't map ELF region");
+        //self.vspace
+        //    .map_generic(self.offset, (pbase, *size), *action)
+        //    .expect("Can't map ELF region");
         //}
 
         Ok(())
@@ -219,8 +214,7 @@ impl elfloader::ElfLoader for Domain {
                 let mut _paddr: PAddr = PAddr::from(0 as usize);
                 {
                     let ref mut vspace = *VSPACE.lock();
-                    _paddr = vspace.resolve_addr(vaddr)
-                        .expect("Can't resolve address");
+                    _paddr = vspace.resolve_addr(vaddr).expect("Can't resolve address");
                 };
                 _paddr
             };
@@ -255,18 +249,13 @@ impl elfloader::ElfLoader for Domain {
             let mut _paddr: PAddr = PAddr::from(0 as usize);
             {
                 let ref mut vspace = *VSPACE.lock();
-                _paddr = vspace
-                .resolve_addr(addr)
-                .expect("Can't resolve address");
+                _paddr = vspace.resolve_addr(addr).expect("Can't resolve address");
             }
             _paddr
         };
         let vaddr: VAddr = paddr_to_kernel_vaddr(paddr);
 
-        debug!(
-            "ELF relocation paddr {:#x} kernel_addr {:#x}",
-            paddr, vaddr
-        );
+        debug!("ELF relocation paddr {:#x} kernel_addr {:#x}", paddr, vaddr);
 
         use elfloader::TypeRela64;
         if let TypeRela64::R_RELATIVE = TypeRela64::from(entry.get_type()) {

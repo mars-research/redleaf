@@ -1,23 +1,21 @@
 #![no_std]
 
-use x86::io::{outb, inb};
 use core::fmt;
+use x86::io::{inb, outb};
 
-pub const NMI_DISABLE:u8 = 1 << 7;
-pub const SECOND_REG: u8    = 0x0;
-pub const MINUTE_REG: u8    = 0x2;
-pub const HOUR_REG: u8      = 0x4;
-pub const WEEKDAY_REG: u8   = 0x6;
-pub const DAY_REG: u8       = 0x7;
-pub const MONTH_REG: u8     = 0x8;
-pub const YEAR_REG: u8      = 0x9;
-pub const CENTURY_REG: u8   = 0x32;
+pub const NMI_DISABLE: u8 = 1 << 7;
+pub const SECOND_REG: u8 = 0x0;
+pub const MINUTE_REG: u8 = 0x2;
+pub const HOUR_REG: u8 = 0x4;
+pub const WEEKDAY_REG: u8 = 0x6;
+pub const DAY_REG: u8 = 0x7;
+pub const MONTH_REG: u8 = 0x8;
+pub const YEAR_REG: u8 = 0x9;
+pub const CENTURY_REG: u8 = 0x32;
 pub const STATUS_B_REG: u8 = 0xB;
 
 pub const STATUS_B_ENCODING_MASK: u8 = 0x4;
 pub const STATUS_B_HOUR_FORMAT_MASK: u8 = 0x2;
-
-
 
 pub const CMOS_WRITE_CMD: u8 = 0x70;
 pub const CMOS_READ_CMD: u8 = 0x71;
@@ -49,17 +47,28 @@ struct CMOSDate {
 impl fmt::Debug for CMOSDate {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.is_24_hour {
-            write!(f,
-                   "UTC Time: {:02}:{:02}:{:02} Date: {:02}/{:02}/{:04}",
-                   self.hour, self.min, self.sec,
-                   self.month, self.day, (self.year as u16) + (self.century as u16 * 100)
-                  )
+            write!(
+                f,
+                "UTC Time: {:02}:{:02}:{:02} Date: {:02}/{:02}/{:04}",
+                self.hour,
+                self.min,
+                self.sec,
+                self.month,
+                self.day,
+                (self.year as u16) + (self.century as u16 * 100)
+            )
         } else {
-            write!(f,
-                   "UTC Time: {:02}:{:02}:{:02} {} Date: {:02}/{:02}/{:04}",
-                   self.hour, self.min, self.sec, if self.is_pm { "PM" } else { "AM" },
-                   self.month, self.day, (self.year as u16) + (self.century as u16 * 100)
-                  )
+            write!(
+                f,
+                "UTC Time: {:02}:{:02}:{:02} {} Date: {:02}/{:02}/{:04}",
+                self.hour,
+                self.min,
+                self.sec,
+                if self.is_pm { "PM" } else { "AM" },
+                self.month,
+                self.day,
+                (self.year as u16) + (self.century as u16 * 100)
+            )
         }
     }
 }
@@ -80,29 +89,29 @@ impl CMOSDate {
         let century;
 
         if is_bcd {
-             sec = from_bcd(read_cmos_reg(SECOND_REG));
-             min = from_bcd(read_cmos_reg(MINUTE_REG));
-             if is_24_hour {
-                 hour = from_bcd(read_cmos_reg(HOUR_REG));
-             } else {
-                 let hour_reg = read_cmos_reg(HOUR_REG);
-                 is_pm = ((hour_reg & 0x80) >> 7) == 1;
-                 hour = from_bcd(hour_reg & 0x7F);
-             }
-             weekday = from_bcd(read_cmos_reg(WEEKDAY_REG));
-             day = from_bcd(read_cmos_reg(DAY_REG));
-             month = from_bcd(read_cmos_reg(MONTH_REG));
-             year = from_bcd(read_cmos_reg(YEAR_REG));
-             century = from_bcd(read_cmos_reg(CENTURY_REG));
+            sec = from_bcd(read_cmos_reg(SECOND_REG));
+            min = from_bcd(read_cmos_reg(MINUTE_REG));
+            if is_24_hour {
+                hour = from_bcd(read_cmos_reg(HOUR_REG));
+            } else {
+                let hour_reg = read_cmos_reg(HOUR_REG);
+                is_pm = ((hour_reg & 0x80) >> 7) == 1;
+                hour = from_bcd(hour_reg & 0x7F);
+            }
+            weekday = from_bcd(read_cmos_reg(WEEKDAY_REG));
+            day = from_bcd(read_cmos_reg(DAY_REG));
+            month = from_bcd(read_cmos_reg(MONTH_REG));
+            year = from_bcd(read_cmos_reg(YEAR_REG));
+            century = from_bcd(read_cmos_reg(CENTURY_REG));
         } else {
-             sec = read_cmos_reg(SECOND_REG);
-             min = read_cmos_reg(MINUTE_REG);
-             hour = read_cmos_reg(HOUR_REG);
-             weekday = read_cmos_reg(WEEKDAY_REG);
-             day = read_cmos_reg(DAY_REG);
-             month = read_cmos_reg(MONTH_REG);
-             year = read_cmos_reg(YEAR_REG);
-             century = read_cmos_reg(CENTURY_REG);
+            sec = read_cmos_reg(SECOND_REG);
+            min = read_cmos_reg(MINUTE_REG);
+            hour = read_cmos_reg(HOUR_REG);
+            weekday = read_cmos_reg(WEEKDAY_REG);
+            day = read_cmos_reg(DAY_REG);
+            month = read_cmos_reg(MONTH_REG);
+            year = read_cmos_reg(YEAR_REG);
+            century = read_cmos_reg(CENTURY_REG);
         }
         CMOSDate {
             sec,

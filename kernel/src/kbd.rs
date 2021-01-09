@@ -1,12 +1,11 @@
-use x86::io::{outb, inb};
 use super::drivers::Driver;
 use crate::redsys::IRQRegistrar;
-use pc_keyboard::{Keyboard, ScancodeSet1, DecodedKey, layouts};
+use pc_keyboard::{layouts, DecodedKey, Keyboard, ScancodeSet1};
 use spin::Mutex;
+use x86::io::{inb, outb};
 
+use super::cb::{CbError, CircularBuffer};
 use alloc::sync::Arc;
-use super::cb::{CircularBuffer,CbError};
-
 
 /* Constants */
 const OP_BUF_BIT: u8 = 0;
@@ -28,20 +27,19 @@ pub struct Kbd_ctrlr {
     cmd_status_port: u16,
     data_port: u16,
     kbd: Keyboard<layouts::Us104Key, ScancodeSet1>,
-    key_buf : CircularBuffer<u8>,
+    key_buf: CircularBuffer<u8>,
 }
 
 impl Kbd_ctrlr {
-
     fn init(&self) {
         // 1. read the configuration byte from kb controller
         println!("Initializing keyboard controller...");
 
         self.write_command(READ_CONFIG_CMD);
-        let mut config_byte : u8 = self.read_data().unwrap();
+        let mut config_byte: u8 = self.read_data().unwrap();
         println!("configuration byte: 0x{:x}", config_byte);
 
-        if config_byte & PORT_TRANSLATION_STATUS == 0  {
+        if config_byte & PORT_TRANSLATION_STATUS == 0 {
             println!("Enable translation \n");
             // Keep translation enabled for simpler scancode processing
             config_byte |= PORT_TRANSLATION_STATUS;
@@ -63,19 +61,17 @@ impl Kbd_ctrlr {
 
     fn write_command(&self, cmd: u8) {
         // wait until the input buffer is ready to accept more data
-        while self.read_status() & IN_BUF_STATUS != 0 {};
-        unsafe {outb(self.cmd_status_port, cmd)}
+        while self.read_status() & IN_BUF_STATUS != 0 {}
+        unsafe { outb(self.cmd_status_port, cmd) }
     }
 
     fn read_status(&self) -> u8 {
-        unsafe {inb(self.cmd_status_port)}
+        unsafe { inb(self.cmd_status_port) }
     }
 
     fn write_data(&self, data: u8) {
-        while self.read_status() & IN_BUF_STATUS != 0 {};
-        unsafe {
-            outb(self.data_port, data)
-        }
+        while self.read_status() & IN_BUF_STATUS != 0 {}
+        unsafe { outb(self.data_port, data) }
     }
 
     fn read_data(&self) -> Option<u8> {
@@ -83,22 +79,20 @@ impl Kbd_ctrlr {
         let timeout = 2000_000;
         for _ in 0..timeout {
             if self.read_status() & OP_BUF_STATUS != 0 {
-                return Some(unsafe { inb(self.data_port) })
+                return Some(unsafe { inb(self.data_port) });
             }
-        };
+        }
         None
     }
-
 }
 
 impl Kbd_ctrlr {
-
     pub fn new() -> Kbd_ctrlr {
         let kb = Kbd_ctrlr {
-            cmd_status_port : 0x64,
-            data_port : 0x60,
+            cmd_status_port: 0x64,
+            data_port: 0x60,
             kbd: Keyboard::new(layouts::Us104Key, ScancodeSet1),
-            key_buf : CircularBuffer::<u8>::new_with_size(256)
+            key_buf: CircularBuffer::<u8>::new_with_size(256),
         };
         kb.init();
         return kb;
@@ -123,7 +117,7 @@ impl Kbd_ctrlr {
                                 if !key.is_control() {
                                     print!("{}", key)
                                 }
-                            },
+                            }
                             _ => (),
                         };
                         Ok(Some(key))
@@ -133,9 +127,9 @@ impl Kbd_ctrlr {
                 } else {
                     Err("Decode error")
                 }
-            },
+            }
             Err(CbError::QueueIsEmpty) => Ok(None),
-            _ => Err("Read Error")
+            _ => Err("Read Error"),
         }
     }
 }
@@ -143,12 +137,12 @@ impl Kbd_ctrlr {
 /* Register Interrupt handler for the Kbd_ctrlr controller */
 impl Driver for Kbd_ctrlr {
     fn set_irq_registrar(&mut self, registrar: IRQRegistrar<Kbd_ctrlr>) {
-        registrar.request_irq(1, Kbd_ctrlr::kbd_irq_handler).unwrap();
+        registrar
+            .request_irq(1, Kbd_ctrlr::kbd_irq_handler)
+            .unwrap();
     }
 }
 
 lazy_static! {
-    pub static ref KBDCTRL: Arc<Mutex<Kbd_ctrlr>> = {
-        Arc::new(Mutex::new(Kbd_ctrlr::new()))
-    };
+    pub static ref KBDCTRL: Arc<Mutex<Kbd_ctrlr>> = { Arc::new(Mutex::new(Kbd_ctrlr::new())) };
 }

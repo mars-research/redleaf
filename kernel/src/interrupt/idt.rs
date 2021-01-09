@@ -9,48 +9,48 @@
 
 //! Provides types for the Interrupt Descriptor Table and its entries.
 
-use x86_64::VirtAddr;
-use x86::Ring;
 use bit_field::BitField;
 use bitflags::bitflags;
 use core::fmt;
 use core::marker::PhantomData;
 use core::ops::{Deref, Index, IndexMut};
+use x86::Ring;
+use x86_64::VirtAddr;
 
 #[repr(C)]
 pub struct PtRegs {
-/*
- * C ABI says these regs are callee-preserved. They aren't saved on kernel entry
- * unless syscall needs a complete, fully filled "struct pt_regs".
- */
-	pub r15: u64, 
-	pub r14: u64,
-	pub r13: u64, 
-	pub r12: u64,
-	pub rbp: u64,
-	pub rbx: u64, 
-/* These regs are callee-clobbered. Always saved on kernel entry. */
-	pub r11: u64, 
-	pub r10: u64,
-	pub r9: u64,
-	pub r8: u64, 
-	pub rax: u64, 
-	pub rcx: u64, 
-	pub rdx: u64, 
-	pub rsi: u64,
-	pub rdi: u64, 
-/*
- * On syscall entry, this is syscall#. On CPU exception, this is error code.
- * On hw interrupt, it's IRQ number:
- */
-	pub orig_ax: u64,
-/* Return frame for iretq */
-	pub rip: u64,
-	pub rcs: u64, 
-	pub rflags: u64, 
-	pub rsp: u64,
-	pub ss: u64, 
-/* top of stack page */
+    /*
+     * C ABI says these regs are callee-preserved. They aren't saved on kernel entry
+     * unless syscall needs a complete, fully filled "struct pt_regs".
+     */
+    pub r15: u64,
+    pub r14: u64,
+    pub r13: u64,
+    pub r12: u64,
+    pub rbp: u64,
+    pub rbx: u64,
+    /* These regs are callee-clobbered. Always saved on kernel entry. */
+    pub r11: u64,
+    pub r10: u64,
+    pub r9: u64,
+    pub r8: u64,
+    pub rax: u64,
+    pub rcx: u64,
+    pub rdx: u64,
+    pub rsi: u64,
+    pub rdi: u64,
+    /*
+     * On syscall entry, this is syscall#. On CPU exception, this is error code.
+     * On hw interrupt, it's IRQ number:
+     */
+    pub orig_ax: u64,
+    /* Return frame for iretq */
+    pub rip: u64,
+    pub rcs: u64,
+    pub rflags: u64,
+    pub rsp: u64,
+    pub ss: u64,
+    /* top of stack page */
 }
 
 impl fmt::Debug for PtRegs {
@@ -507,16 +507,16 @@ impl InterruptDescriptorTable {
     /// Dumps all entries of the IDT
     pub fn dump(&self) {
         for i in 0..255 {
-            let entry = self[i]; 
-            println!("entry[{}]:{:#?}", i, entry); 
-        };
+            let entry = self[i];
+            println!("entry[{}]:{:#?}", i, entry);
+        }
     }
-     
+
     /// Loads the IDT in the CPU using the `lidt` command.
     #[cfg(target_arch = "x86_64")]
     pub fn load(&'static self) {
-        use x86::dtables::{lidt, DescriptorTablePointer};
         use core::mem::size_of;
+        use x86::dtables::{lidt, DescriptorTablePointer};
 
         let ptr = DescriptorTablePointer {
             base: self as *const _,
@@ -550,7 +550,7 @@ impl Index<usize> for InterruptDescriptorTable {
             11 => &self.segment_not_present,
             12 => &self.stack_segment_fault,
             13 => &self.general_protection_fault,
-            14 => &self.page_fault, 
+            14 => &self.page_fault,
             15 => &self.spurious_interrupt_bug,
             16 => &self.x87_floating_point,
             17 => &self.alignment_check,
@@ -595,7 +595,7 @@ impl IndexMut<usize> for InterruptDescriptorTable {
             11 => &mut self.segment_not_present,
             12 => &mut self.stack_segment_fault,
             13 => &mut self.general_protection_fault,
-            14 => &mut self.page_fault, 
+            14 => &mut self.page_fault,
             15 => &mut self.spurious_interrupt_bug,
             16 => &mut self.x87_floating_point,
             17 => &mut self.alignment_check,
@@ -647,14 +647,19 @@ impl fmt::Debug for Entry<HandlerFunc> {
         let mut s = f.debug_struct("Entry");
         s.field("gdt_selector", &Hex(self.gdt_selector as u64));
         s.field("options", &self.options);
-        s.field("handler", &Hex(((self.pointer_high as u64) << 32) | ((self.pointer_middle as u64) << 16) | self.pointer_low as u64));
+        s.field(
+            "handler",
+            &Hex(((self.pointer_high as u64) << 32)
+                | ((self.pointer_middle as u64) << 16)
+                | self.pointer_low as u64),
+        );
 
         s.finish()
     }
 }
 
 /// A handler function for an interrupt or an exception without error code.
-pub type HandlerFunc = unsafe extern fn(&mut PtRegs);
+pub type HandlerFunc = unsafe extern "C" fn(&mut PtRegs);
 
 /// A handler function for an interrupt or an exception without error code.
 //pub type HandlerFuncPtRegs = unsafe extern fn(&mut PtRegs);
@@ -888,7 +893,6 @@ bitflags! {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -900,4 +904,3 @@ mod test {
         assert_eq!(size_of::<InterruptDescriptorTable>(), 256 * 16);
     }
 }
-

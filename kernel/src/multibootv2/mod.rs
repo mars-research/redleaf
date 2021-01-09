@@ -2,23 +2,22 @@
 
 use core::fmt;
 
-use header::{Tag, TagIter};
 pub use boot_loader_name::BootLoaderNameTag;
-pub use memory_map::{MemoryMapTag, MemoryArea, MemoryAreaIter};
-pub use module::{ModuleTag, ModuleIter};
 pub use command_line::CommandLineTag;
+use header::{Tag, TagIter};
+pub use memory_map::{MemoryArea, MemoryAreaIter, MemoryMapTag};
+pub use module::{ModuleIter, ModuleTag};
 
 use crate::round_up;
 
-
-mod header;
 mod boot_loader_name;
+mod command_line;
+mod header;
 mod memory_map;
 mod module;
-mod command_line;
 
-use crate::arch::{kernel_end, KERNEL_END};
 use crate::arch::memory::BASE_PAGE_SIZE;
+use crate::arch::{kernel_end, KERNEL_END};
 
 pub unsafe fn load(address: usize) -> BootInformation {
     assert_eq!(0, address & 0b111);
@@ -28,14 +27,21 @@ pub unsafe fn load(address: usize) -> BootInformation {
     assert!(multiboot.has_valid_end_tag());
 
     // put the multibootv2 header after kernel end
-    core::ptr::copy(address as *const usize as *const u8, kernel_end() as *mut u8, multiboot.total_size as usize);
+    core::ptr::copy(
+        address as *const usize as *const u8,
+        kernel_end() as *mut u8,
+        multiboot.total_size as usize,
+    );
     let new_end = kernel_end() + multiboot.total_size as u64;
     KERNEL_END = round_up!(new_end, BASE_PAGE_SIZE as u64);
 
     let kernel_end_ptr = kernel_end() as *const u64 as *const u8;
     let _multiboot = &*(kernel_end_ptr as *const BootInformationInner);
 
-    BootInformation { inner: _multiboot, offset: 0 }
+    BootInformation {
+        inner: _multiboot,
+        offset: 0,
+    }
 }
 
 pub unsafe fn load_with_offset(address: usize, offset: usize) -> BootInformation {
@@ -46,7 +52,10 @@ pub unsafe fn load_with_offset(address: usize, offset: usize) -> BootInformation
     let multiboot = &*((address + offset) as *const BootInformationInner);
     assert_eq!(0, multiboot.total_size & 0b111);
     assert!(multiboot.has_valid_end_tag());
-    BootInformation { inner: multiboot, offset }
+    BootInformation {
+        inner: multiboot,
+        offset,
+    }
 }
 
 pub struct BootInformation {
@@ -74,7 +83,8 @@ impl BootInformation {
     }
 
     pub fn memory_map_tag<'a>(&'a self) -> Option<&'a MemoryMapTag> {
-        self.get_tag(6).map(|tag| unsafe { &*(tag as *const Tag as *const MemoryMapTag) })
+        self.get_tag(6)
+            .map(|tag| unsafe { &*(tag as *const Tag as *const MemoryMapTag) })
     }
 
     pub fn module_tags(&self) -> ModuleIter {
@@ -82,11 +92,13 @@ impl BootInformation {
     }
 
     pub fn boot_loader_name_tag<'a>(&'a self) -> Option<&'a BootLoaderNameTag> {
-        self.get_tag(2).map(|tag| unsafe { &*(tag as *const Tag as *const BootLoaderNameTag) })
+        self.get_tag(2)
+            .map(|tag| unsafe { &*(tag as *const Tag as *const BootLoaderNameTag) })
     }
 
     pub fn command_line_tag<'a>(&'a self) -> Option<&'a CommandLineTag> {
-        self.get_tag(1).map(|tag| unsafe { &*(tag as *const Tag as *const CommandLineTag) })
+        self.get_tag(1)
+            .map(|tag| unsafe { &*(tag as *const Tag as *const CommandLineTag) })
     }
 
     fn get(&self) -> &BootInformationInner {
@@ -118,8 +130,13 @@ impl fmt::Debug for BootInformation {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "multiboot information")?;
 
-        writeln!(f, "S: {:#010X}, E: {:#010X}, L: {:#010X}",
-            self.start_address(), self.end_address(), self.total_size())?;
+        writeln!(
+            f,
+            "S: {:#010X}, E: {:#010X}, L: {:#010X}",
+            self.start_address(),
+            self.end_address(),
+            self.total_size()
+        )?;
 
         if let Some(boot_loader_name_tag) = self.boot_loader_name_tag() {
             writeln!(f, "boot loader name: {}", boot_loader_name_tag.name())?;
@@ -128,15 +145,25 @@ impl fmt::Debug for BootInformation {
         if let Some(memory_map_tag) = self.memory_map_tag() {
             writeln!(f, "memory areas:")?;
             for area in memory_map_tag.memory_areas() {
-                writeln!(f, "    S: {:#010X}, E: {:#010X}, L: {:#010X}",
-                    area.start_address(), area.end_address(), area.size())?;
+                writeln!(
+                    f,
+                    "    S: {:#010X}, E: {:#010X}, L: {:#010X}",
+                    area.start_address(),
+                    area.end_address(),
+                    area.size()
+                )?;
             }
         }
 
         writeln!(f, "module tags:")?;
         for mt in self.module_tags() {
-            writeln!(f, "    name: {:15}, s: {:#010x}, e: {:#010x}",
-                mt.name(), mt.start_address(), mt.end_address())?;
+            writeln!(
+                f,
+                "    name: {:15}, s: {:#010x}, e: {:#010x}",
+                mt.name(),
+                mt.start_address(),
+                mt.end_address()
+            )?;
         }
 
         Ok(())

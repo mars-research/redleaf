@@ -15,9 +15,9 @@ use core::ptr;
 
 use crate::prelude::*;
 
-use log::{trace, info};
 use super::{Frame, PAddr, PhysicalAllocator, VAddr};
 use crate::arch::memory::{kernel_vaddr_to_paddr, BASE_PAGE_SIZE, HEAP_ALIGN};
+use log::{info, trace};
 use spin::Mutex;
 
 /// A free block in our heap.

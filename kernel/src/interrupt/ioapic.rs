@@ -31,7 +31,10 @@ pub fn init() {
         // https://github.com/mit-pdos/xv6-public/blob/master/ioapic.c
         for i in 0..maxintr {
             // disabled
-            ioapicw(IOAPIC_REDTBL + 2 * i, IOAPIC_INT_DISABLED | (IRQ_OFFSET + i));
+            ioapicw(
+                IOAPIC_REDTBL + 2 * i,
+                IOAPIC_INT_DISABLED | (IRQ_OFFSET + i),
+            );
             // not routed to any CPUs
             ioapicw(IOAPIC_REDTBL + 2 * i + 1, 0);
         }

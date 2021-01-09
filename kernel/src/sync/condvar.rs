@@ -1,8 +1,7 @@
 use alloc::vec::Vec;
 
-
-use core::ops::Deref;
 use alloc::boxed::Box;
+use core::ops::Deref;
 use spin::{Mutex, MutexGuard};
 use syscalls::Thread;
 
@@ -48,20 +47,19 @@ impl syscalls::CondVar for CondVar {
 
         crate::thread::get_current_pthread().sleep(intr_guard);
     }
-    
+
     fn wakeup(&self) {
         let intr_guard = self.intr_mutex.lock();
         let mut threads_guard = self.threads.lock();
-    
+
         if let Some(thread) = threads_guard.pop() {
             thread.set_state(syscalls::ThreadState::Runnable);
         }
-    
+
         drop(threads_guard);
         drop(intr_guard);
     }
 }
-
 
 pub fn make_condvar() -> syscalls::CondVarPtr {
     box CondVar::new()

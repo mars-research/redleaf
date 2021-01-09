@@ -1,95 +1,92 @@
-use crate::interrupt::{disable_irq, enable_irq};
-use crate::thread::{do_yield, create_thread};
-use x86::bits64::paging::{PAddr, VAddr};
-use crate::arch::vspace::{VSpace, ResourceType};
 use crate::arch::vspace::MapAction;
+use crate::arch::vspace::{ResourceType, VSpace};
+use crate::domain::domain::Domain;
+use crate::interrupt::{disable_irq, enable_irq};
+use crate::kbd::KBDCTRL;
 use crate::memory::{paddr_to_kernel_vaddr, VSPACE};
-use x86::bits64::paging::BASE_PAGE_SIZE;
-use alloc::boxed::Box; 
-use spin::Mutex;
-use alloc::sync::Arc; 
-use crate::domain::domain::{Domain}; 
 use crate::round_up;
 use crate::thread;
-use platform::PciBarAddr;
-use crate::kbd::{KBDCTRL};
-use pc_keyboard::{DecodedKey};
+use crate::thread::{create_thread, do_yield};
+use crate::thread::{pop_continuation, push_continuation};
 use crate::unwind::unwind;
-use crate::thread::{push_continuation, pop_continuation};
-use syscalls::Continuation; 
+use alloc::boxed::Box;
+use alloc::sync::Arc;
+use pc_keyboard::DecodedKey;
+use platform::PciBarAddr;
+use spin::Mutex;
+use syscalls::Continuation;
+use x86::bits64::paging::BASE_PAGE_SIZE;
+use x86::bits64::paging::{PAddr, VAddr};
 
-//extern crate syscalls; 
-
+//extern crate syscalls;
 
 //pub static BOOT_SYSCALL: BootSyscall = BootSyscall {
 //    sys_boot_syscall,
 //};
 
-//// AB: I was not able to pass Box<dyn Syscall> as an argument 
-//// to user_ep() (maybe it's possible, I didn't have time to 
+//// AB: I was not able to pass Box<dyn Syscall> as an argument
+//// to user_ep() (maybe it's possible, I didn't have time to
 //// figure it out
 //pub fn sys_boot_syscall() -> Box<dyn Syscall> {
 //    let pdom = BOOTING_DOMAIN.replace(None);
 //
-//    enable_irq(); 
+//    enable_irq();
 //    return pdom.unwrap();
 //}
 
 pub struct PDomain {
-    domain: Arc<Mutex<Domain>>
+    domain: Arc<Mutex<Domain>>,
 }
 
 impl PDomain {
     pub const fn new(dom: Arc<Mutex<Domain>>) -> PDomain {
-        PDomain {
-            domain: dom,
-        }
+        PDomain { domain: dom }
     }
-    
-    fn create_domain_thread(&self, name: &str, func: extern fn()) -> Box<dyn syscalls::Thread>  {
 
-        println!("sys_create_thread"); 
+    fn create_domain_thread(&self, name: &str, func: extern "C" fn()) -> Box<dyn syscalls::Thread> {
+        println!("sys_create_thread");
         let pt = create_thread(name, func);
 
-        let t = pt.thread.clone(); 
-    
+        let t = pt.thread.clone();
+
         let mut d = self.domain.lock();
         d.add_thread(t);
         pt.thread.lock().current_domain_id = d.id;
 
-        println!("Created thread {} for domain {}", pt.thread.lock().name, d.name); 
-        pt   
+        println!(
+            "Created thread {} for domain {}",
+            pt.thread.lock().name,
+            d.name
+        );
+        pt
     }
 }
 
 impl syscalls::Domain for PDomain {
     fn get_domain_id(&self) -> u64 {
         disable_irq();
-        let domain_id = {
-            self.domain.lock().id
-        };
+        let domain_id = { self.domain.lock().id };
         enable_irq();
         domain_id
     }
 }
 
 impl syscalls::Syscall for PDomain {
-
-    // Print a string 
+    // Print a string
     fn sys_print(&self, s: &str) {
         disable_irq();
         print!("{}", s);
-        enable_irq(); 
+        enable_irq();
     }
-    
+
     // Print a string and a newline
     fn sys_println(&self, s: &str) {
         disable_irq();
         usrprintln!("{}", s);
-        enable_irq(); 
+        enable_irq();
     }
 
-    // Get physical CPU id number (we use it for print) 
+    // Get physical CPU id number (we use it for print)
     fn sys_cpuid(&self) -> u32 {
         disable_irq();
         let cpuid = crate::console::cpuid();
@@ -131,15 +128,15 @@ impl syscalls::Syscall for PDomain {
     // Yield to any thread
     fn sys_yield(&self) {
         disable_irq();
-        trace_sched!("sys_yield"); 
+        trace_sched!("sys_yield");
         do_yield();
-        enable_irq(); 
+        enable_irq();
     }
 
     // Create a new thread
-    fn sys_create_thread(&self, name: &str, func: extern fn()) -> Box<dyn syscalls::Thread>  {
+    fn sys_create_thread(&self, name: &str, func: extern "C" fn()) -> Box<dyn syscalls::Thread> {
         disable_irq();
-        let pt = self.create_domain_thread(name, func); 
+        let pt = self.create_domain_thread(name, func);
         enable_irq();
         pt
     }
@@ -158,7 +155,8 @@ impl syscalls::Syscall for PDomain {
             let thread_option: &Option<Arc<Mutex<thread::Thread>>> = &thread::CURRENT.borrow();
             let thread_arc: &Arc<Mutex<thread::Thread>> = thread_option.as_ref().unwrap();
             let thread_mutex: &mut Mutex<thread::Thread> = unsafe {
-                &mut *((&**thread_arc) as *const Mutex<thread::Thread> as *mut Mutex<thread::Thread>)
+                &mut *((&**thread_arc) as *const Mutex<thread::Thread>
+                    as *mut Mutex<thread::Thread>)
             };
             thread_mutex.get_mut().id
         };
@@ -173,7 +171,8 @@ impl syscalls::Syscall for PDomain {
             let thread_option: &Option<Arc<Mutex<thread::Thread>>> = &thread::CURRENT.borrow();
             let thread_arc: &Arc<Mutex<thread::Thread>> = thread_option.as_ref().unwrap();
             let thread_mutex: &mut Mutex<thread::Thread> = unsafe {
-                &mut *((&**thread_arc) as *const Mutex<thread::Thread> as *mut Mutex<thread::Thread>)
+                &mut *((&**thread_arc) as *const Mutex<thread::Thread>
+                    as *mut Mutex<thread::Thread>)
             };
             thread_mutex.get_mut().current_domain_id
         };
@@ -181,7 +180,7 @@ impl syscalls::Syscall for PDomain {
         domain_id
     }
 
-    /* AB: XXX: move this syscall into a separate trait that is only 
+    /* AB: XXX: move this syscall into a separate trait that is only
      * accessible to proxy domain */
     unsafe fn sys_update_current_domain_id(&self, new_domain_id: u64) -> u64 {
         disable_irq();
@@ -191,7 +190,8 @@ impl syscalls::Syscall for PDomain {
             let thread_option: &Option<Arc<Mutex<thread::Thread>>> = &thread::CURRENT.borrow();
             let thread_arc: &Arc<Mutex<thread::Thread>> = thread_option.as_ref().unwrap();
             let thread_mutex: &mut Mutex<thread::Thread> = unsafe {
-                &mut *((&**thread_arc) as *const Mutex<thread::Thread> as *mut Mutex<thread::Thread>)
+                &mut *((&**thread_arc) as *const Mutex<thread::Thread>
+                    as *mut Mutex<thread::Thread>)
             };
             let thread = thread_mutex.get_mut();
             core::mem::swap(&mut thread.current_domain_id, &mut old_domain_id);
@@ -200,8 +200,7 @@ impl syscalls::Syscall for PDomain {
         old_domain_id
     }
 
-
-    /* AB: XXX: move this syscall into a separate trait that is only 
+    /* AB: XXX: move this syscall into a separate trait that is only
      * accessible to proxy domain */
     unsafe fn sys_register_cont(&self, cont: &Continuation) {
         disable_irq();
@@ -221,8 +220,6 @@ impl syscalls::Syscall for PDomain {
         unwind();
         enable_irq();
     }
-
-
 
     fn sys_backtrace(&self) {
         use crate::panic::backtrace;
@@ -248,39 +245,36 @@ impl syscalls::Syscall for PDomain {
         let rtn = crate::sync::condvar::make_condvar();
         enable_irq();
         rtn
-    } 
+    }
 }
 
 #[derive(Clone)]
-pub struct Interrupt {
-}
+pub struct Interrupt {}
 
 impl Interrupt {
     pub const fn new() -> Interrupt {
-        Interrupt {
-        }
+        Interrupt {}
     }
 }
- 
-impl syscalls::Interrupt for Interrupt {
 
+impl syscalls::Interrupt for Interrupt {
     // Recieve an interrupt
     fn sys_recv_int(&self, int: u8) {
         disable_irq();
         if int as usize > crate::waitqueue::MAX_INT {
-            println!("Interrupt {} doesn't exist", int); 
-            enable_irq(); 
+            println!("Interrupt {} doesn't exist", int);
+            enable_irq();
             return;
         }
 
         // take the thread off the scheduling queue
-        // AB: XXX: for now just mark it as WAITING later we'll 
+        // AB: XXX: for now just mark it as WAITING later we'll
         // implement a real doubly-linked list and take it out
-        let t = crate::thread::get_current_ref(); 
+        let t = crate::thread::get_current_ref();
         t.lock().state = crate::thread::ThreadState::Waiting;
 
         crate::waitqueue::add_interrupt_thread(int as usize, t);
-        
+
         do_yield();
         enable_irq();
     }
@@ -288,23 +282,18 @@ impl syscalls::Interrupt for Interrupt {
     fn int_clone(&self) -> Box<dyn syscalls::Interrupt> {
         Box::new((*self).clone())
     }
-
-
 }
 
 #[derive(Clone)]
-pub struct Mmap {
-}
+pub struct Mmap {}
 
 impl Mmap {
     pub const fn new() -> Mmap {
-        Mmap {
-        }
+        Mmap {}
     }
 }
- 
-impl syscalls::Mmap for Mmap {
 
+impl syscalls::Mmap for Mmap {
     // Recieve an interrupt
     fn sys_mmap(&self, bar_addr: &PciBarAddr) {
         disable_irq();
@@ -314,13 +303,16 @@ impl syscalls::Mmap for Mmap {
         let base = unsafe { bar_addr.get_base() as u64 };
         let size = unsafe { bar_addr.get_size() };
         // identity map the bar region
-        vspace.map_identity(PAddr::from(base), PAddr::from(base + size as u64),
-                                        MapAction::ReadWriteKernelNoCache);
+        vspace.map_identity(
+            PAddr::from(base),
+            PAddr::from(base + size as u64),
+            MapAction::ReadWriteKernelNoCache,
+        );
         println!("Mapping base {:x} size {:x}", base, size);
         enable_irq();
     }
 
-/*    fn int_clone(&self) -> Box<dyn syscalls::Mmap> {
+    /*    fn int_clone(&self) -> Box<dyn syscalls::Mmap> {
         Box::new((*self).clone())
     }*/
 }

@@ -9,11 +9,11 @@ use x86::controlregs;
 
 use super::memory::{kernel_vaddr_to_paddr, paddr_to_kernel_vaddr, PAddr, VAddr};
 
-use core::fmt::{Debug};
+use core::fmt::Debug;
 use custom_error::custom_error;
 
 use crate::alloc::string::ToString;
-use log::{debug, trace, info};
+use log::{debug, info, trace};
 
 custom_error! {pub VSpaceError
     AlreadyMapped{from: u64, to: u64} = "VSpace operation covers existing mapping ({from} -- {to})",
@@ -190,7 +190,9 @@ impl VSpace {
     /// physical address 0x2000 -- 0x3000.
     pub(crate) fn map_identity(&mut self, base: PAddr, end: PAddr, rights: MapAction) {
         self.map_identity_with_offset(PAddr::from(0x0), base, end, rights);
-        unsafe { x86::tlb::flush_all(); }
+        unsafe {
+            x86::tlb::flush_all();
+        }
     }
 
     /// A pretty generic map function, it puts the physical memory range `pregion` with base and
@@ -407,10 +409,7 @@ impl VSpace {
         }
     }
 
-    pub(crate) fn alloc_stack_guarded(
-        &mut self,
-        num_pages: usize,
-    ) -> VAddr {
+    pub(crate) fn alloc_stack_guarded(&mut self, num_pages: usize) -> VAddr {
         // Allocate num_pages + 1 for the guard page
         let stack_region = VSpace::allocate_pages(num_pages + 1, ResourceType::Memory);
 
@@ -442,14 +441,14 @@ impl VSpace {
     }
 
     /// Changes permission bits for a page
-    pub(crate) fn set_guard_page(
-        &mut self,
-        vbase: VAddr,
-    ) -> bool {
-
+    pub(crate) fn set_guard_page(&mut self, vbase: VAddr) -> bool {
         let pml4_idx = pml4_index(vbase);
         if !self.pml4[pml4_idx].is_present() {
-            trace_vspace!("Mapping not found! Forgot to map? {:?} @ PML4[{}]", vbase, pml4_idx);
+            trace_vspace!(
+                "Mapping not found! Forgot to map? {:?} @ PML4[{}]",
+                vbase,
+                pml4_idx
+            );
             return false;
         }
 
@@ -458,7 +457,11 @@ impl VSpace {
 
         // TODO: if we support None mappings, this is if not good enough:
         if !pdpt[pdpt_idx].is_present() {
-            trace_vspace!("Mapping not found! Forgot to map? {:?} @ PDPT[{}]", vbase, pdpt_idx);
+            trace_vspace!(
+                "Mapping not found! Forgot to map? {:?} @ PDPT[{}]",
+                vbase,
+                pdpt_idx
+            );
             return false;
         }
 
@@ -466,7 +469,11 @@ impl VSpace {
         let pd_idx = pd_index(vbase);
 
         if !pd[pd_idx].is_present() {
-            trace_vspace!("Mapping not found! Forgot to map? {:?} @ PD[{}]", vbase, pd_idx);
+            trace_vspace!(
+                "Mapping not found! Forgot to map? {:?} @ PD[{}]",
+                vbase,
+                pd_idx
+            );
             return false;
         }
 
@@ -474,7 +481,11 @@ impl VSpace {
         let pt_idx = pt_index(vbase);
 
         if !pt[pt_idx].is_present() {
-            trace_vspace!("Mapping not found! Forgot to map? {:?} @ PT[{}]", vbase, pt_idx);
+            trace_vspace!(
+                "Mapping not found! Forgot to map? {:?} @ PT[{}]",
+                vbase,
+                pt_idx
+            );
             return false;
         }
 
@@ -482,20 +493,21 @@ impl VSpace {
         let pt_entry = PTEntry::new(pt_addr, (MapAction::None).to_pt_rights());
         pt[pt_idx] = pt_entry;
 
-        unsafe { x86::tlb::flush_all(); }
+        unsafe {
+            x86::tlb::flush_all();
+        }
         return true;
     }
 
     /// Changes permission bits for a page
-    pub(crate) fn map_change_prot(
-        &mut self,
-        vbase: VAddr,
-        rights: MapAction,
-    ) -> bool {
-
+    pub(crate) fn map_change_prot(&mut self, vbase: VAddr, rights: MapAction) -> bool {
         let pml4_idx = pml4_index(vbase);
         if !self.pml4[pml4_idx].is_present() {
-            trace_vspace!("Mapping not found! Forgot to map? {:?} @ PML4[{}]", vbase, pml4_idx);
+            trace_vspace!(
+                "Mapping not found! Forgot to map? {:?} @ PML4[{}]",
+                vbase,
+                pml4_idx
+            );
             return false;
         }
 
@@ -504,7 +516,11 @@ impl VSpace {
 
         // TODO: if we support None mappings, this is if not good enough:
         if !pdpt[pdpt_idx].is_present() {
-            trace_vspace!("Mapping not found! Forgot to map? {:?} @ PDPT[{}]", vbase, pdpt_idx);
+            trace_vspace!(
+                "Mapping not found! Forgot to map? {:?} @ PDPT[{}]",
+                vbase,
+                pdpt_idx
+            );
             return false;
         }
 
@@ -512,7 +528,11 @@ impl VSpace {
         let pd_idx = pd_index(vbase);
 
         if !pd[pd_idx].is_present() {
-            trace_vspace!("Mapping not found! Forgot to map? {:?} @ PD[{}]", vbase, pd_idx);
+            trace_vspace!(
+                "Mapping not found! Forgot to map? {:?} @ PD[{}]",
+                vbase,
+                pd_idx
+            );
             return false;
         }
 
@@ -520,7 +540,11 @@ impl VSpace {
         let pt_idx = pt_index(vbase);
 
         if !pt[pt_idx].is_present() {
-            trace_vspace!("Mapping not found! Forgot to map? {:?} @ PT[{}]", vbase, pt_idx);
+            trace_vspace!(
+                "Mapping not found! Forgot to map? {:?} @ PT[{}]",
+                vbase,
+                pt_idx
+            );
             return false;
         }
 
@@ -528,7 +552,9 @@ impl VSpace {
         let pt_entry = PTEntry::new(pt_addr, PTFlags::P | rights.to_pt_rights());
         pt[pt_idx] = pt_entry;
 
-        unsafe { x86::tlb::flush_all(); }
+        unsafe {
+            x86::tlb::flush_all();
+        }
         return true;
     }
 

@@ -1,7 +1,7 @@
-use volatile::Volatile;
-use core::fmt::{Write, Result}; 
+use core::fmt::{Result, Write};
 use lazy_static::lazy_static;
 use spin::Mutex;
+use volatile::Volatile;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -47,10 +47,9 @@ const BUFFER_HEIGHT: usize = 25;
 const BUFFER_WIDTH: usize = 80;
 
 // VGA text buffer is a two-dimensional array (25 rows and 80 columns)
-// Each entry is the following layout (16 bits total) 
+// Each entry is the following layout (16 bits total)
 //   15   |     14 - 12      |     11 - 8       |     7 - 0
 //  Blink | Background color | Foreground color | ASCII code point
-
 
 #[repr(transparent)]
 struct Buffer {
@@ -136,7 +135,6 @@ impl Writer {
                 // not part of printable ASCII range
                 _ => self.write_byte(0xfe),
             }
-
         }
     }
 }
@@ -164,5 +162,3 @@ lazy_static! {
 ////  writer.write_string("Wörld!");
 //    write!(writer, "The numbers are {} and {}", 42, 1.0/3.0).unwrap();
 //`;w}
-
-

@@ -53,8 +53,8 @@ impl Hello {
                             self.current_command.push(character);
                             print!("{}", character);
                         }
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
             }
         }
@@ -67,7 +67,10 @@ impl Hello {
             "make me a sandwich" => println!("--> What? Make it yourself."),
             "sudo make me a sandwich" => println!("--> Okay."),
             "xyzzy" => println!("-- A hollow voice says, \"Fool!\""),
-            _ => println!("-- You hear a distant echo saying \"{}\"", self.current_command),
+            _ => println!(
+                "-- You hear a distant echo saying \"{}\"",
+                self.current_command
+            ),
         }
         self.current_command.clear();
     }

@@ -44,16 +44,16 @@ impl ATAPIODevice {
             data: IOPort::new(ioBase, true, true),
 
             // I/O Offset 1
-            error:    IOPort::new(ioBase + 1, true, false),
+            error: IOPort::new(ioBase + 1, true, false),
             features: IOPort::new(ioBase + 1, false, true),
 
             // I/O Offset 2
             sectorCount: IOPort::new(ioBase + 2, true, true),
 
             // I/O Offset 3 ~ 5
-            lbaLo:  IOPort::new(ioBase + 3, true, true),
+            lbaLo: IOPort::new(ioBase + 3, true, true),
             lbaMid: IOPort::new(ioBase + 4, true, true),
-            lbaHi:  IOPort::new(ioBase + 5, true, true),
+            lbaHi: IOPort::new(ioBase + 5, true, true),
 
             // I/O Offset 6
             drive: IOPort::new(ioBase + 6, true, true),

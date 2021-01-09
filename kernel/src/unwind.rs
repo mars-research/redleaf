@@ -1,10 +1,10 @@
 //#![feature(asm)]
 //#![feature(llvm_asm)]
 
+use super::thread::pop_continuation;
 use syscalls::Continuation;
-use super::thread::{pop_continuation};
 
-extern {
+extern "C" {
     fn __unwind(cont: &Continuation);
 }
 
@@ -16,21 +16,22 @@ pub fn unwind() {
     }
 }
 
-/* 
+/*
  * Restore register and stack state right before the invocation
- * make sure that all registers are restored (specifically, caller 
- * registers may be used for passing arguments). Hence we save the 
- * function pointer right below the stack (esp - 8) and jump to 
+ * make sure that all registers are restored (specifically, caller
+ * registers may be used for passing arguments). Hence we save the
+ * function pointer right below the stack (esp - 8) and jump to
  * it from there.
  *
  * Note: interrupts are disabled in the kernel, NMIs are handled on a
- * separate IST stack, so nothing should overwrite memory below the 
+ * separate IST stack, so nothing should overwrite memory below the
  * stack (i.e., esp - 8).
  *
  * %rdi -- pointer to Continuation
  */
 
-global_asm!("  
+global_asm!(
+    "  
     .text 
     .align  16              
 __unwind:
@@ -60,25 +61,24 @@ __unwind:
 
     movq 40(%rdi), %rdi
 
-    jmpq *-8(%rsp) ");
+    jmpq *-8(%rsp) "
+);
 
-
-
-/* 
- * Unwind test with simple functions 
+/*
+ * Unwind test with simple functions
  */
 #[no_mangle]
 pub fn foo(_x: u64, _y: u64) {
     //unwind();
-    println!("you shouldn't see this"); 
+    println!("you shouldn't see this");
 }
 
 #[no_mangle]
 pub fn foo_err(x: u64, y: u64) {
-    println!("foo was aborted, x:{}, y:{}", x, y); 
+    println!("foo was aborted, x:{}, y:{}", x, y);
 }
 
-extern {
+extern "C" {
     fn foo_tramp(x: u64, y: u64);
 }
 
@@ -98,16 +98,16 @@ pub struct Foo {
 
 impl FooTrait for Foo {
     fn simple_result(&self, _x: u64) -> Result<u64, i64> {
-        let r = self.id; 
+        let r = self.id;
         unwind();
         Ok(r)
     }
 }
 
-static FOO: Foo = Foo {id: 55};
+static FOO: Foo = Foo { id: 55 };
 
 #[no_mangle]
-pub extern fn simple_result(s: &Foo, x: u64) -> Result<u64, i64> {
+pub extern "C" fn simple_result(s: &Foo, x: u64) -> Result<u64, i64> {
     println!("simple_result: s.id:{}, x:{}", s.id, x);
     let r = s.simple_result(x);
     println!("simple_result: you shouldn't see this");
@@ -115,13 +115,13 @@ pub extern fn simple_result(s: &Foo, x: u64) -> Result<u64, i64> {
 }
 
 #[no_mangle]
-pub extern fn simple_result_err(s: &Foo, x: u64) -> Result<u64, i64> {
+pub extern "C" fn simple_result_err(s: &Foo, x: u64) -> Result<u64, i64> {
     println!("simple_result was aborted, s.id:{}, x:{}", s.id, x);
     Err(-1)
 }
 
-extern {
-    fn simple_result_tramp(s:&Foo, x: u64) -> Result<u64, i64>;
+extern "C" {
+    fn simple_result_tramp(s: &Foo, x: u64) -> Result<u64, i64>;
 }
 
 //trampoline!(simple_result);
@@ -130,7 +130,7 @@ pub fn unwind_test() {
     unsafe {
         /*
         foo_tramp(1, 2);
-        let r = simple_result_tramp(&FOO, 3); 
+        let r = simple_result_tramp(&FOO, 3);
         match r {
             Ok(n)  => println!("simple_result (ok):{}", n),
             Err(e) => println!("simple_result, err: {}", e),
@@ -138,5 +138,3 @@ pub fn unwind_test() {
         */
     }
 }
-
-

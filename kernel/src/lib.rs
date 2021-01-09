@@ -14,20 +14,20 @@
     naked_functions,
     panic_info_message,
     asm,
-    llvm_asm, 
+    llvm_asm,
     global_asm
 )]
 
 extern crate x86;
 #[macro_use]
 extern crate lazy_static;
-extern crate spin;
 extern crate core;
+extern crate spin;
 #[macro_use]
 extern crate alloc;
 extern crate backtracer;
-extern crate pcid;
 extern crate elfloader;
+extern crate pcid;
 extern crate unwind as libunwind;
 
 use crate::interrupt::{disable_irq, enable_irq};
@@ -35,48 +35,46 @@ use core::sync::atomic::{AtomicU32, Ordering};
 
 #[macro_use]
 mod console;
-mod interrupt;
-mod entryother;
-mod redsys;
-mod drivers;
-mod heap;
-mod dropper;
 mod buildinfo;
-mod kbd;
 mod cb;
-mod unwind;
+mod drivers;
+mod dropper;
+mod entryother;
 pub mod gdt;
+mod heap;
+mod interrupt;
+mod kbd;
+mod redsys;
+mod unwind;
 
-
-mod multibootv2;
 mod memory;
+mod multibootv2;
 mod rtc;
 
 #[macro_use]
 mod prelude;
 pub mod arch;
 
-mod tls;
-mod thread;
-mod panic;
-mod syscalls;
-mod gen;
-mod pci;
-mod domain;
 mod dev;
-mod waitqueue;
+mod domain;
+mod gen;
+mod panic;
+mod pci;
 mod sync;
+mod syscalls;
+mod thread;
+mod tls;
+mod waitqueue;
 
-use x86::cpuid::CpuId;
-use crate::arch::{init_buddy};
-use crate::memory::{construct_pt};
+use crate::arch::init_buddy;
+use crate::arch::memory::BASE_PAGE_SIZE;
+use crate::arch::KERNEL_END;
+use crate::memory::construct_pt;
+use crate::multibootv2::BootInformation;
+use crate::panic::{init_backtrace, init_backtrace_context};
 use crate::pci::scan_pci_devs;
 use core::ptr;
-use crate::arch::memory::BASE_PAGE_SIZE;
-use crate::arch::{KERNEL_END};
-use crate::panic::{init_backtrace, init_backtrace_context};
-use crate::multibootv2::BootInformation;
-
+use x86::cpuid::CpuId;
 
 pub static mut ap_entry_running: bool = true;
 pub const MAX_CPUS: u32 = 4;
@@ -93,7 +91,6 @@ pub fn active_cpus() -> u32 {
     RUNNING_CPUS.load(Ordering::Relaxed)
 }
 
-
 // Note, the bootstrap CPU runs on a statically allocated
 // stack that is defined in boot.asm
 // AB TODO: fix this (i.e., switch to the dynamically allocated stack)
@@ -103,15 +100,20 @@ pub fn init_ap_cpus() {
     for cpu in 1..MAX_CPUS {
         let ap_cpu_stack = unsafe { crate::thread::alloc_stack() } as u64;
 
-        println!("Waking up CPU{} with stack: {:x}--{:x}",
-            cpu, ap_cpu_stack, 
-            ap_cpu_stack + (crate::thread::STACK_SIZE_IN_PAGES * BASE_PAGE_SIZE) as u64);
+        println!(
+            "Waking up CPU{} with stack: {:x}--{:x}",
+            cpu,
+            ap_cpu_stack,
+            ap_cpu_stack + (crate::thread::STACK_SIZE_IN_PAGES * BASE_PAGE_SIZE) as u64
+        );
 
         unsafe {
             ptr::write_volatile(&mut ap_entry_running as *mut bool, true);
-            interrupt::init_cpu(cpu,
+            interrupt::init_cpu(
+                cpu,
                 ap_cpu_stack + (crate::thread::STACK_SIZE_IN_PAGES * BASE_PAGE_SIZE) as u64,
-                rust_main_ap as u64);
+                rust_main_ap as u64,
+            );
         }
 
         while unsafe { ptr::read_volatile(&ap_entry_running as *const bool) } {}
@@ -153,7 +155,10 @@ pub fn init_backtrace_kernel_elf(bootinfo: &BootInformation) {
 
                     let src = kelf.0 as *const u8;
                     let dest = KERNEL_END as *mut u64 as *mut u8;
-                    println!("Copying image bytes from {:x?} to {:x?} ({} bytes)", src, dest, ksize);
+                    println!(
+                        "Copying image bytes from {:x?} to {:x?} ({} bytes)",
+                        src, dest, ksize
+                    );
 
                     let mut tmpbuf: Vec<u8> = Vec::with_capacity(ksize);
 
@@ -163,9 +168,12 @@ pub fn init_backtrace_kernel_elf(bootinfo: &BootInformation) {
                     let kernel_elf = KERNEL_END;
                     let new_end = KERNEL_END + ksize as u64;
                     KERNEL_END = round_up!(new_end, BASE_PAGE_SIZE as u64);
-                    init_backtrace(core::slice::from_raw_parts(kernel_elf as *const usize as *const u8, ksize));
+                    init_backtrace(core::slice::from_raw_parts(
+                        kernel_elf as *const usize as *const u8,
+                        ksize,
+                    ));
                     elf_found = true;
-                },
+                }
                 _ => {
                     println!("Kernel image not found. Backtrace will be without symbols");
                 }
@@ -175,7 +183,7 @@ pub fn init_backtrace_kernel_elf(bootinfo: &BootInformation) {
 }
 
 // Create sys/init domain and execute its init function
-extern fn init_user() {
+extern "C" fn init_user() {
     // die() enables interrupts as it thinks it is
     // starting a user thead, lets disable them
     disable_irq();
@@ -189,7 +197,6 @@ fn start_init_thread() {
 
 #[no_mangle]
 pub extern "C" fn rust_main() -> ! {
-
     match CpuId::new().get_vendor_info() {
         Some(vendor) => println!("RedLeaf booting (CPU model: {})", vendor.as_string()),
         None => println!("RedLeaf booting on (CPU model: unknown)"),
@@ -201,8 +208,7 @@ pub extern "C" fn rust_main() -> ! {
 
     rtc::print_date();
 
-    let featureInfo = CpuId::new().get_feature_info()
-        .expect("CPUID unavailable");
+    let featureInfo = CpuId::new().get_feature_info().expect("CPUID unavailable");
 
     //let cpu_id: u32 =
     featureInfo.initial_local_apic_id() as u32;
@@ -233,15 +239,17 @@ pub extern "C" fn rust_main() -> ! {
         let efer = rdmsr(IA32_EFER) | 1 << 11;
         wrmsr(IA32_EFER, efer);
 
-        #[cfg(feature="baremetal")]
+        #[cfg(feature = "baremetal")]
         {
-
             let aperf_old = rdmsr(IA32_APERF);
             let mperf_old = rdmsr(IA32_MPERF);
 
             let perf_status = rdmsr(IA32_PERF_STATUS);
             let perf_ctl = rdmsr(IA32_PERF_CTL);
-            println!("IA32_PERF_STATUS {:x} IA32_PERF_CTL {:x}", perf_status, perf_ctl);
+            println!(
+                "IA32_PERF_STATUS {:x} IA32_PERF_CTL {:x}",
+                perf_status, perf_ctl
+            );
 
             // request 2.2GHz
             // If you want to request a different frequency, write to PERF_CTL
@@ -262,14 +270,18 @@ pub extern "C" fn rust_main() -> ! {
             let lfm = (plat_info >> 40) & 0xf;
 
             // FIXME: 100MHz multiplier differs with family. For c220g2/Haswell, it is 100.
-            println!("Nominal TSC frequency {} MHz LFM {} MHz", nominal_tsc * 100, lfm * 100);
+            println!(
+                "Nominal TSC frequency {} MHz LFM {} MHz",
+                nominal_tsc * 100,
+                lfm * 100
+            );
 
             let aperf_delta = rdmsr(IA32_APERF) - aperf_old;
             let mperf_delta = rdmsr(IA32_MPERF) - mperf_old;
             let ratio = aperf_delta as f64 / mperf_delta as f64;
             println!("aperf/mperf ratio {}", ratio);
         }
-     }
+    }
 
     // Init page table (code runs on a new page table after this call)
     construct_pt();
@@ -299,8 +311,7 @@ pub extern "C" fn rust_main_ap() -> ! {
         ptr::write_volatile(&mut ap_entry_running as *mut bool, false);
     }
 
-    let featureInfo = CpuId::new().get_feature_info()
-        .expect("CPUID unavailable");
+    let featureInfo = CpuId::new().get_feature_info().expect("CPUID unavailable");
 
     let cpu_id: u32 = featureInfo.initial_local_apic_id() as u32;
     println!("Initializing CPU#{}", cpu_id);
@@ -315,7 +326,6 @@ pub extern "C" fn rust_main_ap() -> ! {
 
         // Update cpuid of this CPU
         tls::set_cpuid(cpu_id as usize);
-
     }
 
     if cpu_id != 0 {
@@ -340,29 +350,28 @@ pub extern "C" fn rust_main_ap() -> ! {
             let registrar = unsafe { interrupt::get_irq_registrar(KBDCTRL.clone()) };
             KBDCTRL.lock().set_irq_registrar(registrar);
         }*/
-
     }
 
-    // Init threads marking this boot thread as "idle" 
-    // the scheduler will treat it specially and will never schedule 
+    // Init threads marking this boot thread as "idle"
+    // the scheduler will treat it specially and will never schedule
     // it unless there is really no runnable threads
     // on this CPU
-    thread::init_threads(); 
+    thread::init_threads();
 
     if cpu_id == 0 {
         // We initialized kernel domain, and the idle thread on this CPU
-        // it's safe to start other CPUs, nothing will get migrated to us 
+        // it's safe to start other CPUs, nothing will get migrated to us
         // (CPU0), but even if it will we're ready to handle it
 
-        #[cfg(feature="smp")]
+        #[cfg(feature = "smp")]
         init_ap_cpus();
 
         // Create the init thread
         //
-        // We add it to the scheduler queue on this CPU. 
-        // When we enable the interrupts below the timer interrupt will 
+        // We add it to the scheduler queue on this CPU.
+        // When we enable the interrupts below the timer interrupt will
         // kick the scheduler
-        start_init_thread(); 
+        start_init_thread();
     }
 
     unwind::unwind_test();
@@ -377,7 +386,6 @@ pub extern "C" fn rust_main_ap() -> ! {
 
     halt();
 }
-
 
 pub fn halt() -> ! {
     loop {

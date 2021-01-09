@@ -1,29 +1,27 @@
-use x86::io::{outb, inb};
+use x86::io::{inb, outb};
 
 const COM1_PORT: u16 = 0x3F8;
 const COM2_PORT: u16 = 0x2F8;
 
 pub struct SerialPort {
-    base_port: u16
+    base_port: u16,
 }
 
 impl SerialPort {
     pub const fn new(base_port: u16) -> SerialPort {
-        SerialPort {
-            base_port
-        }
+        SerialPort { base_port }
     }
 
     pub fn init(&self) {
         unsafe {
-            outb(self.base_port+1, 0x00); // Disable interrupts
-            outb(self.base_port+3, 0x80); // Set baud rate divisor
-            outb(self.base_port+0, 0x01); // Set baud rate to 115200 baud
-            outb(self.base_port+1, 0x00); // 
-            outb(self.base_port+3, 0x03); // 8 bits, no parity, one stop bit
-            outb(self.base_port+2, 0xC7); // Enable FIFO, clear them, with 14-byte threshold
-            outb(self.base_port+4, 0x03); // Enable IRQs, RTS/DSR set
-            outb(self.base_port+1, 0x00); // Disable Interrupts
+            outb(self.base_port + 1, 0x00); // Disable interrupts
+            outb(self.base_port + 3, 0x80); // Set baud rate divisor
+            outb(self.base_port + 0, 0x01); // Set baud rate to 115200 baud
+            outb(self.base_port + 1, 0x00); //
+            outb(self.base_port + 3, 0x03); // 8 bits, no parity, one stop bit
+            outb(self.base_port + 2, 0xC7); // Enable FIFO, clear them, with 14-byte threshold
+            outb(self.base_port + 4, 0x03); // Enable IRQs, RTS/DSR set
+            outb(self.base_port + 1, 0x00); // Disable Interrupts
         }
     }
 
@@ -63,7 +61,7 @@ impl SerialPort {
     }
 }
 
-use core::fmt::{Write};
+use core::fmt::Write;
 
 impl Write for SerialPort {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {

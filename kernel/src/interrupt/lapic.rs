@@ -4,10 +4,10 @@
 //  - https://github.com/pdoane/osdev/blob/master/intr/local_apic.c
 //  - https://github.com/mit-pdos/xv6-public/blob/master/lapic.c
 
-use core::ptr;
-use x86::msr;
-use x86::io::outb;
 use super::InterruptIndex;
+use core::ptr;
+use x86::io::outb;
+use x86::msr;
 
 static mut lapic: u32 = 0;
 
@@ -68,7 +68,10 @@ fn init_lapic() {
 
         // Timer interrupt
         lapicw(LAPIC_TDCR, LAPIC_TDCR_X1);
-        lapicw(LAPIC_TIMER, LAPIC_TIMER_PERIODIC | InterruptIndex::Timer.as_u32());
+        lapicw(
+            LAPIC_TIMER,
+            LAPIC_TIMER_PERIODIC | InterruptIndex::Timer.as_u32(),
+        );
         lapicw(LAPIC_TICR, 1000_0000);
 
         // Mask logical interrupt lines
@@ -103,7 +106,10 @@ pub unsafe fn start_ap(cpu: u32, code: *const u8) {
 
     // "Universal startup algorithm."
     lapicw(LAPIC_ICRHI, cpu << 24);
-    lapicw(LAPIC_ICRLO, LAPIC_ICRLO_INIT | LAPIC_ICRLO_LEVEL | LAPIC_ICRLO_ASSERT);
+    lapicw(
+        LAPIC_ICRLO,
+        LAPIC_ICRLO_INIT | LAPIC_ICRLO_LEVEL | LAPIC_ICRLO_ASSERT,
+    );
     lapicw(LAPIC_ICRLO, LAPIC_ICRLO_INIT | LAPIC_ICRLO_LEVEL);
 
     // FIXME: Virtual address conversion

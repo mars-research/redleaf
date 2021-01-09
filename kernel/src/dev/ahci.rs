@@ -1,15 +1,12 @@
+use ahci::{AhciArrayRegs, AhciBarRegion, AhciPortArrayRegs, AhciPortRegs, AhciRegs};
 use core::ptr;
-use ahci::{AhciBarRegion, AhciRegs, AhciArrayRegs, AhciPortRegs, AhciPortArrayRegs};
-
-
-
 
 macro_rules! reg_ahci {
     ($off: ident) => {
         Register {
             offset: AhciBar::$off,
         }
-    }
+    };
 }
 
 macro_rules! reg_ahci_mult {
@@ -17,9 +14,9 @@ macro_rules! reg_ahci_mult {
         ArrayRegister {
             offset: AhciBar::$off,
             num_regs: $num,
-            multiplier: $mult
+            multiplier: $mult,
         }
-    }
+    };
 }
 
 struct Register {
@@ -142,19 +139,19 @@ impl AhciBar {
             AhciPortArrayRegs::Clb => {
                 assert!(idx < 2);
                 Self::PORT_CLB
-            },
+            }
             AhciPortArrayRegs::Fb => {
                 assert!(idx < 2);
                 Self::PORT_FB
-            },
+            }
             AhciPortArrayRegs::Rsv1 => {
                 assert!(idx < 11);
                 Self::PORT_RSV1
-            },
+            }
             AhciPortArrayRegs::Vendor => {
                 assert!(idx < 4);
                 Self::PORT_VENDOR
-            },
+            }
         };
 
         port_offset + reg_offset + 4 * idx
@@ -169,52 +166,48 @@ impl AhciBarRegion for AhciBar {
     fn read_reg(&self, reg_enum: AhciRegs) -> u32 {
         let offset: u64;
         match reg_enum {
-            AhciRegs::Cap => { offset = self.cap.offset },
-            AhciRegs::Ghc => { offset = self.ghc.offset },
-            AhciRegs::Is => { offset = self.is.offset },
-            AhciRegs::Pi => { offset = self.pi.offset },
-            AhciRegs::Vs => { offset = self.vs.offset },
-            AhciRegs::Cccctl => { offset = self.cccctl.offset },
-            AhciRegs::Cccpts => { offset = self.cccpts.offset },
-            AhciRegs::Emloc => { offset = self.emloc.offset },
-            AhciRegs::Emctl => { offset = self.emctl.offset },
-            AhciRegs::Cap2 => { offset = self.cap2.offset },
-            AhciRegs::Bohc => { offset = self.bohc.offset },
+            AhciRegs::Cap => offset = self.cap.offset,
+            AhciRegs::Ghc => offset = self.ghc.offset,
+            AhciRegs::Is => offset = self.is.offset,
+            AhciRegs::Pi => offset = self.pi.offset,
+            AhciRegs::Vs => offset = self.vs.offset,
+            AhciRegs::Cccctl => offset = self.cccctl.offset,
+            AhciRegs::Cccpts => offset = self.cccpts.offset,
+            AhciRegs::Emloc => offset = self.emloc.offset,
+            AhciRegs::Emctl => offset = self.emctl.offset,
+            AhciRegs::Cap2 => offset = self.cap2.offset,
+            AhciRegs::Bohc => offset = self.bohc.offset,
         }
-        unsafe {
-            ptr::read_volatile((self.base + offset) as *const u32)
-        }
+        unsafe { ptr::read_volatile((self.base + offset) as *const u32) }
     }
 
     fn read_reg_idx(&self, reg_enum: AhciArrayRegs, idx: u64) -> u32 {
         let reg: ArrayRegister;
         match reg_enum {
-            AhciArrayRegs::Rsv => { reg = self.rsv },
-            AhciArrayRegs::Vendor => { reg = self.vendor },
+            AhciArrayRegs::Rsv => reg = self.rsv,
+            AhciArrayRegs::Vendor => reg = self.vendor,
         }
 
         if idx >= reg.num_regs {
             return 0;
         }
-        unsafe {
-            ptr::read_volatile((self.base + reg.offset + reg.multiplier * idx) as *const u32)
-        }
+        unsafe { ptr::read_volatile((self.base + reg.offset + reg.multiplier * idx) as *const u32) }
     }
 
     fn write_reg(&self, reg_enum: AhciRegs, val: u32) {
         let offset: u64;
         match reg_enum {
-            AhciRegs::Cap => { offset = self.cap.offset },
-            AhciRegs::Ghc => { offset = self.ghc.offset },
-            AhciRegs::Is => { offset = self.is.offset },
-            AhciRegs::Pi => { offset = self.pi.offset },
-            AhciRegs::Vs => { offset = self.vs.offset },
-            AhciRegs::Cccctl => { offset = self.cccctl.offset },
-            AhciRegs::Cccpts => { offset = self.cccpts.offset },
-            AhciRegs::Emloc => { offset = self.emloc.offset },
-            AhciRegs::Emctl => { offset = self.emctl.offset },
-            AhciRegs::Cap2 => { offset = self.cap2.offset },
-            AhciRegs::Bohc => { offset = self.bohc.offset },
+            AhciRegs::Cap => offset = self.cap.offset,
+            AhciRegs::Ghc => offset = self.ghc.offset,
+            AhciRegs::Is => offset = self.is.offset,
+            AhciRegs::Pi => offset = self.pi.offset,
+            AhciRegs::Vs => offset = self.vs.offset,
+            AhciRegs::Cccctl => offset = self.cccctl.offset,
+            AhciRegs::Cccpts => offset = self.cccpts.offset,
+            AhciRegs::Emloc => offset = self.emloc.offset,
+            AhciRegs::Emctl => offset = self.emctl.offset,
+            AhciRegs::Cap2 => offset = self.cap2.offset,
+            AhciRegs::Bohc => offset = self.bohc.offset,
         }
         unsafe {
             ptr::write_volatile((self.base + offset) as *mut u32, val);
@@ -224,22 +217,23 @@ impl AhciBarRegion for AhciBar {
     fn write_reg_idx(&self, reg_enum: AhciArrayRegs, idx: u64, val: u32) {
         let reg: ArrayRegister;
         match reg_enum {
-            AhciArrayRegs::Rsv => { reg = self.rsv },
-            AhciArrayRegs::Vendor => { reg = self.vendor },
+            AhciArrayRegs::Rsv => reg = self.rsv,
+            AhciArrayRegs::Vendor => reg = self.vendor,
         }
 
         if idx < reg.num_regs {
             unsafe {
-                ptr::write_volatile((self.base + reg.offset + reg.multiplier * idx) as *mut u32, val)
+                ptr::write_volatile(
+                    (self.base + reg.offset + reg.multiplier * idx) as *mut u32,
+                    val,
+                )
             }
         }
     }
 
     fn read_port_reg(&self, port: u64, reg_enum: AhciPortRegs) -> u32 {
         let offset = self.get_port_reg_offset(port, reg_enum);
-        unsafe {
-            ptr::read_volatile(offset as *const u32)
-        }
+        unsafe { ptr::read_volatile(offset as *const u32) }
     }
 
     fn write_port_reg(&self, port: u64, reg_enum: AhciPortRegs, val: u32) {
@@ -251,9 +245,7 @@ impl AhciBarRegion for AhciBar {
 
     fn read_port_reg_idx(&self, port: u64, reg_enum: AhciPortArrayRegs, idx: u64) -> u32 {
         let offset = self.get_port_array_reg_offset(port, reg_enum, idx);
-        unsafe {
-            ptr::read_volatile(offset as *const u32)
-        }
+        unsafe { ptr::read_volatile(offset as *const u32) }
     }
 
     fn write_port_reg_idx(&self, port: u64, reg_enum: AhciPortArrayRegs, idx: u64, val: u32) {
