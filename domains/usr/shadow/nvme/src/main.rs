@@ -1,29 +1,27 @@
 #![no_std]
 #![no_main]
-#![feature(
-    box_syntax,
-)]
+#![feature(box_syntax)]
 #![forbid(unsafe_code)]
-extern crate malloc;
 extern crate alloc;
-use libsyscalls;
-use syscalls::{Syscall, Heap};
-use create;
+extern crate malloc;
+
+use syscalls::{Heap, Syscall};
+
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 
 use console::println;
 
 use core::panic::PanicInfo;
-use usr;
-use rref::{RRefDeque};
 
-use usr::error::Result;
-use usr::bdev::{NvmeBDev, BlkReq};
-use usr::pci::PCI;
-use usr::rpc::RpcResult;
+use rref::RRefDeque;
+
 use create::CreateNvme;
 use spin::Mutex;
+use usr::bdev::{BlkReq, NvmeBDev};
+use usr::error::Result;
+use usr::pci::PCI;
+use usr::rpc::RpcResult;
 
 struct ShadowInternal {
     create: Arc<dyn CreateNvme>,
@@ -56,20 +54,21 @@ impl Shadow {
 
 impl NvmeBDev for Shadow {
     fn submit_and_poll_rref(
-    &self,
-    submit: RRefDeque<BlkReq, 128>,
-    collect: RRefDeque<BlkReq, 128>,
-    write: bool,
-    ) -> RpcResult<Result<(
-        usize,
-        RRefDeque<BlkReq, 128>,
-        RRefDeque<BlkReq, 128>,
-    )>> {
-        self.shadow.lock().nvme.submit_and_poll_rref(submit, collect, write)
+        &self,
+        submit: RRefDeque<BlkReq, 128>,
+        collect: RRefDeque<BlkReq, 128>,
+        write: bool,
+    ) -> RpcResult<Result<(usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>)>> {
+        self.shadow
+            .lock()
+            .nvme
+            .submit_and_poll_rref(submit, collect, write)
     }
 
-    fn poll_rref(&mut self, collect: RRefDeque<BlkReq, 1024>) ->
-            RpcResult<Result<(usize, RRefDeque<BlkReq, 1024>)>> {
+    fn poll_rref(
+        &mut self,
+        collect: RRefDeque<BlkReq, 1024>,
+    ) -> RpcResult<Result<(usize, RRefDeque<BlkReq, 1024>)>> {
         self.shadow.lock().nvme.poll_rref(collect)
     }
 
@@ -79,7 +78,12 @@ impl NvmeBDev for Shadow {
 }
 
 #[no_mangle]
-pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, create: Arc<dyn CreateNvme>, pci: Box<dyn PCI>) -> Box<dyn NvmeBDev> {
+pub fn trusted_entry(
+    s: Box<dyn Syscall + Send + Sync>,
+    heap: Box<dyn Heap + Send + Sync>,
+    create: Arc<dyn CreateNvme>,
+    pci: Box<dyn PCI>,
+) -> Box<dyn NvmeBDev> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 

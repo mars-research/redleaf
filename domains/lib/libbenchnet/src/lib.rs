@@ -9,21 +9,21 @@ extern crate sashstore_redleaf;
 mod maglev;
 pub mod packettool;
 
-use core::alloc::Layout;
 use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 use b2histogram::Base2Histogram;
 use byteorder::{BigEndian, ByteOrder};
 use console::{print, println};
+use core::alloc::Layout;
 use core::ptr;
 use libtime::get_rdtsc as rdtsc;
 use libtime::sys_ns_loopsleep;
 use packettool::{ETH_HEADER_LEN, IPV4_PROTO_OFFSET};
 use rref::{RRef, RRefDeque};
-use usr::net::{Net, NetworkStats};
-use usr::error::Result;
 use sashstore_redleaf::SashStore;
+use usr::error::Result;
+use usr::net::{Net, NetworkStats};
 
 macro_rules! print_hist {
     ($hist: ident) => {
@@ -45,7 +45,12 @@ pub fn run_domain_crossing(net: &dyn Net) -> Result<()> {
         net.test_domain_crossing()?;
     }
     let elapse = libtime::get_rdtsc() - start;
-    println!("net.test_domain_crossing: avg: {}, total: {}, iter: {}", elapse as f64 / iter as f64, elapse, iter);
+    println!(
+        "net.test_domain_crossing: avg: {}, total: {}, iter: {}",
+        elapse as f64 / iter as f64,
+        elapse,
+        iter
+    );
     Ok(())
 }
 
@@ -56,29 +61,19 @@ pub fn run_tx_udptest_rref(net: &dyn Net, pkt_len: usize, mut debug: bool) -> Re
     let batch_sz: usize = BATCH_SIZE;
     let mut packets = RRefDeque::<[u8; 1514], 32>::default();
     let mut collect = RRefDeque::<[u8; 1514], 32>::default();
-    let mut poll =  RRefDeque::<[u8; 1514], 512>::default();
+    let mut poll = RRefDeque::<[u8; 1514], 512>::default();
 
     let mac_data = alloc::vec![
         0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81, // Dst mac
         0x90, 0xe2, 0xba, 0xb5, 0x14, 0xcd, // Src mac
-        0x08, 0x00,                         // Protocol
+        0x08, 0x00, // Protocol
     ];
     let mut ip_data = alloc::vec![
-        0x45, 0x00,
-        0x00,
-        0x2e,
-        0x00, 0x0, 0x0, 0x00,
-        0x40, 0x11, 0x00, 0x00,
-        0x0a, 0x0a, 0x03, 0x01,
-        0x0a, 0x0a, 0x03, 0x02,
+        0x45, 0x00, 0x00, 0x2e, 0x00, 0x0, 0x0, 0x00, 0x40, 0x11, 0x00, 0x00, 0x0a, 0x0a, 0x03,
+        0x01, 0x0a, 0x0a, 0x03, 0x02,
     ];
 
-    let udp_hdr = alloc::vec![
-        0xb2, 0x6f, 0x14, 0x51,
-        0x00,
-        0x1a,
-        0x9c, 0xaf,
-    ];
+    let udp_hdr = alloc::vec![0xb2, 0x6f, 0x14, 0x51, 0x00, 0x1a, 0x9c, 0xaf,];
 
     let mut payload = alloc::vec![0u8; pkt_len - 42];
 
@@ -95,7 +90,7 @@ pub fn run_tx_udptest_rref(net: &dyn Net, pkt_len: usize, mut debug: bool) -> Re
     ip_data[10] = (checksum >> 8) as u8;
     ip_data[11] = (checksum & 0xff) as u8;
 
-    let mut pkt:Vec<u8> = Vec::new();
+    let mut pkt: Vec<u8> = Vec::new();
     pkt.extend(mac_data.iter());
     pkt.extend(ip_data.iter());
     pkt.extend(udp_hdr.iter());
@@ -127,7 +122,10 @@ pub fn run_tx_udptest_rref(net: &dyn Net, pkt_len: usize, mut debug: bool) -> Re
 
     let mut sum: usize = 0;
 
-    println!("======== Starting udp transmit test {}B (rrefs)  ==========", pkt_len);
+    println!(
+        "======== Starting udp transmit test {}B (rrefs)  ==========",
+        pkt_len
+    );
 
     let runtime = 30;
 
@@ -138,8 +136,14 @@ pub fn run_tx_udptest_rref(net: &dyn Net, pkt_len: usize, mut debug: bool) -> Re
     let end = rdtsc() + runtime * CPU_MHZ;
 
     loop {
-        let (ret, mut packets_, mut collect_) = net.submit_and_poll_rref(packets.take().unwrap(),
-                                collect.take().unwrap(), true, pkt_len).unwrap()?;
+        let (ret, mut packets_, mut collect_) = net
+            .submit_and_poll_rref(
+                packets.take().unwrap(),
+                collect.take().unwrap(),
+                true,
+                pkt_len,
+            )
+            .unwrap()?;
         sum += ret;
 
         collect_tx_hist.record(collect_.len() as u64);
@@ -147,7 +151,6 @@ pub fn run_tx_udptest_rref(net: &dyn Net, pkt_len: usize, mut debug: bool) -> Re
         while let Some(packet) = collect_.pop_front() {
             packets_.push_back(packet);
         }
-
 
         if packets_.len() == 0 {
             alloc_count += 1;
@@ -178,8 +181,13 @@ pub fn run_tx_udptest_rref(net: &dyn Net, pkt_len: usize, mut debug: bool) -> Re
 
     if sum > 0 {
         println!("runtime: {:.2} seconds", adj_runtime);
-        println!("tx_udptest_rref ({}): Transmitted {} packets took {} cycles (avg = {})",
-                                        pkt_len, sum, elapsed, elapsed as f64 / sum as f64);
+        println!(
+            "tx_udptest_rref ({}): Transmitted {} packets took {} cycles (avg = {})",
+            pkt_len,
+            sum,
+            elapsed,
+            elapsed as f64 / sum as f64
+        );
 
         println!("Observed Pkts/s: {}", sum as f64 / adj_runtime as f64);
 
@@ -190,10 +198,17 @@ pub fn run_tx_udptest_rref(net: &dyn Net, pkt_len: usize, mut debug: bool) -> Re
 
         println!("Device Stats\n{}", stats_end);
 
-        println!("Tx Pkts/s {:.2}", stats_end.tx_dma_ok as f64 / adj_runtime as f64);
+        println!(
+            "Tx Pkts/s {:.2}",
+            stats_end.tx_dma_ok as f64 / adj_runtime as f64
+        );
 
-        println!("Number of new allocations {}, took {} cycles (avg = {})", alloc_count * batch_sz, alloc_elapsed,
-                                                        alloc_elapsed as f64 / (alloc_count * batch_sz) as f64);
+        println!(
+            "Number of new allocations {}, took {} cycles (avg = {})",
+            alloc_count * batch_sz,
+            alloc_elapsed,
+            alloc_elapsed as f64 / (alloc_count * batch_sz) as f64
+        );
     } else {
         println!("Test failed! No packets transmitted");
     }
@@ -215,24 +230,14 @@ pub fn run_tx_udptest(net: &dyn Net, pkt_len: usize, mut debug: bool) -> Result<
     let mac_data = alloc::vec![
         0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81, // Dst mac
         0x90, 0xe2, 0xba, 0xb5, 0x14, 0xcd, // Src mac
-        0x08, 0x00,                         // Protocol
+        0x08, 0x00, // Protocol
     ];
     let mut ip_data = alloc::vec![
-        0x45, 0x00,
-        0x00,
-        0x2e,
-        0x00, 0x0, 0x0, 0x00,
-        0x40, 0x11, 0x00, 0x00,
-        0x0a, 0x0a, 0x03, 0x01,
-        0x0a, 0x0a, 0x03, 0x02,
+        0x45, 0x00, 0x00, 0x2e, 0x00, 0x0, 0x0, 0x00, 0x40, 0x11, 0x00, 0x00, 0x0a, 0x0a, 0x03,
+        0x01, 0x0a, 0x0a, 0x03, 0x02,
     ];
 
-    let udp_hdr = alloc::vec![
-        0xb2, 0x6f, 0x14, 0x51,
-        0x00,
-        0x1a,
-        0x9c, 0xaf,
-    ];
+    let udp_hdr = alloc::vec![0xb2, 0x6f, 0x14, 0x51, 0x00, 0x1a, 0x9c, 0xaf,];
 
     // pkt_len - header_size
     let mut payload = alloc::vec![0u8; pkt_len - 42];
@@ -250,7 +255,7 @@ pub fn run_tx_udptest(net: &dyn Net, pkt_len: usize, mut debug: bool) -> Result<
     ip_data[10] = (checksum >> 8) as u8;
     ip_data[11] = (checksum & 0xff) as u8;
 
-    let mut pkt:Vec<u8> = Vec::new();
+    let mut pkt: Vec<u8> = Vec::new();
     pkt.extend(mac_data.iter());
     pkt.extend(ip_data.iter());
     pkt.extend(udp_hdr.iter());
@@ -267,7 +272,10 @@ pub fn run_tx_udptest(net: &dyn Net, pkt_len: usize, mut debug: bool) -> Result<
     let mut sum: usize = 0;
     let mut collect_tx_hist = Base2Histogram::new();
 
-    println!("======== Starting udp transmit test {}B ==========", pkt_len);
+    println!(
+        "======== Starting udp transmit test {}B ==========",
+        pkt_len
+    );
 
     let runtime = 30;
 
@@ -276,8 +284,10 @@ pub fn run_tx_udptest(net: &dyn Net, pkt_len: usize, mut debug: bool) -> Result<
     let start = rdtsc();
     let end = rdtsc() + runtime * CPU_MHZ;
 
-    loop{
-        let ret = net.submit_and_poll(&mut packets, &mut collect, true).unwrap()?;
+    loop {
+        let ret = net
+            .submit_and_poll(&mut packets, &mut collect, true)
+            .unwrap()?;
 
         sum += ret;
 
@@ -310,8 +320,13 @@ pub fn run_tx_udptest(net: &dyn Net, pkt_len: usize, mut debug: bool) -> Result<
 
     if sum > 0 {
         println!("runtime: {:.2} seconds", adj_runtime);
-        println!("tx_udptest ({}): Transmitted {} packets took {} cycles (avg = {})",
-                                        pkt_len, sum, elapsed, elapsed as f64 / sum as f64);
+        println!(
+            "tx_udptest ({}): Transmitted {} packets took {} cycles (avg = {})",
+            pkt_len,
+            sum,
+            elapsed,
+            elapsed as f64 / sum as f64
+        );
 
         println!("Observed Pkts/s: {}", sum as f64 / adj_runtime as f64);
 
@@ -322,10 +337,17 @@ pub fn run_tx_udptest(net: &dyn Net, pkt_len: usize, mut debug: bool) -> Result<
 
         println!("Device Stats\n{}", stats_end);
 
-        println!("Tx Pkts/s {:.2}", stats_end.tx_dma_ok as f64 / adj_runtime as f64);
+        println!(
+            "Tx Pkts/s {:.2}",
+            stats_end.tx_dma_ok as f64 / adj_runtime as f64
+        );
 
-        println!("Number of new allocations {}, took {} cycles (avg = {})", alloc_count * batch_sz, alloc_elapsed,
-                                                        alloc_elapsed as f64 / (alloc_count * batch_sz) as f64);
+        println!(
+            "Number of new allocations {}, took {} cycles (avg = {})",
+            alloc_count * batch_sz,
+            alloc_elapsed,
+            alloc_elapsed as f64 / (alloc_count * batch_sz) as f64
+        );
     } else {
         println!("Test failed! No packets transmitted");
     }
@@ -336,7 +358,6 @@ pub fn run_tx_udptest(net: &dyn Net, pkt_len: usize, mut debug: bool) -> Result<
     Ok(())
 }
 
-
 #[inline(always)]
 pub fn run_rx_udptest_rref(net: &dyn Net, pkt_len: usize, debug: bool) -> Result<()> {
     #[cfg(feature = "noop")]
@@ -346,7 +367,12 @@ pub fn run_rx_udptest_rref(net: &dyn Net, pkt_len: usize, debug: bool) -> Result
 }
 
 #[inline(always)]
-pub fn run_rx_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, debug: bool, delay: usize) -> Result<()> {
+pub fn run_rx_udptest_rref_with_delay(
+    net: &dyn Net,
+    pkt_len: usize,
+    debug: bool,
+    delay: usize,
+) -> Result<()> {
     #[cfg(feature = "noop")]
     return Ok(());
 
@@ -355,7 +381,7 @@ pub fn run_rx_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, debug: bool
     let batch_sz: usize = BATCH_SIZE;
     let mut packets = RRefDeque::<[u8; 1514], 32>::default();
     let mut collect = RRefDeque::<[u8; 1514], 32>::default();
-    let mut poll =  RRefDeque::<[u8; 1514], 512>::default();
+    let mut poll = RRefDeque::<[u8; 1514], 512>::default();
 
     let mut pkt_arr = [0; 1514];
 
@@ -367,8 +393,7 @@ pub fn run_rx_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, debug: bool
     let mut collect = Some(collect);
     let mut poll = Some(poll);
 
-
-// pkgten.hz 2590000000 wire_size 704 lk 10000000000 pps 14204545 cpp 182 tx_cycles 11648 tx_rate 100.000000
+    // pkgten.hz 2590000000 wire_size 704 lk 10000000000 pps 14204545 cpp 182 tx_cycles 11648 tx_rate 100.000000
     // compute the number of bits on wire for this pkt_len
 
     let wire_size = (req_pkt_len + 24) * 8;
@@ -377,9 +402,14 @@ pub fn run_rx_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, debug: bool
     let cpp = CPU_MHZ as f64 / pps;
     let rx_cycles = (cpp as u64 * batch_sz as u64);
 
-    println!("CPU_MHZ {} wire_size {} link_speed {} pps {} cpp {} rx_cycles {}",
-                        CPU_MHZ, wire_size, link_speed, pps, cpp, rx_cycles);
-    println!("======== Starting udp rx test {}B (rrefs) loop_delay: {} ==========", pkt_len, delay);
+    println!(
+        "CPU_MHZ {} wire_size {} link_speed {} pps {} cpp {} rx_cycles {}",
+        CPU_MHZ, wire_size, link_speed, pps, cpp, rx_cycles
+    );
+    println!(
+        "======== Starting udp rx test {}B (rrefs) loop_delay: {} ==========",
+        pkt_len, delay
+    );
 
     let mut sum: usize = 0;
     let mut alloc_count = 0;
@@ -404,15 +434,20 @@ pub fn run_rx_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, debug: bool
         // the cpu and hardware. This delay was empirically found.
         sys_ns_loopsleep(delay as u64);
 
-        let (ret, mut packets_, mut collect_) = net.submit_and_poll_rref(packets.take().unwrap(),
-                                collect.take().unwrap(), false, pkt_len).unwrap()?;
+        let (ret, mut packets_, mut collect_) = net
+            .submit_and_poll_rref(
+                packets.take().unwrap(),
+                collect.take().unwrap(),
+                false,
+                pkt_len,
+            )
+            .unwrap()?;
 
         //if debug {
-            //println!("rx packets.len {} collect.len {} ret {}", packets.len(), collect.len(), ret);
+        //println!("rx packets.len {} collect.len {} ret {}", packets.len(), collect.len(), ret);
         //}
         sum += collect_.len();
         collect_rx_hist.record(collect_.len() as u64);
-
 
         while let Some(packet) = collect_.pop_front() {
             if collect_start {
@@ -423,7 +458,8 @@ pub fn run_rx_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, debug: bool
             packets_.push_back(packet);
         }
 
-        if (batch_sz == 1 && packets_.len() == 0) || (batch_sz > 1 && packets_.len() < batch_sz / 4) {
+        if (batch_sz == 1 && packets_.len() == 0) || (batch_sz > 1 && packets_.len() < batch_sz / 4)
+        {
             //println!("allocating new batch");
             let alloc_sz = batch_sz - packets_.len();
 
@@ -456,8 +492,13 @@ pub fn run_rx_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, debug: bool
 
     if sum > 0 {
         println!("runtime: {:.2} seconds", adj_runtime);
-        println!("rx_udptest_rref(delay: {}ns) : Received {} packets took {} cycles (avg = {})",
-                                        delay, sum, elapsed, elapsed as f64 / sum as f64);
+        println!(
+            "rx_udptest_rref(delay: {}ns) : Received {} packets took {} cycles (avg = {})",
+            delay,
+            sum,
+            elapsed,
+            elapsed as f64 / sum as f64
+        );
 
         let (done, mut poll_) = net.poll_rref(poll.take().unwrap(), false).unwrap()?;
 
@@ -465,10 +506,17 @@ pub fn run_rx_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, debug: bool
 
         println!("Device Stats\n{}", stats_end);
 
-        println!("Rx Pkts/s {:.2}", stats_end.rx_dma_ok as f64 / adj_runtime as f64);
+        println!(
+            "Rx Pkts/s {:.2}",
+            stats_end.rx_dma_ok as f64 / adj_runtime as f64
+        );
 
-        println!("Number of new allocations {}, took {} cycles (avg = {})", alloc_count, alloc_elapsed,
-                                                        alloc_elapsed as f64 / alloc_count as f64);
+        println!(
+            "Number of new allocations {}, took {} cycles (avg = {})",
+            alloc_count,
+            alloc_elapsed,
+            alloc_elapsed as f64 / alloc_count as f64
+        );
     } else {
         println!("Test failed! No packets Received");
     }
@@ -487,7 +535,12 @@ pub fn run_rx_udptest(net: &dyn Net, pkt_len: usize, debug: bool) -> Result<()> 
     run_rx_udptest_with_delay(net, pkt_len, debug, 0)
 }
 
-pub fn run_rx_udptest_with_delay(net: &dyn Net, pkt_len: usize, debug: bool, delay: usize) -> Result<()> {
+pub fn run_rx_udptest_with_delay(
+    net: &dyn Net,
+    pkt_len: usize,
+    debug: bool,
+    delay: usize,
+) -> Result<()> {
     #[cfg(feature = "noop")]
     return Ok(());
 
@@ -514,7 +567,10 @@ pub fn run_rx_udptest_with_delay(net: &dyn Net, pkt_len: usize, debug: bool, del
     let mut seq_end: u64 = 0;
     let runtime = 30;
 
-    println!("======== Starting udp rx test {}B loop_delay: {} ==========", pkt_len, delay);
+    println!(
+        "======== Starting udp rx test {}B loop_delay: {} ==========",
+        pkt_len, delay
+    );
 
     let stats_start = net.get_stats().unwrap()?;
     let start = rdtsc();
@@ -528,10 +584,17 @@ pub fn run_rx_udptest_with_delay(net: &dyn Net, pkt_len: usize, debug: bool, del
 
         submit_rx_hist.record(packets.len() as u64);
 
-        let ret = net.submit_and_poll(&mut packets, &mut collect, false).unwrap()?;
+        let ret = net
+            .submit_and_poll(&mut packets, &mut collect, false)
+            .unwrap()?;
 
         if debug {
-            println!("rx packets.len {} collect.len {} ret {}", packets.len(), collect.len(), ret);
+            println!(
+                "rx packets.len {} collect.len {} ret {}",
+                packets.len(),
+                collect.len(),
+                ret
+            );
         }
 
         sum += collect.len();
@@ -546,7 +609,7 @@ pub fn run_rx_udptest_with_delay(net: &dyn Net, pkt_len: usize, debug: bool, del
         }*/
 
         packets.append(&mut collect);
- 
+
         if (batch_sz == 1 && packets.len() == 0) || (batch_sz > 1 && packets.len() < batch_sz / 4) {
             //println!("allocating new batch");
             alloc_count += 1;
@@ -561,7 +624,6 @@ pub fn run_rx_udptest_with_delay(net: &dyn Net, pkt_len: usize, debug: bool, del
         if rdtsc() > end {
             break;
         }
-
     }
 
     let elapsed = rdtsc() - start;
@@ -574,8 +636,13 @@ pub fn run_rx_udptest_with_delay(net: &dyn Net, pkt_len: usize, debug: bool, del
 
     if sum > 0 {
         println!("runtime: {:.2} seconds", adj_runtime);
-        println!("rx_udptest (delay: {}ns) : Received {} packets took {} cycles (avg = {})",
-                                        delay, sum, elapsed, elapsed as f64 / sum as f64);
+        println!(
+            "rx_udptest (delay: {}ns) : Received {} packets took {} cycles (avg = {})",
+            delay,
+            sum,
+            elapsed,
+            elapsed as f64 / sum as f64
+        );
 
         let done = net.poll(&mut collect, false).unwrap()?;
 
@@ -583,10 +650,17 @@ pub fn run_rx_udptest_with_delay(net: &dyn Net, pkt_len: usize, debug: bool, del
 
         println!("Device Stats\n{}", stats_end);
 
-        println!("Rx Pkts/s {:.2}", stats_end.rx_dma_ok as f64 / adj_runtime as f64);
+        println!(
+            "Rx Pkts/s {:.2}",
+            stats_end.rx_dma_ok as f64 / adj_runtime as f64
+        );
 
-        println!("Number of new allocations {}, took {} cycles (avg = {})", alloc_count, alloc_elapsed,
-                                                        alloc_elapsed as f64 / alloc_count as f64);
+        println!(
+            "Number of new allocations {}, took {} cycles (avg = {})",
+            alloc_count,
+            alloc_elapsed,
+            alloc_elapsed as f64 / alloc_count as f64
+        );
     } else {
         println!("Test failed! No packets Received");
     }
@@ -601,9 +675,9 @@ pub fn run_rx_udptest_with_delay(net: &dyn Net, pkt_len: usize, debug: bool, del
 
 pub fn dump_packet(pkt: &Vec<u8>) {
     for (i, b) in pkt.iter().enumerate() {
-        print!("{:02X} ", b); 
+        print!("{:02X} ", b);
 
-        if i > 0 && (i + 1) % 25 == 0 { 
+        if i > 0 && (i + 1) % 25 == 0 {
             print!("\n");
         }
     }
@@ -612,9 +686,9 @@ pub fn dump_packet(pkt: &Vec<u8>) {
 
 pub fn dump_packet_rref(pkt: &[u8; 1514], len: usize) {
     for (i, b) in pkt.iter().enumerate() {
-        print!("{:02X} ", b); 
+        print!("{:02X} ", b);
 
-        if i > 0 && (i + 1) % 25 == 0 { 
+        if i > 0 && (i + 1) % 25 == 0 {
             print!("\n");
         }
         if i >= len {
@@ -639,7 +713,6 @@ pub fn run_sashstoretest(net: &dyn Net, pkt_size: u16) -> Result<()> {
         // SASHSTORE = Some(SashStore::with_capacity((1 << 20)));
         SASHSTORE = Some(SashStore::with_capacity(CAPACITY));
     }
-
 
     for i in 0..batch_sz {
         rx_packets.push_front(Vec::with_capacity(2048));
@@ -672,7 +745,9 @@ pub fn run_sashstoretest(net: &dyn Net, pkt_size: u16) -> Result<()> {
         submit_rx_hist.record(rx_packets.len() as u64);
         //println!("call rx_submit_poll packet {}", packets.len());
         let rx_start = rdtsc();
-        let ret = net.submit_and_poll(&mut rx_packets, &mut tx_packets, false).unwrap()?;
+        let ret = net
+            .submit_and_poll(&mut rx_packets, &mut tx_packets, false)
+            .unwrap()?;
         rx_elapsed += rdtsc() - rx_start;
         sum += ret;
 
@@ -744,7 +819,9 @@ pub fn run_sashstoretest(net: &dyn Net, pkt_size: u16) -> Result<()> {
         submit_tx += tx_packets.len();
         submit_tx_hist.record(tx_packets.len() as u64);
         let tx_start = rdtsc();
-        let ret = net.submit_and_poll(&mut tx_packets, &mut rx_packets, true).unwrap()?;
+        let ret = net
+            .submit_and_poll(&mut tx_packets, &mut rx_packets, true)
+            .unwrap()?;
         tx_elapsed += rdtsc() - tx_start;
         fwd_sum += ret;
 
@@ -777,14 +854,33 @@ pub fn run_sashstoretest(net: &dyn Net, pkt_size: u16) -> Result<()> {
 
         println!("Received packets: {} forwarded packets: {}", sum, fwd_sum);
 
-        println!("Rx: {} packets took {} cycles (avg = {})", sum, rx_elapsed, rx_elapsed as f64 / sum as f64);
+        println!(
+            "Rx: {} packets took {} cycles (avg = {})",
+            sum,
+            rx_elapsed,
+            rx_elapsed as f64 / sum as f64
+        );
 
-        println!("KV lookup: {} packets took {} cycles (avg = {})", sum, lookup_elapsed, lookup_elapsed as f64 / sum as f64);
+        println!(
+            "KV lookup: {} packets took {} cycles (avg = {})",
+            sum,
+            lookup_elapsed,
+            lookup_elapsed as f64 / sum as f64
+        );
 
-        println!("Tx: {} packets took {} cycles (avg = {})", fwd_sum, tx_elapsed, tx_elapsed  as f64 / fwd_sum as f64);
+        println!(
+            "Tx: {} packets took {} cycles (avg = {})",
+            fwd_sum,
+            tx_elapsed,
+            tx_elapsed as f64 / fwd_sum as f64
+        );
 
-        println!("Sashstore: {} packets took {} cycles (avg = {})", fwd_sum, elapsed,
-                                                                        elapsed as f64 / fwd_sum as f64);
+        println!(
+            "Sashstore: {} packets took {} cycles (avg = {})",
+            fwd_sum,
+            elapsed,
+            elapsed as f64 / fwd_sum as f64
+        );
 
         let done_rx = net.poll(&mut rx_packets, false).unwrap()?;
         let done_tx = net.poll(&mut tx_packets, true).unwrap()?;
@@ -793,13 +889,26 @@ pub fn run_sashstoretest(net: &dyn Net, pkt_size: u16) -> Result<()> {
 
         println!("Device Stats\n{}", stats_end);
 
-        println!("Tx Pkts/s {:.2}", stats_end.tx_dma_ok as f64 / adj_runtime as f64);
-        println!("Rx Pkts/s {:.2}", stats_end.rx_dma_ok as f64 / adj_runtime as f64);
+        println!(
+            "Tx Pkts/s {:.2}",
+            stats_end.tx_dma_ok as f64 / adj_runtime as f64
+        );
+        println!(
+            "Rx Pkts/s {:.2}",
+            stats_end.rx_dma_ok as f64 / adj_runtime as f64
+        );
 
-        println!("Number of new allocations {}, took {} cycles (avg = {})", alloc_count * batch_sz, alloc_elapsed,
-                                                        alloc_elapsed as f64 / (alloc_count * batch_sz) as f64);
+        println!(
+            "Number of new allocations {}, took {} cycles (avg = {})",
+            alloc_count * batch_sz,
+            alloc_elapsed,
+            alloc_elapsed as f64 / (alloc_count * batch_sz) as f64
+        );
     } else {
-        println!("Test failed! No packets Forwarded! Rxed {}, Txed {}", sum, fwd_sum);
+        println!(
+            "Test failed! No packets Forwarded! Rxed {}, Txed {}",
+            sum, fwd_sum
+        );
     }
 
     print_hist!(submit_rx_hist);
@@ -822,10 +931,9 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
     let mut tx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
     let mut submit_rx_hist = Base2Histogram::new();
     let mut submit_tx_hist = Base2Histogram::new();
-    
-    let mut sender_mac = alloc::vec![ 0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81];
-    let mut our_mac = alloc::vec![0x90, 0xe2, 0xba, 0xb5, 0x14, 0xcd];
 
+    let mut sender_mac = alloc::vec![0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81];
+    let mut our_mac = alloc::vec![0x90, 0xe2, 0xba, 0xb5, 0x14, 0xcd];
 
     for i in 0..batch_sz {
         // Attempt to make the buffers align at different offsets - to avoid eviction from L1
@@ -870,8 +978,7 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
 
     let delay = 350;
     loop {
-
-       // sys_ns_loopsleep(delay as u64);
+        // sys_ns_loopsleep(delay as u64);
 
         loop_count = loop_count.wrapping_add(1);
 
@@ -879,7 +986,9 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
         submit_rx_hist.record(rx_packets.len() as u64);
         //println!("call rx_submit_poll packet {}", packets.len());
         let rx_start = rdtsc();
-        let ret = net.submit_and_poll(&mut rx_packets, &mut tx_packets, false).unwrap()?;
+        let ret = net
+            .submit_and_poll(&mut rx_packets, &mut tx_packets, false)
+            .unwrap()?;
         rx_elapsed += rdtsc() - rx_start;
         sum += ret;
 
@@ -914,9 +1023,17 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
             };
 
             if let Some(b) = backend {
-                unsafe { 
-                    ptr::copy(our_mac.as_ptr(), pkt.as_mut_ptr().offset(6), our_mac.capacity());
-                    ptr::copy(sender_mac.as_ptr(), pkt.as_mut_ptr().offset(0), sender_mac.capacity());
+                unsafe {
+                    ptr::copy(
+                        our_mac.as_ptr(),
+                        pkt.as_mut_ptr().offset(6),
+                        our_mac.capacity(),
+                    );
+                    ptr::copy(
+                        sender_mac.as_ptr(),
+                        pkt.as_mut_ptr().offset(0),
+                        sender_mac.capacity(),
+                    );
                 }
             };
 
@@ -928,7 +1045,9 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
         submit_tx += tx_packets.len();
         submit_tx_hist.record(tx_packets.len() as u64);
         let tx_start = rdtsc();
-        let ret = net.submit_and_poll(&mut tx_packets, &mut rx_packets, true).unwrap()?;
+        let ret = net
+            .submit_and_poll(&mut tx_packets, &mut rx_packets, true)
+            .unwrap()?;
         tx_elapsed += rdtsc() - tx_start;
         fwd_sum += ret;
 
@@ -961,14 +1080,33 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
 
         println!("Received packets: {} forwarded packets: {}", sum, fwd_sum);
 
-        println!("Rx: {} packets took {} cycles (avg = {})", sum, rx_elapsed, rx_elapsed as f64 / sum as f64);
+        println!(
+            "Rx: {} packets took {} cycles (avg = {})",
+            sum,
+            rx_elapsed,
+            rx_elapsed as f64 / sum as f64
+        );
 
-        println!("mac_swap: {} packets took {} cycles (avg = {})", sum, mswap_elapsed, mswap_elapsed as f64 / sum as f64);
+        println!(
+            "mac_swap: {} packets took {} cycles (avg = {})",
+            sum,
+            mswap_elapsed,
+            mswap_elapsed as f64 / sum as f64
+        );
 
-        println!("Tx: {} packets took {} cycles (avg = {})", fwd_sum, tx_elapsed, tx_elapsed  as f64 / fwd_sum as f64);
+        println!(
+            "Tx: {} packets took {} cycles (avg = {})",
+            fwd_sum,
+            tx_elapsed,
+            tx_elapsed as f64 / fwd_sum as f64
+        );
 
-        println!("maglev_fwd : Forwarding {} packets took {} cycles (avg = {})", fwd_sum, elapsed,
-                                                                        elapsed as f64 / fwd_sum as f64);
+        println!(
+            "maglev_fwd : Forwarding {} packets took {} cycles (avg = {})",
+            fwd_sum,
+            elapsed,
+            elapsed as f64 / fwd_sum as f64
+        );
 
         let done_rx = net.poll(&mut rx_packets, false).unwrap()?;
         let done_tx = net.poll(&mut tx_packets, true).unwrap()?;
@@ -977,13 +1115,26 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
 
         println!("Device Stats\n{}", stats_end);
 
-        println!("Tx Pkts/s {:.2}", stats_end.tx_dma_ok as f64 / adj_runtime as f64);
-        println!("Rx Pkts/s {:.2}", stats_end.rx_dma_ok as f64 / adj_runtime as f64);
+        println!(
+            "Tx Pkts/s {:.2}",
+            stats_end.tx_dma_ok as f64 / adj_runtime as f64
+        );
+        println!(
+            "Rx Pkts/s {:.2}",
+            stats_end.rx_dma_ok as f64 / adj_runtime as f64
+        );
 
-        println!("Number of new allocations {}, took {} cycles (avg = {})", alloc_count * batch_sz, alloc_elapsed,
-                                                        alloc_elapsed as f64 / (alloc_count * batch_sz) as f64);
+        println!(
+            "Number of new allocations {}, took {} cycles (avg = {})",
+            alloc_count * batch_sz,
+            alloc_elapsed,
+            alloc_elapsed as f64 / (alloc_count * batch_sz) as f64
+        );
     } else {
-        println!("Test failed! No packets Forwarded! Rxed {}, Txed {}", sum, fwd_sum);
+        println!(
+            "Test failed! No packets Forwarded! Rxed {}, Txed {}",
+            sum, fwd_sum
+        );
     }
 
     print_hist!(submit_rx_hist);
@@ -1008,20 +1159,19 @@ pub fn run_fwd_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, delay: u64
     let batch_sz = BATCH_SIZE;
     let mut rx_submit = RRefDeque::<[u8; 1514], 32>::default();
     let mut rx_collect = RRefDeque::<[u8; 1514], 32>::default();
-    let mut tx_poll =  RRefDeque::<[u8; 1514], 512>::default();
-    let mut rx_poll =  RRefDeque::<[u8; 1514], 512>::default();
+    let mut tx_poll = RRefDeque::<[u8; 1514], 512>::default();
+    let mut rx_poll = RRefDeque::<[u8; 1514], 512>::default();
 
     let mut submit_rx_hist = Base2Histogram::new();
     let mut submit_tx_hist = Base2Histogram::new();
-    
+
     let mut pkt_arr = [0; 1514];
 
     for i in 0..batch_sz {
         rx_submit.push_back(RRef::<[u8; 1514]>::new(pkt_arr.clone()));
     }
 
-
-    let mut sender_mac = alloc::vec![ 0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81];
+    let mut sender_mac = alloc::vec![0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81];
     let mut our_mac = alloc::vec![0x90, 0xe2, 0xba, 0xb5, 0x14, 0xcd];
 
     let mut sum: usize = 0;
@@ -1057,8 +1207,14 @@ pub fn run_fwd_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, delay: u64
         sys_ns_loopsleep(delay);
         //println!("call rx_submit_poll packet {}", packets.len());
         let rx_start = rdtsc();
-        let (ret, mut rx_submit_, mut rx_collect_) = net.submit_and_poll_rref(rx_submit.take().unwrap(),
-                                rx_collect.take().unwrap(), false, pkt_len).unwrap()?;
+        let (ret, mut rx_submit_, mut rx_collect_) = net
+            .submit_and_poll_rref(
+                rx_submit.take().unwrap(),
+                rx_collect.take().unwrap(),
+                false,
+                pkt_len,
+            )
+            .unwrap()?;
         sum += ret;
         rx_elapsed += rdtsc() - rx_start;
 
@@ -1071,8 +1227,16 @@ pub fn run_fwd_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, delay: u64
             }*/
             //let mut pkt = pkt as *mut [u8; 1514] as *mut u8;
             unsafe {
-                ptr::copy(our_mac.as_ptr(), pkt.as_mut_ptr().offset(6), our_mac.capacity());
-                ptr::copy(sender_mac.as_ptr(), pkt.as_mut_ptr().offset(0), sender_mac.capacity());
+                ptr::copy(
+                    our_mac.as_ptr(),
+                    pkt.as_mut_ptr().offset(6),
+                    our_mac.capacity(),
+                );
+                ptr::copy(
+                    sender_mac.as_ptr(),
+                    pkt.as_mut_ptr().offset(0),
+                    sender_mac.capacity(),
+                );
             }
         }
         mswap_elapsed += rdtsc() - ms_start;
@@ -1081,8 +1245,9 @@ pub fn run_fwd_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, delay: u64
         submit_tx_hist.record(rx_collect_.len() as u64);
 
         let tx_start = rdtsc();
-        let (ret, mut rx_collect_, mut rx_submit_) = net.submit_and_poll_rref(rx_collect_,
-                                rx_submit_, true, pkt_len).unwrap()?;
+        let (ret, mut rx_collect_, mut rx_submit_) = net
+            .submit_and_poll_rref(rx_collect_, rx_submit_, true, pkt_len)
+            .unwrap()?;
 
         tx_elapsed += rdtsc() - tx_start;
         fwd_sum += ret;
@@ -1124,14 +1289,33 @@ pub fn run_fwd_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, delay: u64
 
         println!("Received packets: {} forwarded packets: {}", sum, fwd_sum);
 
-        println!("Rx: {} packets took {} cycles (avg = {})", sum, rx_elapsed, rx_elapsed as f64 / sum as f64);
+        println!(
+            "Rx: {} packets took {} cycles (avg = {})",
+            sum,
+            rx_elapsed,
+            rx_elapsed as f64 / sum as f64
+        );
 
-        println!("mac_swap: {} packets took {} cycles (avg = {})", sum, mswap_elapsed, mswap_elapsed as f64 / sum as f64);
+        println!(
+            "mac_swap: {} packets took {} cycles (avg = {})",
+            sum,
+            mswap_elapsed,
+            mswap_elapsed as f64 / sum as f64
+        );
 
-        println!("Tx: {} packets took {} cycles (avg = {})", fwd_sum, tx_elapsed, tx_elapsed  as f64 / fwd_sum as f64);
+        println!(
+            "Tx: {} packets took {} cycles (avg = {})",
+            fwd_sum,
+            tx_elapsed,
+            tx_elapsed as f64 / fwd_sum as f64
+        );
 
-        println!("fwd_udptest: Forwarding {} packets took {} cycles (avg = {})", fwd_sum, elapsed,
-                                                                        elapsed as f64 / fwd_sum as f64);
+        println!(
+            "fwd_udptest: Forwarding {} packets took {} cycles (avg = {})",
+            fwd_sum,
+            elapsed,
+            elapsed as f64 / fwd_sum as f64
+        );
 
         let (done_rx, mut rx_poll_) = net.poll_rref(rx_poll.take().unwrap(), false).unwrap()?;
         let (done_tx, mut tx_poll_) = net.poll_rref(tx_poll.take().unwrap(), true).unwrap()?;
@@ -1140,13 +1324,26 @@ pub fn run_fwd_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, delay: u64
 
         println!("Device Stats\n{}", stats_end);
 
-        println!("Tx Pkts/s {:.2}", stats_end.tx_dma_ok as f64 / adj_runtime as f64);
-        println!("Rx Pkts/s {:.2}", stats_end.rx_dma_ok as f64 / adj_runtime as f64);
+        println!(
+            "Tx Pkts/s {:.2}",
+            stats_end.tx_dma_ok as f64 / adj_runtime as f64
+        );
+        println!(
+            "Rx Pkts/s {:.2}",
+            stats_end.rx_dma_ok as f64 / adj_runtime as f64
+        );
 
-        println!("Number of new allocations {}, took {} cycles (avg = {})", alloc_count * batch_sz, alloc_elapsed,
-                                                        alloc_elapsed as f64 / (alloc_count * batch_sz) as f64);
+        println!(
+            "Number of new allocations {}, took {} cycles (avg = {})",
+            alloc_count * batch_sz,
+            alloc_elapsed,
+            alloc_elapsed as f64 / (alloc_count * batch_sz) as f64
+        );
     } else {
-        println!("Test failed! No packets Forwarded! Rxed {}, Txed {}", sum, fwd_sum);
+        println!(
+            "Test failed! No packets Forwarded! Rxed {}, Txed {}",
+            sum, fwd_sum
+        );
     }
 
     print_hist!(submit_rx_hist);
@@ -1160,19 +1357,19 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
     #[cfg(feature = "noop")]
     return Ok(());
 
-    let mut sender_mac = alloc::vec![ 0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81];
+    let mut sender_mac = alloc::vec![0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81];
     let mut our_mac = alloc::vec![0x90, 0xe2, 0xba, 0xb5, 0x14, 0xcd];
 
     let batch_sz = BATCH_SIZE;
     let mut maglev = maglev::Maglev::new(0..3);
     let mut rx_submit = RRefDeque::<[u8; 1514], 32>::default();
     let mut rx_collect = RRefDeque::<[u8; 1514], 32>::default();
-    let mut tx_poll =  RRefDeque::<[u8; 1514], 512>::default();
-    let mut rx_poll =  RRefDeque::<[u8; 1514], 512>::default();
+    let mut tx_poll = RRefDeque::<[u8; 1514], 512>::default();
+    let mut rx_poll = RRefDeque::<[u8; 1514], 512>::default();
 
     let mut submit_rx_hist = Base2Histogram::new();
     let mut submit_tx_hist = Base2Histogram::new();
-    
+
     let mut pkt_arr = [0; 1514];
 
     for i in 0..batch_sz {
@@ -1187,7 +1384,6 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
         // Set protocol to TCP
         packet[ETH_HEADER_LEN + IPV4_PROTO_OFFSET] = 6;
     }
-
 
     let mut sum: usize = 0;
     let mut fwd_sum: usize = 0;
@@ -1220,15 +1416,20 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
     loop {
         //println!("call rx_submit_poll packet {}", packets.len());
         let rx_start = rdtsc();
-        let (ret, mut rx_submit_, mut rx_collect_) = net.submit_and_poll_rref(rx_submit.take().unwrap(),
-                                rx_collect.take().unwrap(), false, pkt_len).unwrap()?;
+        let (ret, mut rx_submit_, mut rx_collect_) = net
+            .submit_and_poll_rref(
+                rx_submit.take().unwrap(),
+                rx_collect.take().unwrap(),
+                false,
+                pkt_len,
+            )
+            .unwrap()?;
         sum += ret;
         rx_elapsed += rdtsc() - rx_start;
 
         //println!("rx: submitted {} collect {}", ret, rx_collect_.len());
 
         let ms_start = rdtsc();
-
 
         let mut pkt_iter = rx_collect_.iter_mut();
 
@@ -1243,7 +1444,7 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
                     None
                 }
             };
- 
+
             if let Some(_) = backend {
                 /*
                 for i in 0..6 {
@@ -1251,11 +1452,19 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
                 }
                 */
                 unsafe {
-                    ptr::copy(our_mac.as_ptr(), pkt.as_mut_ptr().offset(6), our_mac.capacity());
-                    ptr::copy(sender_mac.as_ptr(), pkt.as_mut_ptr().offset(0), sender_mac.capacity());
+                    ptr::copy(
+                        our_mac.as_ptr(),
+                        pkt.as_mut_ptr().offset(6),
+                        our_mac.capacity(),
+                    );
+                    ptr::copy(
+                        sender_mac.as_ptr(),
+                        pkt.as_mut_ptr().offset(0),
+                        sender_mac.capacity(),
+                    );
                 }
             }
-         }
+        }
 
         mswap_elapsed += rdtsc() - ms_start;
 
@@ -1263,8 +1472,9 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
         submit_tx_hist.record(rx_collect_.len() as u64);
 
         let tx_start = rdtsc();
-        let (ret, mut rx_collect_, mut rx_submit_) = net.submit_and_poll_rref(rx_collect_,
-                                rx_submit_, true, pkt_len).unwrap()?;
+        let (ret, mut rx_collect_, mut rx_submit_) = net
+            .submit_and_poll_rref(rx_collect_, rx_submit_, true, pkt_len)
+            .unwrap()?;
 
         tx_elapsed += rdtsc() - tx_start;
         fwd_sum += ret;
@@ -1280,7 +1490,6 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
             }
             alloc_elapsed += rdtsc() - alloc_rdstc_start;
         }
-
 
         submit_rx += rx_submit_.len();
         submit_rx_hist.record(rx_submit_.len() as u64);
@@ -1305,14 +1514,33 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
 
         println!("Received packets: {} forwarded packets: {}", sum, fwd_sum);
 
-        println!("Rx: {} packets took {} cycles (avg = {})", sum, rx_elapsed, rx_elapsed as f64 / sum as f64);
+        println!(
+            "Rx: {} packets took {} cycles (avg = {})",
+            sum,
+            rx_elapsed,
+            rx_elapsed as f64 / sum as f64
+        );
 
-        println!("mac_swap: {} packets took {} cycles (avg = {})", sum, mswap_elapsed, mswap_elapsed as f64 / sum as f64);
+        println!(
+            "mac_swap: {} packets took {} cycles (avg = {})",
+            sum,
+            mswap_elapsed,
+            mswap_elapsed as f64 / sum as f64
+        );
 
-        println!("Tx: {} packets took {} cycles (avg = {})", fwd_sum, tx_elapsed, tx_elapsed  as f64 / fwd_sum as f64);
+        println!(
+            "Tx: {} packets took {} cycles (avg = {})",
+            fwd_sum,
+            tx_elapsed,
+            tx_elapsed as f64 / fwd_sum as f64
+        );
 
-        println!("magleve_fwd_udptest: Forwarding {} packets took {} cycles (avg = {})", fwd_sum, elapsed,
-                                                                        elapsed as f64 / fwd_sum as f64);
+        println!(
+            "magleve_fwd_udptest: Forwarding {} packets took {} cycles (avg = {})",
+            fwd_sum,
+            elapsed,
+            elapsed as f64 / fwd_sum as f64
+        );
 
         let (done_rx, mut rx_poll_) = net.poll_rref(rx_poll.take().unwrap(), false).unwrap()?;
         let (done_tx, mut tx_poll_) = net.poll_rref(tx_poll.take().unwrap(), true).unwrap()?;
@@ -1321,13 +1549,26 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
 
         println!("Device Stats\n{}", stats_end);
 
-        println!("Tx Pkts/s {:.2}", stats_end.tx_dma_ok as f64 / adj_runtime as f64);
-        println!("Rx Pkts/s {:.2}", stats_end.rx_dma_ok as f64 / adj_runtime as f64);
+        println!(
+            "Tx Pkts/s {:.2}",
+            stats_end.tx_dma_ok as f64 / adj_runtime as f64
+        );
+        println!(
+            "Rx Pkts/s {:.2}",
+            stats_end.rx_dma_ok as f64 / adj_runtime as f64
+        );
 
-        println!("Number of new allocations {}, took {} cycles (avg = {})", alloc_count * batch_sz, alloc_elapsed,
-                                                        alloc_elapsed as f64 / (alloc_count * batch_sz) as f64);
+        println!(
+            "Number of new allocations {}, took {} cycles (avg = {})",
+            alloc_count * batch_sz,
+            alloc_elapsed,
+            alloc_elapsed as f64 / (alloc_count * batch_sz) as f64
+        );
     } else {
-        println!("Test failed! No packets Forwarded! Rxed {}, Txed {}", sum, fwd_sum);
+        println!(
+            "Test failed! No packets Forwarded! Rxed {}, Txed {}",
+            sum, fwd_sum
+        );
     }
 
     print_hist!(submit_rx_hist);
@@ -1344,7 +1585,6 @@ pub fn run_fwd_udptest(net: &dyn Net, pkt_len: u16) -> Result<()> {
     run_fwd_udptest_with_delay(net, pkt_len, 0)
 }
 
-
 pub fn run_fwd_udptest_with_delay(net: &dyn Net, pkt_len: u16, delay: u64) -> Result<()> {
     #[cfg(feature = "noop")]
     return Ok(());
@@ -1354,10 +1594,9 @@ pub fn run_fwd_udptest_with_delay(net: &dyn Net, pkt_len: u16, delay: u64) -> Re
     let mut tx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
     let mut submit_rx_hist = Base2Histogram::new();
     let mut submit_tx_hist = Base2Histogram::new();
-    
-    let mut sender_mac = alloc::vec![ 0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81];
-    let mut our_mac = alloc::vec![0x90, 0xe2, 0xba, 0xb5, 0x14, 0xcd];
 
+    let mut sender_mac = alloc::vec![0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81];
+    let mut our_mac = alloc::vec![0x90, 0xe2, 0xba, 0xb5, 0x14, 0xcd];
 
     for i in 0..batch_sz {
         rx_packets.push_front(Vec::with_capacity(2048));
@@ -1380,7 +1619,10 @@ pub fn run_fwd_udptest_with_delay(net: &dyn Net, pkt_len: u16, delay: u64) -> Re
     let mut submit_tx: usize = 0;
     let runtime = 30;
 
-    println!("======== Starting udp fwd test (delay {} ns)==========", delay);
+    println!(
+        "======== Starting udp fwd test (delay {} ns)==========",
+        delay
+    );
 
     let stats_start = net.get_stats().unwrap()?;
 
@@ -1393,7 +1635,9 @@ pub fn run_fwd_udptest_with_delay(net: &dyn Net, pkt_len: u16, delay: u64) -> Re
         submit_rx_hist.record(rx_packets.len() as u64);
         //println!("call rx_submit_poll packet {}", packets.len());
         let rx_start = rdtsc();
-        let ret = net.submit_and_poll(&mut rx_packets, &mut tx_packets, false).unwrap()?;
+        let ret = net
+            .submit_and_poll(&mut rx_packets, &mut tx_packets, false)
+            .unwrap()?;
         rx_elapsed += rdtsc() - rx_start;
         sum += ret;
 
@@ -1416,7 +1660,9 @@ pub fn run_fwd_udptest_with_delay(net: &dyn Net, pkt_len: u16, delay: u64) -> Re
         submit_tx_hist.record(tx_packets.len() as u64);
 
         let tx_start = rdtsc();
-        let ret = net.submit_and_poll(&mut tx_packets, &mut rx_packets, true).unwrap()?;
+        let ret = net
+            .submit_and_poll(&mut tx_packets, &mut rx_packets, true)
+            .unwrap()?;
         tx_elapsed += rdtsc() - tx_start;
         fwd_sum += ret;
 
@@ -1452,14 +1698,33 @@ pub fn run_fwd_udptest_with_delay(net: &dyn Net, pkt_len: u16, delay: u64) -> Re
 
         println!("Received packets: {} forwarded packets: {}", sum, fwd_sum);
 
-        println!("Rx: {} packets took {} cycles (avg = {})", sum, rx_elapsed, rx_elapsed as f64 / sum as f64);
+        println!(
+            "Rx: {} packets took {} cycles (avg = {})",
+            sum,
+            rx_elapsed,
+            rx_elapsed as f64 / sum as f64
+        );
 
-        println!("mac_swap: {} packets took {} cycles (avg = {})", sum, mswap_elapsed, mswap_elapsed as f64 / sum as f64);
+        println!(
+            "mac_swap: {} packets took {} cycles (avg = {})",
+            sum,
+            mswap_elapsed,
+            mswap_elapsed as f64 / sum as f64
+        );
 
-        println!("Tx: {} packets took {} cycles (avg = {})", fwd_sum, tx_elapsed, tx_elapsed  as f64 / fwd_sum as f64);
+        println!(
+            "Tx: {} packets took {} cycles (avg = {})",
+            fwd_sum,
+            tx_elapsed,
+            tx_elapsed as f64 / fwd_sum as f64
+        );
 
-        println!("fwd_udptest: Forwarding {} packets took {} cycles (avg = {})", fwd_sum, elapsed,
-                                                                        elapsed as f64 / fwd_sum as f64);
+        println!(
+            "fwd_udptest: Forwarding {} packets took {} cycles (avg = {})",
+            fwd_sum,
+            elapsed,
+            elapsed as f64 / fwd_sum as f64
+        );
 
         //println!("packet.len {} collect.len {}", packets.unwrap().len(), collect.unwrap().len());
         let done_rx = net.poll(&mut rx_packets, false).unwrap()?;
@@ -1467,16 +1732,29 @@ pub fn run_fwd_udptest_with_delay(net: &dyn Net, pkt_len: u16, delay: u64) -> Re
 
         println!("Reaped rx {} packets tx {} packets", done_rx, done_tx);
 
-        println!("Number of new allocations {}, took {} cycles (avg = {})", alloc_count * batch_sz, alloc_elapsed,
-                                                        alloc_elapsed as f64 / (alloc_count * batch_sz) as f64);
+        println!(
+            "Number of new allocations {}, took {} cycles (avg = {})",
+            alloc_count * batch_sz,
+            alloc_elapsed,
+            alloc_elapsed as f64 / (alloc_count * batch_sz) as f64
+        );
     } else {
-        println!("Test failed! No packets Forwarded! Rxed {}, Txed {}", sum, fwd_sum);
+        println!(
+            "Test failed! No packets Forwarded! Rxed {}, Txed {}",
+            sum, fwd_sum
+        );
     }
 
     println!("Device Stats\n{}", stats_end);
 
-    println!("Tx Pkts/s {:.2}", stats_end.tx_dma_ok as f64 / adj_runtime as f64);
-    println!("Rx Pkts/s {:.2}", stats_end.rx_dma_ok as f64 / adj_runtime as f64);
+    println!(
+        "Tx Pkts/s {:.2}",
+        stats_end.tx_dma_ok as f64 / adj_runtime as f64
+    );
+    println!(
+        "Rx Pkts/s {:.2}",
+        stats_end.rx_dma_ok as f64 / adj_runtime as f64
+    );
 
     print_hist!(submit_rx_hist);
     print_hist!(submit_tx_hist);

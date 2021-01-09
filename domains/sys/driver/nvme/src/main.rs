@@ -5,36 +5,35 @@
     const_raw_ptr_to_usize_cast,
     untagged_unions,
     maybe_uninit_extra,
-    core_intrinsics,
+    core_intrinsics
 )]
 //#![forbid(unsafe_code)]
 
-extern crate malloc;
 extern crate alloc;
+extern crate malloc;
 
 mod device;
 mod nullnvme;
 
-use alloc::collections::VecDeque;
 use alloc::boxed::Box;
+use alloc::collections::VecDeque;
 #[macro_use]
 use alloc::vec::Vec;
 use core::panic::PanicInfo;
+use syscalls::{Heap, Syscall};
 use usr::pci::PCI;
-use syscalls::{Syscall, Heap};
 
-use console::{println, print};
+use console::{print, println};
+use core::cell::RefCell;
 use pci_driver::DeviceBarRegions;
 use usr::error::{ErrorKind, Result};
 use usr::rpc::RpcResult;
-use core::cell::RefCell;
 
-
+use crate::device::NvmeDev;
 use libtime::get_rdtsc as rdtsc;
 use libtime::sys_ns_loopsleep;
-use crate::device::NvmeDev;
 pub use nvme_device::BlockReq;
-use rref::{RRefDeque};
+use rref::RRefDeque;
 use usr::bdev::BlkReq;
 
 #[macro_use]
@@ -45,7 +44,7 @@ struct Nvme {
     device_id: u16,
     driver: pci_driver::PciDrivers,
     device_initialized: bool,
-    device: RefCell<Option<NvmeDev>>
+    device: RefCell<Option<NvmeDev>>,
 }
 
 impl Nvme {
@@ -55,7 +54,7 @@ impl Nvme {
             device_id: 0x0953,
             driver: pci_driver::PciDrivers::NvmeDriver,
             device_initialized: false,
-            device: RefCell::new(None)
+            device: RefCell::new(None),
         }
     }
 
@@ -70,21 +69,19 @@ impl usr::bdev::NvmeBDev for Nvme {
         submit: RRefDeque<BlkReq, 128>,
         collect: RRefDeque<BlkReq, 128>,
         write: bool,
-        ) -> RpcResult<Result<(
-            usize,
-            RRefDeque<BlkReq, 128>,
-            RRefDeque<BlkReq, 128>,
-        )>>
-    {
-        Ok((||{
+    ) -> RpcResult<Result<(usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>)>> {
+        Ok((|| {
             let mut submit = Some(submit);
             let mut collect = Some(collect);
             let mut ret = 0;
 
             let device = &mut self.device.borrow_mut();
             let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
-            let (num, _, _, _, submit_, collect_) = device.device.submit_and_poll_rref(submit.take().unwrap(),
-            collect.take().unwrap(), write);
+            let (num, _, _, _, submit_, collect_) = device.device.submit_and_poll_rref(
+                submit.take().unwrap(),
+                collect.take().unwrap(),
+                write,
+            );
             ret = num;
 
             submit.replace(submit_);
@@ -94,11 +91,11 @@ impl usr::bdev::NvmeBDev for Nvme {
         })())
     }
 
-
-    fn poll_rref(&mut self, collect: RRefDeque<BlkReq, 1024>) ->
-            RpcResult<Result<(usize, RRefDeque<BlkReq, 1024>)>>
-    {
-        Ok((||{
+    fn poll_rref(
+        &mut self,
+        collect: RRefDeque<BlkReq, 1024>,
+    ) -> RpcResult<Result<(usize, RRefDeque<BlkReq, 1024>)>> {
+        Ok((|| {
             let mut collect = Some(collect);
             let mut ret = 0;
 
@@ -114,7 +111,7 @@ impl usr::bdev::NvmeBDev for Nvme {
     }
 
     fn get_stats(&mut self) -> RpcResult<Result<(u64, u64)>> {
-        Ok((||{
+        Ok((|| {
             let device = &mut self.device.borrow_mut();
             let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
             Ok(device.get_stats())
@@ -132,7 +129,9 @@ impl pci_driver::PciDriver for Nvme {
                     self.device.replace(Some(nvme_dev));
                 }
             }
-            _ => { println!("Got unknown bar region") }
+            _ => {
+                println!("Got unknown bar region")
+            }
         }
     }
 
@@ -150,7 +149,6 @@ impl pci_driver::PciDriver for Nvme {
 }
 
 fn perf_test_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
-
     let buffer: Vec<u8>;
     if is_write {
         buffer = alloc::vec![0xbau8; 4096];
@@ -212,11 +210,9 @@ fn perf_test_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
             }
         }*/
 
-
         dev.submit_io_raw(&mut submit_vec, is_write);
 
         loop {
-
             count += 1;
             //println!("checking");
             let _ret = dev.check_io_raw(128, is_write);
@@ -234,9 +230,18 @@ fn perf_test_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
         }
 
         let (sub, comp) = dev.get_stats();
-        println!("runtime {} submitted {:.2} K IOPS completed {:.2} K IOPS", runtime, sub as f64 / runtime as f64 / 1_000 as f64,
-                      comp as f64 / runtime as f64 / 1_000 as f64);
-        println!("loop {} poll took {} cycles (avg {} cycles)", count, poll_elapsed, poll_elapsed / count);
+        println!(
+            "runtime {} submitted {:.2} K IOPS completed {:.2} K IOPS",
+            runtime,
+            sub as f64 / runtime as f64 / 1_000_f64,
+            comp as f64 / runtime as f64 / 1_000_f64
+        );
+        println!(
+            "loop {} poll took {} cycles (avg {} cycles)",
+            count,
+            poll_elapsed,
+            poll_elapsed / count
+        );
 
         for hist in alloc::vec![poll_hist] {
             println!("hist:");
@@ -246,12 +251,10 @@ fn perf_test_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
                 print!("\n");
             }
         }
-
     }
 }
 
 fn perf_test_iov(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
-
     let buffer: Vec<u8>;
     if is_write {
         buffer = alloc::vec![0xccu8; 4096];
@@ -332,10 +335,20 @@ fn perf_test_iov(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
         }
 
         let (sub, comp) = dev.get_stats();
-        println!("runtime {} submitted {} IOPS completed {} IOPS", runtime, sub as f64 / runtime as f64 / 1_000 as f64,
-                      comp as f64 / runtime as f64 / 1_000 as f64);
-        println!("loop {} submit took {} cycles (avg {} cycles), poll took {} cycles (avg {} cycles)",
-                                count, submit_elapsed, submit_elapsed / count, poll_elapsed, poll_elapsed / count);
+        println!(
+            "runtime {} submitted {} IOPS completed {} IOPS",
+            runtime,
+            sub as f64 / runtime as f64 / 1_000_f64,
+            comp as f64 / runtime as f64 / 1_000_f64
+        );
+        println!(
+            "loop {} submit took {} cycles (avg {} cycles), poll took {} cycles (avg {} cycles)",
+            count,
+            submit_elapsed,
+            submit_elapsed / count,
+            poll_elapsed,
+            poll_elapsed / count
+        );
 
         for hist in alloc::vec![submit_hist, poll_hist] {
             println!("hist:");
@@ -345,17 +358,21 @@ fn perf_test_iov(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
                 print!("\n");
             }
         }
-
     }
 }
 
 fn run_blocktest_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool, is_random: bool) {
-   run_blocktest_raw_with_delay(dev, runtime, batch_sz, is_write, is_random, 0);
+    run_blocktest_raw_with_delay(dev, runtime, batch_sz, is_write, is_random, 0);
 }
 
-fn run_blocktest_raw_with_delay(dev: &Nvme, runtime: u64, batch_sz: u64,
-                                is_write: bool, is_random: bool,
-                                delay: u64) {
+fn run_blocktest_raw_with_delay(
+    dev: &Nvme,
+    runtime: u64,
+    batch_sz: u64,
+    is_write: bool,
+    is_random: bool,
+    delay: u64,
+) {
     let req: Vec<u8>;
     if is_write {
         req = alloc::vec![0xbau8; 4096];
@@ -386,10 +403,12 @@ fn run_blocktest_raw_with_delay(dev: &Nvme, runtime: u64, batch_sz: u64,
         let mut poll_hist = Base2Histogram::new();
         let mut ret = 0;
 
-        println!("======== Starting {}{} test (delay {})  ==========",
-                                    if is_random { "rand" } else { "" },
-                                    if is_write { "write" } else { "read" },
-                                    delay);
+        println!(
+            "======== Starting {}{} test (delay {})  ==========",
+            if is_random { "rand" } else { "" },
+            if is_write { "write" } else { "read" },
+            delay
+        );
 
         let tsc_start = rdtsc();
         let tsc_end = tsc_start + runtime * 2_400_000_000;
@@ -406,7 +425,7 @@ fn run_blocktest_raw_with_delay(dev: &Nvme, runtime: u64, batch_sz: u64,
 
             submit.append(&mut collect);
 
-            if submit.len() == 0 {
+            if submit.is_empty() {
                 alloc_count += 1;
                 //println!("allocating new batch at count {}", count);
                 for _i in 0..batch_sz {
@@ -422,7 +441,7 @@ fn run_blocktest_raw_with_delay(dev: &Nvme, runtime: u64, batch_sz: u64,
 
         let elapsed = rdtsc() - tsc_start;
 
-        let adj_runtime = elapsed as f64 / 2_400_000_000_u64 as f64;
+        let adj_runtime = elapsed as f64 / 2_400_000_000_f64;
 
         let (sub, comp) = dev.get_stats();
 
@@ -436,14 +455,18 @@ fn run_blocktest_raw_with_delay(dev: &Nvme, runtime: u64, batch_sz: u64,
 
         println!("runtime: {:.2} seconds", adj_runtime);
 
-        println!("submitted {:.2} K IOPS completed {:.2} K IOPS",
-                 sub as f64 / adj_runtime as f64 / 1_000 as f64,
-                 comp as f64 / adj_runtime as f64 / 1_000 as f64);
-        println!("submit_and_poll_rref took {} cycles (avg {} cycles)",
-        submit_elapsed, submit_elapsed / count);
+        println!(
+            "submitted {:.2} K IOPS completed {:.2} K IOPS",
+            sub as f64 / adj_runtime as f64 / 1_000_f64,
+            comp as f64 / adj_runtime as f64 / 1_000_f64
+        );
+        println!(
+            "submit_and_poll_rref took {} cycles (avg {} cycles)",
+            submit_elapsed,
+            submit_elapsed / count
+        );
 
         println!("Number of new allocations {}", alloc_count * batch_sz);
-
 
         for hist in alloc::vec![submit_hist, poll_hist] {
             println!("hist:");
@@ -458,7 +481,6 @@ fn run_blocktest_raw_with_delay(dev: &Nvme, runtime: u64, batch_sz: u64,
 }
 
 fn run_blocktest(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
-
     let buffer: Vec<u8>;
     if is_write {
         buffer = alloc::vec![0xbau8; 4096];
@@ -508,7 +530,7 @@ fn run_blocktest(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
 
             submit.append(&mut collect);
 
-            if submit.len() == 0 {
+            if submit.is_empty() {
                 //println!("allocating new batch");
                 for _i in 0..batch_sz {
                     let mut breq = breq.clone();
@@ -530,10 +552,18 @@ fn run_blocktest(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
         }
 
         let (sub, comp) = dev.get_stats();
-        println!("runtime {} submitted {:.2} K IOPS completed {:.2} K IOPS", runtime, sub as f64 / runtime as f64 / 1_000 as f64,
-                      comp as f64 / runtime as f64 / 1_000 as f64);
-        println!("run_blocktest loop {} submit_and_poll took {} cycles (avg {} cycles)", count,
-                                            submit_elapsed, submit_elapsed / count);
+        println!(
+            "runtime {} submitted {:.2} K IOPS completed {:.2} K IOPS",
+            runtime,
+            sub as f64 / runtime as f64 / 1_000_f64,
+            comp as f64 / runtime as f64 / 1_000_f64
+        );
+        println!(
+            "run_blocktest loop {} submit_and_poll took {} cycles (avg {} cycles)",
+            count,
+            submit_elapsed,
+            submit_elapsed / count
+        );
 
         for hist in alloc::vec![poll_hist] {
             println!("hist:");
@@ -543,14 +573,15 @@ fn run_blocktest(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
                 print!("\n");
             }
         }
-
     }
 }
 
 #[no_mangle]
-pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>,
-                 heap: Box<dyn Heap + Send + Sync>,
-                 pci: Box<dyn usr::pci::PCI>) -> Box<dyn usr::bdev::NvmeBDev> {
+pub fn trusted_entry(
+    s: Box<dyn Syscall + Send + Sync>,
+    heap: Box<dyn Heap + Send + Sync>,
+    pci: Box<dyn usr::pci::PCI>,
+) -> Box<dyn usr::bdev::NvmeBDev> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
@@ -558,7 +589,7 @@ pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>,
     #[cfg(not(feature = "nullnvme"))]
     let nvme = {
         let mut nvme = Nvme::new();
-        if let Err(_) = pci.pci_register_driver(&mut nvme, 0, None) {
+        if pci.pci_register_driver(&mut nvme, 0, None).is_err() {
             println!("WARNING: failed to register IXGBE driver");
         }
         nvme
@@ -574,8 +605,13 @@ pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>,
         let rand_start = rdtsc();
         let sum = libbenchnvme::rand_test(num_iter);
         let rand_elapsed = rdtsc() - rand_start;
-        println!("Rand {} test {} iterations took {} cycles (avg {} cycles)", sum, num_iter,
-                                        rand_elapsed, rand_elapsed as f64 / num_iter as f64);
+        println!(
+            "Rand {} test {} iterations took {} cycles (avg {} cycles)",
+            sum,
+            num_iter,
+            rand_elapsed,
+            rand_elapsed as f64 / num_iter as f64
+        );
     }
 
     /* println!("write test");

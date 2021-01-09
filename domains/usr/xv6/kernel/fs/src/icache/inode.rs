@@ -278,7 +278,11 @@ impl INodeDataGuard<'_> {
 
     // Look for a directory entry in a directory.
     // If found, set *poff to byte offset of entry(currently not supported).
-    pub fn dirlookup(&mut self, trans: &mut Transaction, name: &str) -> Result<(usize, Arc<INode>)> {
+    pub fn dirlookup(
+        &mut self,
+        trans: &mut Transaction,
+        name: &str,
+    ) -> Result<(usize, Arc<INode>)> {
         if self.data.file_type != INodeFileType::Directory {
             panic!("dirlookup not DIR");
         }
@@ -293,7 +297,10 @@ impl INodeDataGuard<'_> {
             }
             let dirent_name = utils::cstr::to_string(dirent.name).unwrap();
             if dirent_name == name {
-                return Ok((offset, ICACHE.lock().get(self.node.meta.device, dirent.inum)?));
+                return Ok((
+                    offset,
+                    ICACHE.lock().get(self.node.meta.device, dirent.inum)?,
+                ));
             }
         }
 
@@ -308,7 +315,10 @@ impl INodeDataGuard<'_> {
         // Loop throught the directory except the first two entries.
         // The first two entries are "." and ".."
         const SIZE_OF_DIRENT: usize = core::mem::size_of::<DirectoryEntry>();
-        for offset in (0usize..self.data.size as usize).step_by(SIZE_OF_DIRENT).skip(2) {
+        for offset in (0usize..self.data.size as usize)
+            .step_by(SIZE_OF_DIRENT)
+            .skip(2)
+        {
             let mut buffer = [0; SIZE_OF_DIRENT];
             self.read(trans, &mut buffer[..], offset).unwrap();
             let dirent = DirectoryEntryRef::from_bytes(&buffer[..]);
@@ -317,7 +327,7 @@ impl INodeDataGuard<'_> {
             }
         }
 
-        return Ok(true);
+        Ok(true)
     }
 
     // Write a new directory entry (name, inum) into the directory.
@@ -348,7 +358,7 @@ impl INodeDataGuard<'_> {
         }
         let dirent = DirectoryEntryRef {
             name: cloned_name.as_slice(),
-            inum: inum,
+            inum,
         };
 
         buffer = dirent.as_bytes();

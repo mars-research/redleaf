@@ -136,7 +136,7 @@ impl Pipe {
     pub fn read(&self, data: &mut [u8]) -> Result<usize> {
         let pred = |pipe: &mut PipeInternal| {
             // Stop waiting if pipe is closed for writing or the buffer is not empty
-            return !pipe.writeopen || pipe.nread != pipe.nwrite;
+            !pipe.writeopen || pipe.nread != pipe.nwrite
         };
 
         // Sleep until there's something to read or write end is closed

@@ -11,16 +11,14 @@ extern crate malloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 
-
 use core::panic::PanicInfo;
 
 use console::println;
 
-use rref;
 use syscalls::{Heap, Syscall};
 use usr_interface::bdev::BDev;
-use usr_interface::vfs::{VFS};
-use usr_interface::rv6::{Rv6};
+use usr_interface::rv6::Rv6;
+use usr_interface::vfs::VFS;
 
 #[no_mangle]
 pub fn trusted_entry(
@@ -46,7 +44,8 @@ pub fn trusted_entry(
     let (_dom_xv6fs, fs) = create_xv6fs.create_domain_xv6fs(bdev);
     // Init usrnet
     #[cfg(feature = "shadow")]
-    let (_dom_xv6net, usrnet) = create_xv6net_shadow.create_domain_xv6net_shadow(create_xv6net, net.clone_net().unwrap());
+    let (_dom_xv6net, usrnet) =
+        create_xv6net_shadow.create_domain_xv6net_shadow(create_xv6net, net.clone_net().unwrap());
     #[cfg(not(feature = "shadow"))]
     let (_dom_xv6net, usrnet) = create_xv6net.create_domain_xv6net(net.clone_net().unwrap());
     // Init kernel

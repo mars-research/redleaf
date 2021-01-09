@@ -19,7 +19,7 @@ use core::panic::PanicInfo;
 
 use syscalls::{Heap, Syscall};
 use usr_interfaces::rv6::Rv6;
-use usrlib::syscalls::{sys_read_slice_slow};
+use usrlib::syscalls::sys_read_slice_slow;
 use usrlib::{print, println};
 
 mod parse;
@@ -43,8 +43,8 @@ pub fn trusted_entry(
         // String::from("dump_inode"),
         String::from("ls"),
         String::from("rv6_testtpm"),
-        // String::from("ls > foo"), 
-        // String::from("mkdir bar"), 
+        // String::from("ls > foo"),
+        // String::from("mkdir bar"),
         // String::from("ls"),
         // String::from("rm foo"),
         // String::from("ls"),
@@ -54,7 +54,7 @@ pub fn trusted_entry(
         // alloc::format!("benchfs r large {}", 30usize * 1024 * 1024 * 1024),
     ];
 
-    const prompt: &'static str = "rv6> ";
+    const prompt: &str = "rv6> ";
     for command in &predefined_commands {
         print!("{}", prompt);
         print!("{}", command);

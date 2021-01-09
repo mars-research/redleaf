@@ -2,26 +2,23 @@
 
 use alloc::collections::VecDeque;
 
-
-use alloc::vec::Vec;
 use crate::Result;
-use nvme_device::{NvmeRegs32, NvmeRegs64, NvmeDevice};
-use console::{println};
+use alloc::vec::Vec;
+use console::println;
+use nvme_device::{NvmeDevice, NvmeRegs32, NvmeRegs64};
 
 use libtime::sys_ns_loopsleep;
 
-
 use crate::BlockReq;
 
+use rref::RRefDeque;
 use usr::bdev::BlkReq;
-use rref::{RRefDeque};
-
 
 use platform::PciBarAddr;
 
 const ONE_MS_IN_NS: u64 = 100_0000;
-const NVME_CC_ENABLE: u32                   = 0x1;
-const NVME_CSTS_RDY: u32                   = 0x1;
+const NVME_CC_ENABLE: u32 = 0x1;
+const NVME_CSTS_RDY: u32 = 0x1;
 
 pub struct NvmeDev {
     pub device: NvmeDevice,
@@ -100,10 +97,12 @@ impl NvmeDev {
     }
 
     fn set_entry_sizes(&self) {
-        self.write_reg32(NvmeRegs32::CC, self.read_reg32(NvmeRegs32::CC) |
+        self.write_reg32(
+            NvmeRegs32::CC,
+            self.read_reg32(NvmeRegs32::CC) |
                                 (4 << 20) // Sizeof(NvmeCompletion) in power of two
-                                | (6 << 16) // Sizeof(NvmeCommand) in power of two
-                                );
+                                | (6 << 16), // Sizeof(NvmeCommand) in power of two
+        );
     }
 
     fn identify_controller(&mut self) {
@@ -130,10 +129,11 @@ impl NvmeDev {
     fn init(&mut self) {
         println!("Capabilities 0x{:X}", self.read_reg64(NvmeRegs64::CAP));
         println!("Version 0x{:X}", self.read_reg32(NvmeRegs32::VS));
-        println!("Controller Configuration 0x{:X}",
-                        self.read_reg32(NvmeRegs32::CC));
-        println!("Contoller Status 0x{:X}",
-                        self.read_reg32(NvmeRegs32::CSTS));
+        println!(
+            "Controller Configuration 0x{:X}",
+            self.read_reg32(NvmeRegs32::CC)
+        );
+        println!("Contoller Status 0x{:X}", self.read_reg32(NvmeRegs32::CSTS));
 
         /// 7.6.1 Initialization (Nvme spec 1.4-2019.06.10)
         // Reset the controller
@@ -192,31 +192,50 @@ impl NvmeDev {
         self.device.check_io_raw(num_reqs, write)
     }
 
-    pub fn submit_and_poll(&mut self, submit_queue: &mut VecDeque<BlockReq>,
-                            collect: &mut VecDeque<BlockReq>, write: bool) -> usize {
+    pub fn submit_and_poll(
+        &mut self,
+        submit_queue: &mut VecDeque<BlockReq>,
+        collect: &mut VecDeque<BlockReq>,
+        write: bool,
+    ) -> usize {
         self.device.submit_and_poll(submit_queue, collect, write)
     }
 
-    pub fn submit_and_poll_raw(&mut self, submit_queue: &mut VecDeque<Vec<u8>>,
-                            collect: &mut VecDeque<Vec<u8>>, write: bool, is_random: bool) -> usize {
-        self.device.submit_and_poll_raw(submit_queue, collect, write, is_random)
+    pub fn submit_and_poll_raw(
+        &mut self,
+        submit_queue: &mut VecDeque<Vec<u8>>,
+        collect: &mut VecDeque<Vec<u8>>,
+        write: bool,
+        is_random: bool,
+    ) -> usize {
+        self.device
+            .submit_and_poll_raw(submit_queue, collect, write, is_random)
     }
 
-    pub fn submit_and_poll_rref(&mut self, submit: RRefDeque<BlkReq, 128>, collect:
-                                 RRefDeque<BlkReq, 128>, write: bool) -> 
-            (usize, usize, usize, usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>)
-    {
+    pub fn submit_and_poll_rref(
+        &mut self,
+        submit: RRefDeque<BlkReq, 128>,
+        collect: RRefDeque<BlkReq, 128>,
+        write: bool,
+    ) -> (
+        usize,
+        usize,
+        usize,
+        usize,
+        RRefDeque<BlkReq, 128>,
+        RRefDeque<BlkReq, 128>,
+    ) {
         self.device.submit_and_poll_rref(submit, collect, write)
     }
 
-    pub fn poll_raw(&mut self, collect: &mut VecDeque<Vec<u8>>) -> usize
-    {
+    pub fn poll_raw(&mut self, collect: &mut VecDeque<Vec<u8>>) -> usize {
         self.device.poll_raw(collect)
     }
 
-    pub fn poll_rref(&mut self, collect: RRefDeque<BlkReq, 1024>) -> 
-                                (usize, RRefDeque<BlkReq, 1024>)
-    {
+    pub fn poll_rref(
+        &mut self,
+        collect: RRefDeque<BlkReq, 1024>,
+    ) -> (usize, RRefDeque<BlkReq, 1024>) {
         self.device.poll_rref(collect)
     }
 

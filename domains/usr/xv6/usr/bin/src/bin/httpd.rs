@@ -9,7 +9,6 @@ use alloc::boxed::Box;
 
 use core::panic::PanicInfo;
 
-
 use syscalls::{Heap, Syscall};
 use usr_interfaces::error::Result;
 
@@ -18,17 +17,9 @@ use usr_interfaces::usrnet::UsrNet;
 
 use usrlib::{eprintln, println};
 
-
-
-
-
-
 extern crate arrayvec;
 
-
 #[macro_use]
-
-
 use redhttpd::usrnet::Httpd;
 
 #[no_mangle]

@@ -11,7 +11,6 @@ use crate::params;
 use crate::pipe::Pipe;
 use crate::sysfile::FileStat;
 
-
 pub type FDTable = [Option<Arc<OpenedFile>>; params::NFILE];
 
 lazy_static! {

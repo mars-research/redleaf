@@ -3,26 +3,25 @@
 #![feature(optimize_attribute)]
 #![feature(llvm_asm)]
 
-extern crate malloc;
 extern crate alloc;
-use libsyscalls;
-use syscalls::{Syscall, Heap};
+extern crate malloc;
+
+use syscalls::{Heap, Syscall};
 
 use alloc::boxed::Box;
 
-use console::{println};
+use console::println;
 use core::alloc::Layout;
 use core::panic::PanicInfo;
 
 use alloc::vec::Vec;
 
-
-use sashstore_redleaf::indexmap::Index;
 use core::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
+use sashstore_redleaf::indexmap::Index;
 
 use fnv::FnvHasher;
-use twox_hash::XxHash;
 use libtime::get_rdtsc as rdtsc;
+use twox_hash::XxHash;
 
 const DOMAIN_NAME: &str = "benchhash";
 const CACHE_SIZE: usize = 1 << 22;
@@ -65,7 +64,10 @@ fn test_hashmap_with_load(capacity: usize, load: usize) {
     let load_factor = load as f64 * 0.01;
     let NUM_INSERTIONS = (capacity as f64 * load_factor) as usize;
 
-    println!("======== HT test {{ capacity: {} load factor {} (insertions {}) }}=======", capacity, load_factor, NUM_INSERTIONS);
+    println!(
+        "======== HT test {{ capacity: {} load factor {} (insertions {}) }}=======",
+        capacity, load_factor, NUM_INSERTIONS
+    );
 
     let start = rdtsc();
     for i in 0..NUM_INSERTIONS {
@@ -73,19 +75,28 @@ fn test_hashmap_with_load(capacity: usize, load: usize) {
     }
     let elapsed = rdtsc() - start;
 
-    println!("{} insertions took {} cycles (avg {})", NUM_INSERTIONS, elapsed, elapsed / NUM_INSERTIONS as u64);
+    println!(
+        "{} insertions took {} cycles (avg {})",
+        NUM_INSERTIONS,
+        elapsed,
+        elapsed / NUM_INSERTIONS as u64
+    );
 
     let start = rdtsc();
     for i in 0..NUM_INSERTIONS {
         //for _ in 0..10 {
-            ht.cache.get(&i);
+        ht.cache.get(&i);
         //}
     }
 
     let elapsed = rdtsc() - start;
-    println!("{} lookups took {} cycles (avg {})", NUM_INSERTIONS, elapsed, elapsed / NUM_INSERTIONS as u64);
+    println!(
+        "{} lookups took {} cycles (avg {})",
+        NUM_INSERTIONS,
+        elapsed,
+        elapsed / NUM_INSERTIONS as u64
+    );
     println!("-----------------------------------------------------------");
-
 }
 
 fn test_hashmap_with_cap(capacity: usize) {
@@ -98,9 +109,10 @@ fn test_serial(size_mb: usize) {
     let capacity = (1 << 20) * size_mb;
 
     let layout = Layout::from_size_align(capacity, 4096)
-        .map_err(|e| panic!("Layout error: {}", e)).unwrap();
+        .map_err(|e| panic!("Layout error: {}", e))
+        .unwrap();
 
-    let buf = unsafe {alloc::alloc::alloc(layout) as *mut u8 };
+    let buf = unsafe { alloc::alloc::alloc(layout) as *mut u8 };
     let buf2 = buf as *mut _ as u64;
     let mut v: Vec<u8> = unsafe { Vec::from_raw_parts(buf, capacity, capacity) };
 
@@ -140,14 +152,14 @@ pub extern "C" fn get_rand(cap: u64) -> u64 {
     }
 }
 
-
 fn test_random(size_mb: usize) {
     let capacity = (1 << 20) * size_mb;
 
     let layout = Layout::from_size_align(capacity, 4096)
-        .map_err(|e| panic!("Layout error: {}", e)).unwrap();
+        .map_err(|e| panic!("Layout error: {}", e))
+        .unwrap();
 
-    let buf = unsafe {alloc::alloc::alloc(layout) as *mut u8 };
+    let buf = unsafe { alloc::alloc::alloc(layout) as *mut u8 };
     let buf2 = buf as *mut _ as u64;
 
     let mut v: Vec<u8> = unsafe { Vec::from_raw_parts(buf, capacity, capacity) };
@@ -192,7 +204,6 @@ fn test_random(size_mb: usize) {
 }
 
 fn test_hashmap() {
-
     /*for i in 10..30 {
         test_hashmap_with_cap(1 << i);
     }*/
@@ -200,20 +211,20 @@ fn test_hashmap() {
     for i in 12..27 {
         run_bench(i, i - 2);
     }
-        /*
-       println!("===> start");
-        let start = unsafe { core::arch::x86_64::_rdtsc()} ;
-        let mut sum: u64 = 0;
-        for i in 0..(1u64 << 35) {
-            if i % 2 == 0 {
-                sum = sum.wrapping_add(i);
-            } else {
-                sum = sum.wrapping_sub(i);
-            }
-        }
-        let delta = unsafe {core::arch::x86_64::_rdtsc() - start};
-        println!("===> end");
-     println!("delta {} sum {}", delta, sum); */
+    /*
+      println!("===> start");
+       let start = unsafe { core::arch::x86_64::_rdtsc()} ;
+       let mut sum: u64 = 0;
+       for i in 0..(1u64 << 35) {
+           if i % 2 == 0 {
+               sum = sum.wrapping_add(i);
+           } else {
+               sum = sum.wrapping_sub(i);
+           }
+       }
+       let delta = unsafe {core::arch::x86_64::_rdtsc() - start};
+       println!("===> end");
+    println!("delta {} sum {}", delta, sum); */
     /*
     for i in 2..12 {
         test_serial(1 << i);
@@ -235,7 +246,7 @@ fn run_bench(_capacity: usize, _keys: usize) {
 
     let start_tsc_insert = rdtsc();
 
-    for i in 1..(keys+1) {
+    for i in 1..(keys + 1) {
         ht.insert(i, i);
     }
     let total_tsc_insert = rdtsc() - start_tsc_insert;
@@ -245,9 +256,11 @@ fn run_bench(_capacity: usize, _keys: usize) {
     let mut sum = 0usize;
     let start_tsc_lookup = rdtsc();
 
-    for i in 1..(gets+1) {
+    for i in 1..(gets + 1) {
         match ht.get(&i) {
-            Some(val) => {  sum += *val; },
+            Some(val) => {
+                sum += *val;
+            }
             None => println!("key {} not found", i),
         }
     }
@@ -255,7 +268,16 @@ fn run_bench(_capacity: usize, _keys: usize) {
     let total_tsc_lookup = rdtsc() - start_tsc_lookup;
     let cycles_per_lookup = total_tsc_lookup / gets as u64;
 
-    println!("{}, {}, {}, {}, {}, {}, *{}*", _capacity, _keys, total_tsc_insert, cycles_per_insert, total_tsc_lookup, cycles_per_lookup, sum);
+    println!(
+        "{}, {}, {}, {}, {}, {}, *{}*",
+        _capacity,
+        _keys,
+        total_tsc_insert,
+        cycles_per_insert,
+        total_tsc_lookup,
+        cycles_per_lookup,
+        sum
+    );
     //indexmap::print_collisions();
     /*
     println!("Keys inserted: {}", keys);

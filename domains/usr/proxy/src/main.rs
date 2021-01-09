@@ -1,21 +1,18 @@
 #![no_std]
 #![no_main]
-#![feature(
-    global_asm,
-    box_syntax,
-)]
+#![feature(global_asm, box_syntax)]
 mod gen;
 
-extern crate malloc;
 extern crate alloc;
-use libsyscalls;
-use syscalls;
-use create;
-use rref;
+extern crate malloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use console::println;
 use core::panic::PanicInfo;
+use create;
+use libsyscalls;
+use rref;
+use syscalls;
 
 #[no_mangle]
 pub fn trusted_entry(
@@ -42,7 +39,6 @@ pub fn trusted_entry(
     create_dom_d: Arc<dyn create::CreateDomD>,
     create_shadow: Arc<dyn create::CreateShadow>,
 ) -> Arc<dyn proxy::Proxy> {
-
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 

@@ -1,57 +1,40 @@
 #![no_std]
 #![no_main]
-#![feature(
-    asm,
-    box_syntax,
-    const_fn,
-    const_raw_ptr_to_usize_cast,
-)]
+#![feature(asm, box_syntax, const_fn, const_raw_ptr_to_usize_cast)]
 #![forbid(unsafe_code)]
 
 mod tpm_dev;
 mod usr_tpm;
 
-extern crate malloc;
 extern crate alloc;
 extern crate b2histogram;
+extern crate malloc;
 #[macro_use]
 extern crate bitflags;
 
 #[macro_use]
 extern crate bitfield;
 
-
-
-
 #[macro_use]
-
-
-
-
 use alloc::boxed::Box;
 
 #[macro_use]
-
-
 use core::panic::PanicInfo;
-use syscalls::{Syscall, Heap};
-use usr;
+use syscalls::{Heap, Syscall};
 
-use console::{println};
+use console::println;
 use libsyscalls::syscalls::sys_backtrace;
 pub use usr::error::{ErrorKind, Result};
 
-
- 
 use usr::tpm::TpmRegs;
-
-
 
 pub const ONE_MS_IN_NS: u64 = 1000 * 1000;
 
 #[no_mangle]
-pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>,
-                 heap: Box<dyn Heap + Send + Sync>) -> Box<dyn usr::tpm::UsrTpm> {
+pub fn trusted_entry(
+    s: Box<dyn Syscall + Send + Sync>,
+    heap: Box<dyn Heap + Send + Sync>,
+) -> Box<dyn usr::tpm::UsrTpm> {
     libsyscalls::syscalls::init(s);
 
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());

@@ -6,16 +6,14 @@
 extern crate alloc;
 extern crate malloc;
 
-
 #[macro_use]
 use alloc::boxed::Box;
-
 
 use core::panic::PanicInfo;
 
 use syscalls::{Heap, Syscall};
 use usr_interfaces::rv6::Rv6;
-use usrlib::{println};
+use usrlib::println;
 
 #[no_mangle]
 pub fn trusted_entry(

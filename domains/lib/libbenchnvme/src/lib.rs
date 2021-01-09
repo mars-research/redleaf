@@ -32,8 +32,12 @@ pub fn rand_test(num_iter: usize) -> u64 {
     sum
 }
 
-pub fn run_blocktest_rref(dev: &mut dyn NvmeBDev, block_sz: usize, is_write: bool, is_random: bool) -> Result<()>
-{
+pub fn run_blocktest_rref(
+    dev: &mut dyn NvmeBDev,
+    block_sz: usize,
+    is_write: bool,
+    is_random: bool,
+) -> Result<()> {
     let mut block_num: u64 = 0;
     let batch_sz = 32;
     let runtime = 30;
@@ -58,9 +62,11 @@ pub fn run_blocktest_rref(dev: &mut dyn NvmeBDev, block_sz: usize, is_write: boo
         submit.push_back(RRef::<BlkReq>::new(breq));
     }
 
-    println!("======== Starting {}{} test (rrefs)  ==========",
-                                    if is_random { "rand" } else { "" },
-                                    if is_write { "write" } else { "read" });
+    println!(
+        "======== Starting {}{} test (rrefs)  ==========",
+        if is_random { "rand" } else { "" },
+        if is_write { "write" } else { "read" }
+    );
 
     let mut submit_start = 0;
     let mut submit_elapsed = 0;
@@ -87,8 +93,9 @@ pub fn run_blocktest_rref(dev: &mut dyn NvmeBDev, block_sz: usize, is_write: boo
     loop {
         count += 1;
         submit_start = rdtsc();
-        let (ret, mut submit_, mut collect_) = dev.submit_and_poll_rref(submit.take().unwrap(),
-                                                collect.take().unwrap(), is_write).unwrap()?;
+        let (ret, mut submit_, mut collect_) = dev
+            .submit_and_poll_rref(submit.take().unwrap(), collect.take().unwrap(), is_write)
+            .unwrap()?;
         submit_elapsed += rdtsc() - submit_start;
 
         //println!("submitted {} reqs, collect {} reqs sq: {} cq {}", ret, collect_.len(), last_sq, last_cq);
@@ -109,7 +116,8 @@ pub fn run_blocktest_rref(dev: &mut dyn NvmeBDev, block_sz: usize, is_write: boo
             }
         }
 
-        if submit_.len() == 0  {//&& (alloc_count * batch_sz) < 1024 {
+        if submit_.len() == 0 {
+            //&& (alloc_count * batch_sz) < 1024 {
             //println!("Alloc new batch at {}", count);
             alloc_count += 1;
             let alloc_rdstc_start = rdtsc();
@@ -125,7 +133,6 @@ pub fn run_blocktest_rref(dev: &mut dyn NvmeBDev, block_sz: usize, is_write: boo
             }
             alloc_elapsed += rdtsc() - alloc_rdstc_start;
         }
-
 
         submit.replace(submit_);
         collect.replace(collect_);
@@ -158,14 +165,18 @@ pub fn run_blocktest_rref(dev: &mut dyn NvmeBDev, block_sz: usize, is_write: boo
     }
     println!("runtime: {:.2} seconds", adj_runtime);
 
-    println!("submitted {:.2} K IOPS completed {:.2} K IOPS",
-                            sub as f64 / adj_runtime as f64 / 1_000 as f64,
-                            comp as f64 / adj_runtime as f64 / 1_000 as f64);
-    println!("submit_and_poll_rref took {} cycles (avg {} cycles)",
-                                        submit_elapsed, submit_elapsed / count);
+    println!(
+        "submitted {:.2} K IOPS completed {:.2} K IOPS",
+        sub as f64 / adj_runtime as f64 / 1_000 as f64,
+        comp as f64 / adj_runtime as f64 / 1_000 as f64
+    );
+    println!(
+        "submit_and_poll_rref took {} cycles (avg {} cycles)",
+        submit_elapsed,
+        submit_elapsed / count
+    );
 
     println!("Number of new allocations {}", alloc_count * batch_sz);
-
 
     for hist in alloc::vec![submit_hist, poll_hist] {
         println!("hist:");
@@ -178,4 +189,3 @@ pub fn run_blocktest_rref(dev: &mut dyn NvmeBDev, block_sz: usize, is_write: boo
     println!("++++++++++++++++++++++++++++++++++++++++++++++++++++");
     Ok(())
 }
-

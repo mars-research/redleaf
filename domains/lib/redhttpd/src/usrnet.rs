@@ -17,7 +17,7 @@ use alloc::vec;
 use core::fmt;
 use core::fmt::Write;
 
-use arrayvec::{ArrayVec, ArrayString};
+use arrayvec::{ArrayString, ArrayVec};
 
 use rref::RRefVec;
 use usr::usrnet::UsrNet;
@@ -129,7 +129,6 @@ struct HttpSession {
     buf: Option<RRefVec<u8>>,
 }
 
-
 impl HttpSession {
     pub fn new(net: &dyn UsrNet) -> Self {
         // FIXME: Better error handling
@@ -152,7 +151,9 @@ impl HttpSession {
             self.request_buf.push(*chr);
         }
         */
-        self.request_buf.try_extend_from_slice(buf).expect("Failed to write to request buffer");
+        self.request_buf
+            .try_extend_from_slice(buf)
+            .expect("Failed to write to request buffer");
         let buflen = self.request_buf.len();
         if self.request_buf.len() > 5 && &self.request_buf[buflen - 4..] == "\r\n\r\n".as_bytes() {
             return true;
@@ -169,7 +170,10 @@ impl HttpSession {
 
         // ok let's do request buffering...
         let buf = {
-            if self.request_buf.len() == 0 && pbuf.len() > 5 && &pbuf[pbuf.len() - 4..] == "\r\n\r\n".as_bytes() {
+            if self.request_buf.len() == 0
+                && pbuf.len() > 5
+                && &pbuf[pbuf.len() - 4..] == "\r\n\r\n".as_bytes()
+            {
                 // Cool, everything in one single packet
                 &pbuf
             } else if self.buffer_request(pbuf) {
@@ -297,7 +301,10 @@ impl HttpSession {
                 let hslice = &header[header_sent..header_sent + to_send];
                 buf[..hslice.len()].copy_from_slice(hslice);
 
-                let (sent, bufvec) = net.write_socket(self.handle, bufvec, to_send).unwrap().unwrap();
+                let (sent, bufvec) = net
+                    .write_socket(self.handle, bufvec, to_send)
+                    .unwrap()
+                    .unwrap();
                 self.buf.replace(bufvec);
 
                 let new_cursor = header_sent + sent;
@@ -326,7 +333,10 @@ impl HttpSession {
                 let bslice = &body[body_sent..body_sent + to_send];
                 buf[..bslice.len()].copy_from_slice(bslice);
 
-                let (sent, bufvec) = net.write_socket(self.handle, bufvec, to_send).unwrap().unwrap();
+                let (sent, bufvec) = net
+                    .write_socket(self.handle, bufvec, to_send)
+                    .unwrap()
+                    .unwrap();
                 self.buf.replace(bufvec);
 
                 let new_cursor = body_sent + sent;
@@ -347,18 +357,14 @@ impl HttpSession {
 
     fn emit_error(error: HttpStatus) -> Option<HttpResponse> {
         match error {
-            HttpStatus::NotFound => {
-                Some(HttpResponse {
-                    status: HttpStatus::NotFound,
-                    body: read_file(b"/404.html").unwrap_or("Not Found".as_bytes()),
-                })
-            }
-            HttpStatus::BadRequest => {
-                Some(HttpResponse {
-                    status: HttpStatus::BadRequest,
-                    body: read_file(b"/400.html").unwrap_or("Bad Request".as_bytes()),
-                })
-            }
+            HttpStatus::NotFound => Some(HttpResponse {
+                status: HttpStatus::NotFound,
+                body: read_file(b"/404.html").unwrap_or("Not Found".as_bytes()),
+            }),
+            HttpStatus::BadRequest => Some(HttpResponse {
+                status: HttpStatus::BadRequest,
+                body: read_file(b"/400.html").unwrap_or("Bad Request".as_bytes()),
+            }),
             _ => unimplemented!(),
         }
     }

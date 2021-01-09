@@ -11,11 +11,11 @@ use create::CreateRv6Usr;
 use rref::{RRefDeque, RRefVec};
 use usr_interface::bdev::{BlkReq, NvmeBDev};
 use usr_interface::net::{Net, NetworkStats};
-use usr_interface::usrnet::UsrNet;
-use usr_interface::tpm::UsrTpm;
 use usr_interface::rpc::RpcResult;
+use usr_interface::rv6::{Rv6, Thread};
+use usr_interface::tpm::UsrTpm;
+use usr_interface::usrnet::UsrNet;
 use usr_interface::vfs::{FileMode, FileStat, Result, UsrVFS, NFILE, VFS};
-use usr_interface::rv6::{Thread, Rv6};
 
 pub struct Rv6Syscalls {
     create_xv6usr: Arc<dyn CreateRv6Usr + Send + Sync>,
@@ -24,7 +24,7 @@ pub struct Rv6Syscalls {
     net: Box<dyn Net>,
     nvme: Arc<Mutex<Box<dyn NvmeBDev>>>,
     usrtpm: Box<dyn UsrTpm>,
-    start_time: u64
+    start_time: u64,
 }
 
 impl Rv6Syscalls {
@@ -126,37 +126,45 @@ impl Rv6 for Rv6Syscalls {
             let fs_copy = self.fs.clone();
             let create_copy = self.create_xv6usr.clone();
             let tmp_storage_id = fs_copy.sys_save_threadlocal(fds)?;
-            Ok(self.sys_spawn_thread(
-                path,
-                Box::new(move || {
-                    fs_copy.sys_set_threadlocal(tmp_storage_id).unwrap();
-                    create_copy.create_domain_xv6usr(&path_copy, rv6, blob.as_slice(), &args_copy);
-                }),
-            )?.unwrap())
+            Ok(self
+                .sys_spawn_thread(
+                    path,
+                    Box::new(move || {
+                        fs_copy.sys_set_threadlocal(tmp_storage_id).unwrap();
+                        create_copy.create_domain_xv6usr(
+                            &path_copy,
+                            rv6,
+                            blob.as_slice(),
+                            &args_copy,
+                        );
+                    }),
+                )?
+                .unwrap())
         })())
     }
 
     fn sys_getpid(&self) -> RpcResult<Result<u64>> {
-        Ok((|| {
-            Ok(libsyscalls::syscalls::sys_current_thread_id())
-        })())
+        Ok({ Ok(libsyscalls::syscalls::sys_current_thread_id()) })
     }
 
     fn sys_uptime(&self) -> RpcResult<Result<u64>> {
-        Ok((|| {
-            Ok(libtime::get_ns_time() - self.start_time)
-        })())
+        Ok({ Ok(libtime::get_ns_time() - self.start_time) })
     }
 
     fn sys_sleep(&self, ns: u64) -> RpcResult<Result<()>> {
-        Ok((|| {
-            Ok(libtime::sys_ns_sleep(ns))
-        })())
+        Ok({
+            libtime::sys_ns_sleep(ns);
+            Ok(())
+        })
     }
 }
 
 impl UsrVFS for Rv6Syscalls {
-    fn sys_open(&self, path: RRefVec<u8>, mode: FileMode) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+    fn sys_open(
+        &self,
+        path: RRefVec<u8>,
+        mode: FileMode,
+    ) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         self.fs.sys_open(path, mode)
     }
     fn sys_close(&self, fd: usize) -> RpcResult<Result<()>> {
@@ -222,10 +230,19 @@ impl UsrNet for Rv6Syscalls {
     fn close(&self, server: usize) -> RpcResult<Result<()>> {
         self.usrnet.close(server)
     }
-    fn read_socket(&self, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+    fn read_socket(
+        &self,
+        socket: usize,
+        buffer: RRefVec<u8>,
+    ) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         self.usrnet.read_socket(socket, buffer)
     }
-    fn write_socket(&self, socket: usize, buffer: RRefVec<u8>, size: usize) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+    fn write_socket(
+        &self,
+        socket: usize,
+        buffer: RRefVec<u8>,
+        size: usize,
+    ) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         self.usrnet.write_socket(socket, buffer, size)
     }
 }
@@ -254,8 +271,7 @@ impl Net for Rv6Syscalls {
         tx: bool,
         pkt_len: usize,
     ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 32>, RRefDeque<[u8; 1514], 32>)>> {
-        self.net
-            .submit_and_poll_rref(packets, collect, tx, pkt_len)
+        self.net.submit_and_poll_rref(packets, collect, tx, pkt_len)
     }
 
     fn poll_rref(

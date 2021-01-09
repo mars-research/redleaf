@@ -2,7 +2,7 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::mem;
 use core::sync::atomic::Ordering;
-use spin::{Mutex};
+use spin::Mutex;
 
 use usr_interface::vfs::{ErrorKind, Result};
 

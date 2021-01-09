@@ -9,7 +9,6 @@ use alloc::boxed::Box;
 use alloc::string::String;
 use core::panic::PanicInfo;
 
-
 use syscalls::{Heap, Syscall};
 
 use usr_interfaces::rv6::Rv6;
@@ -37,7 +36,8 @@ pub fn trusted_entry(
 
 fn mkdir(path: &str) -> Result<(), String> {
     println!("mkdir <{}>", path);
-    sys_mkdir_slice_slow(path).map_err(|e| alloc::format!("mkdir: cannot mkdir {}. {:?}", path, e))?;
+    sys_mkdir_slice_slow(path)
+        .map_err(|e| alloc::format!("mkdir: cannot mkdir {}. {:?}", path, e))?;
     Ok(())
 }
 

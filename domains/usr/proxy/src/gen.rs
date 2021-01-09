@@ -1,20 +1,32 @@
-use proxy;
-use usr;
-use create;
-use rref::{RRef, RRefDeque, RRefVec, traits::CustomCleanup};
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-use libsyscalls::syscalls::{sys_get_current_domain_id, sys_update_current_domain_id, sys_discard_cont};
-use syscalls::{Heap, Domain, Interrupt};
-use usr::{bdev::{BDev, BSIZE, NvmeBDev, BlkReq}, vfs::{UsrVFS, VFS}, rv6::Rv6, dom_a::DomA, dom_c::DomC, net::{Net, NetworkStats}, usrnet::UsrNet, pci::{PCI, PciBar, PciResource}, tpm::UsrTpm};
-use usr::rpc::{RpcResult, RpcError};
-use usr::error::Result;
+use console::{print, println};
 use core::mem::transmute;
-use console::{println, print};
+use create;
+use libsyscalls::syscalls::{
+    sys_discard_cont, sys_get_current_domain_id, sys_update_current_domain_id,
+};
+use proxy;
+use rref::{traits::CustomCleanup, RRef, RRefDeque, RRefVec};
+use syscalls::{Domain, Heap, Interrupt};
 use unwind::trampoline;
+use usr;
+use usr::error::Result;
+use usr::rpc::{RpcError, RpcResult};
+use usr::{
+    bdev::{BDev, BlkReq, NvmeBDev, BSIZE},
+    dom_a::DomA,
+    dom_c::DomC,
+    net::{Net, NetworkStats},
+    pci::{PciBar, PciResource, PCI},
+    rv6::Rv6,
+    tpm::UsrTpm,
+    usrnet::UsrNet,
+    vfs::{UsrVFS, VFS},
+};
 
 // TODO: remove once ixgbe on rrefdeque
-use alloc::{vec::Vec, collections::VecDeque};
+use alloc::{collections::VecDeque, vec::Vec};
 
 #[derive(Clone)]
 pub struct Proxy {
@@ -30,7 +42,7 @@ pub struct Proxy {
     create_benchnvme: Arc<dyn create::CreateBenchnvme>,
     create_xv6fs: Arc<dyn create::CreateRv6FS>,
     create_xv6net: Arc<dyn create::CreateRv6Net>,
-create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
+    create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
     create_xv6usr: Arc<dyn create::CreateRv6Usr + Send + Sync>,
     create_xv6: Arc<dyn create::CreateRv6>,
     create_dom_a: Arc<dyn create::CreateDomA>,
@@ -156,8 +168,7 @@ impl proxy::Proxy for Proxy {
 }
 
 impl create::CreatePCI for Proxy {
-    fn create_domain_pci(&self,
-                         ) -> (Box<dyn Domain>, Box<dyn PCI>) {
+    fn create_domain_pci(&self) -> (Box<dyn Domain>, Box<dyn PCI>) {
         self.create_pci.create_domain_pci()
     }
 }
@@ -171,13 +182,20 @@ impl create::CreateAHCI for Proxy {
 }
 
 impl create::CreateMemBDev for Proxy {
-    fn create_domain_membdev(&self, memdisk: &'static mut [u8]) -> (Box<dyn Domain>, Box<dyn BDev>) {
+    fn create_domain_membdev(
+        &self,
+        memdisk: &'static mut [u8],
+    ) -> (Box<dyn Domain>, Box<dyn BDev>) {
         let (domain, membdev) = self.create_membdev.create_domain_membdev(memdisk);
         let domain_id = domain.get_domain_id();
         return (domain, Box::new(BDevProxy::new(domain_id, membdev)));
     }
 
-    fn recreate_domain_membdev(&self, dom: Box<dyn syscalls::Domain>, memdisk: &'static mut [u8]) -> (Box<dyn Domain>, Box<dyn BDev>) {
+    fn recreate_domain_membdev(
+        &self,
+        dom: Box<dyn syscalls::Domain>,
+        memdisk: &'static mut [u8],
+    ) -> (Box<dyn Domain>, Box<dyn BDev>) {
         let (domain, membdev) = self.create_membdev.recreate_domain_membdev(dom, memdisk);
         let domain_id = domain.get_domain_id();
         return (domain, Box::new(BDevProxy::new(domain_id, membdev)));
@@ -185,7 +203,10 @@ impl create::CreateMemBDev for Proxy {
 }
 
 impl create::CreateBDevShadow for Proxy {
-    fn create_domain_bdev_shadow(&self, create: Arc<dyn create::CreateMemBDev>) -> (Box<dyn Domain>, Box<dyn BDev>) {
+    fn create_domain_bdev_shadow(
+        &self,
+        create: Arc<dyn create::CreateMemBDev>,
+    ) -> (Box<dyn Domain>, Box<dyn BDev>) {
         let (domain, shadow) = self.create_bdev_shadow.create_domain_bdev_shadow(create);
         let domain_id = domain.get_domain_id();
         return (domain, Box::new(BDevProxy::new(domain_id, shadow)));
@@ -201,7 +222,11 @@ impl create::CreateIxgbe for Proxy {
 }
 
 impl create::CreateNetShadow for Proxy {
-    fn create_domain_net_shadow(&self, create: Arc<dyn create::CreateIxgbe>, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net>) {
+    fn create_domain_net_shadow(
+        &self,
+        create: Arc<dyn create::CreateIxgbe>,
+        pci: Box<dyn PCI>,
+    ) -> (Box<dyn Domain>, Box<dyn Net>) {
         let (domain, shadow) = self.create_net_shadow.create_domain_net_shadow(create, pci);
         let domain_id = domain.get_domain_id();
         return (domain, Box::new(IxgbeProxy::new(domain_id, shadow)));
@@ -209,15 +234,24 @@ impl create::CreateNetShadow for Proxy {
 }
 
 impl create::CreateNvmeShadow for Proxy {
-    fn create_domain_nvme_shadow(&self, create: Arc<dyn create::CreateNvme>, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn NvmeBDev>) {
-        let (domain, shadow) = self.create_nvme_shadow.create_domain_nvme_shadow(create, pci);
+    fn create_domain_nvme_shadow(
+        &self,
+        create: Arc<dyn create::CreateNvme>,
+        pci: Box<dyn PCI>,
+    ) -> (Box<dyn Domain>, Box<dyn NvmeBDev>) {
+        let (domain, shadow) = self
+            .create_nvme_shadow
+            .create_domain_nvme_shadow(create, pci);
         let domain_id = domain.get_domain_id();
         return (domain, Box::new(NvmeProxy::new(domain_id, shadow)));
     }
 }
 
 impl create::CreateNvme for Proxy {
-    fn create_domain_nvme(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn usr::bdev::NvmeBDev>) {
+    fn create_domain_nvme(
+        &self,
+        pci: Box<dyn PCI>,
+    ) -> (Box<dyn Domain>, Box<dyn usr::bdev::NvmeBDev>) {
         // TODO: write NvmeProxy
         let (domain, nvme) = self.create_nvme.create_domain_nvme(pci);
         let domain_id = domain.get_domain_id();
@@ -241,40 +275,64 @@ impl create::CreateRv6Net for Proxy {
 }
 
 impl create::CreateRv6NetShadow for Proxy {
-    fn create_domain_xv6net_shadow(&self, create: Arc<dyn create::CreateRv6Net>, net: Box<dyn Net>) -> (Box<dyn Domain>, Box<dyn UsrNet>) {
-        let (domain, xv6net) = self.create_xv6net_shadow.create_domain_xv6net_shadow(create, net);
+    fn create_domain_xv6net_shadow(
+        &self,
+        create: Arc<dyn create::CreateRv6Net>,
+        net: Box<dyn Net>,
+    ) -> (Box<dyn Domain>, Box<dyn UsrNet>) {
+        let (domain, xv6net) = self
+            .create_xv6net_shadow
+            .create_domain_xv6net_shadow(create, net);
         let domain_id = domain.get_domain_id();
         (domain, Box::new(UsrNetProxy::new(domain_id, xv6net)))
     }
 }
 
 impl create::CreateRv6Usr for Proxy {
-    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::rv6::Rv6>, blob: &[u8], args: &str) -> Result<Box<dyn Domain>> {
+    fn create_domain_xv6usr(
+        &self,
+        name: &str,
+        xv6: Box<dyn usr::rv6::Rv6>,
+        blob: &[u8],
+        args: &str,
+    ) -> Result<Box<dyn Domain>> {
         // TODO: write Rv6UsrProxy
-        self.create_xv6usr.create_domain_xv6usr(name, xv6, blob, args)
+        self.create_xv6usr
+            .create_domain_xv6usr(name, xv6, blob, args)
     }
 }
 
 impl create::CreateRv6 for Proxy {
-    fn create_domain_xv6kernel(&self,
-                               ints: Box<dyn Interrupt>,
-                               create_xv6fs: Arc<dyn create::CreateRv6FS>,
-                               create_xv6net: Arc<dyn create::CreateRv6Net>,
-                               create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
-                               create_xv6usr: Arc<dyn create::CreateRv6Usr + Send + Sync>,
-                               bdev: Box<dyn BDev>,
-                               net: Box<dyn usr::net::Net>,
-                               nvme: Box<dyn usr::bdev::NvmeBDev>,
-                               usr_tpm: Box<dyn usr::tpm::UsrTpm>,
-                            ) -> (Box<dyn Domain>, Box<dyn Rv6>) {
-        let (domain, rv6) = self.create_xv6.create_domain_xv6kernel(ints, create_xv6fs, create_xv6net, create_xv6net_shadow, create_xv6usr, bdev, net, nvme, usr_tpm);
+    fn create_domain_xv6kernel(
+        &self,
+        ints: Box<dyn Interrupt>,
+        create_xv6fs: Arc<dyn create::CreateRv6FS>,
+        create_xv6net: Arc<dyn create::CreateRv6Net>,
+        create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
+        create_xv6usr: Arc<dyn create::CreateRv6Usr + Send + Sync>,
+        bdev: Box<dyn BDev>,
+        net: Box<dyn usr::net::Net>,
+        nvme: Box<dyn usr::bdev::NvmeBDev>,
+        usr_tpm: Box<dyn usr::tpm::UsrTpm>,
+    ) -> (Box<dyn Domain>, Box<dyn Rv6>) {
+        let (domain, rv6) = self.create_xv6.create_domain_xv6kernel(
+            ints,
+            create_xv6fs,
+            create_xv6net,
+            create_xv6net_shadow,
+            create_xv6usr,
+            bdev,
+            net,
+            nvme,
+            usr_tpm,
+        );
         let domain_id = domain.get_domain_id();
         (domain, Box::new(Rv6Proxy::new(domain_id, rv6)))
     }
 }
 
 impl create::CreateDomA for Proxy {
-    fn create_domain_dom_a(&self) ->(Box<dyn Domain>, Box<dyn DomA>) {
+    fn create_domain_dom_a(&self) -> (Box<dyn Domain>, Box<dyn DomA>) {
         let (domain, dom_a) = self.create_dom_a.create_domain_dom_a();
         let domain_id = domain.get_domain_id();
         return (domain, Box::new(DomAProxy::new(domain_id, dom_a)));
@@ -282,7 +340,7 @@ impl create::CreateDomA for Proxy {
 }
 
 impl create::CreateDomB for Proxy {
-    fn create_domain_dom_b(&self, dom_a: Box<dyn DomA>) ->(Box<dyn Domain>) {
+    fn create_domain_dom_b(&self, dom_a: Box<dyn DomA>) -> (Box<dyn Domain>) {
         self.create_dom_b.create_domain_dom_b(dom_a)
     }
 }
@@ -299,17 +357,19 @@ impl create::CreateDomC for Proxy {
         let domain_id = domain.get_domain_id();
         (domain, Box::new(DomCProxy::new(domain_id, dom_c)))
     }
-
 }
 
 impl create::CreateDomD for Proxy {
-    fn create_domain_dom_d(&self, dom_c: Box<dyn DomC>) ->(Box<dyn Domain>) {
+    fn create_domain_dom_d(&self, dom_c: Box<dyn DomC>) -> (Box<dyn Domain>) {
         self.create_dom_d.create_domain_dom_d(dom_c)
     }
 }
 
 impl create::CreateShadow for Proxy {
-    fn create_domain_shadow(&self, create_dom_c: Arc<dyn create::CreateDomC>) ->(Box<dyn Domain>, Box<dyn DomC>) {
+    fn create_domain_shadow(
+        &self,
+        create_dom_c: Arc<dyn create::CreateDomC>,
+    ) -> (Box<dyn Domain>, Box<dyn DomC>) {
         let (domain, shadow) = self.create_shadow.create_domain_shadow(create_dom_c);
         let domain_id = domain.get_domain_id();
         (domain, Box::new(DomCProxy::new(domain_id, shadow)))
@@ -317,13 +377,13 @@ impl create::CreateShadow for Proxy {
 }
 
 impl create::CreateBenchnet for Proxy {
-    fn create_domain_benchnet(&self, net: Box<dyn Net>) ->(Box<dyn Domain>) {
+    fn create_domain_benchnet(&self, net: Box<dyn Net>) -> (Box<dyn Domain>) {
         self.create_benchnet.create_domain_benchnet(net)
     }
 }
 
 impl create::CreateBenchnvme for Proxy {
-    fn create_domain_benchnvme(&self, nvme: Box<dyn usr::bdev::NvmeBDev>) ->(Box<dyn Domain>) {
+    fn create_domain_benchnvme(&self, nvme: Box<dyn usr::bdev::NvmeBDev>) -> (Box<dyn Domain>) {
         self.create_benchnvme.create_domain_benchnvme(nvme)
     }
 }
@@ -338,27 +398,32 @@ unsafe impl Send for BDevProxy {}
 
 impl BDevProxy {
     fn new(domain_id: u64, domain: Box<dyn usr::bdev::BDev>) -> Self {
-        Self {
-            domain,
-            domain_id,
-        }
+        Self { domain, domain_id }
     }
 }
 
-/* 
+/*
  * Code to unwind bdev.read
  */
 
 #[no_mangle]
-pub extern fn bdev_read(s: &Box<usr::bdev::BDev>, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>> {
+pub extern "C" fn bdev_read(
+    s: &Box<usr::bdev::BDev>,
+    block: u32,
+    data: RRef<[u8; BSIZE]>,
+) -> RpcResult<RRef<[u8; BSIZE]>> {
     //println!("one_arg: x:{}", x);
     s.read(block, data)
 }
 
 #[no_mangle]
-pub extern fn bdev_read_err(s: &Box<usr::bdev::BDev>, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>> {
+pub extern "C" fn bdev_read_err(
+    s: &Box<usr::bdev::BDev>,
+    block: u32,
+    data: RRef<[u8; BSIZE]>,
+) -> RpcResult<RRef<[u8; BSIZE]>> {
     println!("bdev.read was aborted, block:{}", block);
-    Err(unsafe{RpcError::panic()})
+    Err(unsafe { RpcError::panic() })
 }
 
 #[no_mangle]
@@ -366,26 +431,38 @@ pub extern "C" fn bdev_read_addr() -> u64 {
     bdev_read_err as u64
 }
 
-extern {
-    fn bdev_read_tramp(s: &Box<usr::bdev::BDev>, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>>;
+extern "C" {
+    fn bdev_read_tramp(
+        s: &Box<usr::bdev::BDev>,
+        block: u32,
+        data: RRef<[u8; BSIZE]>,
+    ) -> RpcResult<RRef<[u8; BSIZE]>>;
 }
 
 trampoline!(bdev_read);
 
-/* 
+/*
  * Code to unwind bdev.write
  */
 
 #[no_mangle]
-pub extern fn bdev_write(s: &Box<usr::bdev::BDev>, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()> {
+pub extern "C" fn bdev_write(
+    s: &Box<usr::bdev::BDev>,
+    block: u32,
+    data: &RRef<[u8; BSIZE]>,
+) -> RpcResult<()> {
     //println!("one_arg: x:{}", x);
     s.write(block, data)
 }
 
 #[no_mangle]
-pub extern fn bdev_write_err(s: &Box<usr::bdev::BDev>, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()> {
+pub extern "C" fn bdev_write_err(
+    s: &Box<usr::bdev::BDev>,
+    block: u32,
+    data: &RRef<[u8; BSIZE]>,
+) -> RpcResult<()> {
     println!("bdev.write was aborted, block:{}", block);
-    Err(unsafe{RpcError::panic()})
+    Err(unsafe { RpcError::panic() })
 }
 
 #[no_mangle]
@@ -393,8 +470,12 @@ pub extern "C" fn bdev_write_addr() -> u64 {
     bdev_write_err as u64
 }
 
-extern {
-    fn bdev_write_tramp(s: &Box<usr::bdev::BDev>, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()>;
+extern "C" {
+    fn bdev_write_tramp(
+        s: &Box<usr::bdev::BDev>,
+        block: u32,
+        data: &RRef<[u8; BSIZE]>,
+    ) -> RpcResult<()>;
 }
 
 trampoline!(bdev_write);
@@ -445,7 +526,9 @@ impl BDev for BDevProxy {
         data.forfeit();
 
         // TODO: impl domain_is_dead
-        if /* sys_domain_is_dead(caller_domain) */ false && data.borrow_count() == 0 {
+        if
+        /* sys_domain_is_dead(caller_domain) */
+        false && data.borrow_count() == 0 {
             let mut_ref = unsafe { &mut *(data as *const _ as *mut RRef<[u8; BSIZE]>) };
             mut_ref.cleanup();
             // TODO: don't return into dead domain, exit instead
@@ -468,24 +551,31 @@ unsafe impl Send for IxgbeProxy {}
 
 impl IxgbeProxy {
     fn new(domain_id: u64, domain: Box<dyn Net>) -> Self {
-        Self {
-            domain,
-            domain_id,
-        }
+        Self { domain, domain_id }
     }
 }
 
 //Code to unwind net_submit_and_poll
 #[no_mangle]
-pub extern fn net_submit_and_poll(s: &Box<usr::net::Net>, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
+pub extern "C" fn net_submit_and_poll(
+    s: &Box<usr::net::Net>,
+    packets: &mut VecDeque<Vec<u8>>,
+    reap_queue: &mut VecDeque<Vec<u8>>,
+    tx: bool,
+) -> RpcResult<Result<usize>> {
     //println!("one_arg: x:{}", x);
     s.submit_and_poll(packets, reap_queue, tx)
 }
 
 #[no_mangle]
-pub extern fn net_submit_and_poll_err(s: &Box<usr::net::Net>, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
+pub extern "C" fn net_submit_and_poll_err(
+    s: &Box<usr::net::Net>,
+    packets: &mut VecDeque<Vec<u8>>,
+    reap_queue: &mut VecDeque<Vec<u8>>,
+    tx: bool,
+) -> RpcResult<Result<usize>> {
     println!("net_submit_and_poll was aborted");
-    Err(unsafe{RpcError::panic()})
+    Err(unsafe { RpcError::panic() })
 }
 
 #[no_mangle]
@@ -493,22 +583,35 @@ pub extern "C" fn net_submit_and_poll_addr() -> u64 {
     net_submit_and_poll_err as u64
 }
 
-extern {
-    fn net_submit_and_poll_tramp(s: &Box<usr::net::Net>, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>>;
+extern "C" {
+    fn net_submit_and_poll_tramp(
+        s: &Box<usr::net::Net>,
+        packets: &mut VecDeque<Vec<u8>>,
+        reap_queue: &mut VecDeque<Vec<u8>>,
+        tx: bool,
+    ) -> RpcResult<Result<usize>>;
 }
 
 trampoline!(net_submit_and_poll);
 
 //Code to unwind net_poll
 #[no_mangle]
-pub extern fn net_poll(s: &Box<usr::net::Net>, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
+pub extern "C" fn net_poll(
+    s: &Box<usr::net::Net>,
+    collect: &mut VecDeque<Vec<u8>>,
+    tx: bool,
+) -> RpcResult<Result<usize>> {
     s.poll(collect, tx)
 }
 
 #[no_mangle]
-pub extern fn net_poll_err(s: &Box<usr::net::Net>, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
+pub extern "C" fn net_poll_err(
+    s: &Box<usr::net::Net>,
+    collect: &mut VecDeque<Vec<u8>>,
+    tx: bool,
+) -> RpcResult<Result<usize>> {
     println!("net_poll was aborted");
-    Err(unsafe{RpcError::panic()})
+    Err(unsafe { RpcError::panic() })
 }
 
 #[no_mangle]
@@ -516,38 +619,38 @@ pub extern "C" fn net_poll_addr() -> u64 {
     net_poll_err as u64
 }
 
-extern {
-    fn net_poll_tramp(s: &Box<usr::net::Net>, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>>;
+extern "C" {
+    fn net_poll_tramp(
+        s: &Box<usr::net::Net>,
+        collect: &mut VecDeque<Vec<u8>>,
+        tx: bool,
+    ) -> RpcResult<Result<usize>>;
 }
 
 trampoline!(net_poll);
 
 //Code to unwind net_submit_and_poll_rref
 #[no_mangle]
-pub extern fn net_submit_and_poll_rref(s: &Box<usr::net::Net>,
-        packets: RRefDeque<[u8; 1514], 32>,
-        collect: RRefDeque<[u8; 1514], 32>,
-        tx: bool,
-        pkt_len: usize) -> RpcResult<Result<(
-            usize,
-            RRefDeque<[u8; 1514], 32>,
-            RRefDeque<[u8; 1514], 32>
-        )>> {
+pub extern "C" fn net_submit_and_poll_rref(
+    s: &Box<usr::net::Net>,
+    packets: RRefDeque<[u8; 1514], 32>,
+    collect: RRefDeque<[u8; 1514], 32>,
+    tx: bool,
+    pkt_len: usize,
+) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 32>, RRefDeque<[u8; 1514], 32>)>> {
     s.submit_and_poll_rref(packets, collect, tx, pkt_len)
 }
 
 #[no_mangle]
-pub extern fn net_submit_and_poll_rref_err(s: &Box<usr::net::Net>,
-        packets: RRefDeque<[u8; 1514], 32>,
-        collect: RRefDeque<[u8; 1514], 32>,
-        tx: bool,
-        pkt_len: usize) -> RpcResult<Result<(
-            usize,
-            RRefDeque<[u8; 1514], 32>,
-            RRefDeque<[u8; 1514], 32>
-        )>> {
+pub extern "C" fn net_submit_and_poll_rref_err(
+    s: &Box<usr::net::Net>,
+    packets: RRefDeque<[u8; 1514], 32>,
+    collect: RRefDeque<[u8; 1514], 32>,
+    tx: bool,
+    pkt_len: usize,
+) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 32>, RRefDeque<[u8; 1514], 32>)>> {
     println!("net_submit_and_poll_rref was aborted");
-    Err(unsafe{RpcError::panic()})
+    Err(unsafe { RpcError::panic() })
 }
 
 #[no_mangle]
@@ -555,30 +658,36 @@ pub extern "C" fn net_submit_and_poll_rref_addr() -> u64 {
     net_submit_and_poll_rref_err as u64
 }
 
-extern {
-    fn net_submit_and_poll_rref_tramp(s: &Box<usr::net::Net>,
+extern "C" {
+    fn net_submit_and_poll_rref_tramp(
+        s: &Box<usr::net::Net>,
         packets: RRefDeque<[u8; 1514], 32>,
         collect: RRefDeque<[u8; 1514], 32>,
         tx: bool,
-        pkt_len: usize) -> RpcResult<Result<(
-            usize,
-            RRefDeque<[u8; 1514], 32>,
-            RRefDeque<[u8; 1514], 32>
-        )>>;
+        pkt_len: usize,
+    ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 32>, RRefDeque<[u8; 1514], 32>)>>;
 }
 
 trampoline!(net_submit_and_poll_rref);
 
 //Code to unwind poll_rref
 #[no_mangle]
-pub extern fn net_poll_rref(s: &Box<usr::net::Net>, collect: RRefDeque<[u8; 1514], 512>, tx: bool) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>> {
+pub extern "C" fn net_poll_rref(
+    s: &Box<usr::net::Net>,
+    collect: RRefDeque<[u8; 1514], 512>,
+    tx: bool,
+) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>> {
     s.poll_rref(collect, tx)
 }
 
 #[no_mangle]
-pub extern fn net_poll_rref_err(s: &Box<usr::net::Net>, collect: RRefDeque<[u8; 1514], 512>, tx: bool) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>> {
+pub extern "C" fn net_poll_rref_err(
+    s: &Box<usr::net::Net>,
+    collect: RRefDeque<[u8; 1514], 512>,
+    tx: bool,
+) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>> {
     println!("net_poll_rref was aborted");
-    Err(unsafe{RpcError::panic()})
+    Err(unsafe { RpcError::panic() })
 }
 
 #[no_mangle]
@@ -586,24 +695,27 @@ pub extern "C" fn net_poll_rref_addr() -> u64 {
     net_poll_rref_err as u64
 }
 
-extern {
-    fn net_poll_rref_tramp(s: &Box<usr::net::Net>, collect: RRefDeque<[u8; 1514], 512>, tx: bool) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>>;
+extern "C" {
+    fn net_poll_rref_tramp(
+        s: &Box<usr::net::Net>,
+        collect: RRefDeque<[u8; 1514], 512>,
+        tx: bool,
+    ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>>;
 }
 
 trampoline!(net_poll_rref);
 
-
 //Code to unwind get_stats
 #[no_mangle]
-pub extern fn get_stats(s: &Box<usr::net::Net>) -> RpcResult<Result<NetworkStats>> {
+pub extern "C" fn get_stats(s: &Box<usr::net::Net>) -> RpcResult<Result<NetworkStats>> {
     //println!("one_arg: x:{}", x);
     s.get_stats()
 }
 
 #[no_mangle]
-pub extern fn get_stats_err(s: &Box<usr::net::Net>) -> RpcResult<Result<NetworkStats>> {
+pub extern "C" fn get_stats_err(s: &Box<usr::net::Net>) -> RpcResult<Result<NetworkStats>> {
     println!("get_stats was aborted");
-    Err(unsafe{RpcError::panic()})
+    Err(unsafe { RpcError::panic() })
 }
 
 #[no_mangle]
@@ -611,7 +723,7 @@ pub extern "C" fn get_stats_addr() -> u64 {
     get_stats_err as u64
 }
 
-extern {
+extern "C" {
     fn get_stats_tramp(s: &Box<usr::net::Net>) -> RpcResult<Result<NetworkStats>>;
 }
 
@@ -622,8 +734,12 @@ impl Net for IxgbeProxy {
         Ok(box Self::new(self.domain_id, self.domain.clone_net()?))
     }
 
-    fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
-
+    fn submit_and_poll(
+        &self,
+        packets: &mut VecDeque<Vec<u8>>,
+        reap_queue: &mut VecDeque<Vec<u8>>,
+        tx: bool,
+    ) -> RpcResult<Result<usize>> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
@@ -668,12 +784,8 @@ impl Net for IxgbeProxy {
         packets: RRefDeque<[u8; 1514], 32>,
         collect: RRefDeque<[u8; 1514], 32>,
         tx: bool,
-        pkt_len: usize) -> RpcResult<Result<(
-            usize,
-            RRefDeque<[u8; 1514], 32>,
-            RRefDeque<[u8; 1514], 32>
-        )>>
-    {
+        pkt_len: usize,
+    ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 32>, RRefDeque<[u8; 1514], 32>)>> {
         //println!("ixgbe proxy");
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
@@ -682,9 +794,12 @@ impl Net for IxgbeProxy {
         collect.move_to(self.domain_id);
 
         #[cfg(not(feature = "tramp"))]
-        let r = self.domain.submit_and_poll_rref(packets, collect, tx, pkt_len);
+        let r = self
+            .domain
+            .submit_and_poll_rref(packets, collect, tx, pkt_len);
         #[cfg(feature = "tramp")]
-        let r = unsafe{ net_submit_and_poll_rref_tramp(&self.domain, packets, collect, tx, pkt_len) };
+        let r =
+            unsafe { net_submit_and_poll_rref_tramp(&self.domain, packets, collect, tx, pkt_len) };
 
         #[cfg(feature = "tramp")]
         unsafe {
@@ -702,7 +817,11 @@ impl Net for IxgbeProxy {
         r
     }
 
-    fn poll_rref(&self, collect: RRefDeque<[u8; 1514], 512>, tx: bool) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>> {
+    fn poll_rref(
+        &self,
+        collect: RRefDeque<[u8; 1514], 512>,
+        tx: bool,
+    ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
@@ -729,10 +848,10 @@ impl Net for IxgbeProxy {
     }
 
     fn get_stats(&self) -> RpcResult<Result<NetworkStats>> {
-         // move thread to next domain
+        // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
-        let r = unsafe{ get_stats_tramp(&self.domain) };
+        let r = unsafe { get_stats_tramp(&self.domain) };
 
         #[cfg(feature = "tramp")]
         unsafe {
@@ -760,10 +879,7 @@ unsafe impl Send for DomAProxy {}
 
 impl DomAProxy {
     fn new(domain_id: u64, domain: Box<dyn usr::dom_a::DomA>) -> Self {
-        Self {
-            domain,
-            domain_id,
-        }
+        Self { domain, domain_id }
     }
 }
 
@@ -785,12 +901,8 @@ impl usr::dom_a::DomA for DomAProxy {
     fn tx_submit_and_poll(
         &mut self,
         packets: RRefDeque<[u8; 100], 32>,
-        reap_queue: RRefDeque<[u8; 100], 32>)
-    -> (
-        usize,
-        RRefDeque<[u8; 100], 32>,
-        RRefDeque<[u8; 100], 32>
-    ) {
+        reap_queue: RRefDeque<[u8; 100], 32>,
+    ) -> (usize, RRefDeque<[u8; 100], 32>, RRefDeque<[u8; 100], 32>) {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
@@ -817,26 +929,23 @@ unsafe impl Send for DomCProxy {}
 
 impl DomCProxy {
     fn new(domain_id: u64, domain: Box<dyn usr::dom_c::DomC>) -> Self {
-        Self {
-            domain,
-            domain_id,
-        }
+        Self { domain, domain_id }
     }
 }
 
-/* 
+/*
  * Code to unwind no_arg
  */
 
 #[no_mangle]
-pub extern fn no_arg(s: &Box<dyn usr::dom_c::DomC>) -> RpcResult<()> {
+pub extern "C" fn no_arg(s: &Box<dyn usr::dom_c::DomC>) -> RpcResult<()> {
     s.no_arg()
 }
 
 #[no_mangle]
-pub extern fn no_arg_err(s: &Box<dyn usr::dom_c::DomC>) -> RpcResult<()> {
+pub extern "C" fn no_arg_err(s: &Box<dyn usr::dom_c::DomC>) -> RpcResult<()> {
     println!("no_arg was aborted");
-    Err(unsafe{RpcError::panic()})
+    Err(unsafe { RpcError::panic() })
 }
 
 #[no_mangle]
@@ -844,7 +953,7 @@ pub extern "C" fn no_arg_addr() -> u64 {
     no_arg_err as u64
 }
 
-extern {
+extern "C" {
     fn no_arg_tramp(s: &Box<dyn usr::dom_c::DomC>) -> RpcResult<()>;
 }
 
@@ -852,20 +961,26 @@ trampoline!(no_arg);
 
 ::codegen_lib::generate_trampoline!(s: &Box<dyn usr::dom_c::DomC>, one_arg(x: usize) -> RpcResult<usize>);
 
-/* 
+/*
  * Code to unwind one_rref
  */
 
 #[no_mangle]
-pub extern fn one_rref(s: &Box<dyn usr::dom_c::DomC>, x: RRef<usize>) -> RpcResult<RRef<usize>> {
+pub extern "C" fn one_rref(
+    s: &Box<dyn usr::dom_c::DomC>,
+    x: RRef<usize>,
+) -> RpcResult<RRef<usize>> {
     //println!("one_rref: x:{}", x);
     s.one_rref(x)
 }
 
 #[no_mangle]
-pub extern fn one_rref_err(s: &Box<dyn usr::dom_c::DomC>, x: RRef<usize>) -> RpcResult<RRef<usize>> {
+pub extern "C" fn one_rref_err(
+    s: &Box<dyn usr::dom_c::DomC>,
+    x: RRef<usize>,
+) -> RpcResult<RRef<usize>> {
     println!("one_rref was aborted");
-    Err(unsafe{RpcError::panic()})
+    Err(unsafe { RpcError::panic() })
 }
 
 #[no_mangle]
@@ -873,7 +988,7 @@ pub extern "C" fn one_rref_addr() -> u64 {
     one_rref_err as u64
 }
 
-extern {
+extern "C" {
     fn one_rref_tramp(s: &Box<dyn usr::dom_c::DomC>, x: RRef<usize>) -> RpcResult<RRef<usize>>;
 }
 
@@ -958,15 +1073,12 @@ unsafe impl Send for Rv6Proxy {}
 
 impl Rv6Proxy {
     fn new(domain_id: u64, domain: Box<dyn Rv6>) -> Self {
-        Self {
-            domain,
-            domain_id,
-        }
+        Self { domain, domain_id }
     }
 }
 
-use usr::vfs::{NFILE, FileStat, FileMode};
 use usr::rv6::Thread;
+use usr::vfs::{FileMode, FileStat, NFILE};
 
 impl Rv6 for Rv6Proxy {
     fn clone(&self) -> RpcResult<Box<dyn Rv6>> {
@@ -983,17 +1095,27 @@ impl Rv6 for Rv6Proxy {
         Ok(box NvmeProxy::new(self.domain_id, self.domain.as_nvme()?))
     }
     fn as_usrnet(&self) -> RpcResult<Box<dyn usr::usrnet::UsrNet>> {
-        Ok(box UsrNetProxy::new(self.domain_id, self.domain.as_usrnet()?))
+        Ok(box UsrNetProxy::new(
+            self.domain_id,
+            self.domain.as_usrnet()?,
+        ))
     }
     fn get_usrnet(&self) -> RpcResult<Box<dyn usr::usrnet::UsrNet>> {
-        Ok(box UsrNetProxy::new(self.domain_id, self.domain.get_usrnet()?))
+        Ok(box UsrNetProxy::new(
+            self.domain_id,
+            self.domain.get_usrnet()?,
+        ))
     }
     fn get_usrtpm(&self) -> RpcResult<Box<dyn usr::tpm::UsrTpm>> {
         // TODO: build UsrTpmProxy
         // Ok(box UsrTpmProxy::new(self.domain_id, self.domain.get_usrtpm()?))
         self.domain.get_usrtpm()
     }
-    fn sys_spawn_thread(&self, name: RRefVec<u8>, func: alloc::boxed::Box<dyn FnOnce() + Send>) -> RpcResult<Result<Box<dyn Thread>>> {
+    fn sys_spawn_thread(
+        &self,
+        name: RRefVec<u8>,
+        func: alloc::boxed::Box<dyn FnOnce() + Send>,
+    ) -> RpcResult<Result<Box<dyn Thread>>> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
@@ -1005,7 +1127,13 @@ impl Rv6 for Rv6Proxy {
 
         r
     }
-    fn sys_spawn_domain(&self, rv6: Box<dyn Rv6>, path: RRefVec<u8>, args: RRefVec<u8>, fds: [Option<usize>; NFILE]) -> RpcResult<Result<Box<dyn Thread>>> {
+    fn sys_spawn_domain(
+        &self,
+        rv6: Box<dyn Rv6>,
+        path: RRefVec<u8>,
+        args: RRefVec<u8>,
+        fds: [Option<usize>; NFILE],
+    ) -> RpcResult<Result<Box<dyn Thread>>> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
@@ -1027,7 +1155,7 @@ impl Rv6 for Rv6Proxy {
     fn sys_sleep(&self, ns: u64) -> RpcResult<Result<()>> {
         self.domain.sys_sleep(ns)
     }
-} 
+}
 
 // Rv6 proxy
 struct NvmeProxy {
@@ -1040,10 +1168,7 @@ unsafe impl Send for NvmeProxy {}
 
 impl NvmeProxy {
     fn new(domain_id: u64, domain: Box<dyn NvmeBDev>) -> Self {
-        Self {
-            domain,
-            domain_id,
-        }
+        Self { domain, domain_id }
     }
 }
 
@@ -1053,11 +1178,7 @@ impl NvmeBDev for NvmeProxy {
         submit: RRefDeque<BlkReq, 128>,
         collect: RRefDeque<BlkReq, 128>,
         write: bool,
-        ) -> RpcResult<Result<(
-            usize,
-            RRefDeque<BlkReq, 128>,
-            RRefDeque<BlkReq, 128>,
-        )>> {
+    ) -> RpcResult<Result<(usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>)>> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
@@ -1075,8 +1196,10 @@ impl NvmeBDev for NvmeProxy {
         r
     }
 
-    fn poll_rref(&mut self, collect: RRefDeque<BlkReq, 1024>) ->
-            RpcResult<Result<(usize, RRefDeque<BlkReq, 1024>)>> {
+    fn poll_rref(
+        &mut self,
+        collect: RRefDeque<BlkReq, 1024>,
+    ) -> RpcResult<Result<(usize, RRefDeque<BlkReq, 1024>)>> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
@@ -1105,21 +1228,28 @@ impl NvmeBDev for NvmeProxy {
     }
 }
 
-
-/* 
+/*
  * Code to unwind usrnet_read_socket
  */
 
 #[no_mangle]
-pub extern fn usrnet_read_socket(s: &Box<dyn UsrNet>, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+pub extern "C" fn usrnet_read_socket(
+    s: &Box<dyn UsrNet>,
+    socket: usize,
+    buffer: RRefVec<u8>,
+) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
     //println!("usrnet_read_socket: x:{}", x);
     s.read_socket(socket, buffer)
 }
 
 #[no_mangle]
-pub extern fn usrnet_read_socket_err(s: &Box<dyn UsrNet>, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+pub extern "C" fn usrnet_read_socket_err(
+    s: &Box<dyn UsrNet>,
+    socket: usize,
+    buffer: RRefVec<u8>,
+) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
     println!("usrnet_read_socket was aborted");
-    Err(unsafe{RpcError::panic()})
+    Err(unsafe { RpcError::panic() })
 }
 
 #[no_mangle]
@@ -1127,26 +1257,40 @@ pub extern "C" fn usrnet_read_socket_addr() -> u64 {
     usrnet_read_socket_err as u64
 }
 
-extern {
-    fn usrnet_read_socket_tramp(s: &Box<dyn UsrNet>, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>>;
+extern "C" {
+    fn usrnet_read_socket_tramp(
+        s: &Box<dyn UsrNet>,
+        socket: usize,
+        buffer: RRefVec<u8>,
+    ) -> RpcResult<Result<(usize, RRefVec<u8>)>>;
 }
 
 trampoline!(usrnet_read_socket);
 
-/* 
+/*
  * Code to unwind usrnet_write_socket
  */
 
 #[no_mangle]
-pub extern fn usrnet_write_socket(s: &Box<dyn UsrNet>, socket: usize, buffer: RRefVec<u8>, size: usize) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+pub extern "C" fn usrnet_write_socket(
+    s: &Box<dyn UsrNet>,
+    socket: usize,
+    buffer: RRefVec<u8>,
+    size: usize,
+) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
     //println!("usrnet_write_socket: x:{}", x);
     s.write_socket(socket, buffer, size)
 }
 
 #[no_mangle]
-pub extern fn usrnet_write_socket_err(s: &Box<dyn UsrNet>, socket: usize, buffer: RRefVec<u8>, size: usize) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+pub extern "C" fn usrnet_write_socket_err(
+    s: &Box<dyn UsrNet>,
+    socket: usize,
+    buffer: RRefVec<u8>,
+    size: usize,
+) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
     println!("usrnet_write_socket was aborted");
-    Err(unsafe{RpcError::panic()})
+    Err(unsafe { RpcError::panic() })
 }
 
 #[no_mangle]
@@ -1154,8 +1298,13 @@ pub extern "C" fn usrnet_write_socket_addr() -> u64 {
     usrnet_write_socket_err as u64
 }
 
-extern {
-    fn usrnet_write_socket_tramp(s: &Box<dyn UsrNet>, socket: usize, buffer: RRefVec<u8>, size: usize) -> RpcResult<Result<(usize, RRefVec<u8>)>>;
+extern "C" {
+    fn usrnet_write_socket_tramp(
+        s: &Box<dyn UsrNet>,
+        socket: usize,
+        buffer: RRefVec<u8>,
+        size: usize,
+    ) -> RpcResult<Result<(usize, RRefVec<u8>)>>;
 }
 
 trampoline!(usrnet_write_socket);
@@ -1171,10 +1320,7 @@ unsafe impl Send for UsrNetProxy {}
 
 impl UsrNetProxy {
     fn new(domain_id: u64, domain: Box<dyn UsrNet>) -> Self {
-        Self {
-            domain,
-            domain_id,
-        }
+        Self { domain, domain_id }
     }
 }
 
@@ -1191,7 +1337,11 @@ impl UsrNet for UsrNetProxy {
         self.domain.listen(socket, port)
     }
 
-    fn read_socket(&self, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+    fn read_socket(
+        &self,
+        socket: usize,
+        buffer: RRefVec<u8>,
+    ) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
@@ -1216,7 +1366,12 @@ impl UsrNet for UsrNetProxy {
         r
     }
 
-    fn write_socket(&self, socket: usize, buffer: RRefVec<u8>, size: usize) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+    fn write_socket(
+        &self,
+        socket: usize,
+        buffer: RRefVec<u8>,
+        size: usize,
+    ) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
 
@@ -1261,4 +1416,3 @@ impl UsrNet for UsrNetProxy {
         self.domain.close(server)
     }
 }
-

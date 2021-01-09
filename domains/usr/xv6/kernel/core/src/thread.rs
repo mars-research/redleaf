@@ -8,8 +8,8 @@ use spin::Mutex;
 use libsyscalls::sync::CondVar;
 use libsyscalls::syscalls::sys_create_thread;
 use usr_interface::rpc::RpcResult;
-use usr_interface::vfs::VFS;
 use usr_interface::rv6::Thread;
+use usr_interface::vfs::VFS;
 
 lazy_static! {
     static ref thread_queue: Mutex<VecDeque<ThreadContext>> = Default::default();
@@ -39,10 +39,11 @@ impl ThreadHandle {
 
 impl Thread for ThreadHandle {
     fn join(&self) -> RpcResult<()> {
-        Ok((|| {
+        {
             let pred = |finished: &mut bool| *finished;
             self.cv.sleep_until(&self.finished, pred);
-        })())
+        };
+        Ok(())
     }
 }
 

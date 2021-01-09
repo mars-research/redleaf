@@ -7,8 +7,8 @@ https://trustedcomputinggroup.org/wp-content/uploads/TCG_TPM2_r1p59_Part2_Struct
 */
 
 use alloc::vec::Vec;
+use byteorder::{BigEndian, ByteOrder};
 use core::mem;
-use byteorder::{ByteOrder, BigEndian};
 
 pub use crate::regs::*;
 
@@ -50,9 +50,9 @@ impl TpmHandle {
 
 // Table 3:93 - TPMS_PCR_SELECTION
 pub struct TpmSPcrSelection {
-    pub hash_alg:           u16,
+    pub hash_alg: u16,
     pub size_of_select: u8,
-    pub pcr_select:     Vec<u8>,
+    pub pcr_select: Vec<u8>,
 }
 
 impl TpmSPcrSelection {
@@ -65,7 +65,8 @@ impl TpmSPcrSelection {
     }
 
     pub fn size(&self) -> usize {
-        let ret: usize = mem::size_of::<u16>() + mem::size_of::<u8>() * (1 + self.size_of_select as usize);
+        let ret: usize =
+            mem::size_of::<u16>() + mem::size_of::<u8>() * (1 + self.size_of_select as usize);
         ret
     }
 
@@ -358,9 +359,7 @@ pub struct TpmSSchemeHash {
 
 impl TpmSSchemeHash {
     pub fn new(hash_alg: TpmIAlgHash) -> Self {
-        Self {
-            hash_alg: hash_alg,
-        }
+        Self { hash_alg: hash_alg }
     }
 
     pub fn size(&self) -> usize {
@@ -382,9 +381,7 @@ pub struct TpmSSchemeHmac {
 
 impl TpmSSchemeHmac {
     pub fn new(hash_alg: TpmIAlgHash) -> Self {
-        Self {
-            hash_alg: hash_alg,
-        }
+        Self { hash_alg: hash_alg }
     }
 
     pub fn size(&self) -> usize {
@@ -461,24 +458,24 @@ pub struct TpmUSchemeKeyedHash {
 }
 
 impl TpmUSchemeKeyedHash {
-    pub fn new(selector: TpmAlgorithms,
-               scheme_hmac: Option<TpmSSchemeHmac>,
-               scheme_xor: Option<TpmSSchemeXor>) -> Self {
+    pub fn new(
+        selector: TpmAlgorithms,
+        scheme_hmac: Option<TpmSSchemeHmac>,
+        scheme_xor: Option<TpmSSchemeXor>,
+    ) -> Self {
         match selector {
-            TpmAlgorithms::TPM_ALG_HMAC |
-            TpmAlgorithms::TPM_ALG_XOR  |
-            TpmAlgorithms::TPM_ALG_NULL  =>
-                Self {
-                    selector: selector,
-                    scheme_hmac: scheme_hmac,
-                    scheme_xor: scheme_xor,
-                },
-            _ =>
-                Self {
-                    selector: TpmAlgorithms::TPM_ALG_NULL,
-                    scheme_hmac: None,
-                    scheme_xor: None,
-                },
+            TpmAlgorithms::TPM_ALG_HMAC
+            | TpmAlgorithms::TPM_ALG_XOR
+            | TpmAlgorithms::TPM_ALG_NULL => Self {
+                selector: selector,
+                scheme_hmac: scheme_hmac,
+                scheme_xor: scheme_xor,
+            },
+            _ => Self {
+                selector: TpmAlgorithms::TPM_ALG_NULL,
+                scheme_hmac: None,
+                scheme_xor: None,
+            },
         }
     }
 
@@ -545,9 +542,7 @@ pub struct TpmSKeyedhashParms {
 
 impl TpmSKeyedhashParms {
     pub fn new(scheme: TpmTKeyedhashScheme) -> Self {
-        Self {
-            scheme: scheme,
-        }
+        Self { scheme: scheme }
     }
 
     pub fn size(&self) -> usize {
@@ -595,28 +590,28 @@ pub struct TpmUSigScheme {
 }
 
 impl TpmUSigScheme {
-    pub fn new(selector: TpmAlgorithms,
-               scheme_hmac: Option<TpmSSchemeHmac>,
-               scheme_hash: Option<TpmSSchemeHash>,
-               scheme_ecdaa: Option<TpmSSchemeEcdaa>) -> Self {
+    pub fn new(
+        selector: TpmAlgorithms,
+        scheme_hmac: Option<TpmSSchemeHmac>,
+        scheme_hash: Option<TpmSSchemeHash>,
+        scheme_ecdaa: Option<TpmSSchemeEcdaa>,
+    ) -> Self {
         match selector {
-            TpmAlgorithms::TPM_ALG_HMAC  |
-            TpmAlgorithms::TPM_ALG_RSA   |
-            TpmAlgorithms::TPM_ALG_ECDAA |
-            TpmAlgorithms::TPM_ALG_NULL  =>
-                Self {
-                    selector: selector,
-                    scheme_hmac: scheme_hmac,
-                    scheme_hash: scheme_hash,
-                    scheme_ecdaa: scheme_ecdaa,
-                },
-            _ =>
-                Self {
-                    selector: TpmAlgorithms::TPM_ALG_NULL,
-                    scheme_hmac: None,
-                    scheme_hash: None,
-                    scheme_ecdaa: None,
-                },
+            TpmAlgorithms::TPM_ALG_HMAC
+            | TpmAlgorithms::TPM_ALG_RSA
+            | TpmAlgorithms::TPM_ALG_ECDAA
+            | TpmAlgorithms::TPM_ALG_NULL => Self {
+                selector: selector,
+                scheme_hmac: scheme_hmac,
+                scheme_hash: scheme_hash,
+                scheme_ecdaa: scheme_ecdaa,
+            },
+            _ => Self {
+                selector: TpmAlgorithms::TPM_ALG_NULL,
+                scheme_hmac: None,
+                scheme_hash: None,
+                scheme_ecdaa: None,
+            },
         }
     }
 
@@ -689,9 +684,7 @@ pub struct TpmIAlgKdf {
 
 impl TpmIAlgKdf {
     pub fn new(kdf: u16) -> Self {
-        Self {
-            kdf: kdf,
-        }
+        Self { kdf: kdf }
     }
 
     pub fn size(&self) -> usize {
@@ -713,9 +706,7 @@ pub struct TpmIAlgHash {
 
 impl TpmIAlgHash {
     pub fn new(hash: u16) -> Self {
-        Self {
-            hash: hash,
-        }
+        Self { hash: hash }
     }
 
     pub fn size(&self) -> usize {
@@ -737,9 +728,7 @@ pub struct TpmIAlgSym {
 
 impl TpmIAlgSym {
     pub fn new(sym: u16) -> Self {
-        Self {
-            sym: sym,
-        }
+        Self { sym: sym }
     }
 
     pub fn size(&self) -> usize {
@@ -761,9 +750,7 @@ pub struct TpmIAlgSymObject {
 
 impl TpmIAlgSymObject {
     pub fn new(sym_obj: u16) -> Self {
-        Self {
-            sym_obj: sym_obj,
-        }
+        Self { sym_obj: sym_obj }
     }
 
     pub fn size(&self) -> usize {
@@ -833,9 +820,7 @@ pub struct TpmIAlgSymMode {
 
 impl TpmIAlgSymMode {
     pub fn new(mode: u16) -> Self {
-        Self {
-            mode: mode,
-        }
+        Self { mode: mode }
     }
 
     pub fn size(&self) -> usize {
@@ -856,11 +841,9 @@ pub struct TpmUSymMode {
     pub aes: TpmIAlgSymMode, // Only AES is supported
 }
 
-impl TpmUSymMode{
+impl TpmUSymMode {
     pub fn new(aes: TpmIAlgSymMode) -> Self {
-        Self {
-            aes: aes,
-        }
+        Self { aes: aes }
     }
 
     pub fn size(&self) -> usize {
@@ -883,8 +866,11 @@ pub struct TpmTSymDef {
 }
 
 impl TpmTSymDef {
-    pub fn new(algorithm: TpmIAlgSym, key_bits: Option<TpmUSymKeyBits>,
-               mode: Option<TpmUSymMode>) -> Self {
+    pub fn new(
+        algorithm: TpmIAlgSym,
+        key_bits: Option<TpmUSymKeyBits>,
+        mode: Option<TpmUSymMode>,
+    ) -> Self {
         Self {
             algorithm: algorithm,
             key_bits: key_bits,
@@ -928,8 +914,11 @@ pub struct TpmTSymDefObject {
 }
 
 impl TpmTSymDefObject {
-    pub fn new(algorithm: TpmIAlgSymObject, key_bits: Option<TpmUSymKeyBits>,
-               mode: Option<TpmUSymMode>) -> Self {
+    pub fn new(
+        algorithm: TpmIAlgSymObject,
+        key_bits: Option<TpmUSymKeyBits>,
+        mode: Option<TpmUSymMode>,
+    ) -> Self {
         Self {
             algorithm: algorithm,
             key_bits: key_bits,
@@ -1008,8 +997,12 @@ pub struct TpmSRsaParms {
 }
 
 impl TpmSRsaParms {
-    pub fn new(symmetric: TpmTSymDefObject, scheme: TpmTRsaScheme,
-               key_bits: u16, exponent: u32) -> Self {
+    pub fn new(
+        symmetric: TpmTSymDefObject,
+        scheme: TpmTRsaScheme,
+        key_bits: u16,
+        exponent: u32,
+    ) -> Self {
         Self {
             symmetric: symmetric,
             scheme: scheme,
@@ -1019,10 +1012,10 @@ impl TpmSRsaParms {
     }
 
     pub fn size(&self) -> usize {
-        let ret: usize =   self.symmetric.size()
-                         + self.scheme.size()
-                         + mem::size_of::<u16>()
-                         + mem::size_of::<u32>();
+        let ret: usize = self.symmetric.size()
+            + self.scheme.size()
+            + mem::size_of::<u16>()
+            + mem::size_of::<u32>();
         ret
     }
 
@@ -1043,9 +1036,7 @@ pub struct TpmSSymcipherParms {
 
 impl TpmSSymcipherParms {
     pub fn new(sym: TpmTSymDefObject) -> Self {
-        Self {
-            sym: sym,
-        }
+        Self { sym: sym }
     }
 
     pub fn size(&self) -> usize {
@@ -1070,27 +1061,27 @@ pub struct TpmUPublicParms {
 }
 
 impl TpmUPublicParms {
-    pub fn new(selector: TpmAlgorithms,
-               keyedhash_parms: Option<TpmSKeyedhashParms>,
-               symcipher_parms: Option<TpmSSymcipherParms>,
-               rsa_parms: Option<TpmSRsaParms>) -> Self {
+    pub fn new(
+        selector: TpmAlgorithms,
+        keyedhash_parms: Option<TpmSKeyedhashParms>,
+        symcipher_parms: Option<TpmSSymcipherParms>,
+        rsa_parms: Option<TpmSRsaParms>,
+    ) -> Self {
         match selector {
-            TpmAlgorithms::TPM_ALG_KEYEDHASH |
-            TpmAlgorithms::TPM_ALG_SYMCIPHER |
-            TpmAlgorithms::TPM_ALG_RSA =>
-                Self {
-                    selector: selector,
-                    keyedhash_parms: keyedhash_parms,
-                    symcipher_parms: symcipher_parms,
-                    rsa_parms: rsa_parms,
-                },
-            _ =>
-                Self {
-                    selector: TpmAlgorithms::TPM_ALG_NULL,
-                    keyedhash_parms: None,
-                    symcipher_parms: None,
-                    rsa_parms: None,
-                },
+            TpmAlgorithms::TPM_ALG_KEYEDHASH
+            | TpmAlgorithms::TPM_ALG_SYMCIPHER
+            | TpmAlgorithms::TPM_ALG_RSA => Self {
+                selector: selector,
+                keyedhash_parms: keyedhash_parms,
+                symcipher_parms: symcipher_parms,
+                rsa_parms: rsa_parms,
+            },
+            _ => Self {
+                selector: TpmAlgorithms::TPM_ALG_NULL,
+                keyedhash_parms: None,
+                symcipher_parms: None,
+                rsa_parms: None,
+            },
         }
     }
 
@@ -1138,8 +1129,7 @@ impl Tpm2BPublicKeyRsa {
     }
 
     pub fn size(&self) -> usize {
-        let ret: usize =   mem::size_of::<u16>()
-                         + (self.size as usize) * mem::size_of::<u8>();
+        let ret: usize = mem::size_of::<u16>() + (self.size as usize) * mem::size_of::<u8>();
         ret
     }
 
@@ -1164,9 +1154,14 @@ pub struct TpmTPublic {
 }
 
 impl TpmTPublic {
-    pub fn new(alg_type: u16, name_alg: u16, object_attributes: u32,
-               auth_policy: Tpm2BDigest, parameters: TpmUPublicParms,
-               unique: Tpm2BPublicKeyRsa) -> Self {
+    pub fn new(
+        alg_type: u16,
+        name_alg: u16,
+        object_attributes: u32,
+        auth_policy: Tpm2BDigest,
+        parameters: TpmUPublicParms,
+        unique: Tpm2BPublicKeyRsa,
+    ) -> Self {
         Self {
             alg_type: alg_type,
             name_alg: name_alg,
@@ -1178,11 +1173,11 @@ impl TpmTPublic {
     }
 
     pub fn size(&self) -> usize {
-        let ret: usize =   mem::size_of::<u16>() * 2
-                         + mem::size_of::<u32>()
-                         + self.auth_policy.size()
-                         + self.parameters.size()
-                         + self.unique.size();
+        let ret: usize = mem::size_of::<u16>() * 2
+            + mem::size_of::<u32>()
+            + self.auth_policy.size()
+            + self.parameters.size()
+            + self.unique.size();
         ret
     }
 
@@ -1213,8 +1208,7 @@ impl Tpm2BPublic {
     }
 
     pub fn size(&self) -> usize {
-        let ret: usize =   mem::size_of::<u16>()
-                         + self.public_area.size();
+        let ret: usize = mem::size_of::<u16>() + self.public_area.size();
         ret
     }
 
@@ -1235,9 +1229,7 @@ pub struct TpmIDhObject {
 
 impl TpmIDhObject {
     pub fn new(object: u32) -> Self {
-        Self {
-            object: object,
-        }
+        Self { object: object }
     }
 
     pub fn size(&self) -> usize {
@@ -1259,9 +1251,7 @@ pub struct TpmIDhEntity {
 
 impl TpmIDhEntity {
     pub fn new(entity: u32) -> Self {
-        Self {
-            entity: entity,
-        }
+        Self { entity: entity }
     }
 
     pub fn size(&self) -> usize {
@@ -1341,9 +1331,7 @@ pub struct TpmIShPolicy {
 
 impl TpmIShPolicy {
     pub fn new(policy: u32) -> Self {
-        Self {
-            policy: policy,
-        }
+        Self { policy: policy }
     }
 
     pub fn size(&self) -> usize {

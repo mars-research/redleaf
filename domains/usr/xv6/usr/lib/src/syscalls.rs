@@ -1,15 +1,14 @@
 /// Syscall helpers for rv6 user domains.
-/// 
-/// Some syscalls offers `sys_xxx_slice_slow` variants that converts the 
+///
+/// Some syscalls offers `sys_xxx_slice_slow` variants that converts the
 /// &str arguments to RRefVec<u8>. They are Slower than the `sys_xxx` variants
 /// but they are easier to use and good for prototyping.
-
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-use spin::Once;
-use usr_interface::vfs::{UsrVFS, NFILE};
-use usr_interface::rv6::{FileMode, FileStat, Result, Thread, Rv6};
 use rref::RRefVec;
+use spin::Once;
+use usr_interface::rv6::{FileMode, FileStat, Result, Rv6, Thread};
+use usr_interface::vfs::{UsrVFS, NFILE};
 
 static SYSCALL: Once<Box<dyn Rv6>> = Once::new();
 static FS: Once<Box<dyn UsrVFS>> = Once::new();
@@ -20,11 +19,23 @@ pub fn init(s: Box<dyn Rv6>) {
     SYSCALL.call_once(|| s);
 }
 
-pub fn sys_spawn_domain_slice_slow(path: &str, args: &str, fds: &[Option<usize>]) -> Result<Box<dyn Thread>> {
-    sys_spawn_domain(RRefVec::from_slice(path.as_bytes()), RRefVec::from_slice(args.as_bytes()), fds)
+pub fn sys_spawn_domain_slice_slow(
+    path: &str,
+    args: &str,
+    fds: &[Option<usize>],
+) -> Result<Box<dyn Thread>> {
+    sys_spawn_domain(
+        RRefVec::from_slice(path.as_bytes()),
+        RRefVec::from_slice(args.as_bytes()),
+        fds,
+    )
 }
 
-pub fn sys_spawn_domain(path: RRefVec<u8>, args: RRefVec<u8>, fds: &[Option<usize>]) -> Result<Box<dyn Thread>> {
+pub fn sys_spawn_domain(
+    path: RRefVec<u8>,
+    args: RRefVec<u8>,
+    fds: &[Option<usize>],
+) -> Result<Box<dyn Thread>> {
     assert!(fds.len() <= NFILE);
     let mut arr: [Option<usize>; NFILE] = array_init::array_init(|_| None);
     arr[..fds.len()].clone_from_slice(&fds);
@@ -33,15 +44,15 @@ pub fn sys_spawn_domain(path: RRefVec<u8>, args: RRefVec<u8>, fds: &[Option<usiz
 }
 
 pub fn sys_getpid() -> Result<u64> {
-    SYSCALL.r#try().unwrap().sys_getpid()?   
+    SYSCALL.r#try().unwrap().sys_getpid()?
 }
 
 pub fn sys_uptime() -> Result<u64> {
-    SYSCALL.r#try().unwrap().sys_uptime()?   
+    SYSCALL.r#try().unwrap().sys_uptime()?
 }
 
 pub fn sys_sleep(ns: u64) -> Result<()> {
-    SYSCALL.r#try().unwrap().sys_sleep(ns)?      
+    SYSCALL.r#try().unwrap().sys_sleep(ns)?
 }
 
 pub fn sys_open_slice_slow(path: &str, mode: FileMode) -> Result<usize> {
@@ -102,7 +113,10 @@ pub fn sys_pipe() -> Result<(usize, usize)> {
 }
 
 pub fn sys_link_slice_slow(old_path: &str, new_path: &str) -> Result<()> {
-    sys_link(RRefVec::from_slice(old_path.as_bytes()), RRefVec::from_slice(new_path.as_bytes()))
+    sys_link(
+        RRefVec::from_slice(old_path.as_bytes()),
+        RRefVec::from_slice(new_path.as_bytes()),
+    )
 }
 
 pub fn sys_link(old_path: RRefVec<u8>, new_path: RRefVec<u8>) -> Result<()> {

@@ -81,7 +81,11 @@ pub fn get_flowhash(frame: &[u8]) -> Option<usize> {
     let v4len = (frame[ETH_HEADER_LEN] & 0b1111) as usize * 4;
 
     // Hash source/destination IP addresses
-    fnv_a(&frame[(ETH_HEADER_LEN + IPV4_SRCDST_OFFSET)..(ETH_HEADER_LEN + IPV4_SRCDST_OFFSET + IPV4_SRCDST_LEN)], &mut state);
+    fnv_a(
+        &frame[(ETH_HEADER_LEN + IPV4_SRCDST_OFFSET)
+            ..(ETH_HEADER_LEN + IPV4_SRCDST_OFFSET + IPV4_SRCDST_LEN)],
+        &mut state,
+    );
     // frame[(ETH_HEADER_LEN + IPV4_SRCDST_OFFSET)..(ETH_HEADER_LEN + IPV4_SRCDST_OFFSET + IPV4_SRCDST_LEN)].hash(&mut h1);
 
     // Hash IP protocol number
@@ -98,7 +102,10 @@ pub fn get_flowhash(frame: &[u8]) -> Option<usize> {
     // proto.hash(&mut h1);
 
     // Hash source/destination port
-    fnv_a(&frame[(ETH_HEADER_LEN + v4len)..(ETH_HEADER_LEN + v4len + 4)], &mut state);
+    fnv_a(
+        &frame[(ETH_HEADER_LEN + v4len)..(ETH_HEADER_LEN + v4len + 4)],
+        &mut state,
+    );
     // frame[(ETH_HEADER_LEN + v4len)..(ETH_HEADER_LEN + v4len + 4)].hash(&mut h1);
 
     // Some(h1.finish() as usize)
@@ -108,7 +115,7 @@ pub fn get_flowhash(frame: &[u8]) -> Option<usize> {
 pub fn get_mut_udp_payload(frame: &mut [u8]) -> Option<(usize, &mut [u8])> {
     if frame[ETH_HEADER_LEN] >> 4 != 4 {
         // This shitty implementation can only handle IPv4 :(
-        return None
+        return None;
     }
 
     // Length of IPv4 header
@@ -121,7 +128,10 @@ pub fn get_mut_udp_payload(frame: &mut [u8]) -> Option<(usize, &mut [u8])> {
         return None;
     }
 
-    Some((ETH_HEADER_LEN + v4len + UDP_HEADER_LEN, &mut frame[(ETH_HEADER_LEN + v4len + UDP_HEADER_LEN)..]))
+    Some((
+        ETH_HEADER_LEN + v4len + UDP_HEADER_LEN,
+        &mut frame[(ETH_HEADER_LEN + v4len + UDP_HEADER_LEN)..],
+    ))
 }
 
 pub fn swap_udp_ips(frame: &mut [u8]) {
@@ -154,4 +164,3 @@ fn calc_ipv4_checksum(ipv4_header: &[u8]) -> u16 {
     }
     !(checksum as u16)
 }
-

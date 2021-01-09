@@ -6,10 +6,10 @@
 use alloc::sync::Arc;
 use core::sync::atomic::AtomicUsize;
 
-pub use usr_interface::vfs::{ErrorKind, FileMode, FileStat, Result, NFILE, DirectoryEntry};
+pub use usr_interface::vfs::{DirectoryEntry, ErrorKind, FileMode, FileStat, Result, NFILE};
 
 use crate::cross_thread_temp_store::CrossThreadTempStorage;
-use crate::icache::{ICache, ICACHE, INode, INodeFileType};
+use crate::icache::{ICache, INode, INodeFileType, ICACHE};
 use crate::log::LOG;
 use crate::opened_file::{FDTable, FileType, OpenedFile, FD_TABLE};
 use crate::params;
@@ -102,7 +102,6 @@ pub fn sys_link(old_path: &str, new_path: &str) -> Result<()> {
     iguard.data.nlink += 1;
     iguard.update(&mut trans);
     drop(iguard);
-    
 
     let (parent_inode, name) = ICache::nameiparent(&mut trans, new_path)?;
     let mut parent_iguard = parent_inode.lock();
@@ -118,7 +117,7 @@ pub fn sys_link(old_path: &str, new_path: &str) -> Result<()> {
         ICache::put(&mut trans, inode);
         return result;
     }
-    
+
     drop(parent_iguard);
     ICache::put(&mut trans, parent_inode);
     ICache::put(&mut trans, inode);
@@ -161,7 +160,7 @@ pub fn sys_unlink(path: &str) -> Result<()> {
     // Write an emptry entry
     let buffer = [0u8; core::mem::size_of::<DirectoryEntry>()];
     parent_iguard.write(&mut trans, &buffer, offset).unwrap();
-    
+
     if iguard.data.file_type == INodeFileType::Directory {
         parent_iguard.data.nlink -= 1;
         parent_iguard.update(&mut trans);
@@ -292,13 +291,10 @@ pub fn sys_mkdir(path: &str) -> Result<()> {
 }
 
 pub fn sys_dump_inode() -> Result<()> {
-    let inode = ICACHE
-            .lock()
-            .get(params::ROOTDEV, params::ROOTINO)
-            .unwrap();
-        inode
-            .lock()
-            .print(&mut LOG.r#try().unwrap().begin_transaction(), 0);
+    let inode = ICACHE.lock().get(params::ROOTDEV, params::ROOTINO).unwrap();
+    inode
+        .lock()
+        .print(&mut LOG.r#try().unwrap().begin_transaction(), 0);
     Ok(())
 }
 

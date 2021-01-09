@@ -9,7 +9,6 @@ use alloc::boxed::Box;
 use alloc::string::String;
 use core::panic::PanicInfo;
 
-
 use syscalls::{Heap, Syscall};
 
 use usr_interfaces::rv6::Rv6;
@@ -32,7 +31,10 @@ pub fn trusted_entry(
 }
 
 fn getpid() -> Result<(), String> {
-    println!("pid: {}", sys_getpid().map_err(|e| alloc::format!("getpid: cannot getpid. {:?}", e))?);
+    println!(
+        "pid: {}",
+        sys_getpid().map_err(|e| alloc::format!("getpid: cannot getpid. {:?}", e))?
+    );
     Ok(())
 }
 

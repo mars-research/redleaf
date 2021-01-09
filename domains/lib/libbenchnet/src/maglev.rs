@@ -14,15 +14,15 @@
 // table like Eisenbud.
 //
 // Quick example:
-// 
+//
 // let m = Maglev::new(&["blmntuu", "Aeimnpprr", "Aeeimnstz"]);
 // println!("Selected backend: {}", &m.get("sanctioned"));
 
-use core::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
-use core::iter;
-use core::cell::RefCell;
 use alloc::vec::Vec;
 use core::alloc::Layout;
+use core::cell::RefCell;
+use core::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
+use core::iter;
 
 use fnv::FnvHasher;
 use twox_hash::XxHash;
@@ -31,8 +31,8 @@ use core::default::Default;
 
 use hashbrown::HashMap;
 // For Maglev, we use a really stripped-down version of Indexmap
-use sashstore_redleaf::cindexmap::CIndex;
 use console::println;
+use sashstore_redleaf::cindexmap::CIndex;
 
 const TABLE_SIZE: usize = 65537;
 const CACHE_SIZE: usize = 1 << 22;
@@ -67,7 +67,11 @@ impl<N: Hash + Eq> Maglev<N> {
         let lookup = Self::populate(&nodes);
         let cache = RefCell::new(CIndex::with_capacity(CACHE_SIZE));
 
-        Maglev { nodes, lookup, cache }
+        Maglev {
+            nodes,
+            lookup,
+            cache,
+        }
     }
 
     #[inline]
@@ -109,13 +113,14 @@ impl<N: Hash + Eq> Maglev<N> {
         let mut next: Vec<usize> = iter::repeat(0).take(n).collect();
 
         //let mut entry: Vec<i8> = iter::repeat(-1).take(m).collect();
-        
+
         // align lookup table at cacheline boundary
         let mut entry = unsafe {
             let layout = Layout::from_size_align(m, 64)
-                    .map_err(|e| panic!("Layout error: {}", e)).unwrap();
+                .map_err(|e| panic!("Layout error: {}", e))
+                .unwrap();
 
-            let buf = unsafe {alloc::alloc::alloc(layout) as *mut i8 };
+            let buf = unsafe { alloc::alloc::alloc(layout) as *mut i8 };
             let mut v: Vec<i8> = unsafe { Vec::from_raw_parts(buf, m, m) };
             v.fill(-1);
             v
@@ -168,12 +173,12 @@ impl<N: Hash + Eq> Maglev<N> {
                 // Use cached backend
                 //unsafe { HIT_COUNT += 1; }
                 idx
-            },
+            }
             None => {
                 // Use lookup directly
                 set_cache = true;
                 self.lookup[hash % self.lookup.len()] as usize
-            },
+            }
         };
         //unsafe { HASHMAP_TOTAL += 1; }
 

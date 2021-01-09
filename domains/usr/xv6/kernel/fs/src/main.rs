@@ -18,18 +18,16 @@ extern crate lazy_static;
 #[macro_use]
 extern crate byteorder;
 
-
 use alloc::boxed::Box;
 use console::println;
 use core::panic::PanicInfo;
 
-use rref;
 use rref::RRefVec;
 use syscalls::{Heap, Syscall};
 use sysfile::{FileMode, FileStat};
 use usr_interface::bdev::BDev;
-use usr_interface::vfs::{KernelVFS, Result, UsrVFS, NFILE, VFS};
 use usr_interface::rpc::RpcResult;
+use usr_interface::vfs::{KernelVFS, Result, UsrVFS, NFILE, VFS};
 
 mod bcache;
 mod block;
@@ -72,7 +70,11 @@ impl KernelVFS for Rv6FS {
 }
 
 impl UsrVFS for Rv6FS {
-    fn sys_open(&self, path: RRefVec<u8>, mode: FileMode) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+    fn sys_open(
+        &self,
+        path: RRefVec<u8>,
+        mode: FileMode,
+    ) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         Ok((|| {
             let fd = sysfile::sys_open(core::str::from_utf8(path.as_slice())?, mode)?;
             Ok((fd, path))
@@ -81,7 +83,11 @@ impl UsrVFS for Rv6FS {
     fn sys_close(&self, fd: usize) -> RpcResult<Result<()>> {
         Ok(sysfile::sys_close(fd))
     }
-    fn sys_read(&self, fd: usize, mut buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+    fn sys_read(
+        &self,
+        fd: usize,
+        mut buffer: RRefVec<u8>,
+    ) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         Ok((|| {
             let bytes_read = sysfile::sys_read(fd, buffer.as_mut_slice())?;
             Ok((bytes_read, buffer))

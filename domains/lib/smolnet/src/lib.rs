@@ -4,9 +4,9 @@
 
 extern crate alloc;
 
+use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
-use alloc::boxed::Box;
 // use core::cell::{Mutex, RefMut};
 use core::borrow::BorrowMut;
 
@@ -15,15 +15,15 @@ use spin::Mutex;
 
 use console::println;
 
-use smoltcp::phy::{Device, DeviceCapabilities, ChecksumCapabilities, Checksum, RxToken, TxToken};
+use smoltcp::phy::{Checksum, ChecksumCapabilities, Device, DeviceCapabilities, RxToken, TxToken};
 use smoltcp::time::Instant;
-use smoltcp::Result as SmolResult;
 use smoltcp::Error as SmolError;
+use smoltcp::Result as SmolResult;
 
-use usr::net::Net;
-use rref::{RRef, RRefDeque};
 use core::default::Default;
 use core::ops::Deref;
+use rref::{RRef, RRefDeque};
+use usr::net::Net;
 
 const BATCH_SZ: usize = 32;
 
@@ -55,7 +55,6 @@ impl SmolPhy {
         }
     }
 
-
     // do_rx() -> execute smoltcp functions -> do_tx()
 
     pub fn do_rx(&mut self) {
@@ -68,12 +67,16 @@ impl SmolPhy {
         let mut rx = rx_guard.take().unwrap();
 
         // FIXME: Fixed packet length???????? Why?
-        let (_, pool, rx) = self.phy.submit_and_poll_rref(pool, rx, false, 1514).unwrap().unwrap(); // RpcResult<Result<T>>
+        let (_, pool, rx) = self
+            .phy
+            .submit_and_poll_rref(pool, rx, false, 1514)
+            .unwrap()
+            .unwrap(); // RpcResult<Result<T>>
 
         pool_guard.replace(pool);
         rx_guard.replace(rx);
     }
-    
+
     pub fn do_tx(&mut self) {
         let mut pool_guard = self.pool.lock();
         let mut tx_guard = self.tx.lock();
@@ -89,7 +92,11 @@ impl SmolPhy {
         }
         */
 
-        let (_, tx, mut pool) = self.phy.submit_and_poll_rref(tx, pool, true, 1514).unwrap().unwrap(); // RpcResult<Result<T>>
+        let (_, tx, mut pool) = self
+            .phy
+            .submit_and_poll_rref(tx, pool, true, 1514)
+            .unwrap()
+            .unwrap(); // RpcResult<Result<T>>
 
         if pool.len() == 0 && tx.len() < BATCH_SZ * 4 {
             for i in 0..BATCH_SZ {
@@ -142,7 +149,7 @@ impl<'a> Device<'a> for SmolPhy {
                 let tx_token = self.get_tx_frame();
 
                 Some((rx_token, tx_token))
-            },
+            }
             None => None,
         };
 
@@ -176,7 +183,8 @@ pub struct SmolPhyTxToken {
 impl TxToken for SmolPhyTxToken {
     // consume the cum chalice
     fn consume<R, F>(mut self, _timestamp: Instant, len: usize, f: F) -> SmolResult<R>
-        where F: FnOnce(&mut [u8]) -> SmolResult<R>
+    where
+        F: FnOnce(&mut [u8]) -> SmolResult<R>,
     {
         match self.frame.take() {
             Some(mut frame) => {
@@ -190,7 +198,7 @@ impl TxToken for SmolPhyTxToken {
                 let result = f(&mut frame[..len]);
                 // println!("tx/smoltcp: real length {}", len);
                 // println!("tx/smoltcp: real packet: {:02X?}", &frame[..len]);
-                
+
                 {
                     let mut tx_guard = self.tx.lock();
                     let mut tx = tx_guard.take().unwrap();
@@ -199,7 +207,7 @@ impl TxToken for SmolPhyTxToken {
                 }
 
                 result
-            },
+            }
             None => Err(SmolError::Illegal),
         }
     }
@@ -226,12 +234,11 @@ pub struct SmolPhyRxToken {
 impl RxToken for SmolPhyRxToken {
     // consume the cum chalice
     fn consume<R, F>(mut self, _timestamp: Instant, f: F) -> SmolResult<R>
-        where F: FnOnce(&mut [u8]) -> SmolResult<R>
+    where
+        F: FnOnce(&mut [u8]) -> SmolResult<R>,
     {
         // HACK
-        let pkt_len = {
-            ((self.frame[14 + 2] as usize) << 8) + (self.frame[14 + 3] as usize) + 14
-        };
+        let pkt_len = { ((self.frame[14 + 2] as usize) << 8) + (self.frame[14 + 3] as usize) + 14 };
         let frame = if pkt_len <= self.frame.len() {
             // println!("rx/smoltcp: Received {} - Valid IPv4??", pkt_len);
             // println!("rx/smoltcp: packet: {:02X?}", &self.frame[..pkt_len]);
@@ -244,7 +251,7 @@ impl RxToken for SmolPhyRxToken {
 
         let mut pool_guard = self.pool.lock();
         let mut pool = pool_guard.take().unwrap();
-        
+
         pool.push_back(self.frame);
         pool_guard.replace(pool);
 

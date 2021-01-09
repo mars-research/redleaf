@@ -5,7 +5,7 @@ use spin::Mutex;
 
 use pc_keyboard::DecodedKey;
 
-use console::{print};
+use console::print;
 use libsyscalls::syscalls::{sys_readch_kbd, sys_yield};
 use usr_interface::rv6::File;
 
@@ -25,7 +25,7 @@ impl ConsoleDeviceInternal {
 
     fn populate_buffer_until_eol(&mut self) {
         loop {
-           let key = match sys_readch_kbd() {
+            let key = match sys_readch_kbd() {
                 Err(_e) => {
                     // println!("{}", e);
                     sys_yield();
@@ -48,17 +48,17 @@ impl ConsoleDeviceInternal {
                                 if self.buffer.pop_back().is_some() {
                                     self.write(&[key]);
                                 }
-                            },
+                            }
                             b'\n' => {
                                 self.write(&[key]);
                                 self.buffer.push_back(key);
                                 self.reached_eol = true;
                                 return;
                             }
-                            _ => {},
+                            _ => {}
                         }
                     }
-                },
+                }
                 Some(DecodedKey::RawKey(key)) => {
                     console::println!("Skipping raw key {:?}", key);
                     continue;
@@ -80,11 +80,11 @@ impl ConsoleDeviceInternal {
                 None => {
                     self.reached_eol = false;
                     return i + 1;
-                },
+                }
             }
         }
 
-        if self.buffer.len() == 0 {
+        if self.buffer.is_empty() {
             self.reached_eol = false;
         }
 

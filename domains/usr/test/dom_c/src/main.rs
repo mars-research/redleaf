@@ -1,17 +1,17 @@
 #![no_std]
 #![no_main]
-extern crate malloc;
 extern crate alloc;
-use libsyscalls;
-use syscalls::{Syscall, Heap};
+extern crate malloc;
+
+use syscalls::{Heap, Syscall};
 
 use alloc::boxed::Box;
 
 use console::println;
 
 use core::panic::PanicInfo;
-use usr;
-use rref::{RRef};
+
+use rref::RRef;
 
 use usr::rpc::RpcResult;
 
@@ -44,7 +44,10 @@ impl usr::dom_c::DomC for DomC {
 }
 
 #[no_mangle]
-pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>) -> Box<dyn usr::dom_c::DomC> {
+pub fn trusted_entry(
+    s: Box<dyn Syscall + Send + Sync>,
+    heap: Box<dyn Heap + Send + Sync>,
+) -> Box<dyn usr::dom_c::DomC> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 

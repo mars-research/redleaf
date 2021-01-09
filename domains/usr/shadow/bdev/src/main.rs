@@ -1,23 +1,23 @@
 #![no_std]
 #![no_main]
 // #![forbid(unsafe_code)]
-extern crate malloc;
 extern crate alloc;
-use libsyscalls;
-use syscalls::{Syscall, Heap};
-use create;
+extern crate malloc;
+
+use syscalls::{Heap, Syscall};
+
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use console::println;
 
 use core::panic::PanicInfo;
-use usr;
-use rref::{RRef};
 
-use usr::bdev::{BDev, BSIZE};
-use usr::rpc::RpcResult;
+use rref::RRef;
+
 use create::CreateMemBDev;
 use spin::Mutex;
+use usr::bdev::{BDev, BSIZE};
+use usr::rpc::RpcResult;
 
 #[derive(Debug)]
 struct Stats {
@@ -69,8 +69,10 @@ impl ShadowInternal {
 
     unsafe fn restart_bdev(&mut self) {
         let old_domain = self.dom.take().unwrap();
-        let (domain, bdev) = self.create.recreate_domain_membdev(old_domain, libmembdev::get_memdisk());
-        self.dom = Some(domain); 
+        let (domain, bdev) = self
+            .create
+            .recreate_domain_membdev(old_domain, libmembdev::get_memdisk());
+        self.dom = Some(domain);
         self.bdev = bdev;
     }
 
@@ -79,7 +81,7 @@ impl ShadowInternal {
             let r = self.bdev.read(block, data);
             if let Err(e) = r {
                 println!("bdev.read ncounter error: {:?}; restarting membdev", e);
-                unsafe{self.restart_bdev()};
+                unsafe { self.restart_bdev() };
 
                 /* restart invocation on the new domain */
                 println!("membdev restarted, retrying bdev.read");
@@ -95,7 +97,7 @@ impl ShadowInternal {
             let r = self.bdev.write(block, data);
             if let Err(e) = r {
                 println!("bdev.write encounter error: {:?}; restarting membdev", e);
-                unsafe{self.restart_bdev()};
+                unsafe { self.restart_bdev() };
 
                 /* restart invocation on the new domain */
                 println!("membdev restarted, retrying bdev.write");
@@ -113,7 +115,7 @@ struct Shadow {
 impl Shadow {
     fn new(create: Arc<dyn CreateMemBDev>) -> Self {
         Self {
-            shadow: Mutex::new(unsafe{ShadowInternal::new(create)}),
+            shadow: Mutex::new(unsafe { ShadowInternal::new(create) }),
         }
     }
 }
@@ -121,7 +123,6 @@ impl Shadow {
 impl BDev for Shadow {
     fn read(&self, block: u32, data: RRef<[u8; BSIZE]>) -> RpcResult<RRef<[u8; BSIZE]>> {
         self.shadow.lock().read(block, data)
-        
     }
 
     fn write(&self, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()> {
@@ -130,7 +131,11 @@ impl BDev for Shadow {
 }
 
 #[no_mangle]
-pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, create_bdev: Arc<dyn CreateMemBDev>) -> Box<dyn BDev> {
+pub fn trusted_entry(
+    s: Box<dyn Syscall + Send + Sync>,
+    heap: Box<dyn Heap + Send + Sync>,
+    create_bdev: Arc<dyn CreateMemBDev>,
+) -> Box<dyn BDev> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
