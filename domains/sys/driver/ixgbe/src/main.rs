@@ -22,10 +22,10 @@ extern crate b2histogram;
 use error::plsbreakthebuild;
 
 #[macro_use]
-use b2histogram::Base2Histogram;
-use byteorder::{ByteOrder, BigEndian};
 
-use libtime::sys_ns_loopsleep;
+
+
+
 use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 #[macro_use]
@@ -36,7 +36,7 @@ use core::panic::PanicInfo;
 use syscalls::{Syscall, Heap};
 use usr;
 use usr::rpc::RpcResult;
-use console::{println, print};
+use console::{println};
 use pci_driver::DeviceBarRegions;
 use spin::Mutex;
 use libsyscalls::syscalls::sys_backtrace;
@@ -45,13 +45,13 @@ pub use platform::PciBarAddr;
 pub use usr::error::{ErrorKind, Result};
 use crate::device::Intel8259x;
 use core::cell::RefCell;
-use protocol::UdpPacket;
-use core::{mem, ptr};
-use rref::{RRef, RRefDeque};
-use libbenchnet::packettool;
+
+
+use rref::{RRefDeque};
+
 
 pub use usr::net::NetworkStats;
-use libtime::get_rdtsc as rdtsc;
+
 
 
 
@@ -104,7 +104,7 @@ impl usr::net::Net for Ixgbe {
         >, mut collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
         Ok((||{
             let mut ret: usize = 0;
-            let mut ixgbe = self.lock();
+            let ixgbe = self.lock();
             let device = &mut ixgbe.device.borrow_mut();
             let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
             ret = device.device.submit_and_poll(&mut packets, &mut collect, tx, false);
@@ -114,8 +114,8 @@ impl usr::net::Net for Ixgbe {
 
     fn submit_and_poll_rref(
         &self,
-        mut packets: RRefDeque<[u8; 1514], 32>,
-        mut collect: RRefDeque<[u8; 1514], 32>,
+        packets: RRefDeque<[u8; 1514], 32>,
+        collect: RRefDeque<[u8; 1514], 32>,
         tx: bool,
         pkt_len: usize) -> RpcResult<Result<(
             usize,
@@ -125,14 +125,14 @@ impl usr::net::Net for Ixgbe {
     {
         Ok((||{
             let mut ret: usize = 0;
-            let mut ixgbe = self.lock();
+            let ixgbe = self.lock();
     
             let mut packets = Some(packets);
             let mut collect = Some(collect);
     
             let device = &mut ixgbe.device.borrow_mut();
             let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
-            let (num, mut packets_, mut collect_) = device.device.submit_and_poll_rref(packets.take().unwrap(),
+            let (num, packets_, collect_) = device.device.submit_and_poll_rref(packets.take().unwrap(),
                                                     collect.take().unwrap(), tx, pkt_len, false);
             ret = num;
             packets.replace(packets_);
@@ -147,7 +147,7 @@ impl usr::net::Net for Ixgbe {
     fn poll(&self, mut collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
         Ok((||{
             let mut ret: usize = 0;
-            let mut ixgbe = self.lock();
+            let ixgbe = self.lock();
     
             let device = &mut ixgbe.device.borrow_mut();
             let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
@@ -157,15 +157,15 @@ impl usr::net::Net for Ixgbe {
         })())       
     }
 
-    fn poll_rref(&self, mut collect: RRefDeque<[u8; 1514], 512>, tx: bool) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>> {
+    fn poll_rref(&self, collect: RRefDeque<[u8; 1514], 512>, tx: bool) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>> {
         Ok((||{
             let mut ret: usize = 0;
-            let mut ixgbe = self.lock();
+            let ixgbe = self.lock();
             let mut collect = Some(collect);
     
             let device = &mut ixgbe.device.borrow_mut();
             let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
-            let (num, mut collect_) = device.device.poll_rref(collect.take().unwrap(), tx);
+            let (num, collect_) = device.device.poll_rref(collect.take().unwrap(), tx);
             ret = num;
             collect.replace(collect_);
     
@@ -176,7 +176,7 @@ impl usr::net::Net for Ixgbe {
     fn get_stats(&self) -> RpcResult<Result<NetworkStats>> {
         Ok((||{
             let mut ret = NetworkStats::new();
-            let mut ixgbe = self.lock();
+            let ixgbe = self.lock();
 
             let device = &mut ixgbe.device.borrow_mut();
             let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
@@ -361,7 +361,7 @@ pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>,
 
     println!("ixgbe_init: =>  starting ixgbe driver domain");
     #[cfg(not(feature = "nullnet"))]
-    let mut ixgbe = {
+    let ixgbe = {
         let mut ixgbe = Ixgbe::new();
         if let Err(_) = pci.pci_register_driver(&mut ixgbe, 0, None) {
             println!("WARNING: failed to register IXGBE driver");

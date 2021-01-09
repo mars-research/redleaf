@@ -20,32 +20,32 @@ extern crate bitflags;
 #[macro_use]
 extern crate bitfield;
 
-use libtpm::*;
-use bitfield::BitRange;
+
+
 
 #[macro_use]
-use b2histogram::Base2Histogram;
-use byteorder::{ByteOrder, BigEndian};
 
-use libtime::sys_ns_loopsleep;
+
+
+
 use alloc::boxed::Box;
-use alloc::collections::VecDeque;
+
 #[macro_use]
-use alloc::vec::Vec;
-use alloc::vec;
+
+
 use core::panic::PanicInfo;
 use syscalls::{Syscall, Heap};
 use usr;
-use usr::rpc::RpcResult;
-use console::{println, print};
+
+use console::{println};
 use libsyscalls::syscalls::sys_backtrace;
 pub use usr::error::{ErrorKind, Result};
-use core::cell::RefCell;
-use core::{mem, ptr};
-use tpm_device::TpmDevice; 
+
+
+ 
 use usr::tpm::TpmRegs;
-use libtime::get_rdtsc as rdtsc;
-use libtpm::*;
+
+
 
 pub const ONE_MS_IN_NS: u64 = 1000 * 1000;
 
@@ -67,7 +67,7 @@ pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>,
     println!("ACCESS {:x?}", reg_acc);
 
     let reg_sts = tpm.read_u8(0, TpmRegs::TPM_STS);
-    let status = libtpm::TpmStatus(reg_sts);
+    let _status = libtpm::TpmStatus(reg_sts);
 
     println!("STS {:x?}", reg_sts);
 

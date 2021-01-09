@@ -16,13 +16,13 @@ use crate::parser::{PCI_DEVICES};
 
 use core::panic::PanicInfo;
 use syscalls::{Syscall, Heap};
-use libsyscalls::syscalls::{sys_println, sys_backtrace, init_mmap};
+use libsyscalls::syscalls::{sys_println, sys_backtrace};
 use alloc::boxed::Box;
 use console::println;
-use spin::Once;
+
 use rref;
 use pci_driver::{PciDriver, PciClass};
-use pcidevice::get_config;
+
 use pcidevice::{PciDevice};
 
 #[derive(Clone)]

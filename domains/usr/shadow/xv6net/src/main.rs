@@ -12,11 +12,11 @@ use create;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use console::println;
-use core::alloc::Layout;
+
 use core::panic::PanicInfo;
 use usr;
-use rref::{RRef, RRefVec};
-use alloc::vec::Vec;
+use rref::{RRefVec};
+
 use usr::error::Result;
 use usr::net::Net;
 use usr::usrnet::UsrNet;

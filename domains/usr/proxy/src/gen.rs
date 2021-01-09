@@ -907,7 +907,7 @@ impl usr::dom_c::DomC for DomCProxy {
         #[cfg(not(feature = "tramp"))]
         let r = self.domain.one_arg(x);
         #[cfg(feature = "tramp")]
-        let r = unsafe { DomC_one_arg_tramp(&self.domain, x) };
+        let r = unsafe { s_one_arg_tramp(&self.domain, x) };
 
         #[cfg(feature = "tramp")]
         unsafe {

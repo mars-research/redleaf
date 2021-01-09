@@ -1,11 +1,11 @@
-use usr::pci::PciResource;
-use console::println;
-use alloc::format;
+
+
+
 
 use lazy_static::lazy_static;
 use alloc::vec::Vec;
 use spin::Mutex;
-use pci_driver::PciClass;
+
 
 // Import from a safe interface
 use pcidevice::{PciDevice};

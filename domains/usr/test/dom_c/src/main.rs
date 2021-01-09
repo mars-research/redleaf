@@ -4,15 +4,15 @@ extern crate malloc;
 extern crate alloc;
 use libsyscalls;
 use syscalls::{Syscall, Heap};
-use create;
+
 use alloc::boxed::Box;
-use alloc::sync::Arc;
+
 use console::println;
-use core::alloc::Layout;
+
 use core::panic::PanicInfo;
 use usr;
-use rref::{RRef, RRefDeque};
-use alloc::vec::Vec;
+use rref::{RRef};
+
 use usr::rpc::RpcResult;
 
 struct DomC {}

@@ -24,7 +24,7 @@ use alloc::sync::Arc;
 use alloc::collections::btree_map::BTreeMap;
 use console::println;
 use core::panic::PanicInfo;
-use core::cell::RefCell;
+
 use syscalls::{Heap, Syscall};
 use rref::RRefVec;
 use usr_interface::error::{Result, ErrorKind};
@@ -35,12 +35,11 @@ use spin::Mutex;
 
 use smolnet::SmolPhy;
 use smoltcp::time::Instant;
-use smoltcp::iface::{EthernetInterfaceBuilder, EthernetInterface, NeighborCache, Neighbor};
+use smoltcp::iface::{EthernetInterfaceBuilder, EthernetInterface, NeighborCache};
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
 use smoltcp::socket::{
     Socket,
     SocketHandle,
-    SocketRef,
     SocketSet,
     TcpSocket,
     TcpSocketBuffer
@@ -90,13 +89,13 @@ impl Rv6NetInner {
             IpCidr::new(IpAddress::v4(10, 10, 1, 1), 24),
         ];
         let mac_address = [0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x10];
-        let mut iface = EthernetInterfaceBuilder::new(smol)
+        let iface = EthernetInterfaceBuilder::new(smol)
             .ethernet_addr(EthernetAddress::from_bytes(&mac_address))
             .neighbor_cache(neighbor_cache)
             .ip_addrs(ip_addresses)
             .finalize();
 
-        let mut socketset = SocketSet::new(Vec::with_capacity(512));
+        let socketset = SocketSet::new(Vec::with_capacity(512));
 
         Self {
             iface,
@@ -182,7 +181,7 @@ impl UsrNet for Rv6Net {
         let mut state = self.state.lock();
 
         let handle = state.handles[socket];
-        let mut socket = state.socketset.get::<TcpSocket>(handle);
+        let socket = state.socketset.get::<TcpSocket>(handle);
 
         Ok(Ok(socket.can_recv()))
     }
@@ -191,7 +190,7 @@ impl UsrNet for Rv6Net {
         let mut state = self.state.lock();
 
         let handle = state.handles[socket];
-        let mut socket = state.socketset.get::<TcpSocket>(handle);
+        let socket = state.socketset.get::<TcpSocket>(handle);
 
         Ok(Ok(socket.is_listening()))
     }
@@ -200,7 +199,7 @@ impl UsrNet for Rv6Net {
         let mut state = self.state.lock();
 
         let handle = state.handles[socket];
-        let mut socket = state.socketset.get::<TcpSocket>(handle);
+        let socket = state.socketset.get::<TcpSocket>(handle);
 
         Ok(Ok(socket.is_active()))
     }
@@ -225,7 +224,7 @@ impl UsrNet for Rv6Net {
         let handle = state.handles[socket];
         let mut socket = state.socketset.get::<TcpSocket>(handle);
 
-        let mut dstbuf = buffer.as_mut_slice();
+        let dstbuf = buffer.as_mut_slice();
 
         let r = socket.recv(|buf| {
             let size = if buf.len() > dstbuf.len() {
@@ -253,7 +252,7 @@ impl UsrNet for Rv6Net {
 
         let mut socket = state.socketset.get::<TcpSocket>(handle);
 
-        let mut buf = buffer.as_mut_slice();
+        let buf = buffer.as_mut_slice();
 
         // buf.len() is not the actual size...
         let r = socket.send(|dstbuf| {

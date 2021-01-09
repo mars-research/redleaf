@@ -1,4 +1,4 @@
-use rref::{RRef, RRefDeque};
+use rref::{RRefDeque};
 use usr::rpc::RpcResult;
 use usr::error::Result;
 use usr::bdev::{BlkReq, NvmeBDev};
@@ -16,7 +16,7 @@ impl NvmeBDev for NullNvme {
         &self,
         submit: RRefDeque<BlkReq, 128>,
         collect: RRefDeque<BlkReq, 128>,
-        write: bool,
+        _write: bool,
         ) -> RpcResult<Result<(
             usize,
             RRefDeque<BlkReq, 128>,

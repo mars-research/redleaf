@@ -1,7 +1,7 @@
 use alloc::borrow::ToOwned;
 use alloc::boxed::Box;
 use alloc::collections::VecDeque;
-use alloc::string::{String, ToString};
+
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use spin::Mutex;

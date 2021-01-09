@@ -1,22 +1,22 @@
 #![no_std]
 
 use alloc::collections::VecDeque;
-use alloc::boxed::Box;
-use alloc::string::String;
+
+
 use alloc::vec::Vec;
 use crate::Result;
 use nvme_device::{NvmeRegs32, NvmeRegs64, NvmeDevice};
-use console::{println, print};
-use core::{mem, slice, cmp};
-use libtime::sys_ns_loopsleep;
-use alloc::format;
-use byteorder::{ByteOrder, BigEndian, LittleEndian};
-use crate::BlockReq;
-use core::fmt;
-use usr::bdev::BlkReq;
-use rref::{RRef, RRefDeque};
+use console::{println};
 
-use core::intrinsics;
+use libtime::sys_ns_loopsleep;
+
+
+use crate::BlockReq;
+
+use usr::bdev::BlkReq;
+use rref::{RRefDeque};
+
+
 use platform::PciBarAddr;
 
 const ONE_MS_IN_NS: u64 = 100_0000;
@@ -202,7 +202,7 @@ impl NvmeDev {
         self.device.submit_and_poll_raw(submit_queue, collect, write, is_random)
     }
 
-    pub fn submit_and_poll_rref(&mut self, mut submit: RRefDeque<BlkReq, 128>, mut collect:
+    pub fn submit_and_poll_rref(&mut self, submit: RRefDeque<BlkReq, 128>, collect:
                                  RRefDeque<BlkReq, 128>, write: bool) -> 
             (usize, usize, usize, usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>)
     {
@@ -214,7 +214,7 @@ impl NvmeDev {
         self.device.poll_raw(collect)
     }
 
-    pub fn poll_rref(&mut self, mut collect: RRefDeque<BlkReq, 1024>) -> 
+    pub fn poll_rref(&mut self, collect: RRefDeque<BlkReq, 1024>) -> 
                                 (usize, RRefDeque<BlkReq, 1024>)
     {
         self.device.poll_rref(collect)

@@ -7,8 +7,8 @@ extern crate alloc;
 extern crate malloc;
 
 use alloc::boxed::Box;
-use alloc::string::String;
-use alloc::string::ToString;
+
+
 use core::panic::PanicInfo;
 
 use rref::RRefVec;
@@ -16,7 +16,7 @@ use syscalls::{Heap, Syscall};
 use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usr_interfaces::rv6::Rv6;
 use usrlib::println;
-use usrlib::syscalls::{sys_close, sys_fstat, sys_open_slice_slow, sys_read, sys_write, sys_seek};
+use usrlib::syscalls::{sys_close, sys_open_slice_slow, sys_read, sys_write, sys_seek};
 
 const ONE_MS: u64 = 2_400_000;
 const TEN_MS: u64 = 10 * ONE_MS;
@@ -47,7 +47,7 @@ pub fn trusted_entry(
     }
 }
 
-fn bench_throughput(rv6: &dyn Rv6, options: &str, file: &str) {
+fn bench_throughput(_rv6: &dyn Rv6, options: &str, file: &str) {
     let sizes = [512, 1024, 4096, 8192, 16 * 1024, 256 * 1024, 1024 * 1024, 4 * 1024 * 1024, 16 * 1024 * 1024, 64 * 1024 * 1024];
 
     for bsize in sizes.iter() {
@@ -93,7 +93,7 @@ fn bench_throughput(rv6: &dyn Rv6, options: &str, file: &str) {
     }
 }
 
-fn bench_restart(rv6: &dyn Rv6, options: &str, file: &str) {
+fn bench_restart(_rv6: &dyn Rv6, options: &str, file: &str) {
     let file_size = 128 * 1024 * 1024;
 
     // let buffer_sizes = [512, 1024, 4096, 8192, 16 * 1024, 256 * 1024, 1024 * 1024, 4 * 1024 * 1024, 16 * 1024 * 1024, 64 * 1024 * 1024];

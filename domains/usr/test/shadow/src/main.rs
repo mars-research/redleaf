@@ -8,11 +8,11 @@ use create;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use console::println;
-use core::alloc::Layout;
+
 use core::panic::PanicInfo;
 use usr;
-use rref::{RRef, RRefDeque};
-use alloc::vec::Vec;
+use rref::{RRef};
+
 use spin::Mutex;
 use usr::rpc::RpcResult;
 
@@ -61,7 +61,7 @@ impl usr::dom_c::DomC for Shadow {
         let mut dom = self.dom.lock();
         loop {
             let r = dom.dom_c.one_arg(x);
-            if let Err(e) = r {
+            if let Err(_e) = r {
 
                 println!("restarting domC domain");
                 let old_domain = dom.dom.take();

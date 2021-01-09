@@ -5,7 +5,7 @@ use spin::Mutex;
 
 use pc_keyboard::DecodedKey;
 
-use console::{print, println};
+use console::{print};
 use libsyscalls::syscalls::{sys_readch_kbd, sys_yield};
 use usr_interface::rv6::File;
 

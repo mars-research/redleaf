@@ -22,19 +22,19 @@ use alloc::vec::Vec;
 use core::panic::PanicInfo;
 use usr::pci::PCI;
 use syscalls::{Syscall, Heap};
-use libsyscalls::syscalls::{sys_println, sys_alloc, sys_create_thread};
+
 use console::{println, print};
 use pci_driver::DeviceBarRegions;
 use usr::error::{ErrorKind, Result};
 use usr::rpc::RpcResult;
 use core::cell::RefCell;
-use alloc::sync::Arc;
-use spin::Mutex;
+
+
 use libtime::get_rdtsc as rdtsc;
 use libtime::sys_ns_loopsleep;
 use crate::device::NvmeDev;
 pub use nvme_device::BlockReq;
-use rref::{RRef, RRefDeque};
+use rref::{RRefDeque};
 use usr::bdev::BlkReq;
 
 #[macro_use]
@@ -67,8 +67,8 @@ impl Nvme {
 impl usr::bdev::NvmeBDev for Nvme {
     fn submit_and_poll_rref(
         &self,
-        mut submit: RRefDeque<BlkReq, 128>,
-        mut collect: RRefDeque<BlkReq, 128>,
+        submit: RRefDeque<BlkReq, 128>,
+        collect: RRefDeque<BlkReq, 128>,
         write: bool,
         ) -> RpcResult<Result<(
             usize,
@@ -83,7 +83,7 @@ impl usr::bdev::NvmeBDev for Nvme {
 
             let device = &mut self.device.borrow_mut();
             let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
-            let (num, _, _, _, mut submit_, mut collect_) = device.device.submit_and_poll_rref(submit.take().unwrap(),
+            let (num, _, _, _, submit_, collect_) = device.device.submit_and_poll_rref(submit.take().unwrap(),
             collect.take().unwrap(), write);
             ret = num;
 
@@ -95,7 +95,7 @@ impl usr::bdev::NvmeBDev for Nvme {
     }
 
 
-    fn poll_rref(&mut self, mut collect: RRefDeque<BlkReq, 1024>) ->
+    fn poll_rref(&mut self, collect: RRefDeque<BlkReq, 1024>) ->
             RpcResult<Result<(usize, RRefDeque<BlkReq, 1024>)>>
     {
         Ok((||{
@@ -104,7 +104,7 @@ impl usr::bdev::NvmeBDev for Nvme {
 
             let device = &mut self.device.borrow_mut();
             let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
-            let (num, mut collect_) = device.device.poll_rref(collect.take().unwrap());
+            let (num, collect_) = device.device.poll_rref(collect.take().unwrap());
             ret = num;
 
             collect.replace(collect_);
@@ -151,23 +151,23 @@ impl pci_driver::PciDriver for Nvme {
 
 fn perf_test_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
 
-    let mut buffer: Vec<u8>;
+    let buffer: Vec<u8>;
     if is_write {
         buffer = alloc::vec![0xbau8; 4096];
     } else {
         buffer = alloc::vec![0u8; 4096];
     }
 
-    let block_size = buffer.len();
-    let mut breq: BlockReq = BlockReq::new(0, 8, buffer);
-    let mut req: Vec<u8> = alloc::vec![0xeeu8; 4096];
+    let _block_size = buffer.len();
+    let breq: BlockReq = BlockReq::new(0, 8, buffer);
+    let req: Vec<u8> = alloc::vec![0xeeu8; 4096];
     let mut submit: VecDeque<BlockReq> = VecDeque::with_capacity(batch_sz as usize);
     let mut submit_vec: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz as usize);
-    let mut collect: VecDeque<BlockReq> = VecDeque::new();
+    let _collect: VecDeque<BlockReq> = VecDeque::new();
 
     let mut block_num: u64 = 0;
 
-    for i in 0..batch_sz {
+    for _i in 0..batch_sz {
         let mut breq = breq.clone();
         breq.block = block_num;
         block_num = block_num.wrapping_add(1);
@@ -178,15 +178,15 @@ fn perf_test_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
     if let Some(device) = dev.device.borrow_mut().as_mut() {
         let dev: &mut NvmeDev = device;
 
-        let mut submit_start = 0;
-        let mut submit_elapsed = 0;
-        let mut poll_start = 0;
-        let mut poll_elapsed = 0;
+        let _submit_start = 0;
+        let _submit_elapsed = 0;
+        let _poll_start = 0;
+        let poll_elapsed = 0;
         let mut count = 0;
 
-        let mut submit_hist = Base2Histogram::new();
-        let mut poll_hist = Base2Histogram::new();
-        let mut ret = 0;
+        let _submit_hist = Base2Histogram::new();
+        let poll_hist = Base2Histogram::new();
+        let _ret = 0;
 
         let tsc_start = rdtsc();
         let tsc_end = tsc_start + runtime * 2_400_000_000;
@@ -219,7 +219,7 @@ fn perf_test_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
 
             count += 1;
             //println!("checking");
-            let ret = dev.check_io_raw(128, is_write);
+            let _ret = dev.check_io_raw(128, is_write);
 
             //poll_start = rdtsc();
             //poll_hist.record(ret);
@@ -252,24 +252,24 @@ fn perf_test_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
 
 fn perf_test_iov(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
 
-    let mut buffer: Vec<u8>;
+    let buffer: Vec<u8>;
     if is_write {
         buffer = alloc::vec![0xccu8; 4096];
     } else {
         buffer = alloc::vec![0u8; 4096];
     }
 
-    let block_size = buffer.len();
-    let mut breq: BlockReq = BlockReq::new(0, 8, buffer);
-    let mut req: Vec<u8> = alloc::vec![0u8; 4096];
+    let _block_size = buffer.len();
+    let breq: BlockReq = BlockReq::new(0, 8, buffer);
+    let req: Vec<u8> = alloc::vec![0u8; 4096];
     let mut submit: VecDeque<BlockReq> = VecDeque::with_capacity(batch_sz as usize);
     let mut submit_vec: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz as usize);
-    let mut collect: VecDeque<BlockReq> = VecDeque::new();
-    let mut batch_size = batch_sz;
+    let _collect: VecDeque<BlockReq> = VecDeque::new();
+    let batch_size = batch_sz;
 
     let mut block_num: u64 = 0;
 
-    for i in 0..batch_size {
+    for _i in 0..batch_size {
         let mut breq = breq.clone();
         breq.block = block_num;
         block_num = block_num.wrapping_add(1);
@@ -280,15 +280,15 @@ fn perf_test_iov(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
     if let Some(device) = dev.device.borrow_mut().as_mut() {
         let dev: &mut NvmeDev = device;
 
-        let mut submit_start = 0;
-        let mut submit_elapsed = 0;
-        let mut poll_start = 0;
-        let mut poll_elapsed = 0;
+        let _submit_start = 0;
+        let submit_elapsed = 0;
+        let _poll_start = 0;
+        let poll_elapsed = 0;
         let mut count = 0;
 
-        let mut submit_hist = Base2Histogram::new();
+        let submit_hist = Base2Histogram::new();
         let mut poll_hist = Base2Histogram::new();
-        let mut ret = 0;
+        let _ret = 0;
 
         let tsc_start = rdtsc();
         let tsc_end = tsc_start + runtime * 2_400_000_000;
@@ -356,7 +356,7 @@ fn run_blocktest_raw(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool, is
 fn run_blocktest_raw_with_delay(dev: &Nvme, runtime: u64, batch_sz: u64,
                                 is_write: bool, is_random: bool,
                                 delay: u64) {
-    let mut req: Vec<u8>;
+    let req: Vec<u8>;
     if is_write {
         req = alloc::vec![0xbau8; 4096];
     } else {
@@ -366,9 +366,9 @@ fn run_blocktest_raw_with_delay(dev: &Nvme, runtime: u64, batch_sz: u64,
     let mut submit: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz as usize);
     let mut collect: VecDeque<Vec<u8>> = VecDeque::new();
 
-    let mut block_num: u64 = 0;
+    let _block_num: u64 = 0;
 
-    for i in 0..batch_sz {
+    for _i in 0..batch_sz {
         submit.push_back(req.clone());
     }
 
@@ -377,8 +377,8 @@ fn run_blocktest_raw_with_delay(dev: &Nvme, runtime: u64, batch_sz: u64,
 
         let mut submit_start = 0;
         let mut submit_elapsed = 0;
-        let mut poll_start = 0;
-        let mut poll_elapsed = 0;
+        let _poll_start = 0;
+        let _poll_elapsed = 0;
         let mut count = 0;
         let mut alloc_count = 0;
 
@@ -409,7 +409,7 @@ fn run_blocktest_raw_with_delay(dev: &Nvme, runtime: u64, batch_sz: u64,
             if submit.len() == 0 {
                 alloc_count += 1;
                 //println!("allocating new batch at count {}", count);
-                for i in 0..batch_sz {
+                for _i in 0..batch_sz {
                     submit.push_back(req.clone());
                 }
             }
@@ -459,21 +459,21 @@ fn run_blocktest_raw_with_delay(dev: &Nvme, runtime: u64, batch_sz: u64,
 
 fn run_blocktest(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
 
-    let mut buffer: Vec<u8>;
+    let buffer: Vec<u8>;
     if is_write {
         buffer = alloc::vec![0xbau8; 4096];
     } else {
         buffer = alloc::vec![0u8; 4096];
     }
 
-    let block_size = buffer.len();
-    let mut breq: BlockReq = BlockReq::new(0, 8, buffer);
+    let _block_size = buffer.len();
+    let breq: BlockReq = BlockReq::new(0, 8, buffer);
     let mut submit: VecDeque<BlockReq> = VecDeque::with_capacity(batch_sz as usize);
     let mut collect: VecDeque<BlockReq> = VecDeque::new();
 
     let mut block_num: u64 = 0;
 
-    for i in 0..batch_sz {
+    for _i in 0..batch_sz {
         let mut breq = breq.clone();
         breq.block = block_num;
         block_num = block_num.wrapping_add(1);
@@ -485,8 +485,8 @@ fn run_blocktest(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
 
         let mut submit_start = 0;
         let mut submit_elapsed = 0;
-        let mut poll_start = 0;
-        let mut poll_elapsed = 0;
+        let _poll_start = 0;
+        let _poll_elapsed = 0;
         let mut count = 0;
 
         let mut submit_hist = Base2Histogram::new();
@@ -510,7 +510,7 @@ fn run_blocktest(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
 
             if submit.len() == 0 {
                 //println!("allocating new batch");
-                for i in 0..batch_sz {
+                for _i in 0..batch_sz {
                     let mut breq = breq.clone();
                     breq.block = block_num;
                     block_num = block_num.wrapping_add(1);
@@ -556,7 +556,7 @@ pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>,
 
     println!("nvme_init: starting nvme driver domain");
     #[cfg(not(feature = "nullnvme"))]
-    let mut nvme = {
+    let nvme = {
         let mut nvme = Nvme::new();
         if let Err(_) = pci.pci_register_driver(&mut nvme, 0, None) {
             println!("WARNING: failed to register IXGBE driver");

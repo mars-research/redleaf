@@ -11,13 +11,13 @@ use syscalls::{Syscall, Heap};
 use create;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-use alloc::collections::VecDeque;
+
 use console::println;
-use core::alloc::Layout;
+
 use core::panic::PanicInfo;
 use usr;
-use rref::{RRef, RRefDeque};
-use alloc::vec::Vec;
+use rref::{RRefDeque};
+
 use usr::error::Result;
 use usr::bdev::{NvmeBDev, BlkReq};
 use usr::pci::PCI;

@@ -1,17 +1,17 @@
 #![no_std]
 
-use alloc::collections::VecDeque;
-use alloc::boxed::Box;
-use alloc::vec::Vec;
+
+
+
 use crate::ixgbe_desc::*;
 use crate::Result;
 use ixgbe_device::{IxgbeRegs, IxgbeNoDmaArrayRegs};
 use ixgbe_device::IxgbeDevice;
 use console::{println, print};
-use core::{mem};
+
 use libtime::sys_ns_loopsleep;
 use alloc::format;
-use protocol::UdpPacket;
+
 use crate::PciBarAddr;
 use crate::NetworkStats;
 
@@ -258,7 +258,7 @@ impl Intel8259x {
         self.write_flag(IxgbeRegs::FCTRL, IXGBE_FCTRL_BAM);
 
         // configure a single receive queue/ring
-        let i: u64 = 0;
+        let _i: u64 = 0;
 
         // TODO: Manipulation of rx queue. Move this to trusted part
         self.device.init_rx();
@@ -285,7 +285,7 @@ impl Intel8259x {
         self.clear_flag(IxgbeRegs::RTTDCS, IXGBE_RTTDCS_ARBDIS);
 
         // configure a single transmit queue/ring
-        let i: u64 = 0;
+        let _i: u64 = 0;
 
         // section 7.1.9 - setup descriptor ring
 

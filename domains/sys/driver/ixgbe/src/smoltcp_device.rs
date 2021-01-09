@@ -12,7 +12,7 @@ use core::cell::{RefCell, RefMut};
 use core::borrow::BorrowMut;
 
 use crate::device::Intel8259x;
-use console::println;
+
 
 use smoltcp::phy::{Device, DeviceCapabilities, ChecksumCapabilities, Checksum, RxToken, TxToken};
 use smoltcp::time::Instant;
@@ -30,7 +30,7 @@ pub struct SmolIxgbe {
 
 impl SmolIxgbe {
     pub fn new(dev: Intel8259x) -> Self {
-        let mut boi = Self {
+        let boi = Self {
             pool: Rc::new(RefCell::new(VecDeque::with_capacity(BATCH_SZ))),
             rx: Rc::new(RefCell::new(VecDeque::with_capacity(BATCH_SZ))),
             tx: Rc::new(RefCell::new(VecDeque::with_capacity(BATCH_SZ))),
@@ -40,7 +40,7 @@ impl SmolIxgbe {
         {
             let mut pool: RefMut<VecDeque<Vec<u8>>> = (*boi.pool).borrow_mut();
 
-            for i in 0..BATCH_SZ {
+            for _i in 0..BATCH_SZ {
                 pool.push_front(Vec::with_capacity(2048));
             }
         }
@@ -74,7 +74,7 @@ impl SmolIxgbe {
         dev.device.submit_and_poll(&mut tx, &mut pool, true, false);
 
         if pool.len() == 0 && tx.len() < BATCH_SZ * 4 {
-            for i in 0..BATCH_SZ {
+            for _i in 0..BATCH_SZ {
                 pool.push_front(Vec::with_capacity(2048));
             }
         }

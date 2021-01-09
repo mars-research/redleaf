@@ -4,11 +4,11 @@ extern crate malloc;
 extern crate alloc;
 use syscalls::{Syscall, Heap};
 use libsyscalls;
-use create;
+
 use alloc::boxed::Box;
-use alloc::sync::Arc;
+
 use console::println;
-use core::alloc::Layout;
+
 use core::panic::PanicInfo;
 use rref::{RRef, RRefDeque};
 use usr::dom_a::DomA;
@@ -16,7 +16,7 @@ use libtime::get_rdtsc as rdtsc;
 
 fn test_submit_and_poll(dom_a: &mut Box<dyn DomA>) {
     let mut packets = RRefDeque::<[u8; 100], 32>::default();
-    let mut reap_queue = RRefDeque::<[u8; 100], 32>::default();
+    let reap_queue = RRefDeque::<[u8; 100], 32>::default();
     for i in 0..32 {
         packets.push_back(RRef::<[u8;100]>::new([i;100]));
     }
@@ -26,11 +26,11 @@ fn test_submit_and_poll(dom_a: &mut Box<dyn DomA>) {
     let start = rdtsc();
     let mut packets = Some(packets);
     let mut reap_queue = Some(reap_queue);
-    for i in 0..ops {
+    for _i in 0..ops {
 
         // need options as a workaround to destructured assignment
         // https://github.com/rust-lang/rfcs/issues/372
-        let (num, mut packets_, mut reap_queue_) = dom_a.tx_submit_and_poll(packets.take().unwrap(), reap_queue.take().unwrap());
+        let (_num, packets_, reap_queue_) = dom_a.tx_submit_and_poll(packets.take().unwrap(), reap_queue.take().unwrap());
 
         packets.replace(reap_queue_);
         reap_queue.replace(packets_);

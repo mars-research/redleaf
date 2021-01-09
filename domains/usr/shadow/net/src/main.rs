@@ -13,10 +13,10 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use alloc::collections::VecDeque;
 use console::println;
-use core::alloc::Layout;
+
 use core::panic::PanicInfo;
 use usr;
-use rref::{RRef, RRefDeque};
+use rref::{RRefDeque};
 use alloc::vec::Vec;
 use usr::error::Result;
 use usr::net::{Net, NetworkStats};

@@ -7,19 +7,19 @@ extern crate malloc;
 extern crate alloc;
 use libsyscalls;
 use syscalls::{Syscall, Heap};
-use create;
+
 use alloc::boxed::Box;
-use alloc::sync::Arc;
-use console::{println, print};
+
+use console::{println};
 use core::alloc::Layout;
 use core::panic::PanicInfo;
-use usr;
+
 use alloc::vec::Vec;
-use sashstore_redleaf::SashStore;
-use hashbrown::HashMap;
+
+
 use sashstore_redleaf::indexmap::Index;
 use core::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
-use core::cell::RefCell;
+
 use fnv::FnvHasher;
 use twox_hash::XxHash;
 use libtime::get_rdtsc as rdtsc;
@@ -76,7 +76,7 @@ fn test_hashmap_with_load(capacity: usize, load: usize) {
     println!("{} insertions took {} cycles (avg {})", NUM_INSERTIONS, elapsed, elapsed / NUM_INSERTIONS as u64);
 
     let start = rdtsc();
-    for i in (0..NUM_INSERTIONS) {
+    for i in 0..NUM_INSERTIONS {
         //for _ in 0..10 {
             ht.cache.get(&i);
         //}
@@ -198,7 +198,7 @@ fn test_hashmap() {
     }*/
 
     for i in 12..27 {
-        run_bench(i, (i - 2));
+        run_bench(i, i - 2);
     }
         /*
        println!("===> start");
@@ -240,7 +240,7 @@ fn run_bench(_capacity: usize, _keys: usize) {
     }
     let total_tsc_insert = rdtsc() - start_tsc_insert;
     let cycles_per_insert = total_tsc_insert / keys as u64;
-    let mil_inserts_per_sec: f64 = 1000f64 / (cycles_per_insert as f64 / 2.6f64);
+    let _mil_inserts_per_sec: f64 = 1000f64 / (cycles_per_insert as f64 / 2.6f64);
 
     let mut sum = 0usize;
     let start_tsc_lookup = rdtsc();

@@ -7,10 +7,10 @@ extern crate alloc;
 extern crate malloc;
 
 use alloc::boxed::Box;
-use alloc::string::String;
+
 use core::panic::PanicInfo;
 
-use libsyscalls::syscalls::sys_println;
+
 use syscalls::{Heap, Syscall};
 use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usr_interfaces::rv6::Rv6;
@@ -65,7 +65,7 @@ fn wc(fd: usize, name: &str) -> Result<(), &'static str> {
             }
             if c.is_ascii_whitespace() {
                 in_word = false;
-            } else if (!in_word) {
+            } else if !in_word {
                 word_cnt += 1;
                 in_word = true;
             }

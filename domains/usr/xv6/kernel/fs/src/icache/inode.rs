@@ -335,7 +335,7 @@ impl INodeDataGuard<'_> {
         let mut empty_offset = 0;
         for offset in (0usize..self.data.size as usize).step_by(SIZE_OF_DIRENT) {
             self.read(trans, &mut buffer[..], offset)?;
-            let mut dirent = DirectoryEntryRef::from_bytes(&buffer[..]);
+            let dirent = DirectoryEntryRef::from_bytes(&buffer[..]);
             if dirent.inum == 0 {
                 empty_offset = offset;
                 break;

@@ -4,14 +4,14 @@ extern crate malloc;
 extern crate alloc;
 use libsyscalls;
 use syscalls::{Syscall, Heap};
-use create;
+
 use alloc::boxed::Box;
-use alloc::sync::Arc;
-use console::{println, print};
-use core::alloc::Layout;
+
+use console::{println};
+
 use core::panic::PanicInfo;
 use usr;
-use alloc::vec::Vec;
+
 use usr::bdev::NvmeBDev;
 
 #[no_mangle]

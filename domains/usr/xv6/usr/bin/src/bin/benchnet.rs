@@ -8,15 +8,15 @@ extern crate malloc;
 
 #[macro_use]
 use alloc::boxed::Box;
-use alloc::string::String;
-use alloc::string::ToString;
+
+
 use core::panic::PanicInfo;
 
 use syscalls::{Heap, Syscall};
-use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
+
 use usr_interfaces::rv6::Rv6;
-use usrlib::syscalls::{sys_close, sys_fstat, sys_open_slice_slow, sys_read_slice_slow, sys_write_slice_slow};
-use usrlib::{print, println};
+
+use usrlib::{println};
 
 #[no_mangle]
 pub fn trusted_entry(

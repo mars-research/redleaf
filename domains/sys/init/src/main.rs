@@ -114,7 +114,7 @@ pub fn trusted_entry(s: Box<dyn syscalls::Syscall + Send + Sync>,
             create_dom_b: Arc<dyn create::CreateDomB>,
             create_dom_c: Arc<dyn create::CreateDomC>,
             create_dom_d: Arc<dyn create::CreateDomD>,
-            create_hashstore: Arc<dyn create::CreateHashStore>,
+            _create_hashstore: Arc<dyn create::CreateHashStore>,
             create_tpm: Arc<dyn create::CreateTpm>,
             create_shadow: Arc<dyn create::CreateShadow>) {
     libsyscalls::syscalls::init(s);
@@ -181,7 +181,7 @@ pub fn trusted_entry(s: Box<dyn syscalls::Syscall + Send + Sync>,
     // test_dummy_syscall();
 
     println!("about to create proxy");
-    let (dom_proxy, proxy) = create_proxy.create_domain_proxy(
+    let (_dom_proxy, proxy) = create_proxy.create_domain_proxy(
         create_pci,
         create_ahci,
         create_membdev,
@@ -221,13 +221,13 @@ pub fn trusted_entry(s: Box<dyn syscalls::Syscall + Send + Sync>,
     }
     
     #[cfg(feature="tpm")]
-    let (dom_tpm, usr_tpm) = create_tpm.create_domain_tpm();
+    let (_dom_tpm, usr_tpm) = create_tpm.create_domain_tpm();
 
     #[cfg(feature="hashbench")]
     let dom_hashstore = create_hashstore.create_domain_hashstore();
 
     println!("Creating pci");
-    let (dom_pci, pci) = proxy.as_create_pci().create_domain_pci();
+    let (_dom_pci, pci) = proxy.as_create_pci().create_domain_pci();
 
     #[cfg(not(feature = "membdev"))]
     let (dom_ahci, bdev) = proxy.as_create_ahci().create_domain_ahci(pci.pci_clone());
@@ -238,19 +238,19 @@ pub fn trusted_entry(s: Box<dyn syscalls::Syscall + Send + Sync>,
     let (dom_ahci, bdev) = proxy.as_create_membdev().create_domain_membdev(&mut []);
     #[cfg(feature = "membdev")]
     #[cfg(feature = "shadow")]
-    let (dom_ahci, bdev) = proxy.as_create_bdev_shadow().create_domain_bdev_shadow(proxy.as_create_membdev());
+    let (_dom_ahci, bdev) = proxy.as_create_bdev_shadow().create_domain_bdev_shadow(proxy.as_create_membdev());
 
     println!("Creating nvme domain!");
     #[cfg(not(feature = "shadow"))]
     let (dom_nvme, nvme) = proxy.as_create_nvme().create_domain_nvme(pci.pci_clone());
     #[cfg(feature = "shadow")]
-    let (dom_nvme, nvme) = proxy.as_create_nvme_shadow().create_domain_nvme_shadow(proxy.as_create_nvme(), pci.pci_clone());
+    let (_dom_nvme, nvme) = proxy.as_create_nvme_shadow().create_domain_nvme_shadow(proxy.as_create_nvme(), pci.pci_clone());
 
     println!("Creating ixgbe");
     #[cfg(not(feature = "shadow"))]
     let (dom_ixgbe, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci.pci_clone());
     #[cfg(feature = "shadow")]
-    let (dom_ixgbe, net) = proxy.as_create_net_shadow().create_domain_net_shadow(proxy.as_create_ixgbe(), pci.pci_clone());
+    let (_dom_ixgbe, net) = proxy.as_create_net_shadow().create_domain_net_shadow(proxy.as_create_ixgbe(), pci.pci_clone());
     
     #[cfg(feature = "benchnet")]
     let _ = proxy.as_create_benchnet().create_domain_benchnet(net);
@@ -261,7 +261,7 @@ pub fn trusted_entry(s: Box<dyn syscalls::Syscall + Send + Sync>,
     #[cfg(not(any(feature = "benchnet", feature = "benchnvme")))]
     {
         println!("Starting xv6 kernel");
-        let (dom_xv6, rv6) = proxy.as_create_xv6().create_domain_xv6kernel(ints_clone, proxy.as_create_xv6fs(), proxy.as_create_xv6net(), proxy.as_create_xv6net_shadow(), proxy.as_create_xv6usr(), bdev, net, nvme, usr_tpm);
+        let (_dom_xv6, rv6) = proxy.as_create_xv6().create_domain_xv6kernel(ints_clone, proxy.as_create_xv6fs(), proxy.as_create_xv6net(), proxy.as_create_xv6net_shadow(), proxy.as_create_xv6usr(), bdev, net, nvme, usr_tpm);
         println!("Starting xv6 user init");
         rv6.sys_spawn_domain(rv6.clone().unwrap(), RRefVec::from_slice("/init".as_bytes()), RRefVec::from_slice("/init".as_bytes()), array_init::array_init(|_| None)).unwrap().unwrap();
     }

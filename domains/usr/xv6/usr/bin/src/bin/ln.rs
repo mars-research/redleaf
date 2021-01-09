@@ -9,9 +9,9 @@ use alloc::boxed::Box;
 use alloc::string::String;
 use core::panic::PanicInfo;
 
-use libsyscalls::syscalls::sys_println;
+
 use syscalls::{Heap, Syscall};
-use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
+
 use usr_interfaces::rv6::Rv6;
 use usrlib::syscalls::sys_link_slice_slow;
 use usrlib::{eprintln, println};
