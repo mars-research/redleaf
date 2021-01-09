@@ -9,4 +9,4 @@ rexpand = "rustc --profile=check -Z unstable-options -Z build-std=core,alloc  -Z
 
 [build]
 target = "x86_64-unknown-redleaf.json"
-rustflags = "-Z emit-stack-sizes"
+rustflags = "-Z emit-stack-sizes -Z macro-backtrace"
