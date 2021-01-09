@@ -108,7 +108,7 @@ impl Kbd_ctrlr {
         // println!("got keyboard irq");
         // Ignore the error for now
         if let Some(data) = self.read_data() {
-            self.key_buf.push(data);
+            self.key_buf.push(data).unwrap();
         }
     }
 
@@ -143,7 +143,7 @@ impl Kbd_ctrlr {
 /* Register Interrupt handler for the Kbd_ctrlr controller */
 impl Driver for Kbd_ctrlr {
     fn set_irq_registrar(&mut self, registrar: IRQRegistrar<Kbd_ctrlr>) {
-        registrar.request_irq(1, Kbd_ctrlr::kbd_irq_handler);
+        registrar.request_irq(1, Kbd_ctrlr::kbd_irq_handler).unwrap();
     }
 }
 

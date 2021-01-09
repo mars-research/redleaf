@@ -52,6 +52,7 @@ pub struct AhciBar {
     vendor: ArrayRegister,
 }
 
+#[allow(dead_code)]
 impl AhciBar {
     const CAP: u64 = 0x00000;
     const GHC: u64 = 0x00004;

@@ -368,35 +368,35 @@ pub fn construct_pt() {
         vspace.map_generic(VAddr::from(MAP_BASE),
                     (PAddr::from(MAP_BASE),
                     KERNEL_BASE as usize - MAP_BASE as usize),
-                    MapAction::ReadWriteExecuteKernel);
+                    MapAction::ReadWriteExecuteKernel).unwrap();
 
         // Map kernel sections with appropriate permission bits
         vspace.map_generic(VAddr::from(KERNEL_BASE),
                     (PAddr::from(KERNEL_BASE),
                     text_end() as usize - KERNEL_BASE as usize),
-                    MapAction::ReadWriteExecuteKernel);
+                    MapAction::ReadWriteExecuteKernel).unwrap();
 
         vspace.map_generic(VAddr::from(rodata_start()),
                     (PAddr::from(rodata_start()),
                     rodata_end() as usize - rodata_start() as usize),
-                    MapAction::ReadKernel);
+                    MapAction::ReadKernel).unwrap();
 
         vspace.map_generic(VAddr::from(data_start()),
                     (PAddr::from(data_start()),
                     data_end() as usize - data_start() as usize),
-                    MapAction::ReadWriteExecuteKernel);
+                    MapAction::ReadWriteExecuteKernel).unwrap();
 
         vspace.map_generic(VAddr::from(bss_start()),
                     (PAddr::from(bss_start()),
                     bss_end() as usize - bss_start() as usize),
-                    MapAction::ReadWriteExecuteKernel);
+                    MapAction::ReadWriteExecuteKernel).unwrap();
 
         let kernel_end = unsafe { KERNEL_END };
 
         vspace.map_generic(VAddr::from(tdata_start()),
                     (PAddr::from(tdata_start()),
                     kernel_end as usize - tdata_start() as usize),
-                    MapAction::ReadWriteExecuteKernel);
+                    MapAction::ReadWriteExecuteKernel).unwrap();
 
         let frame = {
             if let Some(ref mut fmanager) = *BUDDY.lock() {
