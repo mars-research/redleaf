@@ -19,8 +19,8 @@ use core::alloc::Layout;
 use crate::memory::buddy::BUDDY;
 use crate::memory::{PhysicalAllocator, Frame};
 use crate::active_cpus; 
-use core::ptr;
-use core::mem;
+
+
 
 use syscalls::Continuation;
 

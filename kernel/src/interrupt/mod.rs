@@ -435,7 +435,7 @@ extern fn do_security(pt_regs: &mut PtRegs, _error_code: isize) {
 
 static mut timer_count: u8 = 0;
 
-use crate::panic::backtrace;
+
 fn dump_proc(pt_regs: &PtRegs) {
     unsafe {
         timer_count += 1;

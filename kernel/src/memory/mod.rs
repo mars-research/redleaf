@@ -1,10 +1,10 @@
 // Adapted from Bespin OS code
 use core::fmt;
-use x86::bits64::paging;
+
 use core::mem::transmute;
 use core::alloc::{GlobalAlloc, Layout};
 use spin::Mutex;
-use slabmalloc::{Allocator, ZoneAllocator, AllocationError, ObjectPage, LargeObjectPage};
+use slabmalloc::{Allocator, ZoneAllocator, AllocationError};
 use crate::memory::buddy::{BUDDY, BuddyFrameAllocator};
 use log::trace;
 use crate::arch::KERNEL_END;
@@ -146,7 +146,7 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
         trace!("alloc layout={:?}", layout);
 
         let mut buddy = self.buddy.lock();
-        let mut buddy = buddy.as_mut()
+        let buddy = buddy.as_mut()
             .expect("__rust_allocate: Buddy is not initialized");
 
         // Let's just pass most stuff to buddy I guess?
@@ -213,7 +213,7 @@ unsafe impl GlobalAlloc for SafeZoneAllocator {
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         trace!("dealloc ptr = 0x{:x} layout={:?}", ptr as usize, layout);
         let mut buddy = self.buddy.lock();
-        let mut buddy = buddy.as_mut()
+        let buddy = buddy.as_mut()
             .expect("__rust_allocate: Buddy is not initialized");
 
         let vaddr = VAddr::from_usize(ptr as usize);

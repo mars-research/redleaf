@@ -14,7 +14,7 @@ pub unsafe fn load_domain(name: &str, binary_range: (*const u8, *const u8)) -> (
         name, binary_start as usize, binary_end as usize);
 
     // Create a new elf binary from the address range we just extracted
-    let mut binary_vec: alloc::vec::Vec<u8>;
+    let binary_vec: alloc::vec::Vec<u8>;
 
     #[cfg(not(debug_assertions))]
     let binary = core::slice::from_raw_parts(binary_start, num_bytes);

@@ -3,7 +3,7 @@ use create;
 use proxy;
 use usr;
 
-use spin::Mutex;
+
 use alloc::sync::Arc;
 use alloc::boxed::Box;
 
@@ -330,7 +330,7 @@ pub fn create_domain_pci() -> (Box<dyn syscalls::Domain>,
     create_domain_pci_bus("pci", binary_range)
 }
 
-pub fn create_domain_ahci(pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev>) {
+pub fn create_domain_ahci(_pci: Box<dyn usr::pci::PCI>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev>) {
 
     // extern "C" {
     //     fn _binary_domains_build_ahci_driver_start();
@@ -587,7 +587,7 @@ pub fn create_domain_dom_c() -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::
     build_domain_dom_c("dom_c", binary_range)
 }
 
-pub fn recreate_domain_dom_c(dom: Box<dyn syscalls::Domain>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
+pub fn recreate_domain_dom_c(_dom: Box<dyn syscalls::Domain>) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
     extern "C" {
         fn _binary_domains_build_dom_c_start();
         fn _binary_domains_build_dom_c_end();
@@ -1698,7 +1698,7 @@ pub fn build_domain_benchnet_helper(name: &str,
 
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
-    let shadow = user_ep(pdom, pheap, net);
+    let _shadow = user_ep(pdom, pheap, net);
     disable_irq();
 
     // change domain id back
@@ -1737,7 +1737,7 @@ pub fn build_domain_benchnvme(name: &str,
 
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
-    let shadow = user_ep(pdom, pheap, nvme);
+    let _shadow = user_ep(pdom, pheap, nvme);
     disable_irq();
 
     // change domain id back
@@ -1775,7 +1775,7 @@ pub fn build_domain_hashstore(name: &str,
 
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
-    let shadow = user_ep(pdom, pheap);
+    let _shadow = user_ep(pdom, pheap);
     disable_irq();
 
     // change domain id back

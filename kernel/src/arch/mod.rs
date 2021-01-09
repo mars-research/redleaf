@@ -50,7 +50,7 @@ pub fn init_buddy(bootinfo: &BootInformation) {
                 // to pick a big one weee
                 if (base >= 1_0000_0000 as u64) && size > BASE_PAGE_SIZE && size >= MEM_THRESHOLD {
                     // align to HEAP_ALIGN (2MB)
-                    if (base % HEAP_ALIGN != 0) {
+                    if base % HEAP_ALIGN != 0 {
                         let pad = HEAP_ALIGN - (base % HEAP_ALIGN);
                         base += pad;
                         size -= pad as usize;

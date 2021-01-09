@@ -69,14 +69,14 @@ mod sync;
 
 use x86::cpuid::CpuId;
 use crate::arch::{init_buddy};
-use crate::memory::{construct_pt, construct_ap_pt};
+use crate::memory::{construct_pt};
 use crate::pci::scan_pci_devs;
 use core::ptr;
 use crate::arch::memory::BASE_PAGE_SIZE;
-use crate::arch::{KERNEL_END, kernel_end};
+use crate::arch::{KERNEL_END};
 use crate::panic::{init_backtrace, init_backtrace_context};
 use crate::multibootv2::BootInformation;
-use alloc::boxed::Box;
+
 
 pub static mut ap_entry_running: bool = true;
 pub const MAX_CPUS: u32 = 4;
@@ -229,7 +229,7 @@ pub extern "C" fn rust_main() -> ! {
     // To enable NX mappings
     unsafe {
         // Enable NXE bit (11)
-        use x86::msr::{rdmsr, wrmsr, IA32_EFER, IA32_MISC_ENABLE, MSR_PLATFORM_INFO, IA32_PERF_STATUS, IA32_PERF_CTL, IA32_MPERF, IA32_APERF};
+        use x86::msr::{rdmsr, wrmsr, IA32_EFER};
         let efer = rdmsr(IA32_EFER) | 1 << 11;
         wrmsr(IA32_EFER, efer);
 

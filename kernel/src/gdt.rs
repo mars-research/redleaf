@@ -5,7 +5,7 @@
 use lazy_static::lazy_static;
 */
 
-use x86_64::VirtAddr;
+
 use x86_64::structures::gdt::Descriptor;
 
 use core::mem;

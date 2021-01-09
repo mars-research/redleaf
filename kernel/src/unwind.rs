@@ -2,7 +2,7 @@
 //#![feature(llvm_asm)]
 
 use syscalls::Continuation;
-use super::thread::{pop_continuation, push_continuation};
+use super::thread::{pop_continuation};
 
 extern {
     fn __unwind(cont: &Continuation);
@@ -68,7 +68,7 @@ __unwind:
  * Unwind test with simple functions 
  */
 #[no_mangle]
-pub fn foo(x: u64, y: u64) {
+pub fn foo(_x: u64, _y: u64) {
     //unwind();
     println!("you shouldn't see this"); 
 }
@@ -97,7 +97,7 @@ pub struct Foo {
 }
 
 impl FooTrait for Foo {
-    fn simple_result(&self, x: u64) -> Result<u64, i64> {
+    fn simple_result(&self, _x: u64) -> Result<u64, i64> {
         let r = self.id; 
         unwind();
         Ok(r)

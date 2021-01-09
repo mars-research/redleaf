@@ -193,7 +193,7 @@ impl syscalls::Syscall for PDomain {
             let thread_mutex: &mut Mutex<thread::Thread> = unsafe {
                 &mut *((&**thread_arc) as *const Mutex<thread::Thread> as *mut Mutex<thread::Thread>)
             };
-            let mut thread = thread_mutex.get_mut();
+            let thread = thread_mutex.get_mut();
             core::mem::swap(&mut thread.current_domain_id, &mut old_domain_id);
         }
         enable_irq();
