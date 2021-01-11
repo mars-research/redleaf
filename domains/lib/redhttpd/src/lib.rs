@@ -18,10 +18,10 @@ use alloc::vec;
 use core::fmt;
 use core::fmt::Write;
 
-use arrayvec::{ArrayVec, ArrayString};
+use arrayvec::{ArrayString, ArrayVec};
 
-use smoltcp::socket::{SocketSet, SocketHandle};
 use smoltcp::socket::{Socket, SocketRef, TcpSocket, TcpSocketBuffer};
+use smoltcp::socket::{SocketHandle, SocketSet};
 
 #[macro_use]
 use core::include_bytes;
@@ -155,7 +155,9 @@ impl HttpSession {
             self.request_buf.push(*chr);
         }
         */
-        self.request_buf.try_extend_from_slice(buf).expect("Failed to write to request buffer");
+        self.request_buf
+            .try_extend_from_slice(buf)
+            .expect("Failed to write to request buffer");
         let buflen = self.request_buf.len();
         if self.request_buf.len() > 5 && &self.request_buf[buflen - 4..] == "\r\n\r\n".as_bytes() {
             return true;
@@ -185,79 +187,84 @@ impl HttpSession {
             HttpState::ReadRequest => {
                 let id = self as *const HttpSession;
                 if socket.may_recv() {
-                    let send_res = socket.recv(|pbuf| {
-                        if pbuf.len() == 0 {
-                            return (0, false);
-                        }
+                    let send_res = socket
+                        .recv(|pbuf| {
+                            if pbuf.len() == 0 {
+                                return (0, false);
+                            }
 
-                        /*
-                        if self.request_buf.len() == 0 {
-                            if self.was_alive {
-                                println!("{:X?}: Keep-Alive request", id);
+                            /*
+                            if self.request_buf.len() == 0 {
+                                if self.was_alive {
+                                    println!("{:X?}: Keep-Alive request", id);
+                                } else {
+                                    println!("{:X?}: New connection", id);
+                                }
+                            }
+                            */
+
+                            let consumed = pbuf.len();
+
+                            // ok let's do request buffering...
+                            let buf = {
+                                if self.request_buf.len() == 0
+                                    && pbuf.len() > 5
+                                    && &pbuf[pbuf.len() - 4..] == "\r\n\r\n".as_bytes()
+                                {
+                                    // Cool, everything in one single packet
+                                    &pbuf
+                                } else if self.buffer_request(pbuf) {
+                                    // Request complete!
+                                    &*self.request_buf
+                                } else {
+                                    // Wait for next packet
+                                    return (consumed, false);
+                                }
+                            };
+
+                            let mut urlend: usize = 4;
+                            for i in 4..buf.len() {
+                                if buf[i] == ' ' as u8 {
+                                    urlend = i;
+                                    break;
+                                }
+                            }
+                            if urlend == 4 {
+                                // No path
+                                self.response = Self::emit_error(HttpStatus::BadRequest);
+                                panic!("Should not return 400 at all");
+                                return (consumed, true);
+                            }
+
+                            let url = &buf[4..urlend];
+
+                            /*
+                            let url = if let Ok(url) = core::str::from_utf8(&buf[4..urlend]) {
+                                url
                             } else {
-                                println!("{:X?}: New connection", id);
-                            }
-                        }
-                        */
+                                // Invalid UTF-8
+                                self.response = Self::emit_error(HttpStatus::BadRequest);
+                                return (consumed, true);
+                            };
+                            */
 
-                        let consumed = pbuf.len();
-
-                        // ok let's do request buffering...
-                        let buf = {
-                            if self.request_buf.len() == 0 && pbuf.len() > 5 && &pbuf[pbuf.len() - 4..] == "\r\n\r\n".as_bytes() {
-                                // Cool, everything in one single packet
-                                &pbuf
-                            } else if self.buffer_request(pbuf) {
-                                // Request complete!
-                                &*self.request_buf
-                            } else {
-                                // Wait for next packet
-                                return (consumed, false);
+                            match read_file(url) {
+                                Some(body) => {
+                                    self.response = Some(HttpResponse {
+                                        status: HttpStatus::Success,
+                                        body,
+                                    });
+                                }
+                                None => {
+                                    // 404
+                                    panic!("Should not return 404 at all: {:?}", url);
+                                    self.response = Self::emit_error(HttpStatus::NotFound);
+                                }
                             }
-                        };
 
-                        let mut urlend: usize = 4;
-                        for i in 4..buf.len() {
-                            if buf[i] == ' ' as u8 {
-                                urlend = i;
-                                break;
-                            }
-                        }
-                        if urlend == 4 {
-                            // No path
-                            self.response = Self::emit_error(HttpStatus::BadRequest);
-                            panic!("Should not return 400 at all");
                             return (consumed, true);
-                        }
-
-                        let url = &buf[4..urlend];
-
-                        /*
-                        let url = if let Ok(url) = core::str::from_utf8(&buf[4..urlend]) {
-                            url
-                        } else {
-                            // Invalid UTF-8
-                            self.response = Self::emit_error(HttpStatus::BadRequest);
-                            return (consumed, true);
-                        };
-                        */
-
-                        match read_file(url) {
-                            Some(body) => {
-                                self.response = Some(HttpResponse {
-                                    status: HttpStatus::Success,
-                                    body,
-                                });
-                            }
-                            None => {
-                                // 404
-                                panic!("Should not return 404 at all: {:?}", url);
-                                self.response = Self::emit_error(HttpStatus::NotFound);
-                            }
-                        }
-
-                        return (consumed, true);
-                    }).expect("Failed to receive");
+                        })
+                        .expect("Failed to receive");
 
                     if send_res {
                         // println!("{:X?}: Transition to sendresponse", id);
@@ -326,18 +333,14 @@ impl HttpSession {
 
     fn emit_error(error: HttpStatus) -> Option<HttpResponse> {
         match error {
-            HttpStatus::NotFound => {
-                Some(HttpResponse {
-                    status: HttpStatus::NotFound,
-                    body: read_file(b"/404.html").unwrap_or("Not Found".as_bytes()),
-                })
-            }
-            HttpStatus::BadRequest => {
-                Some(HttpResponse {
-                    status: HttpStatus::BadRequest,
-                    body: read_file(b"/400.html").unwrap_or("Bad Request".as_bytes()),
-                })
-            }
+            HttpStatus::NotFound => Some(HttpResponse {
+                status: HttpStatus::NotFound,
+                body: read_file(b"/404.html").unwrap_or("Not Found".as_bytes()),
+            }),
+            HttpStatus::BadRequest => Some(HttpResponse {
+                status: HttpStatus::BadRequest,
+                body: read_file(b"/400.html").unwrap_or("Bad Request".as_bytes()),
+            }),
             _ => unimplemented!(),
         }
     }

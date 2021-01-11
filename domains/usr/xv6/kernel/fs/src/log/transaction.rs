@@ -4,7 +4,7 @@ use spin::Mutex;
 use libsyscalls::sync::CondVar;
 
 use crate::bcache::BufferGuard;
-use crate::log::log::{Log, LogInternal};
+use crate::log::log::LogInternal;
 
 pub struct Transaction {
     log: Arc<(Mutex<LogInternal>, CondVar)>,

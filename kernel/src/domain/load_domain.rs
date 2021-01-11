@@ -1,20 +1,25 @@
-use spin::Mutex;
-use alloc::sync::Arc;
-use elfloader::ElfBinary;
+use super::domain::Domain;
 use super::trusted_binary;
 use super::trusted_binary::SignatureCheckResult;
-use super::domain::Domain;
+use alloc::sync::Arc;
+use elfloader::ElfBinary;
+use spin::Mutex;
 
-pub unsafe fn load_domain(name: &str, binary_range: (*const u8, *const u8)) -> (Arc<Mutex<Domain>>, *const()) {
+pub unsafe fn load_domain(
+    name: &str,
+    binary_range: (*const u8, *const u8),
+) -> (Arc<Mutex<Domain>>, *const ()) {
     let (binary_start, binary_end) = binary_range;
 
     let num_bytes = ((binary_end as usize) - (binary_start as usize)) as usize;
 
-    println!("domain/{}: Binary start: {:x}, end: {:x} ",
-        name, binary_start as usize, binary_end as usize);
+    println!(
+        "domain/{}: Binary start: {:x}, end: {:x} ",
+        name, binary_start as usize, binary_end as usize
+    );
 
     // Create a new elf binary from the address range we just extracted
-    let mut binary_vec: alloc::vec::Vec<u8>;
+    let binary_vec: alloc::vec::Vec<u8>;
 
     #[cfg(not(debug_assertions))]
     let binary = core::slice::from_raw_parts(binary_start, num_bytes);
@@ -22,13 +27,14 @@ pub unsafe fn load_domain(name: &str, binary_range: (*const u8, *const u8)) -> (
     #[cfg(debug_assertions)]
     let binary = {
         binary_vec = unsafe {
-            use core::alloc::Layout;
             use alloc::vec::Vec;
-    
+            use core::alloc::Layout;
+
             let layout = Layout::from_size_align(num_bytes, 4096)
-                .map_err(|e| panic!("Layout error: {}", e)).unwrap();
-    
-            let elf_buf = unsafe {alloc::alloc::alloc(layout) as *mut u8 };
+                .map_err(|e| panic!("Layout error: {}", e))
+                .unwrap();
+
+            let elf_buf = unsafe { alloc::alloc::alloc(layout) as *mut u8 };
             let mut v: Vec<u8> = unsafe { Vec::from_raw_parts(elf_buf, num_bytes, num_bytes) };
             core::ptr::copy(binary_start, v.as_mut_ptr(), num_bytes);
             v
@@ -43,10 +49,10 @@ pub unsafe fn load_domain(name: &str, binary_range: (*const u8, *const u8)) -> (
     match trusted_binary::verify(binary) {
         SignatureCheckResult::Unsigned => {
             println!("domain/{}: Binary is unsigned", name);
-        },
+        }
         SignatureCheckResult::GoodSignature => {
             println!("domain/{}: Binary has good signature", name);
-        },
+        }
         SignatureCheckResult::BadSignature => {
             println!("domain/{}: Binary has BAD signature", name);
         }
@@ -61,13 +67,24 @@ pub unsafe fn load_domain(name: &str, binary_range: (*const u8, *const u8)) -> (
     domain_elf.load(&mut *loader).expect("Cannot load binary");
 
     // print its entry point for now
-    println!("domain/{}: Entry point at {:x}",
-        name, loader.offset + domain_elf.entry_point());
+    println!(
+        "domain/{}: Entry point at {:x}",
+        name,
+        loader.offset + domain_elf.entry_point()
+    );
 
-    println!("domain/{}: .text starts at {:x}",
-        name, loader.offset + domain_elf.file.find_section_by_name(".text").unwrap().address());
+    println!(
+        "domain/{}: .text starts at {:x}",
+        name,
+        loader.offset
+            + domain_elf
+                .file
+                .find_section_by_name(".text")
+                .unwrap()
+                .address()
+    );
 
-    let user_ep: *const() = {
+    let user_ep: *const () = {
         let mut entry: *const u8 = (*loader).offset.as_ptr();
         entry = entry.offset(domain_elf.entry_point() as isize);
         let _entry = entry as *const ();

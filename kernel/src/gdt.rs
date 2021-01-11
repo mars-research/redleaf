@@ -1,20 +1,19 @@
 /* The crate for TSS and GDT, see the source code here
-   https://github.com/rust-osdev/x86_64/blob/master/src/structures/gdt.rs */
+https://github.com/rust-osdev/x86_64/blob/master/src/structures/gdt.rs */
 
 /*
 use lazy_static::lazy_static;
 */
 
-use x86_64::VirtAddr;
 use x86_64::structures::gdt::Descriptor;
 
 use core::mem;
 use x86::current::task::TaskStateSegment;
-use x86::dtables::{DescriptorTablePointer};
+use x86::dtables::DescriptorTablePointer;
 use x86::task;
 
 use x86::bits64::segmentation::load_cs;
-use x86::segmentation::{SegmentSelector, load_ds, load_es, load_fs, load_gs, load_ss};
+use x86::segmentation::{load_ds, load_es, load_fs, load_gs, load_ss, SegmentSelector};
 
 use x86::Ring::Ring0;
 
@@ -30,7 +29,7 @@ pub const PAGE_FAULT_IST_INDEX: u16 = 1;
 pub const DOUBLE_FAULT_IST_INDEX: u16 = 2;
 pub const NMI_IST_INDEX: u16 = 3;
 
-pub const IST_STACK_SIZE: usize = PAGE_SIZE*4096;
+pub const IST_STACK_SIZE: usize = PAGE_SIZE * 4096;
 
 #[thread_local]
 pub static mut IST_PF_STACK: [u8; IST_STACK_SIZE] = [0; IST_STACK_SIZE];
@@ -45,7 +44,7 @@ pub static mut IST_NMI_STACK: [u8; IST_STACK_SIZE] = [0; IST_STACK_SIZE];
 lazy_static! {
     static ref TSS: TaskStateSegment = {
         let mut tss = TaskStateSegment::new();
-        /* Create an IST stack for the double fault handler */        
+        /* Create an IST stack for the double fault handler */
         tss.interrupt_stack_table[DOUBLE_FAULT_IST_INDEX as usize] = {
             const STACK_SIZE: usize = 4096;
             static mut STACK: [u8; STACK_SIZE] = [0; STACK_SIZE];
@@ -55,7 +54,7 @@ lazy_static! {
             stack_end
         };
 
-        /* Create an IST stack for the NMI  handler */        
+        /* Create an IST stack for the NMI  handler */
         tss.interrupt_stack_table[NMI_IST_INDEX as usize] = {
             const STACK_SIZE: usize = 4096;
             static mut STACK: [u8; STACK_SIZE] = [0; STACK_SIZE];
@@ -137,7 +136,7 @@ pub const GDT_F_LONG_MODE: u8 = 1 << 5;
 /// Init-time GDT descriptor loaded into GDTR
 static mut INIT_GDT_DESC: DescriptorTablePointer<Descriptor> = DescriptorTablePointer {
     limit: 0,
-    base: 0 as *const Descriptor
+    base: 0 as *const Descriptor,
 };
 
 /// Init-time GDT table (we need it before we set up per-CPU variables)
@@ -145,18 +144,33 @@ static mut INIT_GDT: [GdtEntry; 4] = [
     // Null
     GdtEntry::new(0, 0, 0, 0),
     // Kernel code
-    GdtEntry::new(0, 0, GDT_A_PRESENT | GDT_A_RING_0 | GDT_A_SYSTEM | GDT_A_EXECUTABLE | GDT_A_PRIVILEGE, GDT_F_LONG_MODE),
+    GdtEntry::new(
+        0,
+        0,
+        GDT_A_PRESENT | GDT_A_RING_0 | GDT_A_SYSTEM | GDT_A_EXECUTABLE | GDT_A_PRIVILEGE,
+        GDT_F_LONG_MODE,
+    ),
     // Kernel data
-    GdtEntry::new(0, 0, GDT_A_PRESENT | GDT_A_RING_0 | GDT_A_SYSTEM | GDT_A_PRIVILEGE, GDT_F_LONG_MODE),
+    GdtEntry::new(
+        0,
+        0,
+        GDT_A_PRESENT | GDT_A_RING_0 | GDT_A_SYSTEM | GDT_A_PRIVILEGE,
+        GDT_F_LONG_MODE,
+    ),
     // Kernel TLS
-    GdtEntry::new(0, 0, GDT_A_PRESENT | GDT_A_RING_3 | GDT_A_SYSTEM | GDT_A_PRIVILEGE, GDT_F_LONG_MODE)
+    GdtEntry::new(
+        0,
+        0,
+        GDT_A_PRESENT | GDT_A_RING_3 | GDT_A_SYSTEM | GDT_A_PRIVILEGE,
+        GDT_F_LONG_MODE,
+    ),
 ];
 
 /// Per-CPU GDT descriptor
 #[thread_local]
 pub static mut GDT_DESC: DescriptorTablePointer<Descriptor> = DescriptorTablePointer {
     limit: 0,
-    base: 0 as *const Descriptor
+    base: 0 as *const Descriptor,
 };
 
 /// Per-CPU GDT that has a private per-CPU fs segment for per-CPU variables
@@ -165,17 +179,47 @@ pub static mut GDT: [GdtEntry; 9] = [
     // Null
     GdtEntry::new(0, 0, 0, 0),
     // Kernel code
-    GdtEntry::new(0, 0, GDT_A_PRESENT | GDT_A_RING_0 | GDT_A_SYSTEM | GDT_A_EXECUTABLE | GDT_A_PRIVILEGE, GDT_F_LONG_MODE),
+    GdtEntry::new(
+        0,
+        0,
+        GDT_A_PRESENT | GDT_A_RING_0 | GDT_A_SYSTEM | GDT_A_EXECUTABLE | GDT_A_PRIVILEGE,
+        GDT_F_LONG_MODE,
+    ),
     // Kernel data
-    GdtEntry::new(0, 0, GDT_A_PRESENT | GDT_A_RING_0 | GDT_A_SYSTEM | GDT_A_PRIVILEGE, GDT_F_LONG_MODE),
+    GdtEntry::new(
+        0,
+        0,
+        GDT_A_PRESENT | GDT_A_RING_0 | GDT_A_SYSTEM | GDT_A_PRIVILEGE,
+        GDT_F_LONG_MODE,
+    ),
     // Kernel TLS
-    GdtEntry::new(0, 0, GDT_A_PRESENT | GDT_A_RING_0 | GDT_A_SYSTEM | GDT_A_PRIVILEGE, GDT_F_LONG_MODE),
+    GdtEntry::new(
+        0,
+        0,
+        GDT_A_PRESENT | GDT_A_RING_0 | GDT_A_SYSTEM | GDT_A_PRIVILEGE,
+        GDT_F_LONG_MODE,
+    ),
     // User code
-    GdtEntry::new(0, 0, GDT_A_PRESENT | GDT_A_RING_3 | GDT_A_SYSTEM | GDT_A_EXECUTABLE | GDT_A_PRIVILEGE, GDT_F_LONG_MODE),
+    GdtEntry::new(
+        0,
+        0,
+        GDT_A_PRESENT | GDT_A_RING_3 | GDT_A_SYSTEM | GDT_A_EXECUTABLE | GDT_A_PRIVILEGE,
+        GDT_F_LONG_MODE,
+    ),
     // User data
-    GdtEntry::new(0, 0, GDT_A_PRESENT | GDT_A_RING_3 | GDT_A_SYSTEM | GDT_A_PRIVILEGE, GDT_F_LONG_MODE),
+    GdtEntry::new(
+        0,
+        0,
+        GDT_A_PRESENT | GDT_A_RING_3 | GDT_A_SYSTEM | GDT_A_PRIVILEGE,
+        GDT_F_LONG_MODE,
+    ),
     // User TLS
-    GdtEntry::new(0, 0, GDT_A_PRESENT | GDT_A_RING_3 | GDT_A_SYSTEM | GDT_A_PRIVILEGE, GDT_F_LONG_MODE),
+    GdtEntry::new(
+        0,
+        0,
+        GDT_A_PRESENT | GDT_A_RING_3 | GDT_A_SYSTEM | GDT_A_PRIVILEGE,
+        GDT_F_LONG_MODE,
+    ),
     // TSS
     GdtEntry::new(0, 0, GDT_A_PRESENT | GDT_A_RING_3 | GDT_A_TSS_AVAIL, 0),
     // TSS must be 16 bytes long, twice the normal size
@@ -191,7 +235,7 @@ pub static mut TSS: TaskStateSegment = TaskStateSegment {
     ist: [0; 7],
     reserved3: 0,
     reserved4: 0,
-    iomap_base: 0xFFFF
+    iomap_base: 0xFFFF,
 };
 
 /*
@@ -246,13 +290,12 @@ pub unsafe fn init_percpu_gdt(tcb_offset: u64) {
         controlregs::cr4_write(cr4);
     }
 
-
     // Load fs
-   //#[cfg(not(feature = "large_mem"))]
+    //#[cfg(not(feature = "large_mem"))]
     //wrmsr(IA32_FS_BASE, tcb_offset);
 
     //#[cfg(feature = "large_mem")]
-    writefs(tcb_offset); 
+    writefs(tcb_offset);
 
     // Now that we have access to thread locals, setup the AP's individual GDT
     GDT_DESC.limit = (GDT.len() * mem::size_of::<GdtEntry>() - 1) as u16;
@@ -264,7 +307,6 @@ pub unsafe fn init_percpu_gdt(tcb_offset: u64) {
 
     // Set the User TLS segment to the offset of the user TCB
     //set_tcb(0);
-
 
     //TSS.ist[PAGE_FAULT_IST_INDEX as usize] = VirtAddr::from_ptr(unsafe { &IST_PF_STACK });
     TSS.ist[PAGE_FAULT_IST_INDEX as usize] = &IST_PF_STACK as *const _ as u64;
@@ -307,12 +349,14 @@ pub unsafe fn init_percpu_gdt(tcb_offset: u64) {
         writefs(tcb_offset);
     }
 
-
     //#[cfg(not(feature = "large_mem"))]
     //wrmsr(IA32_FS_BASE, tcb_offset);
 
     // Load the task register
-    task::load_tr(x86::segmentation::SegmentSelector::new(GDT_TSS as u16, x86::Ring::Ring0));
+    task::load_tr(x86::segmentation::SegmentSelector::new(
+        GDT_TSS as u16,
+        x86::Ring::Ring0,
+    ));
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -323,7 +367,7 @@ pub struct GdtEntry {
     pub offsetm: u8,
     pub access: u8,
     pub flags_limith: u8,
-    pub offseth: u8
+    pub offseth: u8,
 }
 
 impl GdtEntry {
@@ -334,7 +378,7 @@ impl GdtEntry {
             offsetm: (offset >> 16) as u8,
             access,
             flags_limith: flags & 0xF0 | ((limit >> 16) as u8) & 0x0F,
-            offseth: (offset >> 24) as u8
+            offseth: (offset >> 24) as u8,
         }
     }
 

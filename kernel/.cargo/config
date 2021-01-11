@@ -1,8 +1,10 @@
 [alias]
-rbuild = "build --out-dir=build -Z build-std=core,alloc -Z features=host_dep -Z unstable-options -Z package-features"
+rbuild = "build --out-dir=build -Z build-std=core,alloc -Z features=host_dep -Z unstable-options"
 rb = "rbuild"
-rcheck = "check -Z build-std=core,alloc -Z features=host_dep -Z package-features"
+rcheck = "check -Z build-std=core,alloc -Z features=host_dep"
 rc = "rcheck"
+rfix = "fix -Z build-std=core,alloc -Z features=host_dep -Z package-features"
+rf = "rfix"
 
 [build]
 target = "x86_64-unknown-none.json"

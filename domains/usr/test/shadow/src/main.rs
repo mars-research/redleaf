@@ -1,18 +1,18 @@
 #![no_std]
 #![no_main]
-extern crate malloc;
 extern crate alloc;
-use libsyscalls;
-use syscalls::{Syscall, Heap};
-use create;
+extern crate malloc;
+
+use syscalls::{Heap, Syscall};
+
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use console::println;
-use core::alloc::Layout;
+
 use core::panic::PanicInfo;
-use usr;
-use rref::{RRef, RRefDeque};
-use alloc::vec::Vec;
+
+use rref::RRef;
+
 use spin::Mutex;
 use usr::rpc::RpcResult;
 
@@ -23,10 +23,11 @@ struct ShadowDomain {
 }
 
 impl ShadowDomain {
-    fn new(dom: Box<dyn syscalls::Domain>,
-            create_dom_c: Arc<dyn create::CreateDomC>, 
-            dom_c: Box<dyn usr::dom_c::DomC>) -> Self 
-    {
+    fn new(
+        dom: Box<dyn syscalls::Domain>,
+        create_dom_c: Arc<dyn create::CreateDomC>,
+        dom_c: Box<dyn usr::dom_c::DomC>,
+    ) -> Self {
         Self {
             dom: Some(dom),
             dom_c,
@@ -35,19 +36,18 @@ impl ShadowDomain {
     }
 }
 
-
-
 struct Shadow {
     dom: Mutex<ShadowDomain>,
 }
 
 impl Shadow {
-    fn new(dom: Box<dyn syscalls::Domain>,
-            create_dom_c: Arc<dyn create::CreateDomC>, 
-            dom_c: Box<dyn usr::dom_c::DomC>) -> Self 
-    {
+    fn new(
+        dom: Box<dyn syscalls::Domain>,
+        create_dom_c: Arc<dyn create::CreateDomC>,
+        dom_c: Box<dyn usr::dom_c::DomC>,
+    ) -> Self {
         Self {
-            dom: Mutex::new(ShadowDomain::new(dom, create_dom_c, dom_c))
+            dom: Mutex::new(ShadowDomain::new(dom, create_dom_c, dom_c)),
         }
     }
 }
@@ -61,12 +61,11 @@ impl usr::dom_c::DomC for Shadow {
         let mut dom = self.dom.lock();
         loop {
             let r = dom.dom_c.one_arg(x);
-            if let Err(e) = r {
-
+            if let Err(_e) = r {
                 println!("restarting domC domain");
                 let old_domain = dom.dom.take();
                 let (domain, dom_c) = dom.create_dom_c.recreate_domain_dom_c(old_domain.unwrap());
-                dom.dom = Some(domain); 
+                dom.dom = Some(domain);
                 dom.dom_c = dom_c;
 
                 /* restart invocation on the new domain */
@@ -74,7 +73,7 @@ impl usr::dom_c::DomC for Shadow {
                 continue;
             }
             break r;
-        }        
+        }
     }
 
     fn one_rref(&self, x: RRef<usize>) -> RpcResult<RRef<usize>> {
@@ -83,7 +82,11 @@ impl usr::dom_c::DomC for Shadow {
 }
 
 #[no_mangle]
-pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, create_dom_c: Arc<dyn create::CreateDomC>) -> Box<dyn usr::dom_c::DomC> {
+pub fn trusted_entry(
+    s: Box<dyn Syscall + Send + Sync>,
+    heap: Box<dyn Heap + Send + Sync>,
+    create_dom_c: Arc<dyn create::CreateDomC>,
+) -> Box<dyn usr::dom_c::DomC> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 

@@ -1,21 +1,24 @@
 #![no_std]
 #![no_main]
-extern crate malloc;
 extern crate alloc;
-use libsyscalls;
-use syscalls::{Syscall, Heap};
-use create;
+extern crate malloc;
+
+use syscalls::{Heap, Syscall};
+
 use alloc::boxed::Box;
-use alloc::sync::Arc;
-use console::{println, print};
-use core::alloc::Layout;
+
+use console::println;
+
 use core::panic::PanicInfo;
-use usr;
-use alloc::vec::Vec;
+
 use usr::net::Net;
 
 #[no_mangle]
-pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, net: Box<dyn Net>) {
+pub fn trusted_entry(
+    s: Box<dyn Syscall + Send + Sync>,
+    heap: Box<dyn Heap + Send + Sync>,
+    net: Box<dyn Net>,
+) {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 

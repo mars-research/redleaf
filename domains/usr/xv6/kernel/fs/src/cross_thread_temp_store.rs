@@ -1,5 +1,5 @@
 use alloc::vec::Vec;
-use core::ops::DerefMut;
+
 use spin::Mutex;
 
 pub struct CrossThreadTempStorage<T> {

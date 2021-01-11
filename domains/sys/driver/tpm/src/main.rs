@@ -1,57 +1,40 @@
 #![no_std]
 #![no_main]
-#![feature(
-    asm,
-    box_syntax,
-    const_fn,
-    const_raw_ptr_to_usize_cast,
-)]
+#![feature(asm, box_syntax, const_fn, const_raw_ptr_to_usize_cast)]
 #![forbid(unsafe_code)]
 
 mod tpm_dev;
 mod usr_tpm;
 
-extern crate malloc;
 extern crate alloc;
 extern crate b2histogram;
+extern crate malloc;
 #[macro_use]
 extern crate bitflags;
 
 #[macro_use]
 extern crate bitfield;
 
-use libtpm::*;
-use bitfield::BitRange;
-
 #[macro_use]
-use b2histogram::Base2Histogram;
-use byteorder::{ByteOrder, BigEndian};
-
-use libtime::sys_ns_loopsleep;
 use alloc::boxed::Box;
-use alloc::collections::VecDeque;
+
 #[macro_use]
-use alloc::vec::Vec;
-use alloc::vec;
 use core::panic::PanicInfo;
-use syscalls::{Syscall, Heap};
-use usr;
-use usr::rpc::RpcResult;
-use console::{println, print};
+use syscalls::{Heap, Syscall};
+
+use console::println;
 use libsyscalls::syscalls::sys_backtrace;
 pub use usr::error::{ErrorKind, Result};
-use core::cell::RefCell;
-use core::{mem, ptr};
-use tpm_device::TpmDevice; 
+
 use usr::tpm::TpmRegs;
-use libtime::get_rdtsc as rdtsc;
-use libtpm::*;
 
 pub const ONE_MS_IN_NS: u64 = 1000 * 1000;
 
 #[no_mangle]
-pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>,
-                 heap: Box<dyn Heap + Send + Sync>) -> Box<dyn usr::tpm::UsrTpm> {
+pub fn trusted_entry(
+    s: Box<dyn Syscall + Send + Sync>,
+    heap: Box<dyn Heap + Send + Sync>,
+) -> Box<dyn usr::tpm::UsrTpm> {
     libsyscalls::syscalls::init(s);
 
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
@@ -67,7 +50,7 @@ pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>,
     println!("ACCESS {:x?}", reg_acc);
 
     let reg_sts = tpm.read_u8(0, TpmRegs::TPM_STS);
-    let status = libtpm::TpmStatus(reg_sts);
+    let _status = libtpm::TpmStatus(reg_sts);
 
     println!("STS {:x?}", reg_sts);
 

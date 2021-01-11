@@ -1,6 +1,6 @@
 use crate::buildinfo;
-use signature::{Signature, Verifier};
 use ed25519_dalek::PublicKey;
+use signature::{Signature, Verifier};
 
 const MAGIC_NUMBER: &'static str = "Hi, I'm an ELF virus! Please help me take over the world by passing me around. Your cooperation is appreciated.";
 

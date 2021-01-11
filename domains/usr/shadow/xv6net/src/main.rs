@@ -1,28 +1,26 @@
 #![no_std]
 #![no_main]
-#![feature(
-    box_syntax,
-)]
+#![feature(box_syntax)]
 #![forbid(unsafe_code)]
-extern crate malloc;
 extern crate alloc;
-use libsyscalls;
-use syscalls::{Syscall, Heap};
-use create;
+extern crate malloc;
+
+use syscalls::{Heap, Syscall};
+
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use console::println;
-use core::alloc::Layout;
+
 use core::panic::PanicInfo;
-use usr;
-use rref::{RRef, RRefVec};
-use alloc::vec::Vec;
-use usr::error::Result;
-use usr::net::Net;
-use usr::usrnet::UsrNet;
-use usr::rpc::RpcResult;
+
+use rref::RRefVec;
+
 use create::CreateRv6Net;
 use spin::Mutex;
+use usr::error::Result;
+use usr::net::Net;
+use usr::rpc::RpcResult;
+use usr::usrnet::UsrNet;
 
 struct ShadowInternal {
     create: Arc<dyn CreateRv6Net>,
@@ -78,18 +76,30 @@ impl UsrNet for Shadow {
     fn close(&self, server: usize) -> RpcResult<Result<()>> {
         self.shadow.lock().usrnet.close(server)
     }
-    fn read_socket(&self, socket: usize, buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+    fn read_socket(
+        &self,
+        socket: usize,
+        buffer: RRefVec<u8>,
+    ) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         self.shadow.lock().usrnet.read_socket(socket, buffer)
     }
-    fn write_socket(&self, socket: usize, buffer: RRefVec<u8>, size: usize) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+    fn write_socket(
+        &self,
+        socket: usize,
+        buffer: RRefVec<u8>,
+        size: usize,
+    ) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         self.shadow.lock().usrnet.write_socket(socket, buffer, size)
     }
-
-
 }
 
 #[no_mangle]
-pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, create: Arc<dyn CreateRv6Net>, net: Box<dyn Net>) -> Box<dyn UsrNet> {
+pub fn trusted_entry(
+    s: Box<dyn Syscall + Send + Sync>,
+    heap: Box<dyn Heap + Send + Sync>,
+    create: Arc<dyn CreateRv6Net>,
+    net: Box<dyn Net>,
+) -> Box<dyn UsrNet> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 

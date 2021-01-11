@@ -1,19 +1,16 @@
 #![no_std]
 
-use alloc::collections::VecDeque;
-use alloc::boxed::Box;
-use alloc::vec::Vec;
 use crate::ixgbe_desc::*;
 use crate::Result;
-use ixgbe_device::{IxgbeRegs, IxgbeNoDmaArrayRegs};
+use console::{print, println};
 use ixgbe_device::IxgbeDevice;
-use console::{println, print};
-use core::{mem};
-use libtime::sys_ns_loopsleep;
+use ixgbe_device::{IxgbeNoDmaArrayRegs, IxgbeRegs};
+
 use alloc::format;
-use protocol::UdpPacket;
-use crate::PciBarAddr;
+use libtime::sys_ns_loopsleep;
+
 use crate::NetworkStats;
+use crate::PciBarAddr;
 
 const ONE_MS_IN_NS: u64 = 1_000_000 * 1;
 const PACKET_SIZE: usize = 60;
@@ -117,7 +114,6 @@ impl Intel8259x {
         // section 4.6.3.1 - disable interrupts again after reset
         self.disable_interrupts();
 
-
         println!("No snoop disable bit");
         // check for no snoop disable bit
         let ctrl_ext = self.read_reg(IxgbeRegs::CTRL_EXT);
@@ -212,7 +208,6 @@ impl Intel8259x {
             + (u32::from(mac[3]) << 24);
         let high: u32 = u32::from(mac[4]) + (u32::from(mac[5]) << 8);
 
-
         self.write_reg_idx(IxgbeNoDmaArrayRegs::Ral, 0, low as u64);
         self.write_reg_idx(IxgbeNoDmaArrayRegs::Rah, 0, high as u64);
     }
@@ -227,7 +222,8 @@ impl Intel8259x {
         );
         self.write_reg(
             IxgbeRegs::AUTOC,
-            (self.read_reg(IxgbeRegs::AUTOC) & !IXGBE_AUTOC_10G_PMA_PMD_MASK) | IXGBE_AUTOC_10G_XAUI,
+            (self.read_reg(IxgbeRegs::AUTOC) & !IXGBE_AUTOC_10G_PMA_PMD_MASK)
+                | IXGBE_AUTOC_10G_XAUI,
         );
         // negotiate link
         self.write_flag(IxgbeRegs::AUTOC, IXGBE_AUTOC_AN_RESTART);
@@ -258,7 +254,7 @@ impl Intel8259x {
         self.write_flag(IxgbeRegs::FCTRL, IXGBE_FCTRL_BAM);
 
         // configure a single receive queue/ring
-        let i: u64 = 0;
+        let _i: u64 = 0;
 
         // TODO: Manipulation of rx queue. Move this to trusted part
         self.device.init_rx();
@@ -278,14 +274,17 @@ impl Intel8259x {
     /// Initializes the tx queues of this device.
     fn init_tx(&mut self) {
         // crc offload and small packet padding
-        self.write_flag(IxgbeRegs::HLREG0, IXGBE_HLREG0_TXCRCEN | IXGBE_HLREG0_TXPADEN);
+        self.write_flag(
+            IxgbeRegs::HLREG0,
+            IXGBE_HLREG0_TXCRCEN | IXGBE_HLREG0_TXPADEN,
+        );
 
         // required when not using DCB/VTd
         self.write_reg(IxgbeRegs::DTXMXSZRQ, 0xffff);
         self.clear_flag(IxgbeRegs::RTTDCS, IXGBE_RTTDCS_ARBDIS);
 
         // configure a single transmit queue/ring
-        let i: u64 = 0;
+        let _i: u64 = 0;
 
         // section 7.1.9 - setup descriptor ring
 
@@ -357,84 +356,94 @@ impl Intel8259x {
 
     pub fn dump_stats(&self) {
         println!("Ixgbe statistics:");
-        let mut string = format!("Stats regs:\n\tGPRC {:08X} GPTC {:08X}\n \
+        let mut string = format!(
+            "Stats regs:\n\tGPRC {:08X} GPTC {:08X}\n \
                                  \tGORCL {:08X} GORCH {:08X}\n \
                                  \tGOTCL {:08X} GOTCH {:08X}\n \
                                  \tTXDGPC {:08X} TXDGBCH {:08X} TXDGBCL {:08X} QPTC(0) {:08X}\n \
                                  \t MPTC {:08X} BPTC {:08X}\n",
-                                self.read_reg(IxgbeRegs::GPRC) as u32,
-                                self.read_reg(IxgbeRegs::GPTC) as u32,
-                                self.read_reg(IxgbeRegs::GORCL) as u32,
-                                self.read_reg(IxgbeRegs::GORCH) as u32,
-                                self.read_reg(IxgbeRegs::GOTCL) as u32,
-                                self.read_reg(IxgbeRegs::GOTCH) as u32,
-                                self.read_reg(IxgbeRegs::TXDGPC) as u32,
-                                self.read_reg(IxgbeRegs::TXDGBCH) as u32,
-                                self.read_reg(IxgbeRegs::TXDGBCL) as u32,
-                                self.read_reg_idx(IxgbeNoDmaArrayRegs::Qptc, 0) as u32,
-                                self.read_reg(IxgbeRegs::MPTC) as u32,
-                                self.read_reg(IxgbeRegs::BPTC) as u32,
-                                );
+            self.read_reg(IxgbeRegs::GPRC) as u32,
+            self.read_reg(IxgbeRegs::GPTC) as u32,
+            self.read_reg(IxgbeRegs::GORCL) as u32,
+            self.read_reg(IxgbeRegs::GORCH) as u32,
+            self.read_reg(IxgbeRegs::GOTCL) as u32,
+            self.read_reg(IxgbeRegs::GOTCH) as u32,
+            self.read_reg(IxgbeRegs::TXDGPC) as u32,
+            self.read_reg(IxgbeRegs::TXDGBCH) as u32,
+            self.read_reg(IxgbeRegs::TXDGBCL) as u32,
+            self.read_reg_idx(IxgbeNoDmaArrayRegs::Qptc, 0) as u32,
+            self.read_reg(IxgbeRegs::MPTC) as u32,
+            self.read_reg(IxgbeRegs::BPTC) as u32,
+        );
 
-        string.push_str(&format!("CRCERRS {:08X} ILLERRC {:08X} ERRBC {:08X}\n \
+        string.push_str(&format!(
+            "CRCERRS {:08X} ILLERRC {:08X} ERRBC {:08X}\n \
                                     \tMLFC {:08X} MRFC {:08X} RXMPC[0] {:08X}\n \
                                     \tRLEC {:08X} LXONRXCNT {:08X} LXONRXCNT {:08X}\n \
                                     \tRXDGPC {:08X} RXDGBCL {:08X} RXDGBCH {:08X}\n \
                                     \tRUC {:08X} RFC {:08X} ROC {:08X}\n \
                                     \tRJC {:08X} BPRC {:08X} MPRC {:08X}\n",
-                                 self.read_reg(IxgbeRegs::CRCERRS) as u32,
-                                 self.read_reg(IxgbeRegs::ILLERRC) as u32,
-                                 self.read_reg(IxgbeRegs::ERRBC) as u32,
-                                 self.read_reg(IxgbeRegs::MLFC) as u32,
-                                 self.read_reg(IxgbeRegs::MRFC) as u32,
-                                 self.read_reg_idx(IxgbeNoDmaArrayRegs::Rxmpc, 0) as u32,
-                                 self.read_reg(IxgbeRegs::RLEC) as u32,
-                                 self.read_reg(IxgbeRegs::LXONRXCNT) as u32,
-                                 self.read_reg(IxgbeRegs::LXOFFRXCNT) as u32,
-                                 self.read_reg(IxgbeRegs::RXDGPC) as u32,
-                                 self.read_reg(IxgbeRegs::RXDGBCH) as u32,
-                                 self.read_reg(IxgbeRegs::RXDGBCL) as u32,
-                                 self.read_reg(IxgbeRegs::RUC) as u32,
-                                 self.read_reg(IxgbeRegs::RFC) as u32,
-                                 self.read_reg(IxgbeRegs::ROC) as u32,
-                                 self.read_reg(IxgbeRegs::RJC) as u32,
-                                 self.read_reg(IxgbeRegs::BPRC) as u32,
-                                 self.read_reg(IxgbeRegs::MPRC) as u32,
-                                 ));
+            self.read_reg(IxgbeRegs::CRCERRS) as u32,
+            self.read_reg(IxgbeRegs::ILLERRC) as u32,
+            self.read_reg(IxgbeRegs::ERRBC) as u32,
+            self.read_reg(IxgbeRegs::MLFC) as u32,
+            self.read_reg(IxgbeRegs::MRFC) as u32,
+            self.read_reg_idx(IxgbeNoDmaArrayRegs::Rxmpc, 0) as u32,
+            self.read_reg(IxgbeRegs::RLEC) as u32,
+            self.read_reg(IxgbeRegs::LXONRXCNT) as u32,
+            self.read_reg(IxgbeRegs::LXOFFRXCNT) as u32,
+            self.read_reg(IxgbeRegs::RXDGPC) as u32,
+            self.read_reg(IxgbeRegs::RXDGBCH) as u32,
+            self.read_reg(IxgbeRegs::RXDGBCL) as u32,
+            self.read_reg(IxgbeRegs::RUC) as u32,
+            self.read_reg(IxgbeRegs::RFC) as u32,
+            self.read_reg(IxgbeRegs::ROC) as u32,
+            self.read_reg(IxgbeRegs::RJC) as u32,
+            self.read_reg(IxgbeRegs::BPRC) as u32,
+            self.read_reg(IxgbeRegs::MPRC) as u32,
+        ));
         print!("{}", string);
     }
 
     pub fn dump_all_regs(&self) {
-        let mut string = format!("Interrupt regs:\n\tEICR: {:08X} EIMS: {:08X} EIMC: {:08X}\n\tGPIE {:08X}\n",
-                    self.read_reg(IxgbeRegs::EICR) as u32,
-                    self.read_reg(IxgbeRegs::EIMS) as u32,
-                    self.read_reg(IxgbeRegs::EIMC) as u32,
-                    self.read_reg(IxgbeRegs::GPIE) as u32,
-                    );
+        let mut string = format!(
+            "Interrupt regs:\n\tEICR: {:08X} EIMS: {:08X} EIMC: {:08X}\n\tGPIE {:08X}\n",
+            self.read_reg(IxgbeRegs::EICR) as u32,
+            self.read_reg(IxgbeRegs::EIMS) as u32,
+            self.read_reg(IxgbeRegs::EIMC) as u32,
+            self.read_reg(IxgbeRegs::GPIE) as u32,
+        );
 
-        string.push_str(&format!("Control regs:\n\tCTRL {:08X} CTRL_EXT {:08X}\n",
-                                 self.read_reg(IxgbeRegs::CTRL) as u32,
-                                 self.read_reg(IxgbeRegs::CTRL_EXT) as u32,
-                                 ));
+        string.push_str(&format!(
+            "Control regs:\n\tCTRL {:08X} CTRL_EXT {:08X}\n",
+            self.read_reg(IxgbeRegs::CTRL) as u32,
+            self.read_reg(IxgbeRegs::CTRL_EXT) as u32,
+        ));
 
-        string.push_str(&format!("EEPROM regs:\n\tEEC_ARD {:08X}\n",
-                                 self.read_reg(IxgbeRegs::EEC) as u32));
+        string.push_str(&format!(
+            "EEPROM regs:\n\tEEC_ARD {:08X}\n",
+            self.read_reg(IxgbeRegs::EEC) as u32
+        ));
 
-        string.push_str(&format!("AUTOC {:08X}\n",
-                                 self.read_reg(IxgbeRegs::AUTOC) as u32));
+        string.push_str(&format!(
+            "AUTOC {:08X}\n",
+            self.read_reg(IxgbeRegs::AUTOC) as u32
+        ));
 
-        string.push_str(&format!("Receive regs:\n\tRDRXCTRL {:08X} RXCTRL {:08X}\n\tHLREG0 {:08X} FCTRL {:08X}\n",
-                                 self.read_reg(IxgbeRegs::RDRXCTL) as u32,
-                                 self.read_reg(IxgbeRegs::RXCTRL) as u32,
-                                 self.read_reg(IxgbeRegs::HLREG0) as u32,
-                                 self.read_reg(IxgbeRegs::FCTRL) as u32,
-                                 ));
+        string.push_str(&format!(
+            "Receive regs:\n\tRDRXCTRL {:08X} RXCTRL {:08X}\n\tHLREG0 {:08X} FCTRL {:08X}\n",
+            self.read_reg(IxgbeRegs::RDRXCTL) as u32,
+            self.read_reg(IxgbeRegs::RXCTRL) as u32,
+            self.read_reg(IxgbeRegs::HLREG0) as u32,
+            self.read_reg(IxgbeRegs::FCTRL) as u32,
+        ));
 
-        string.push_str(&format!("Transmit regs:\n\tDTXMSSZRQ {:08X} RTTDCS {:08X} DMATXCTL: {:08X}\n",
-                                 self.read_reg(IxgbeRegs::DTXMXSZRQ) as u32,
-                                 self.read_reg(IxgbeRegs::RTTDCS) as u32,
-                                 self.read_reg(IxgbeRegs::DMATXCTL) as u32,
-                                 ));
+        string.push_str(&format!(
+            "Transmit regs:\n\tDTXMSSZRQ {:08X} RTTDCS {:08X} DMATXCTL: {:08X}\n",
+            self.read_reg(IxgbeRegs::DTXMXSZRQ) as u32,
+            self.read_reg(IxgbeRegs::RTTDCS) as u32,
+            self.read_reg(IxgbeRegs::DMATXCTL) as u32,
+        ));
         string.push_str(&format!("Stats regs:\n\tGPRC {:08X} GPTC {:08X}\n\tGORCL {:08X} GORCH {:08X}\n\tGOTCL {:08X} GOTCH {:08X}\n\tTXDGPC {:08X} TXDGBCH {:08X} TXDGBCL {:08X} QPTC(0) {:08X}\n",
                                 self.read_reg(IxgbeRegs::GPRC) as u32,
                                 self.read_reg(IxgbeRegs::GPTC) as u32,

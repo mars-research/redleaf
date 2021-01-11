@@ -1,11 +1,11 @@
 [alias]
-rbuild = "build --out-dir=build -Z build-std=core,alloc -Z features=host_dep -Z unstable-options -Z package-features"
+rbuild = "build --out-dir=build -Z build-std=core,alloc -Z features=host_dep -Z unstable-options"
 rb = "rbuild"
-rcheck = "check -Z build-std=core,alloc -Z features=host_dep -Z package-features"
+rcheck = "check -Z build-std=core,alloc -Z features=host_dep"
 rc = "rcheck"
-rfix = "fix -Z build-std=core,alloc -Z features=host_dep -Z package-features --bins"
+rfix = "fix -Z build-std=core,alloc -Z features=host_dep --bins"
 rf = "rfix"
-rexpand = "rustc --profile=check -Z unstable-options -Z build-std=core,alloc  -Z features=host_dep -Z package-features -- --pretty=expanded"
+rexpand = "rustc --profile=check -Z unstable-options -Z build-std=core,alloc  -Z features=host_dep -- --pretty=expanded"
 
 [build]
 target = "x86_64-unknown-redleaf.json"

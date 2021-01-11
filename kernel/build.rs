@@ -1,10 +1,10 @@
 // RedLeaf kernel build script
 
-use rand::rngs::OsRng;
 use ed25519_dalek::{Keypair, PublicKey};
-use std::{env, fs};
+use rand::rngs::OsRng;
 use std::path::Path;
 use std::process::{Command, Output};
+use std::{env, fs};
 
 fn main() {
     env::var("CARGO").expect("Do not run this manually.");
@@ -13,10 +13,10 @@ fn main() {
     // FIXME: Calculate the hashes in Rust
     let fingerprint = Command::new("bash")
         .arg("-c")
-        .arg(format!("sha512sum ../lib-trusted/interfaces/**.rs | cut -d' ' -f1 | sha512sum | cut -d ' ' -f1"))
+        .arg("sha512sum ../lib-trusted/interfaces/**.rs | cut -d' ' -f1 | sha512sum | cut -d ' ' -f1".to_string())
         .output();
-    let fingerprint = trim_successful_output(fingerprint)
-        .expect("Failed to compute interface fingerprint.");
+    let fingerprint =
+        trim_successful_output(fingerprint).expect("Failed to compute interface fingerprint.");
 
     println!("cargo:rustc-env=INTERFACE_FINGERPRINT={}", fingerprint);
 
@@ -32,11 +32,13 @@ fn main() {
         } else {
             println!("Generating a new keypair");
 
-            let mut csprng = OsRng{};
+            let mut csprng = OsRng {};
             let keypair: Keypair = Keypair::generate(&mut csprng);
 
-            std::fs::write("redleaf.key", keypair.to_bytes().to_vec()).expect("Failed to write keyring");
-            std::fs::write("redleaf.pub", keypair.public.to_bytes().to_vec()).expect("Failed to write public key");
+            std::fs::write("redleaf.key", keypair.to_bytes().to_vec())
+                .expect("Failed to write keyring");
+            std::fs::write("redleaf.pub", keypair.public.to_bytes().to_vec())
+                .expect("Failed to write public key");
 
             keypair.public
         }

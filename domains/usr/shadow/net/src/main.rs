@@ -1,29 +1,27 @@
 #![no_std]
 #![no_main]
-#![feature(
-    box_syntax,
-)]
+#![feature(box_syntax)]
 #![forbid(unsafe_code)]
-extern crate malloc;
 extern crate alloc;
-use libsyscalls;
-use syscalls::{Syscall, Heap};
-use create;
+extern crate malloc;
+
+use syscalls::{Heap, Syscall};
+
 use alloc::boxed::Box;
-use alloc::sync::Arc;
 use alloc::collections::VecDeque;
+use alloc::sync::Arc;
 use console::println;
-use core::alloc::Layout;
+
 use core::panic::PanicInfo;
-use usr;
-use rref::{RRef, RRefDeque};
+
 use alloc::vec::Vec;
+use create::CreateIxgbe;
+use rref::RRefDeque;
+use spin::Mutex;
 use usr::error::Result;
 use usr::net::{Net, NetworkStats};
 use usr::pci::PCI;
 use usr::rpc::RpcResult;
-use create::CreateIxgbe;
-use spin::Mutex;
 
 struct ShadowInternal {
     create: Arc<dyn CreateIxgbe>,
@@ -59,8 +57,16 @@ impl Net for Shadow {
         self.shadow.lock().net.clone_net()
     }
 
-    fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
-        self.shadow.lock().net.submit_and_poll(packets, reap_queue, tx)
+    fn submit_and_poll(
+        &self,
+        packets: &mut VecDeque<Vec<u8>>,
+        reap_queue: &mut VecDeque<Vec<u8>>,
+        tx: bool,
+    ) -> RpcResult<Result<usize>> {
+        self.shadow
+            .lock()
+            .net
+            .submit_and_poll(packets, reap_queue, tx)
     }
 
     fn submit_and_poll_rref(
@@ -68,21 +74,24 @@ impl Net for Shadow {
         packets: RRefDeque<[u8; 1514], 32>,
         collect: RRefDeque<[u8; 1514], 32>,
         tx: bool,
-        pkt_len: usize) -> RpcResult<Result<(
-            usize,
-            RRefDeque<[u8; 1514], 32>,
-            RRefDeque<[u8; 1514], 32>
-        )>>
-    {
+        pkt_len: usize,
+    ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 32>, RRefDeque<[u8; 1514], 32>)>> {
         //println!("in shadow");
-        self.shadow.lock().net.submit_and_poll_rref(packets, collect, tx, pkt_len)
+        self.shadow
+            .lock()
+            .net
+            .submit_and_poll_rref(packets, collect, tx, pkt_len)
     }
 
     fn poll(&self, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
         self.shadow.lock().net.poll(collect, tx)
     }
 
-    fn poll_rref(&self, collect: RRefDeque<[u8; 1514], 512>, tx: bool) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>> {
+    fn poll_rref(
+        &self,
+        collect: RRefDeque<[u8; 1514], 512>,
+        tx: bool,
+    ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>> {
         self.shadow.lock().net.poll_rref(collect, tx)
     }
 
@@ -96,7 +105,12 @@ impl Net for Shadow {
 }
 
 #[no_mangle]
-pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, create: Arc<dyn CreateIxgbe>, pci: Box<dyn PCI>) -> Box<dyn Net> {
+pub fn trusted_entry(
+    s: Box<dyn Syscall + Send + Sync>,
+    heap: Box<dyn Heap + Send + Sync>,
+    create: Arc<dyn CreateIxgbe>,
+    pci: Box<dyn PCI>,
+) -> Box<dyn Net> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 

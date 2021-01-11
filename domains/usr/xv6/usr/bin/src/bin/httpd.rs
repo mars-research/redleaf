@@ -6,29 +6,20 @@
 extern crate alloc;
 extern crate malloc;
 use alloc::boxed::Box;
-use alloc::string::String;
+
 use core::panic::PanicInfo;
 
-use libsyscalls::syscalls::sys_println;
 use syscalls::{Heap, Syscall};
 use usr_interfaces::error::Result;
-use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
+
 use usr_interfaces::rv6::Rv6;
 use usr_interfaces::usrnet::UsrNet;
-use usrlib::syscalls::sys_sleep;
+
 use usrlib::{eprintln, println};
 
-use alloc::vec;
-
-use core::fmt;
-use core::fmt::Write;
-
 extern crate arrayvec;
-use arrayvec::{ArrayVec, ArrayString};
 
 #[macro_use]
-use core::include_bytes;
-
 use redhttpd::usrnet::Httpd;
 
 #[no_mangle]

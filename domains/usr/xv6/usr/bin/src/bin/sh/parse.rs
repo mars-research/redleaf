@@ -1,10 +1,9 @@
 use alloc::boxed::Box;
 use alloc::collections::LinkedList;
 use alloc::string::{String, ToString};
-use core::cell::RefCell;
 
-use usr_interfaces::vfs::FileMode;
 use usr_interfaces::rv6::Thread;
+use usr_interfaces::vfs::FileMode;
 use usrlib::syscalls::{sys_close, sys_open_slice_slow, sys_spawn_domain_slice_slow};
 
 #[derive(Debug)]

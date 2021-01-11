@@ -1,19 +1,12 @@
-use usr::pci::PciResource;
-use console::println;
-use alloc::format;
-
-use lazy_static::lazy_static;
 use alloc::vec::Vec;
+use lazy_static::lazy_static;
 use spin::Mutex;
-use pci_driver::PciClass;
 
 // Import from a safe interface
-use pcidevice::{PciDevice};
+use pcidevice::PciDevice;
 
 lazy_static! {
-    pub static ref PCI_DEVICES: Mutex<Vec<PciDevice>> = {
-        Mutex::new(Vec::new())
-    };
+    pub static ref PCI_DEVICES: Mutex<Vec<PciDevice>> = { Mutex::new(Vec::new()) };
 }
 
 /*

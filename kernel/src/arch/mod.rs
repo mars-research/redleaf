@@ -3,11 +3,11 @@
 pub mod memory;
 pub mod vspace;
 
-use crate::memory::{Frame};
-use crate::arch::memory::{PAddr, BASE_PAGE_SIZE};
-use crate::multibootv2::BootInformation;
-use crate::memory::PhysicalAllocator;
+use crate::arch::memory::{PAddr, BASE_PAGE_SIZE, HEAP_ALIGN};
 use crate::memory::buddy::BUDDY;
+use crate::memory::Frame;
+use crate::memory::PhysicalAllocator;
+use crate::multibootv2::BootInformation;
 
 const KERNEL_START: u64 = 0x10_0000;
 
@@ -17,20 +17,18 @@ const MEM_THRESHOLD: usize = 0x1_0000_0000;
 const MEM_THRESHOLD: usize = 0x2EE_0000;
 
 pub fn kernel_end() -> u64 {
-    extern {
+    extern "C" {
         /// The starting byte of the thread data segment
         static __end: u8;
     }
 
-    unsafe{
-        & __end as *const _ as u64
-    }
+    unsafe { &__end as *const _ as u64 }
 }
 
 pub static mut KERNEL_END: u64 = 0;
 
 pub fn init_buddy(bootinfo: &BootInformation) {
-   // Find the physical memory regions available and add them to the physical memory manager
+    // Find the physical memory regions available and add them to the physical memory manager
     crate::memory::buddy::BuddyFrameAllocator::init();
     println!("Finding RAM regions");
     if let Some(memory_map_tag) = bootinfo.memory_map_tag() {
@@ -43,12 +41,18 @@ pub fn init_buddy(bootinfo: &BootInformation) {
 
                 if base >= KERNEL_START && base < kernel_end {
                     base = kernel_end;
-                } 
-
+                }
 
                 // TODO BAD: We can only add one region to the buddy allocator, so we need
                 // to pick a big one weee
                 if (base >= 1_0000_0000 as u64) && size > BASE_PAGE_SIZE && size >= MEM_THRESHOLD {
+                    // align to HEAP_ALIGN (2MB)
+                    if base % HEAP_ALIGN != 0 {
+                        let pad = HEAP_ALIGN - (base % HEAP_ALIGN);
+                        base += pad;
+                        size -= pad as usize;
+                    }
+
                     // downsize the region to 4GiB
                     if size > 4 * 0x1_0000_0000 {
                         size = 4 * 0x1_0000_0000 as usize;

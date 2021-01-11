@@ -1,26 +1,24 @@
 #![no_std]
 #![no_main]
-extern crate malloc;
 extern crate alloc;
-use libsyscalls;
-use syscalls::{Syscall, Heap};
+extern crate malloc;
+
 use alloc::boxed::Box;
 use console::println;
 use core::panic::PanicInfo;
-use usr;
+use syscalls::{Heap, Syscall};
+
+use libtime::get_rdtsc as rdtsc;
 use rref::{RRef, RRefDeque};
 use tls::ThreadLocal;
-use libtime::get_rdtsc as rdtsc;
 #[macro_use]
 use lazy_static::lazy_static;
 
-struct DomA {
-}
+struct DomA {}
 
 impl DomA {
     fn new() -> Self {
-        Self {
-        }
+        Self {}
     }
 }
 
@@ -28,7 +26,7 @@ impl usr::dom_a::DomA for DomA {
     fn ping_pong(&self, mut buffer: RRef<[u8; 1024]>) -> RRef<[u8; 1024]> {
         println!("[dom_a]: ping pong");
         for i in 0..buffer.len() {
-            buffer[i] *= 2 as u8;
+            buffer[i] *= 2_u8;
         }
         buffer
     }
@@ -36,12 +34,8 @@ impl usr::dom_a::DomA for DomA {
     fn tx_submit_and_poll(
         &mut self,
         mut packets: RRefDeque<[u8; 100], 32>,
-        mut reap_queue: RRefDeque<[u8; 100], 32>) -> (
-            usize,
-            RRefDeque<[u8; 100], 32>,
-            RRefDeque<[u8; 100], 32>
-        ) {
-
+        mut reap_queue: RRefDeque<[u8; 100], 32>,
+    ) -> (usize, RRefDeque<[u8; 100], 32>, RRefDeque<[u8; 100], 32>) {
         let mut read = 0;
 
         while let Some(buf) = packets.pop_front() {
@@ -49,7 +43,7 @@ impl usr::dom_a::DomA for DomA {
             read += 1;
         }
 
-        return (read, packets, reap_queue)
+        (read, packets, reap_queue)
     }
 }
 
@@ -67,15 +61,26 @@ fn bench_tls() {
         });
     }
     let end = rdtsc();
-    println!("ops: {}, delta: {}, delta/ops: {}", ops, end - start, (end - start) / ops);
+    println!(
+        "ops: {}, delta: {}, delta/ops: {}",
+        ops,
+        end - start,
+        (end - start) / ops
+    );
 }
 
 #[no_mangle]
-pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>) -> Box<dyn usr::dom_a::DomA> {
+pub fn trusted_entry(
+    s: Box<dyn Syscall + Send + Sync>,
+    heap: Box<dyn Heap + Send + Sync>,
+) -> Box<dyn usr::dom_a::DomA> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
-    println!("In domain A, id: {}", libsyscalls::syscalls::sys_get_current_domain_id());
+    println!(
+        "In domain A, id: {}",
+        libsyscalls::syscalls::sys_get_current_domain_id()
+    );
 
     println!("Bench tls");
     for _ in 0..10 {

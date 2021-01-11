@@ -1,12 +1,7 @@
 #![no_std]
 #![no_main]
 // #![forbid(unsafe_code)]
-#![feature(
-    box_syntax,
-    const_fn,
-    const_raw_ptr_to_usize_cast,
-    untagged_unions
-)]
+#![feature(box_syntax, const_fn, const_raw_ptr_to_usize_cast, untagged_unions)]
 
 #[macro_use]
 extern crate alloc;
@@ -17,34 +12,26 @@ extern crate lazy_static;
 #[macro_use]
 extern crate byteorder;
 
-
 use alloc::boxed::Box;
-use alloc::vec::Vec;
-use alloc::sync::Arc;
 use alloc::collections::btree_map::BTreeMap;
+use alloc::sync::Arc;
+use alloc::vec::Vec;
 use console::println;
 use core::panic::PanicInfo;
-use core::cell::RefCell;
-use syscalls::{Heap, Syscall};
+
 use rref::RRefVec;
-use usr_interface::error::{Result, ErrorKind};
-use usr_interface::net::Net;
-use usr_interface::usrnet::UsrNet;
-use usr_interface::rpc::RpcResult;
 use spin::Mutex;
+use syscalls::{Heap, Syscall};
+use usr_interface::error::{ErrorKind, Result};
+use usr_interface::net::Net;
+use usr_interface::rpc::RpcResult;
+use usr_interface::usrnet::UsrNet;
 
 use smolnet::SmolPhy;
+use smoltcp::iface::{EthernetInterface, EthernetInterfaceBuilder, NeighborCache};
+use smoltcp::socket::{Socket, SocketHandle, SocketSet, TcpSocket, TcpSocketBuffer};
 use smoltcp::time::Instant;
-use smoltcp::iface::{EthernetInterfaceBuilder, EthernetInterface, NeighborCache, Neighbor};
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
-use smoltcp::socket::{
-    Socket,
-    SocketHandle,
-    SocketRef,
-    SocketSet,
-    TcpSocket,
-    TcpSocketBuffer
-};
 
 use arrayvec::ArrayVec;
 
@@ -73,7 +60,6 @@ struct Rv6NetInner {
     mac_address: [u8; 6],
     // neighbor_cache_entries: [Option<(IpAddress, Neighbor)>; 8],
     // neighbor_cache_entries: Vec<Option<(IpAddress, Neighbor)>>,
-
     socketset: SocketSet<'static, 'static, 'static>,
     handles: ArrayVec<[SocketHandle; 1024]>,
 }
@@ -86,17 +72,15 @@ impl Rv6NetInner {
         // let mut neighbor_cache_entries = [None; 8];
         let neighbor_cache = NeighborCache::new(BTreeMap::new());
 
-        let ip_addresses = [
-            IpCidr::new(IpAddress::v4(10, 10, 1, 1), 24),
-        ];
+        let ip_addresses = [IpCidr::new(IpAddress::v4(10, 10, 1, 1), 24)];
         let mac_address = [0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x10];
-        let mut iface = EthernetInterfaceBuilder::new(smol)
+        let iface = EthernetInterfaceBuilder::new(smol)
             .ethernet_addr(EthernetAddress::from_bytes(&mac_address))
             .neighbor_cache(neighbor_cache)
             .ip_addrs(ip_addresses)
             .finalize();
 
-        let mut socketset = SocketSet::new(Vec::with_capacity(512));
+        let socketset = SocketSet::new(Vec::with_capacity(512));
 
         Self {
             iface,
@@ -106,7 +90,6 @@ impl Rv6NetInner {
 
             mac_address,
             // neighbor_cache_entries,
-
             socketset,
             handles: ArrayVec::new(),
         }
@@ -132,7 +115,8 @@ impl Rv6NetInner {
             self.iface.device_mut().do_tx();
         } else {
             self.iface.device_mut().do_rx();
-            self.iface.poll(&mut self.socketset, Instant::from_millis(current as i64));
+            self.iface
+                .poll(&mut self.socketset, Instant::from_millis(current as i64));
         }
     }
 }
@@ -165,7 +149,7 @@ impl UsrNet for Rv6Net {
         let handle = state.handles[socket];
         let mut socket = state.socketset.get::<TcpSocket>(handle);
 
-        if let Ok(_) = socket.listen(port) {
+        if socket.listen(port).is_ok() {
             Ok(Ok(()))
         } else {
             Ok(Err(ErrorKind::InvalidFileDescriptor))
@@ -182,7 +166,7 @@ impl UsrNet for Rv6Net {
         let mut state = self.state.lock();
 
         let handle = state.handles[socket];
-        let mut socket = state.socketset.get::<TcpSocket>(handle);
+        let socket = state.socketset.get::<TcpSocket>(handle);
 
         Ok(Ok(socket.can_recv()))
     }
@@ -191,7 +175,7 @@ impl UsrNet for Rv6Net {
         let mut state = self.state.lock();
 
         let handle = state.handles[socket];
-        let mut socket = state.socketset.get::<TcpSocket>(handle);
+        let socket = state.socketset.get::<TcpSocket>(handle);
 
         Ok(Ok(socket.is_listening()))
     }
@@ -200,7 +184,7 @@ impl UsrNet for Rv6Net {
         let mut state = self.state.lock();
 
         let handle = state.handles[socket];
-        let mut socket = state.socketset.get::<TcpSocket>(handle);
+        let socket = state.socketset.get::<TcpSocket>(handle);
 
         Ok(Ok(socket.is_active()))
     }
@@ -219,13 +203,17 @@ impl UsrNet for Rv6Net {
         Ok(Ok(()))
     }
 
-    fn read_socket(&self, socket: usize, mut buffer: RRefVec<u8>) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+    fn read_socket(
+        &self,
+        socket: usize,
+        mut buffer: RRefVec<u8>,
+    ) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         let mut state = self.state.lock();
 
         let handle = state.handles[socket];
         let mut socket = state.socketset.get::<TcpSocket>(handle);
 
-        let mut dstbuf = buffer.as_mut_slice();
+        let dstbuf = buffer.as_mut_slice();
 
         let r = socket.recv(|buf| {
             let size = if buf.len() > dstbuf.len() {
@@ -243,17 +231,21 @@ impl UsrNet for Rv6Net {
             Ok(size) => Ok(Ok((size, buffer))),
             Err(_) => Ok(Err(ErrorKind::Other)),
         }
-        
     }
 
-    fn write_socket(&self, socket: usize, mut buffer: RRefVec<u8>, size: usize) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
+    fn write_socket(
+        &self,
+        socket: usize,
+        mut buffer: RRefVec<u8>,
+        size: usize,
+    ) -> RpcResult<Result<(usize, RRefVec<u8>)>> {
         let mut state = self.state.lock();
 
         let handle = state.handles[socket];
 
         let mut socket = state.socketset.get::<TcpSocket>(handle);
 
-        let mut buf = buffer.as_mut_slice();
+        let buf = buffer.as_mut_slice();
 
         // buf.len() is not the actual size...
         let r = socket.send(|dstbuf| {
@@ -267,7 +259,7 @@ impl UsrNet for Rv6Net {
 
             (to_send, to_send)
         });
-        
+
         match r {
             Ok(sent) => Ok(Ok((sent, buffer))),
             Err(_) => Ok(Err(ErrorKind::Other)),

@@ -7,8 +7,8 @@
 // - https://github.com/mit-pdos/xv6-public/blob/master/ide.c
 
 use super::Driver;
-use crate::redsys::IRQRegistrar;
 use crate::redsys::devices::ATAPIODevice;
+use crate::redsys::IRQRegistrar;
 use alloc::sync::Arc;
 use spin::Mutex;
 
@@ -77,18 +77,21 @@ impl IDE {
         self.wait(&mut *device);
 
         if enable_irq {
-            device.control.outb(0);
+            device.control.outb(0).unwrap();
         } else {
-            device.control.outb(2);
+            device.control.outb(2).unwrap();
         }
 
-        device.sectorCount.outb(sector_per_block as u8);
+        device.sectorCount.outb(sector_per_block as u8).unwrap();
 
-        device.lbaLo.outb((sector as u8) & 0xff);
-        device.lbaMid.outb(((sector >> 8) as u8) & 0xff);
-        device.lbaHi.outb(((sector >> 16) as u8) & 0xff);
+        device.lbaLo.outb((sector as u8) & 0xff).unwrap();
+        device.lbaMid.outb(((sector >> 8) as u8) & 0xff).unwrap();
+        device.lbaHi.outb(((sector >> 16) as u8) & 0xff).unwrap();
 
-        device.drive.outb(0xe0 | ((self.slavebit() & 1) << 4) | ((sector >> 24) as u8) & 0x0f);
+        device
+            .drive
+            .outb(0xe0 | ((self.slavebit() & 1) << 4) | ((sector >> 24) as u8) & 0x0f)
+            .unwrap();
     }
 
     pub fn init(&self) {
@@ -106,9 +109,9 @@ impl IDE {
         // Initiate request
         // FIXME: Use RDMUL and WRMUL when sector_per_block != 1
         self.start(&mut *device, block, false);
-        device.command.outb(IDE_CMD_WRITE);
-        device.data.outsl(data);
-        device.command.outb(IDE_CMD_FLUSH);
+        device.command.outb(IDE_CMD_WRITE).unwrap();
+        device.data.outsl(data).unwrap();
+        device.command.outb(IDE_CMD_FLUSH).unwrap();
 
         // Wait for request to finish
         self.wait(&mut *device)
@@ -121,13 +124,13 @@ impl IDE {
         // Initiate request
         // FIXME: Use RDMUL and WRMUL when sector_per_block != 1
         self.start(&mut *device, block, false);
-        device.command.outb(IDE_CMD_READ);
+        device.command.outb(IDE_CMD_READ).unwrap();
 
         // Wait for request to finish
         self.wait(&mut *device);
 
         // Get data
-        device.data.insl(data);
+        device.data.insl(data).unwrap();
         Ok(())
     }
 }

@@ -1,6 +1,6 @@
 use alloc::boxed::Box;
-use usr::tpm::TpmRegs;
 use tpm_device::TpmDevice;
+use usr::tpm::TpmRegs;
 
 pub struct Tpm {
     device: TpmDevice,
@@ -9,7 +9,7 @@ pub struct Tpm {
 }
 
 impl Tpm {
-    pub fn new() -> Self{
+    pub fn new() -> Self {
         Self {
             device: TpmDevice::new(),
             device_initialized: true,

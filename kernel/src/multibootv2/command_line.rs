@@ -8,11 +8,10 @@ pub struct CommandLineTag {
 
 impl CommandLineTag {
     pub fn cmdline(&self) -> &str {
-        use core::{mem,str,slice};
+        use core::{mem, slice, str};
         unsafe {
             let strlen = self.size as usize - mem::size_of::<CommandLineTag>();
-            str::from_utf8_unchecked(
-                slice::from_raw_parts((&self.string) as *const u8, strlen))
+            str::from_utf8_unchecked(slice::from_raw_parts((&self.string) as *const u8, strlen))
         }
     }
 }

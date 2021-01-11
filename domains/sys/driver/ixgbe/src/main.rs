@@ -5,7 +5,7 @@
     const_fn,
     const_raw_ptr_to_usize_cast,
     untagged_unions,
-    maybe_uninit_extra,
+    maybe_uninit_extra
 )]
 //#![forbid(unsafe_code)]
 
@@ -14,46 +14,37 @@ mod ixgbe_desc;
 mod nullnet;
 mod smoltcp_device;
 
-extern crate malloc;
 extern crate alloc;
 extern crate b2histogram;
+extern crate malloc;
 
 #[cfg(target_os = "linux")]
 use error::plsbreakthebuild;
 
 #[macro_use]
-use b2histogram::Base2Histogram;
-use byteorder::{ByteOrder, BigEndian};
-
-use libtime::sys_ns_loopsleep;
 use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 #[macro_use]
 use alloc::vec::Vec;
-use alloc::vec;
 use alloc::sync::Arc;
+use alloc::vec;
 use core::panic::PanicInfo;
-use syscalls::{Syscall, Heap};
-use usr;
-use usr::rpc::RpcResult;
-use console::{println, print};
-use pci_driver::DeviceBarRegions;
-use spin::Mutex;
-use libsyscalls::syscalls::sys_backtrace;
-pub use platform::PciBarAddr;
+use syscalls::{Heap, Syscall};
 
-pub use usr::error::{ErrorKind, Result};
+use console::println;
+use libsyscalls::syscalls::sys_backtrace;
+use pci_driver::DeviceBarRegions;
+pub use platform::PciBarAddr;
+use spin::Mutex;
+use usr::rpc::RpcResult;
+
 use crate::device::Intel8259x;
 use core::cell::RefCell;
-use protocol::UdpPacket;
-use core::{mem, ptr};
-use rref::{RRef, RRefDeque};
-use libbenchnet::packettool;
+pub use usr::error::{ErrorKind, Result};
+
+use rref::RRefDeque;
 
 pub use usr::net::NetworkStats;
-use libtime::get_rdtsc as rdtsc;
-
-
 
 struct IxgbeInternal {
     vendor_id: u16,
@@ -100,91 +91,102 @@ impl usr::net::Net for Ixgbe {
         Ok(box Self(self.0.clone()))
     }
 
-    fn submit_and_poll(&self, mut packets: &mut VecDeque<Vec<u8>
-        >, mut collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
-        Ok((||{
+    fn submit_and_poll(
+        &self,
+        mut packets: &mut VecDeque<Vec<u8>>,
+        mut collect: &mut VecDeque<Vec<u8>>,
+        tx: bool,
+    ) -> RpcResult<Result<usize>> {
+        Ok((|| {
             let mut ret: usize = 0;
-            let mut ixgbe = self.lock();
+            let ixgbe = self.lock();
             let device = &mut ixgbe.device.borrow_mut();
             let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
-            ret = device.device.submit_and_poll(&mut packets, &mut collect, tx, false);
+            ret = device
+                .device
+                .submit_and_poll(&mut packets, &mut collect, tx, false);
             Ok(ret)
-        })())       
+        })())
     }
 
     fn submit_and_poll_rref(
         &self,
-        mut packets: RRefDeque<[u8; 1514], 32>,
-        mut collect: RRefDeque<[u8; 1514], 32>,
+        packets: RRefDeque<[u8; 1514], 32>,
+        collect: RRefDeque<[u8; 1514], 32>,
         tx: bool,
-        pkt_len: usize) -> RpcResult<Result<(
-            usize,
-            RRefDeque<[u8; 1514], 32>,
-            RRefDeque<[u8; 1514], 32>
-        )>>
-    {
-        Ok((||{
+        pkt_len: usize,
+    ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 32>, RRefDeque<[u8; 1514], 32>)>> {
+        Ok((|| {
             let mut ret: usize = 0;
-            let mut ixgbe = self.lock();
-    
+            let ixgbe = self.lock();
+
             let mut packets = Some(packets);
             let mut collect = Some(collect);
-    
+
             let device = &mut ixgbe.device.borrow_mut();
             let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
-            let (num, mut packets_, mut collect_) = device.device.submit_and_poll_rref(packets.take().unwrap(),
-                                                    collect.take().unwrap(), tx, pkt_len, false);
+            let (num, packets_, collect_) = device.device.submit_and_poll_rref(
+                packets.take().unwrap(),
+                collect.take().unwrap(),
+                tx,
+                pkt_len,
+                false,
+            );
             ret = num;
             packets.replace(packets_);
             collect.replace(collect_);
 
             // dev.dump_stats();
-    
+
             Ok((ret, packets.unwrap(), collect.unwrap()))
-        })())       
+        })())
     }
 
     fn poll(&self, mut collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
-        Ok((||{
+        Ok((|| {
             let mut ret: usize = 0;
-            let mut ixgbe = self.lock();
-    
+            let ixgbe = self.lock();
+
             let device = &mut ixgbe.device.borrow_mut();
             let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
             ret = device.device.poll(&mut collect, tx);
 
             Ok(ret)
-        })())       
+        })())
     }
 
-    fn poll_rref(&self, mut collect: RRefDeque<[u8; 1514], 512>, tx: bool) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>> {
-        Ok((||{
+    fn poll_rref(
+        &self,
+        collect: RRefDeque<[u8; 1514], 512>,
+        tx: bool,
+    ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>> {
+        Ok((|| {
             let mut ret: usize = 0;
-            let mut ixgbe = self.lock();
+            let ixgbe = self.lock();
             let mut collect = Some(collect);
-    
+
             let device = &mut ixgbe.device.borrow_mut();
             let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
-            let (num, mut collect_) = device.device.poll_rref(collect.take().unwrap(), tx);
+            let (num, collect_) = device.device.poll_rref(collect.take().unwrap(), tx);
             ret = num;
             collect.replace(collect_);
-    
+
             Ok((ret, collect.unwrap()))
-        })())       
+        })())
     }
 
     fn get_stats(&self) -> RpcResult<Result<NetworkStats>> {
-        Ok((||{
+        Ok((|| {
             let mut ret = NetworkStats::new();
-            let mut ixgbe = self.lock();
+            let ixgbe = self.lock();
 
             let device = &mut ixgbe.device.borrow_mut();
             let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
             let stats = device.get_stats();
             ret = stats;
 
-            Ok(ret) 
-        })())       
+            Ok(ret)
+        })())
     }
 
     fn test_domain_crossing(&self) -> RpcResult<()> {
@@ -204,7 +206,9 @@ impl pci_driver::PciDriver for Ixgbe {
                     ixgbe.device.replace(Some(ixgbe_dev));
                 }
             }
-            _ => { println!("Got unknown bar region") }
+            _ => {
+                println!("Got unknown bar region")
+            }
         }
     }
 
@@ -353,17 +357,19 @@ fn run_sashstoretest(dev: &Ixgbe, pkt_size: u16) {
 */
 
 #[no_mangle]
-pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>,
-                 heap: Box<dyn Heap + Send + Sync>,
-                 pci: Box<dyn usr::pci::PCI>) -> Box<dyn usr::net::Net> {
+pub fn trusted_entry(
+    s: Box<dyn Syscall + Send + Sync>,
+    heap: Box<dyn Heap + Send + Sync>,
+    pci: Box<dyn usr::pci::PCI>,
+) -> Box<dyn usr::net::Net> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!("ixgbe_init: =>  starting ixgbe driver domain");
     #[cfg(not(feature = "nullnet"))]
-    let mut ixgbe = {
+    let ixgbe = {
         let mut ixgbe = Ixgbe::new();
-        if let Err(_) = pci.pci_register_driver(&mut ixgbe, 0, None) {
+        if pci.pci_register_driver(&mut ixgbe, 0, None).is_err() {
             println!("WARNING: failed to register IXGBE driver");
         }
         ixgbe
@@ -377,11 +383,11 @@ pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>,
 
     println!("Starting tests");
 
-   /* 
+    /*
     for _ in 0..5 {
         libbenchnet::run_tx_udptest_rref(&ixgbe, 64, false);
     }*/
-    
+
     /*for _ in 0..5 {
         libbenchnet::run_tx_udptest(&ixgbe, 64, false);
     }*/
@@ -518,7 +524,6 @@ fn smoltcp_rref_main(net: Box<dyn usr::net::Net>) {
 
         iface.device_mut().do_tx();
     }
-
 }
 
 // This function is called on panic.

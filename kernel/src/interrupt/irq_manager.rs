@@ -1,10 +1,10 @@
-use core::iter::repeat;
-use core::marker::Send;
-use alloc::sync::Arc;
-use alloc::vec::Vec;
-use spin::Mutex;
 use crate::drivers::Driver;
 use crate::redsys::resources::IRQ;
+use alloc::sync::Arc;
+use alloc::vec::Vec;
+use core::iter::repeat;
+use core::marker::Send;
+use spin::Mutex;
 
 #[macro_use]
 
@@ -19,7 +19,9 @@ pub struct IRQManager {
 impl IRQManager {
     pub fn new() -> IRQManager {
         IRQManager {
-            _irqmap: repeat(Vec::new()).take(IRQ_COUNT as usize).collect::<Vec<_>>(),
+            _irqmap: repeat(Vec::new())
+                .take(IRQ_COUNT as usize)
+                .collect::<Vec<_>>(),
             _handle: None,
         }
     }
@@ -28,7 +30,12 @@ impl IRQManager {
         self._handle = Some(handle);
     }
 
-    pub unsafe fn register(&mut self, driver: Arc<Mutex<dyn Driver + Send>>, irq: u8, callback: fn(&mut (dyn Driver + Send))) -> Result<IRQ, &'static str> {
+    pub unsafe fn register(
+        &mut self,
+        driver: Arc<Mutex<dyn Driver + Send>>,
+        irq: u8,
+        callback: fn(&mut (dyn Driver + Send)),
+    ) -> Result<IRQ, &'static str> {
         if irq > IRQ_MAX {
             return Err("Invalid IRQ number");
         }

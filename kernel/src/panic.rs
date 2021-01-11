@@ -1,29 +1,31 @@
 //mod interrupt;
 
-use backtracer;
 use crate::interrupt::idt::PtRegs;
+use backtracer;
 use core::panic::PanicInfo;
 use spin::Once;
 
-use alloc::rc::Rc;
 use addr2line;
 use addr2line::gimli;
 use addr2line::Context;
-
+use alloc::rc::Rc;
 
 #[inline(always)]
-pub fn backtrace_exception_no_resolve(pt_regs:&mut PtRegs) {
+pub fn backtrace_exception_no_resolve(pt_regs: &mut PtRegs) {
     println!("Backtrace:");
 
-    backtracer::trace_from(backtracer::EntryPoint::new(pt_regs.rbp, pt_regs.rsp, pt_regs.rip), |frame| {
-        let ip = frame.ip();
-        println!("ip:{:?}", ip);
-        true        // xxx
-    });
+    backtracer::trace_from(
+        backtracer::EntryPoint::new(pt_regs.rbp, pt_regs.rsp, pt_regs.rip),
+        |frame| {
+            let ip = frame.ip();
+            println!("ip:{:?}", ip);
+            true // xxx
+        },
+    );
 }
 
 #[inline(always)]
-pub fn backtrace_exception(pt_regs:&mut PtRegs) {
+pub fn backtrace_exception(pt_regs: &mut PtRegs) {
     println!("Backtrace:");
 
     let context = match ELF_CONTEXT.r#try() {
@@ -38,15 +40,16 @@ pub fn backtrace_exception(pt_regs:&mut PtRegs) {
     let relocated_offset = RELOCATED_OFFSET;
     let mut count = 0;
 
-    backtracer::trace_from(backtracer::EntryPoint::new(pt_regs.rbp, pt_regs.rsp, pt_regs.rip), |frame| {
-        count += 1;
-        backtrace_format(context.as_ref(), relocated_offset, count, frame)
-    });
-
+    backtracer::trace_from(
+        backtracer::EntryPoint::new(pt_regs.rbp, pt_regs.rsp, pt_regs.rip),
+        |frame| {
+            count += 1;
+            backtrace_format(context.as_ref(), relocated_offset, count, frame)
+        },
+    );
 }
 
 pub fn backtrace_no_resolve() {
-
     backtracer::trace(|frame| {
         let ip = frame.ip();
         /*
@@ -74,7 +77,7 @@ pub fn backtrace_no_resolve() {
     });
 }
 
-static ELF_DATA:Once<&'static [u8]> = Once::new();
+static ELF_DATA: Once<&'static [u8]> = Once::new();
 #[thread_local]
 static ELF_CONTEXT: Once<Option<Context>> = Once::new();
 static ELF_BIN: Once<elfloader::ElfBinary> = Once::new();
@@ -88,7 +91,7 @@ pub fn init_backtrace_context() {
     ELF_BIN.call_once(|| {
         let elf_data = ELF_DATA.r#try().expect("ELF_DATA was not initialized");
         let elf_binary =
-                elfloader::ElfBinary::new("kernel", &elf_data).expect("Can't parse kernel binary.");
+            elfloader::ElfBinary::new("kernel", &elf_data).expect("Can't parse kernel binary.");
         elf_binary
     });
 
@@ -182,10 +185,8 @@ fn backtrace_format(
     true
 }
 
-
 #[inline(always)]
 pub fn backtrace() {
-
     let context = match ELF_CONTEXT.r#try() {
         Some(t) => t,
         None => {
@@ -205,8 +206,6 @@ pub fn backtrace() {
         backtrace_format(context.as_ref(), relocated_offset, count, frame)
     });
 }
-
-
 
 #[cfg_attr(target_os = "none", panic_handler)]
 #[no_mangle]

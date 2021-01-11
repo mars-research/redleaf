@@ -1,4 +1,4 @@
-use alloc::string::{String, FromUtf8Error};
+use alloc::string::{FromUtf8Error, String};
 
 // Convert a null-terminated utf8 byte array to String
 pub fn to_string(cstr: &[u8]) -> Result<String, FromUtf8Error> {

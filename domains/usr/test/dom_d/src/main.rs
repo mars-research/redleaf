@@ -1,21 +1,24 @@
 #![no_std]
 #![no_main]
-extern crate malloc;
 extern crate alloc;
-use libsyscalls;
-use syscalls::{Syscall, Heap};
-use create;
+extern crate malloc;
+
+use syscalls::{Heap, Syscall};
+
 use alloc::boxed::Box;
-use alloc::sync::Arc;
+
 use console::println;
-use core::alloc::Layout;
+
 use core::panic::PanicInfo;
-use usr;
-use rref::{RRef, RRefDeque};
-use alloc::vec::Vec;
+
+use rref::RRef;
 
 #[no_mangle]
-pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>, dom_c: Box<dyn usr::dom_c::DomC>) {
+pub fn trusted_entry(
+    s: Box<dyn Syscall + Send + Sync>,
+    heap: Box<dyn Heap + Send + Sync>,
+    dom_c: Box<dyn usr::dom_c::DomC>,
+) {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
@@ -28,14 +31,24 @@ pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Sen
         dom_c.no_arg().unwrap();
     }
     let elapse = libtime::get_rdtsc() - start;
-    println!("dom_c.no_arg: avg: {}, total: {}, iter: {}", elapse as f64 / iter as f64, elapse, iter);
+    println!(
+        "dom_c.no_arg: avg: {}, total: {}, iter: {}",
+        elapse as f64 / iter as f64,
+        elapse,
+        iter
+    );
 
     let start = libtime::get_rdtsc();
     for _ in 0..iter {
         dom_c.one_arg(1).unwrap();
     }
     let elapse = libtime::get_rdtsc() - start;
-    println!("dom_c.one_arg: avg: {}, total: {}, iter: {}", elapse as f64 / iter as f64, elapse, iter);
+    println!(
+        "dom_c.one_arg: avg: {}, total: {}, iter: {}",
+        elapse as f64 / iter as f64,
+        elapse,
+        iter
+    );
     assert!(dom_c.one_arg(12321).unwrap() == 12321 + 1);
 
     let start = libtime::get_rdtsc();
@@ -44,7 +57,12 @@ pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Sen
         x = dom_c.one_rref(x).unwrap();
     }
     let elapse = libtime::get_rdtsc() - start;
-    println!("dom_c.one_rref: avg: {}, total: {}, iter: {}", elapse as f64 / iter as f64, elapse, iter);
+    println!(
+        "dom_c.one_rref: avg: {}, total: {}, iter: {}",
+        elapse as f64 / iter as f64,
+        elapse,
+        iter
+    );
     assert!(*dom_c.one_rref(x).unwrap() == iter + 1);
 }
 

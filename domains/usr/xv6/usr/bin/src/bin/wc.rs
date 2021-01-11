@@ -7,15 +7,16 @@ extern crate alloc;
 extern crate malloc;
 
 use alloc::boxed::Box;
-use alloc::string::String;
+
 use core::panic::PanicInfo;
 
-use libsyscalls::syscalls::sys_println;
 use syscalls::{Heap, Syscall};
-use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usr_interfaces::rv6::Rv6;
+use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usrlib::println;
-use usrlib::syscalls::{sys_close, sys_fstat, sys_open_slice_slow, sys_read_slice_slow, sys_write_slice_slow};
+use usrlib::syscalls::{
+    sys_close, sys_fstat, sys_open_slice_slow, sys_read_slice_slow, sys_write_slice_slow,
+};
 
 #[no_mangle]
 pub fn trusted_entry(
@@ -65,7 +66,7 @@ fn wc(fd: usize, name: &str) -> Result<(), &'static str> {
             }
             if c.is_ascii_whitespace() {
                 in_word = false;
-            } else if (!in_word) {
+            } else if !in_word {
                 word_cnt += 1;
                 in_word = true;
             }

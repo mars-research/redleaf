@@ -1,13 +1,13 @@
-use rref::{RRef, RRefDeque};
-use usr::rpc::RpcResult;
-use usr::error::Result;
+use rref::RRefDeque;
 use usr::bdev::{BlkReq, NvmeBDev};
+use usr::error::Result;
+use usr::rpc::RpcResult;
 
 pub struct NullNvme {}
 
 impl NullNvme {
     pub fn new() -> Self {
-        Self{}
+        Self {}
     }
 }
 
@@ -16,12 +16,8 @@ impl NvmeBDev for NullNvme {
         &self,
         submit: RRefDeque<BlkReq, 128>,
         collect: RRefDeque<BlkReq, 128>,
-        write: bool,
-        ) -> RpcResult<Result<(
-            usize,
-            RRefDeque<BlkReq, 128>,
-            RRefDeque<BlkReq, 128>,
-        )>> {
+        _write: bool,
+    ) -> RpcResult<Result<(usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>)>> {
         Ok(Ok((submit.len(), collect, submit)))
     }
 

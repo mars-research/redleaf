@@ -10,11 +10,10 @@ use alloc::boxed::Box;
 use alloc::string::String;
 use core::panic::PanicInfo;
 
-use libsyscalls::syscalls::sys_println;
 use syscalls::{Heap, Syscall};
-use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usr_interfaces::rv6::Rv6;
-use usrlib::syscalls::{sys_close, sys_fstat, sys_open_slice_slow, sys_read_slice_slow, sys_write_slice_slow};
+use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
+use usrlib::syscalls::{sys_close, sys_fstat, sys_open_slice_slow, sys_read_slice_slow};
 use usrlib::{eprintln, println};
 
 #[no_mangle]
@@ -43,7 +42,7 @@ fn ls(path: &str) -> Result<(), String> {
     let stat = sys_fstat(fd).map_err(|e| alloc::format!("ls: cannot stat {}. {:?}", path, e))?;
 
     const DIRENT_SIZE: usize = core::mem::size_of::<DirectoryEntry>();
-    let mut buffer = [0 as u8; DIRENT_SIZE];
+    let mut buffer = [0_u8; DIRENT_SIZE];
     match &stat.file_type {
         INodeFileType::File => {
             println!(

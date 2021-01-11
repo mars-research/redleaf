@@ -6,7 +6,7 @@ macro_rules! generate_tpm {
         pub struct UsrTpm {
             tpm: ::alloc::boxed::Box<dyn ::usr::tpm::TpmDev>,
         }
-    
+
         impl UsrTpm {
             pub fn new(tpm: ::alloc::boxed::Box<dyn ::usr::tpm::TpmDev>) -> Self {
                 Self {
@@ -127,7 +127,8 @@ generate_tpm!(
 
     /// Table 3:78 - TPM2_HashSequenceStart Command
     /// Conduct hash calculation in TPM
-    fn tpm_hash_sequence_start(&self, locality: u32, hash: TpmAlgorithms, object: &mut u32) -> bool;
+    fn tpm_hash_sequence_start(&self, locality: u32, hash: TpmAlgorithms, object: &mut u32)
+        -> bool;
 
     /// Table 3:80 - TPM2_SequenceUpdate
     /// Update hash calculation in TPM

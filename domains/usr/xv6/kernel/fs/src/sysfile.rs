@@ -6,10 +6,10 @@
 use alloc::sync::Arc;
 use core::sync::atomic::AtomicUsize;
 
-pub use usr_interface::vfs::{ErrorKind, FileMode, FileStat, Result, NFILE, DirectoryEntry};
+pub use usr_interface::vfs::{DirectoryEntry, ErrorKind, FileMode, FileStat, Result, NFILE};
 
 use crate::cross_thread_temp_store::CrossThreadTempStorage;
-use crate::icache::{ICache, ICACHE, INode, INodeFileType};
+use crate::icache::{ICache, INode, INodeFileType, ICACHE};
 use crate::log::LOG;
 use crate::opened_file::{FDTable, FileType, OpenedFile, FD_TABLE};
 use crate::params;
@@ -94,7 +94,7 @@ pub fn sys_link(old_path: &str, new_path: &str) -> Result<()> {
     let mut trans = LOG.r#try().unwrap().begin_transaction();
     let inode = ICache::namei(&mut trans, old_path)?;
     let mut iguard = inode.lock();
-    if (iguard.data.file_type == INodeFileType::Directory) {
+    if iguard.data.file_type == INodeFileType::Directory {
         drop(iguard);
         ICache::put(&mut trans, inode);
         return Err(ErrorKind::InvalidParameter);
@@ -102,13 +102,12 @@ pub fn sys_link(old_path: &str, new_path: &str) -> Result<()> {
     iguard.data.nlink += 1;
     iguard.update(&mut trans);
     drop(iguard);
-    
 
     let (parent_inode, name) = ICache::nameiparent(&mut trans, new_path)?;
     let mut parent_iguard = parent_inode.lock();
 
     let result = parent_iguard.dirlink(&mut trans, name, inode.meta.inum);
-    if (result.is_err()) {
+    if result.is_err() {
         drop(parent_iguard);
         ICache::put(&mut trans, parent_inode);
         let mut iguard = inode.lock();
@@ -118,7 +117,7 @@ pub fn sys_link(old_path: &str, new_path: &str) -> Result<()> {
         ICache::put(&mut trans, inode);
         return result;
     }
-    
+
     drop(parent_iguard);
     ICache::put(&mut trans, parent_inode);
     ICache::put(&mut trans, inode);
@@ -130,14 +129,14 @@ pub fn sys_unlink(path: &str) -> Result<()> {
     let mut trans = LOG.r#try().unwrap().begin_transaction();
     let (parent_inode, name) = ICache::nameiparent(&mut trans, path)?;
     let mut parent_iguard = parent_inode.lock();
-    if (name == "." || name == "..") {
+    if name == "." || name == ".." {
         drop(parent_iguard);
         ICache::put(&mut trans, parent_inode);
         return Err(ErrorKind::InvalidParameter);
     }
 
     let inode = parent_iguard.dirlookup(&mut trans, name);
-    if (inode.is_err()) {
+    if inode.is_err() {
         drop(parent_iguard);
         ICache::put(&mut trans, parent_inode);
         return Err(inode.err().unwrap());
@@ -145,12 +144,12 @@ pub fn sys_unlink(path: &str) -> Result<()> {
 
     let (offset, inode) = inode.unwrap();
     let mut iguard = inode.lock();
-    if (iguard.data.nlink < 1) {
+    if iguard.data.nlink < 1 {
         panic!("unlink: nlink < 1");
     }
 
     // If path is a dir, it must be empty;
-    if (iguard.data.file_type == INodeFileType::Directory && !iguard.is_dirempty(&mut trans)?) {
+    if iguard.data.file_type == INodeFileType::Directory && !iguard.is_dirempty(&mut trans)? {
         drop(iguard);
         ICache::put(&mut trans, inode);
         drop(parent_iguard);
@@ -161,8 +160,8 @@ pub fn sys_unlink(path: &str) -> Result<()> {
     // Write an emptry entry
     let buffer = [0u8; core::mem::size_of::<DirectoryEntry>()];
     parent_iguard.write(&mut trans, &buffer, offset).unwrap();
-    
-    if (iguard.data.file_type == INodeFileType::Directory) {
+
+    if iguard.data.file_type == INodeFileType::Directory {
         parent_iguard.data.nlink -= 1;
         parent_iguard.update(&mut trans);
     }
@@ -292,13 +291,10 @@ pub fn sys_mkdir(path: &str) -> Result<()> {
 }
 
 pub fn sys_dump_inode() -> Result<()> {
-    let inode = ICACHE
-            .lock()
-            .get(params::ROOTDEV, params::ROOTINO)
-            .unwrap();
-        inode
-            .lock()
-            .print(&mut LOG.r#try().unwrap().begin_transaction(), 0);
+    let inode = ICACHE.lock().get(params::ROOTDEV, params::ROOTINO).unwrap();
+    inode
+        .lock()
+        .print(&mut LOG.r#try().unwrap().begin_transaction(), 0);
     Ok(())
 }
 

@@ -10,9 +10,11 @@ use alloc::boxed::Box;
 use core::panic::PanicInfo;
 
 use syscalls::{Heap, Syscall};
-use usr_interfaces::vfs::FileMode;
 use usr_interfaces::rv6::Rv6;
-use usrlib::syscalls::{sys_spawn_domain_slice_slow, sys_open_slice_slow, sys_mknod_slice_slow, sys_dup};
+use usr_interfaces::vfs::FileMode;
+use usrlib::syscalls::{
+    sys_dup, sys_mknod_slice_slow, sys_open_slice_slow, sys_spawn_domain_slice_slow,
+};
 use usrlib::{dbg, println};
 
 #[no_mangle]
@@ -20,7 +22,7 @@ pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
     heap: Box<dyn Heap + Send + Sync>,
     rv6: Box<dyn Rv6>,
-    args: &str,
+    _args: &str,
 ) {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
@@ -32,7 +34,10 @@ pub fn trusted_entry(
     match sys_open_slice_slow("/console", FileMode::READWRITE) {
         Err(_) => {
             sys_mknod_slice_slow("/console", 1, 1).unwrap();
-            assert_eq!(sys_open_slice_slow("/console", FileMode::READWRITE).unwrap(), 0);
+            assert_eq!(
+                sys_open_slice_slow("/console", FileMode::READWRITE).unwrap(),
+                0
+            );
         }
         Ok(fd) => {
             assert_eq!(fd, 0);

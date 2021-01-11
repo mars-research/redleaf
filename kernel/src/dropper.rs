@@ -1,8 +1,7 @@
-use hashbrown::HashMap;
 use core::mem::transmute;
-use crate::alloc::borrow::ToOwned;
+use hashbrown::HashMap;
 
-use rref::{RRef, RRefArray, RRefDeque, traits::CustomCleanup, traits::TypeIdentifiable};
+use rref::{traits::CustomCleanup, traits::TypeIdentifiable, RRef};
 use usr;
 
 /// GEN
@@ -44,16 +43,16 @@ fn drop_t<T: CustomCleanup + TypeIdentifiable>(ptr: *mut u8) {
     }
 }
 
-struct DropMap(HashMap<u64, fn (*mut u8) -> ()>);
+struct DropMap(HashMap<u64, fn(*mut u8) -> ()>);
 
 impl DropMap {
-    fn add_type<T: 'static + CustomCleanup + TypeIdentifiable> (&mut self) {
+    fn add_type<T: 'static + CustomCleanup + TypeIdentifiable>(&mut self) {
         let type_id = T::type_id();
         let type_erased_drop = drop_t::<T>;
         self.0.insert(type_id, type_erased_drop);
     }
 
-    fn get_drop(&self, type_id: u64) -> Option<&fn (*mut u8) -> ()> {
+    fn get_drop(&self, type_id: u64) -> Option<&fn(*mut u8) -> ()> {
         self.0.get(&type_id)
     }
 }
@@ -64,9 +63,7 @@ pub struct Dropper {
 
 impl Dropper {
     fn new(drop_map: DropMap) -> Self {
-        Self {
-            drop_map
-        }
+        Self { drop_map }
     }
 
     pub fn drop(&self, type_id: u64, ptr: *mut u8) -> bool {

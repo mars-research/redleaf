@@ -6,18 +6,17 @@
 extern crate smoltcp;
 
 use alloc::collections::VecDeque;
-use alloc::vec::Vec;
 use alloc::rc::Rc;
-use core::cell::{RefCell, RefMut};
+use alloc::vec::Vec;
 use core::borrow::BorrowMut;
+use core::cell::{RefCell, RefMut};
 
 use crate::device::Intel8259x;
-use console::println;
 
-use smoltcp::phy::{Device, DeviceCapabilities, ChecksumCapabilities, Checksum, RxToken, TxToken};
+use smoltcp::phy::{Checksum, ChecksumCapabilities, Device, DeviceCapabilities, RxToken, TxToken};
 use smoltcp::time::Instant;
-use smoltcp::Result as SmolResult;
 use smoltcp::Error as SmolError;
+use smoltcp::Result as SmolResult;
 
 const BATCH_SZ: usize = 32;
 
@@ -30,7 +29,7 @@ pub struct SmolIxgbe {
 
 impl SmolIxgbe {
     pub fn new(dev: Intel8259x) -> Self {
-        let mut boi = Self {
+        let boi = Self {
             pool: Rc::new(RefCell::new(VecDeque::with_capacity(BATCH_SZ))),
             rx: Rc::new(RefCell::new(VecDeque::with_capacity(BATCH_SZ))),
             tx: Rc::new(RefCell::new(VecDeque::with_capacity(BATCH_SZ))),
@@ -40,7 +39,7 @@ impl SmolIxgbe {
         {
             let mut pool: RefMut<VecDeque<Vec<u8>>> = (*boi.pool).borrow_mut();
 
-            for i in 0..BATCH_SZ {
+            for _i in 0..BATCH_SZ {
                 pool.push_front(Vec::with_capacity(2048));
             }
         }
@@ -57,7 +56,7 @@ impl SmolIxgbe {
 
         dev.device.submit_and_poll(&mut pool, &mut rx, false, false);
     }
-    
+
     pub fn do_tx(&mut self) {
         let mut pool = (*self.pool).borrow_mut();
         let mut tx = (*self.tx).borrow_mut();
@@ -74,7 +73,7 @@ impl SmolIxgbe {
         dev.device.submit_and_poll(&mut tx, &mut pool, true, false);
 
         if pool.len() == 0 && tx.len() < BATCH_SZ * 4 {
-            for i in 0..BATCH_SZ {
+            for _i in 0..BATCH_SZ {
                 pool.push_front(Vec::with_capacity(2048));
             }
         }
@@ -109,13 +108,13 @@ impl<'a> Device<'a> for SmolIxgbe {
             Some(frame) => {
                 // we have some packet!
                 let rx_token = IxgbeRxToken {
-                    frame: frame,
+                    frame,
                     pool: Rc::clone(&self.pool),
                 };
                 let tx_token = self.get_tx_frame();
 
                 Some((rx_token, tx_token))
-            },
+            }
             None => None,
         }
     }
@@ -146,7 +145,8 @@ pub struct IxgbeTxToken {
 impl TxToken for IxgbeTxToken {
     // consume the cum chalice
     fn consume<R, F>(mut self, _timestamp: Instant, len: usize, f: F) -> SmolResult<R>
-        where F: FnOnce(&mut [u8]) -> SmolResult<R>
+    where
+        F: FnOnce(&mut [u8]) -> SmolResult<R>,
     {
         match self.frame.take() {
             Some(mut frame) => {
@@ -154,12 +154,12 @@ impl TxToken for IxgbeTxToken {
                     frame.set_len(len);
                 }
                 let result = f(&mut frame);
-                
+
                 let mut tx = (*self.tx).borrow_mut();
                 tx.push_back(frame);
 
                 result
-            },
+            }
             None => Err(SmolError::Illegal),
         }
     }
@@ -182,10 +182,11 @@ pub struct IxgbeRxToken {
 impl RxToken for IxgbeRxToken {
     // consume the cum chalice
     fn consume<R, F>(mut self, _timestamp: Instant, f: F) -> SmolResult<R>
-        where F: FnOnce(&mut [u8]) -> SmolResult<R>
+    where
+        F: FnOnce(&mut [u8]) -> SmolResult<R>,
     {
         let result = f(&mut self.frame);
-        
+
         let mut pool = (*self.pool).borrow_mut();
         pool.push_back(self.frame);
 

@@ -7,16 +7,15 @@ extern crate alloc;
 extern crate malloc;
 
 use alloc::boxed::Box;
-use alloc::string::String;
-use alloc::string::ToString;
+
 use core::panic::PanicInfo;
 
 use rref::RRefVec;
 use syscalls::{Heap, Syscall};
-use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usr_interfaces::rv6::Rv6;
+use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usrlib::println;
-use usrlib::syscalls::{sys_close, sys_fstat, sys_open_slice_slow, sys_read, sys_write, sys_seek};
+use usrlib::syscalls::{sys_close, sys_open_slice_slow, sys_read, sys_seek, sys_write};
 
 const ONE_MS: u64 = 2_400_000;
 const TEN_MS: u64 = 10 * ONE_MS;
@@ -47,8 +46,19 @@ pub fn trusted_entry(
     }
 }
 
-fn bench_throughput(rv6: &dyn Rv6, options: &str, file: &str) {
-    let sizes = [512, 1024, 4096, 8192, 16 * 1024, 256 * 1024, 1024 * 1024, 4 * 1024 * 1024, 16 * 1024 * 1024, 64 * 1024 * 1024];
+fn bench_throughput(_rv6: &dyn Rv6, options: &str, file: &str) {
+    let sizes = [
+        512,
+        1024,
+        4096,
+        8192,
+        16 * 1024,
+        256 * 1024,
+        1024 * 1024,
+        4 * 1024 * 1024,
+        16 * 1024 * 1024,
+        64 * 1024 * 1024,
+    ];
 
     for bsize in sizes.iter() {
         let mut buffer = RRefVec::new(123u8, *bsize);
@@ -62,13 +72,20 @@ fn bench_throughput(rv6: &dyn Rv6, options: &str, file: &str) {
             let start = libtime::get_rdtsc();
             let mut total_size = 0;
             for _ in 0..1024 {
-                if total_size > 64 * 1024 * 1024  { break; }
+                if total_size > 64 * 1024 * 1024 {
+                    break;
+                }
                 let (size, buffer_back) = sys_write(fd, buffer).unwrap();
                 buffer = buffer_back;
                 total_size += size;
             }
-            println!("Write: buffer size: {}, total bytes: {}, cycles: {}", bsize, total_size, libtime::get_rdtsc() - start);
-            
+            println!(
+                "Write: buffer size: {}, total bytes: {}, cycles: {}",
+                bsize,
+                total_size,
+                libtime::get_rdtsc() - start
+            );
+
             sys_close(fd).unwrap();
         }
 
@@ -83,17 +100,24 @@ fn bench_throughput(rv6: &dyn Rv6, options: &str, file: &str) {
             loop {
                 let (size, buffer_back) = sys_read(fd, buffer).unwrap();
                 buffer = buffer_back;
-                if size == 0 { break; }
+                if size == 0 {
+                    break;
+                }
                 total_size += size;
             }
-            println!("Read: buffer size: {}, total bytes: {}, cycles: {}", bsize, total_size, libtime::get_rdtsc() - start);
+            println!(
+                "Read: buffer size: {}, total bytes: {}, cycles: {}",
+                bsize,
+                total_size,
+                libtime::get_rdtsc() - start
+            );
 
             sys_close(fd).unwrap();
         }
     }
 }
 
-fn bench_restart(rv6: &dyn Rv6, options: &str, file: &str) {
+fn bench_restart(_rv6: &dyn Rv6, options: &str, file: &str) {
     let file_size = 128 * 1024 * 1024;
 
     // let buffer_sizes = [512, 1024, 4096, 8192, 16 * 1024, 256 * 1024, 1024 * 1024, 4 * 1024 * 1024, 16 * 1024 * 1024, 64 * 1024 * 1024];

@@ -10,17 +10,15 @@ extern crate alloc;
 extern crate malloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-use alloc::vec;
-use alloc::vec::Vec;
+
 use core::panic::PanicInfo;
 
 use console::println;
-use libsyscalls::syscalls::{sys_current_thread, sys_recv_int, sys_yield};
-use rref;
+
 use syscalls::{Heap, Syscall};
 use usr_interface::bdev::BDev;
-use usr_interface::vfs::{FileMode, VFS};
-use usr_interface::rv6::{Thread, Rv6};
+use usr_interface::rv6::Rv6;
+use usr_interface::vfs::VFS;
 
 #[no_mangle]
 pub fn trusted_entry(
@@ -29,7 +27,7 @@ pub fn trusted_entry(
     ints: Box<dyn syscalls::Interrupt + Send + Sync>,
     create_xv6fs: Arc<dyn create::CreateRv6FS>,
     create_xv6net: Arc<dyn create::CreateRv6Net>,
-    create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
+    _create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
     create_xv6usr: Arc<dyn create::CreateRv6Usr + Send + Sync>,
     bdev: Box<dyn BDev>,
     net: Box<dyn usr_interface::net::Net>,
@@ -46,7 +44,8 @@ pub fn trusted_entry(
     let (_dom_xv6fs, fs) = create_xv6fs.create_domain_xv6fs(bdev);
     // Init usrnet
     #[cfg(feature = "shadow")]
-    let (_dom_xv6net, usrnet) = create_xv6net_shadow.create_domain_xv6net_shadow(create_xv6net, net.clone_net().unwrap());
+    let (_dom_xv6net, usrnet) =
+        create_xv6net_shadow.create_domain_xv6net_shadow(create_xv6net, net.clone_net().unwrap());
     #[cfg(not(feature = "shadow"))]
     let (_dom_xv6net, usrnet) = create_xv6net.create_domain_xv6net(net.clone_net().unwrap());
     // Init kernel
