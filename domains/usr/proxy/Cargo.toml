@@ -6,7 +6,6 @@ edition = "2018"
 
 [dependencies]
 syscalls = { path = "../../../lib/core/interfaces/syscalls" }
-usr = { path = "../../../lib/core/interfaces/usr" }
 create = { path = "../../../lib/core/interfaces/create" }
 proxy = { path = "../../../lib/core/interfaces/proxy" }
 libsyscalls = { path = "../../../lib/core/libsyscalls" }
@@ -16,8 +15,8 @@ malloc = { path = "../../../lib/core/malloc" }
 rref = { path = "../../../lib/core/rref" }
 spin = { path = "../../../lib/core/spin-rs" }
 unwind = { path = "../../../lib/core/unwind" }
-codegen-lib = { path = "../../../tools/redIDL/codegen/codegen-lib" }
-codegen = { path = "../../../interface/target/codegen", features = ["trampoline"] }
+codegen-lib = { path = "../../../tools/redIDL/codegen/codegen-old/codegen-lib" }
+interface = { path = "../../../interface/generated", features = ["proxy"] }
 
 [dependencies.lazy_static]
 version = "1.3.0"
@@ -33,4 +32,4 @@ default = [
 ]
 
 # Enable stack unwinding. RPC calls will return an error if the thread unwinds
-tramp = ["codegen/trampoline"]
+tramp = ["interface/trampoline"]

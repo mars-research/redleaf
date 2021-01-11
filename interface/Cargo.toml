@@ -1,7 +1,7 @@
 [package]
-name = "codegen"
+name = "interface"
 version = "0.1.0"
-authors = ["Dan Appel <appeld@uci.edu>"]
+authors = ["Redleaf  Team <aburtsev@uci.edu>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -15,5 +15,3 @@ syscalls = { path = "../lib/core/interfaces/syscalls/", version = "0.1.0" }
 rref = { path = "../lib/core/rref/", version = "0.1.0" }
 pci_driver = { path = "../lib/core/interfaces/dev/pci/pci_driver/", version = "0.1.0" }
 
-codegen-lib = { path = "../tools/redIDL/codegen/codegen-lib" }
-codegen-proc = { path = "../tools/redIDL/codegen/codegen-proc" }

@@ -190,36 +190,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
 
 [[package]]
-name = "codegen"
-version = "0.1.0"
-dependencies = [
- "bitflags",
- "byteorder",
- "codegen-lib",
- "codegen-proc",
- "libsyscalls",
- "num-derive",
- "num-traits",
- "pci_driver",
- "rref",
- "syscalls",
- "unwind",
-]
-
-[[package]]
 name = "codegen-lib"
 version = "0.1.0"
 dependencies = [
  "paste",
-]
-
-[[package]]
-name = "codegen-proc"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
@@ -350,10 +324,10 @@ dependencies = [
 name = "dom_proxy"
 version = "0.1.0"
 dependencies = [
- "codegen",
  "codegen-lib",
  "console",
  "create",
+ "interface",
  "lazy_static",
  "libsyscalls",
  "libtime",
@@ -364,7 +338,6 @@ dependencies = [
  "spin 0.5.3",
  "syscalls",
  "unwind",
- "usr",
 ]
 
 [[package]]
@@ -411,6 +384,21 @@ checksum = "96282e96bfcd3da0d3aa9938bedf1e50df3269b6db08b4876d2da0bb1a0841cf"
 dependencies = [
  "ahash 0.3.8",
  "autocfg 1.0.1",
+]
+
+[[package]]
+name = "interface"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
+ "byteorder",
+ "libsyscalls",
+ "num-derive",
+ "num-traits",
+ "pci_driver",
+ "rref",
+ "syscalls",
+ "unwind",
 ]
 
 [[package]]

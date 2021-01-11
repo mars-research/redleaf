@@ -1,13 +1,11 @@
 # --- Auto generated begin ---
 [dependencies.unwind]
-path = "../../../lib/core/unwind"
+path = "../../lib/core/unwind"
 
 [dependencies.libsyscalls]
-path = "../../../lib/core/libsyscalls"
-
-[dependencies.usr]
-path = "../../../lib/core/interfaces/usr"
+path = "../../lib/core/libsyscalls"
 
 [features]
 trampoline = []
+proxy = []
 # --- Auto generated end ---

@@ -29,42 +29,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08c48aae112d48ed9f069b33538ea9e3e90aa263cfa3d1c24309612b1f7472de"
 
 [[package]]
-name = "codegen"
-version = "0.1.0"
-dependencies = [
- "bitflags",
- "byteorder",
- "codegen-lib",
- "codegen-proc",
- "num-derive",
- "num-traits",
- "pci_driver",
- "rref",
- "syscalls",
-]
-
-[[package]]
-name = "codegen-lib"
-version = "0.1.0"
-dependencies = [
- "paste",
-]
-
-[[package]]
-name = "codegen-proc"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "console"
 version = "0.1.0"
 dependencies = [
  "libsyscalls",
  "spin",
+]
+
+[[package]]
+name = "interface"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
+ "byteorder",
+ "num-derive",
+ "num-traits",
+ "pci_driver",
+ "rref",
+ "syscalls",
 ]
 
 [[package]]
@@ -96,12 +78,6 @@ checksum = "ac267bcc07f48ee5f8935ab0d24f316fb722d7a1292e2913f0cc196b29ffd611"
 dependencies = [
  "autocfg",
 ]
-
-[[package]]
-name = "paste"
-version = "1.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7151b083b0664ed58ed669fcdd92f01c3d2fdbf10af4931a301474950b52bfa9"
 
 [[package]]
 name = "pc-keyboard"

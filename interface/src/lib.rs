@@ -6,8 +6,6 @@ extern crate alloc;
 extern crate num_derive;
 #[macro_use]
 extern crate bitflags;
-#[macro_use]
-extern crate codegen_proc;
 
 pub mod bdev;
 pub mod dom_a;
