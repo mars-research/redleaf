@@ -1,10 +1,12 @@
 /// Rv6 system calls
 
 use alloc::boxed::Box;
-use rref::RRefVec;
+use alloc::vec::Vec;
+use alloc::collections::VecDeque;
+use rref::{RRefVec, RRefDeque};
 
 use crate::vfs::{UsrVFS, NFILE};
-use crate::net::Net;
+use crate::net::{Net, NetworkStats};
 use crate::usrnet::UsrNet;
 use crate::bdev::NvmeBDev;
 use crate::rpc::RpcResult;
@@ -34,6 +36,7 @@ pub trait File: Send {
     fn write(&self, data: &[u8]) -> usize;
 }
 
+#[interface]
 pub trait Thread: Send {
     fn join(&self) -> RpcResult<()>;
 }

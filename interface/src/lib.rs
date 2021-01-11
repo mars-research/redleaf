@@ -1,6 +1,12 @@
 #![no_std]
 #![feature(trait_alias)]
 
+// Features needed for proxy
+#![feature(global_asm, type_ascription)]
+
+// Features that we need because of cargo expand
+#![feature(core_intrinsics, fmt_internals, derive_clone_copy, derive_eq, structural_match)]
+
 extern crate alloc;
 #[macro_use]
 extern crate num_derive;

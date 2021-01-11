@@ -10,10 +10,10 @@ use proxy;
 use rref::{traits::CustomCleanup, RRef, RRefDeque, RRefVec};
 use syscalls::{Domain, Heap, Interrupt};
 use unwind::trampoline;
-use usr;
-use usr::error::Result;
-use usr::rpc::{RpcError, RpcResult};
-use usr::{
+use interface;
+use interface::error::Result;
+use interface::rpc::{RpcError, RpcResult};
+use interface::{
     bdev::{BDev, BlkReq, NvmeBDev, BSIZE},
     dom_a::DomA,
     dom_c::DomC,
@@ -24,8 +24,6 @@ use usr::{
     usrnet::UsrNet,
     vfs::{UsrVFS, VFS},
 };
-
-use codegen::bdev::BDevProxy;
 
 // TODO: remove once ixgbe on rrefdeque
 use alloc::{collections::VecDeque, vec::Vec};
@@ -250,7 +248,7 @@ impl create::CreateNvmeShadow for Proxy {
 }
 
 impl create::CreateNvme for Proxy {
-    fn create_domain_nvme(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn usr::bdev::NvmeBDev>) {
+    fn create_domain_nvme(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn interface::bdev::NvmeBDev>) {
         // TODO: write NvmeBDevProxy
         let (domain, nvme) = self.create_nvme.create_domain_nvme(pci);
         let domain_id = domain.get_domain_id();
@@ -291,7 +289,7 @@ impl create::CreateRv6Usr for Proxy {
     fn create_domain_xv6usr(
         &self,
         name: &str,
-        xv6: Box<dyn usr::rv6::Rv6>,
+        xv6: Box<dyn interface::rv6::Rv6>,
         blob: &[u8],
         args: &str,
     ) -> Result<Box<dyn Domain>> {
@@ -310,9 +308,9 @@ impl create::CreateRv6 for Proxy {
         create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
         create_xv6usr: Arc<dyn create::CreateRv6Usr + Send + Sync>,
         bdev: Box<dyn BDev>,
-        net: Box<dyn usr::net::Net>,
-        nvme: Box<dyn usr::bdev::NvmeBDev>,
-        usr_tpm: Box<dyn usr::tpm::UsrTpm>,
+        net: Box<dyn interface::net::Net>,
+        nvme: Box<dyn interface::bdev::NvmeBDev>,
+        usr_tpm: Box<dyn interface::tpm::UsrTpm>,
     ) -> (Box<dyn Domain>, Box<dyn Rv6>) {
         let (domain, rv6) = self.create_xv6.create_domain_xv6kernel(
             ints,
@@ -382,7 +380,7 @@ impl create::CreateBenchnet for Proxy {
 }
 
 impl create::CreateBenchnvme for Proxy {
-    fn create_domain_benchnvme(&self, nvme: Box<dyn usr::bdev::NvmeBDev>) -> (Box<dyn Domain>) {
+    fn create_domain_benchnvme(&self, nvme: Box<dyn interface::bdev::NvmeBDev>) -> (Box<dyn Domain>) {
         self.create_benchnvme.create_domain_benchnvme(nvme)
     }
 }
@@ -404,7 +402,7 @@ impl IxgbeProxy {
 //Code to unwind net_submit_and_poll
 #[no_mangle]
 pub extern "C" fn net_submit_and_poll(
-    s: &Box<usr::net::Net>,
+    s: &Box<interface::net::Net>,
     packets: &mut VecDeque<Vec<u8>>,
     reap_queue: &mut VecDeque<Vec<u8>>,
     tx: bool,
@@ -415,7 +413,7 @@ pub extern "C" fn net_submit_and_poll(
 
 #[no_mangle]
 pub extern "C" fn net_submit_and_poll_err(
-    s: &Box<usr::net::Net>,
+    s: &Box<interface::net::Net>,
     packets: &mut VecDeque<Vec<u8>>,
     reap_queue: &mut VecDeque<Vec<u8>>,
     tx: bool,
@@ -431,7 +429,7 @@ pub extern "C" fn net_submit_and_poll_addr() -> u64 {
 
 extern "C" {
     fn net_submit_and_poll_tramp(
-        s: &Box<usr::net::Net>,
+        s: &Box<interface::net::Net>,
         packets: &mut VecDeque<Vec<u8>>,
         reap_queue: &mut VecDeque<Vec<u8>>,
         tx: bool,
@@ -443,7 +441,7 @@ trampoline!(net_submit_and_poll);
 //Code to unwind net_poll
 #[no_mangle]
 pub extern "C" fn net_poll(
-    s: &Box<usr::net::Net>,
+    s: &Box<interface::net::Net>,
     collect: &mut VecDeque<Vec<u8>>,
     tx: bool,
 ) -> RpcResult<Result<usize>> {
@@ -452,7 +450,7 @@ pub extern "C" fn net_poll(
 
 #[no_mangle]
 pub extern "C" fn net_poll_err(
-    s: &Box<usr::net::Net>,
+    s: &Box<interface::net::Net>,
     collect: &mut VecDeque<Vec<u8>>,
     tx: bool,
 ) -> RpcResult<Result<usize>> {
@@ -467,7 +465,7 @@ pub extern "C" fn net_poll_addr() -> u64 {
 
 extern "C" {
     fn net_poll_tramp(
-        s: &Box<usr::net::Net>,
+        s: &Box<interface::net::Net>,
         collect: &mut VecDeque<Vec<u8>>,
         tx: bool,
     ) -> RpcResult<Result<usize>>;
@@ -478,7 +476,7 @@ trampoline!(net_poll);
 //Code to unwind net_submit_and_poll_rref
 #[no_mangle]
 pub extern "C" fn net_submit_and_poll_rref(
-    s: &Box<usr::net::Net>,
+    s: &Box<interface::net::Net>,
     packets: RRefDeque<[u8; 1514], 32>,
     collect: RRefDeque<[u8; 1514], 32>,
     tx: bool,
@@ -489,7 +487,7 @@ pub extern "C" fn net_submit_and_poll_rref(
 
 #[no_mangle]
 pub extern "C" fn net_submit_and_poll_rref_err(
-    s: &Box<usr::net::Net>,
+    s: &Box<interface::net::Net>,
     packets: RRefDeque<[u8; 1514], 32>,
     collect: RRefDeque<[u8; 1514], 32>,
     tx: bool,
@@ -506,7 +504,7 @@ pub extern "C" fn net_submit_and_poll_rref_addr() -> u64 {
 
 extern "C" {
     fn net_submit_and_poll_rref_tramp(
-        s: &Box<usr::net::Net>,
+        s: &Box<interface::net::Net>,
         packets: RRefDeque<[u8; 1514], 32>,
         collect: RRefDeque<[u8; 1514], 32>,
         tx: bool,
@@ -519,7 +517,7 @@ trampoline!(net_submit_and_poll_rref);
 //Code to unwind poll_rref
 #[no_mangle]
 pub extern "C" fn net_poll_rref(
-    s: &Box<usr::net::Net>,
+    s: &Box<interface::net::Net>,
     collect: RRefDeque<[u8; 1514], 512>,
     tx: bool,
 ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>> {
@@ -528,7 +526,7 @@ pub extern "C" fn net_poll_rref(
 
 #[no_mangle]
 pub extern "C" fn net_poll_rref_err(
-    s: &Box<usr::net::Net>,
+    s: &Box<interface::net::Net>,
     collect: RRefDeque<[u8; 1514], 512>,
     tx: bool,
 ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>> {
@@ -543,7 +541,7 @@ pub extern "C" fn net_poll_rref_addr() -> u64 {
 
 extern "C" {
     fn net_poll_rref_tramp(
-        s: &Box<usr::net::Net>,
+        s: &Box<interface::net::Net>,
         collect: RRefDeque<[u8; 1514], 512>,
         tx: bool,
     ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>>;
@@ -553,13 +551,13 @@ trampoline!(net_poll_rref);
 
 //Code to unwind get_stats
 #[no_mangle]
-pub extern "C" fn get_stats(s: &Box<usr::net::Net>) -> RpcResult<Result<NetworkStats>> {
+pub extern "C" fn get_stats(s: &Box<interface::net::Net>) -> RpcResult<Result<NetworkStats>> {
     //println!("one_arg: x:{}", x);
     s.get_stats()
 }
 
 #[no_mangle]
-pub extern "C" fn get_stats_err(s: &Box<usr::net::Net>) -> RpcResult<Result<NetworkStats>> {
+pub extern "C" fn get_stats_err(s: &Box<interface::net::Net>) -> RpcResult<Result<NetworkStats>> {
     println!("get_stats was aborted");
     Err(unsafe { RpcError::panic() })
 }
@@ -570,7 +568,7 @@ pub extern "C" fn get_stats_addr() -> u64 {
 }
 
 extern "C" {
-    fn get_stats_tramp(s: &Box<usr::net::Net>) -> RpcResult<Result<NetworkStats>>;
+    fn get_stats_tramp(s: &Box<interface::net::Net>) -> RpcResult<Result<NetworkStats>>;
 }
 
 trampoline!(get_stats);
@@ -716,7 +714,7 @@ impl Net for IxgbeProxy {
 }
 
 struct DomAProxy {
-    domain: Box<dyn usr::dom_a::DomA>,
+    domain: Box<dyn interface::dom_a::DomA>,
     domain_id: u64,
 }
 
@@ -724,12 +722,12 @@ unsafe impl Sync for DomAProxy {}
 unsafe impl Send for DomAProxy {}
 
 impl DomAProxy {
-    fn new(domain_id: u64, domain: Box<dyn usr::dom_a::DomA>) -> Self {
+    fn new(domain_id: u64, domain: Box<dyn interface::dom_a::DomA>) -> Self {
         Self { domain, domain_id }
     }
 }
 
-impl usr::dom_a::DomA for DomAProxy {
+impl interface::dom_a::DomA for DomAProxy {
     fn ping_pong(&self, buffer: RRef<[u8; 1024]>) -> RRef<[u8; 1024]> {
         // move thread to next domain
         let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
@@ -765,11 +763,13 @@ impl usr::dom_a::DomA for DomAProxy {
     }
 }
 
-use codegen::dom_c::DomCProxy;
+use interface::dom_c::DomCProxy;
 
-use codegen::rv6::Rv6Proxy;
+use interface::rv6::Rv6Proxy;
 
-use codegen::bdev::NvmeBDevProxy;
+use interface::bdev::BDevProxy;
+
+use interface::bdev::NvmeBDevProxy;
 
 
 

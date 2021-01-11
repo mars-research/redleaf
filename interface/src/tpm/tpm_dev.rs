@@ -15,13 +15,12 @@ pub enum TpmRegs {
 }
 
 // Driver -> TPM interface
-// #[interface]
-// pub trait TpmDev: Send + Sync {
-//     fn clone_tpmdev(&self) -> Box<dyn TpmDev>;
+pub trait TpmDev: Send + Sync {
+    fn clone_tpmdev(&self) -> Box<dyn TpmDev>;
 
-//     fn read_u8(&self, locality: u32, reg: TpmRegs) -> u8;
-//     fn write_u8(&self, locality: u32, reg: TpmRegs, val: u8);
+    fn read_u8(&self, locality: u32, reg: TpmRegs) -> u8;
+    fn write_u8(&self, locality: u32, reg: TpmRegs, val: u8);
 
-//     fn read_u32(&self, locality: u32, reg: TpmRegs) -> u32;
-//     fn write_u32(&self, locality: u32, reg: TpmRegs, val: u32);
-// }
+    fn read_u32(&self, locality: u32, reg: TpmRegs) -> u32;
+    fn write_u32(&self, locality: u32, reg: TpmRegs, val: u32);
+}
