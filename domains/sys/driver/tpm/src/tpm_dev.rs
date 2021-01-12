@@ -1,6 +1,6 @@
 use alloc::boxed::Box;
 use tpm_device::TpmDevice;
-use usr::tpm::TpmRegs;
+use interface::tpm::TpmRegs;
 
 pub struct Tpm {
     device: TpmDevice,
@@ -57,8 +57,8 @@ impl Tpm {
     }
 }
 
-impl usr::tpm::TpmDev for Tpm {
-    fn clone_tpmdev(&self) -> Box<dyn usr::tpm::TpmDev> {
+impl interface::tpm::TpmDev for Tpm {
+    fn clone_tpmdev(&self) -> Box<dyn interface::tpm::TpmDev> {
         box Self::new()
     }
 

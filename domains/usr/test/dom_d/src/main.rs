@@ -17,7 +17,7 @@ use rref::RRef;
 pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
     heap: Box<dyn Heap + Send + Sync>,
-    dom_c: Box<dyn usr::dom_c::DomC>,
+    dom_c: Box<dyn interface::dom_c::DomC>,
 ) {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());

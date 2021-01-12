@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 libsyscalls = { path = "../../../lib/core/libsyscalls" }
 libtime = { path = "../../../lib/core/libtime" }
-usr = { path = "../../../lib/core/interfaces/usr" }
+interface = { path = "../../../interface/generated" }
 console = { path = "../../../lib/core/console" }
 malloc = { path = "../../../lib/core/malloc" }
 bitfield = "0.13.2"

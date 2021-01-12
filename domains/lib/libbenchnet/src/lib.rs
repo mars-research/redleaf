@@ -22,8 +22,8 @@ use libtime::sys_ns_loopsleep;
 use packettool::{ETH_HEADER_LEN, IPV4_PROTO_OFFSET};
 use rref::{RRef, RRefDeque};
 use sashstore_redleaf::SashStore;
-use usr::error::Result;
-use usr::net::{Net, NetworkStats};
+use interface::error::Result;
+use interface::net::{Net, NetworkStats};
 
 macro_rules! print_hist {
     ($hist: ident) => {

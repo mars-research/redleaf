@@ -2,7 +2,7 @@ use core::mem::transmute;
 use hashbrown::HashMap;
 
 use rref::{traits::CustomCleanup, traits::TypeIdentifiable, RRef};
-use usr;
+use interface;
 
 /// GEN
 lazy_static! {
@@ -17,16 +17,16 @@ lazy_static! {
         drop_map.add_type::<[Option<RRef<[u8; 100]>>; 32]>();
 
         // xv6fs
-        drop_map.add_type::<[u8; usr::bdev::BSIZE]>();
+        drop_map.add_type::<[u8; interface::bdev::BSIZE]>();
         drop_map.add_type::<u8>();
 
         // benchnet
         drop_map.add_type::<[u8; 1514]>();
         drop_map.add_type::<[Option<RRef<[u8; 1514]>>; 32]>();
         drop_map.add_type::<[Option<RRef<[u8; 1514]>>; 512]>();
-        drop_map.add_type::<[Option<RRef<usr::bdev::BlkReq>>; 128]>();
-        drop_map.add_type::<[Option<RRef<usr::bdev::BlkReq>>; 1024]>();
-        drop_map.add_type::<usr::bdev::BlkReq>();
+        drop_map.add_type::<[Option<RRef<interface::bdev::BlkReq>>; 128]>();
+        drop_map.add_type::<[Option<RRef<interface::bdev::BlkReq>>; 1024]>();
+        drop_map.add_type::<interface::bdev::BlkReq>();
 
         Dropper::new(drop_map)
     };

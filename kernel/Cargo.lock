@@ -156,14 +156,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "create"
-version = "0.1.0"
-dependencies = [
- "syscalls",
- "usr",
-]
-
-[[package]]
 name = "curve25519-dalek"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -273,6 +265,21 @@ checksum = "8e6073d0ca812575946eb5f35ff68dbe519907b25c42530389ff946dc84c6ead"
 dependencies = [
  "ahash",
  "autocfg 0.1.7",
+]
+
+[[package]]
+name = "interface"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
+ "byteorder",
+ "libsyscalls",
+ "num-derive",
+ "num-traits",
+ "pci_driver",
+ "rref",
+ "syscalls",
+ "unwind",
 ]
 
 [[package]]
@@ -418,15 +425,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "proxy"
-version = "0.1.0"
-dependencies = [
- "create",
- "syscalls",
- "usr",
-]
-
-[[package]]
 name = "quote"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -507,12 +505,12 @@ dependencies = [
  "backtracer",
  "bit_field 0.9.0",
  "bitflags",
- "create",
  "curve25519-dalek",
  "custom_error",
  "ed25519-dalek",
  "elfloader",
  "hashbrown",
+ "interface",
  "lazy_static",
  "libsyscalls",
  "log",
@@ -520,7 +518,6 @@ dependencies = [
  "pc-keyboard",
  "pcid",
  "platform",
- "proxy",
  "rand",
  "rref",
  "signature",
@@ -528,7 +525,6 @@ dependencies = [
  "spin 0.5.3",
  "syscalls",
  "unwind",
- "usr",
  "volatile",
  "x86 0.33.0",
  "x86_64",
@@ -704,19 +700,6 @@ name = "unwind"
 version = "0.1.0"
 dependencies = [
  "libsyscalls",
- "syscalls",
-]
-
-[[package]]
-name = "usr"
-version = "0.1.0"
-dependencies = [
- "bitflags",
- "byteorder",
- "num-derive",
- "num-traits",
- "pci_driver",
- "rref",
  "syscalls",
 ]
 

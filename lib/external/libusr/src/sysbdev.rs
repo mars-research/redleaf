@@ -2,8 +2,8 @@ extern crate alloc;
 use spin::Once;
 use alloc::boxed::Box;
 use rref::RRef;
-use usr::bdev::{BDev, BSIZE};
-use usr::rpc::RpcResult;
+use interface::bdev::{BDev, BSIZE};
+use interface::rpc::RpcResult;
 
 pub static BDEV: Once<Box<dyn BDev + Sync + Send>> = Once::new();
 

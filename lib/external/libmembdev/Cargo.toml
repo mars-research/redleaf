@@ -7,7 +7,7 @@ edition = "2018"
 crate-type = ["lib"]
 
 [dependencies]
-usr = { path = "../../core/interfaces/usr" }
+interface = { path = "../../../interface/generated" }
 rref = { path = "../../core/rref" }
 console = { path = "../../core/console" }
 spin = { path = "../../core/spin-rs" }

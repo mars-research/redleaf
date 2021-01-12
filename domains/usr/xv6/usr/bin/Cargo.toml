@@ -17,7 +17,7 @@ libtime = { path = "../../../../../lib/core/libtime" }
 utils = { path = "../../lib/utils" }
 
 syscalls = { path = "../../../../../lib/core/interfaces/syscalls" }
-usr_interfaces = { package = "usr", path = "../../../../../lib/core/interfaces/usr" }
+interface = { path = "../../../../../interface/generated" }
 
 redhttpd = { path = "../../../../lib/redhttpd" }
 

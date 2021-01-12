@@ -11,8 +11,8 @@ use alloc::boxed::Box;
 use core::panic::PanicInfo;
 
 use syscalls::{Heap, Syscall};
-use usr_interfaces::rv6::Rv6;
-use usr_interfaces::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
+use interface::rv6::Rv6;
+use interface::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
 use usrlib::println;
 use usrlib::syscalls::{
     sys_close, sys_fstat, sys_open_slice_slow, sys_read_slice_slow, sys_write_slice_slow,

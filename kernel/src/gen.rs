@@ -1,12 +1,12 @@
-use create;
-use proxy;
+use interface::domain_creation;
+use interface::proxy;
 use syscalls;
-use usr;
+use interface;
 
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 
-use usr::error::Result;
+use interface::error::Result;
 
 use crate::domain::load_domain;
 use crate::heap::PHeap;
@@ -14,8 +14,8 @@ use crate::interrupt::{disable_irq, enable_irq};
 use crate::syscalls::{Interrupt, Mmap, PDomain};
 use crate::thread;
 
-impl create::CreatePCI for PDomain {
-    fn create_domain_pci(&self) -> (Box<dyn syscalls::Domain>, Box<dyn usr::pci::PCI>) {
+impl domain_creation::CreatePCI for PDomain {
+    fn create_domain_pci(&self) -> (Box<dyn syscalls::Domain>, Box<dyn interface::pci::PCI>) {
         disable_irq();
         let r = create_domain_pci();
         enable_irq();
@@ -23,11 +23,11 @@ impl create::CreatePCI for PDomain {
     }
 }
 
-impl create::CreateAHCI for PDomain {
+impl domain_creation::CreateAHCI for PDomain {
     fn create_domain_ahci(
         &self,
-        pci: Box<dyn usr::pci::PCI>,
-    ) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev>) {
+        pci: Box<dyn interface::pci::PCI>,
+    ) -> (Box<dyn syscalls::Domain>, Box<dyn interface::bdev::BDev>) {
         disable_irq();
         let r = create_domain_ahci(pci);
         enable_irq();
@@ -35,11 +35,11 @@ impl create::CreateAHCI for PDomain {
     }
 }
 
-impl create::CreateMemBDev for PDomain {
+impl domain_creation::CreateMemBDev for PDomain {
     fn create_domain_membdev(
         &self,
         memdisk: &'static mut [u8],
-    ) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev>) {
+    ) -> (Box<dyn syscalls::Domain>, Box<dyn interface::bdev::BDev>) {
         disable_irq();
         let r = create_domain_membdev(memdisk);
         enable_irq();
@@ -50,7 +50,7 @@ impl create::CreateMemBDev for PDomain {
         &self,
         _dom: Box<dyn syscalls::Domain>,
         memdisk: &'static mut [u8],
-    ) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev>) {
+    ) -> (Box<dyn syscalls::Domain>, Box<dyn interface::bdev::BDev>) {
         disable_irq();
         let r = create_domain_membdev(memdisk);
         enable_irq();
@@ -58,11 +58,11 @@ impl create::CreateMemBDev for PDomain {
     }
 }
 
-impl create::CreateBDevShadow for PDomain {
+impl domain_creation::CreateBDevShadow for PDomain {
     fn create_domain_bdev_shadow(
         &self,
-        create: Arc<dyn create::CreateMemBDev>,
-    ) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev>) {
+        create: Arc<dyn interface::domain_creation::CreateMemBDev>,
+    ) -> (Box<dyn syscalls::Domain>, Box<dyn interface::bdev::BDev>) {
         disable_irq();
         let r = create_domain_bdev_shadow(create);
         enable_irq();
@@ -70,11 +70,11 @@ impl create::CreateBDevShadow for PDomain {
     }
 }
 
-impl create::CreateIxgbe for PDomain {
+impl domain_creation::CreateIxgbe for PDomain {
     fn create_domain_ixgbe(
         &self,
-        pci: Box<dyn usr::pci::PCI>,
-    ) -> (Box<dyn syscalls::Domain>, Box<dyn usr::net::Net>) {
+        pci: Box<dyn interface::pci::PCI>,
+    ) -> (Box<dyn syscalls::Domain>, Box<dyn interface::net::Net>) {
         disable_irq();
         let r = create_domain_ixgbe(pci);
         enable_irq();
@@ -82,12 +82,12 @@ impl create::CreateIxgbe for PDomain {
     }
 }
 
-impl create::CreateNetShadow for PDomain {
+impl domain_creation::CreateNetShadow for PDomain {
     fn create_domain_net_shadow(
         &self,
-        create: Arc<dyn create::CreateIxgbe>,
-        pci: Box<dyn usr::pci::PCI>,
-    ) -> (Box<dyn syscalls::Domain>, Box<dyn usr::net::Net>) {
+        create: Arc<dyn interface::domain_creation::CreateIxgbe>,
+        pci: Box<dyn interface::pci::PCI>,
+    ) -> (Box<dyn syscalls::Domain>, Box<dyn interface::net::Net>) {
         disable_irq();
         let r = create_domain_net_shadow(create, pci);
         enable_irq();
@@ -95,12 +95,12 @@ impl create::CreateNetShadow for PDomain {
     }
 }
 
-impl create::CreateNvmeShadow for PDomain {
+impl domain_creation::CreateNvmeShadow for PDomain {
     fn create_domain_nvme_shadow(
         &self,
-        create: Arc<dyn create::CreateNvme>,
-        pci: Box<dyn usr::pci::PCI>,
-    ) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::NvmeBDev>) {
+        create: Arc<dyn interface::domain_creation::CreateNvme>,
+        pci: Box<dyn interface::pci::PCI>,
+    ) -> (Box<dyn syscalls::Domain>, Box<dyn interface::bdev::NvmeBDev>) {
         disable_irq();
         let r = create_domain_nvme_shadow(create, pci);
         enable_irq();
@@ -108,11 +108,11 @@ impl create::CreateNvmeShadow for PDomain {
     }
 }
 
-impl create::CreateNvme for PDomain {
+impl domain_creation::CreateNvme for PDomain {
     fn create_domain_nvme(
         &self,
-        pci: Box<dyn usr::pci::PCI>,
-    ) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::NvmeBDev>) {
+        pci: Box<dyn interface::pci::PCI>,
+    ) -> (Box<dyn syscalls::Domain>, Box<dyn interface::bdev::NvmeBDev>) {
         disable_irq();
         let r = create_domain_nvme(pci);
         enable_irq();
@@ -120,19 +120,19 @@ impl create::CreateNvme for PDomain {
     }
 }
 
-impl create::CreateRv6 for PDomain {
+impl domain_creation::CreateRv6 for PDomain {
     fn create_domain_xv6kernel(
         &self,
         ints: Box<dyn syscalls::Interrupt>,
-        create_xv6fs: Arc<dyn create::CreateRv6FS>,
-        create_xv6net: Arc<dyn create::CreateRv6Net>,
-        create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
-        create_xv6usr: Arc<dyn create::CreateRv6Usr + Send + Sync>,
-        bdev: Box<dyn usr::bdev::BDev>,
-        net: Box<dyn usr::net::Net>,
-        nvme: Box<dyn usr::bdev::NvmeBDev>,
-        usr_tpm: Box<dyn usr::tpm::UsrTpm>,
-    ) -> (Box<dyn syscalls::Domain>, Box<dyn usr::rv6::Rv6>) {
+        create_xv6fs: Arc<dyn interface::domain_creation::CreateRv6FS>,
+        create_xv6net: Arc<dyn interface::domain_creation::CreateRv6Net>,
+        create_xv6net_shadow: Arc<dyn interface::domain_creation::CreateRv6NetShadow>,
+        create_xv6usr: Arc<dyn interface::domain_creation::CreateRv6Usr + Send + Sync>,
+        bdev: Box<dyn interface::bdev::BDev>,
+        net: Box<dyn interface::net::Net>,
+        nvme: Box<dyn interface::bdev::NvmeBDev>,
+        usr_tpm: Box<dyn interface::tpm::UsrTpm>,
+    ) -> (Box<dyn syscalls::Domain>, Box<dyn interface::rv6::Rv6>) {
         disable_irq();
         let r = create_domain_xv6kernel(
             ints,
@@ -150,11 +150,11 @@ impl create::CreateRv6 for PDomain {
     }
 }
 
-impl create::CreateRv6FS for PDomain {
+impl domain_creation::CreateRv6FS for PDomain {
     fn create_domain_xv6fs(
         &self,
-        bdev: Box<dyn usr::bdev::BDev>,
-    ) -> (Box<dyn syscalls::Domain>, Box<dyn usr::vfs::VFS>) {
+        bdev: Box<dyn interface::bdev::BDev>,
+    ) -> (Box<dyn syscalls::Domain>, Box<dyn interface::vfs::VFS>) {
         disable_irq();
         let r = create_domain_xv6fs(bdev);
         enable_irq();
@@ -162,11 +162,11 @@ impl create::CreateRv6FS for PDomain {
     }
 }
 
-impl create::CreateRv6Net for PDomain {
+impl domain_creation::CreateRv6Net for PDomain {
     fn create_domain_xv6net(
         &self,
-        net: Box<dyn usr::net::Net>,
-    ) -> (Box<dyn syscalls::Domain>, Box<dyn usr::usrnet::UsrNet>) {
+        net: Box<dyn interface::net::Net>,
+    ) -> (Box<dyn syscalls::Domain>, Box<dyn interface::usrnet::UsrNet>) {
         disable_irq();
         let r = create_domain_xv6net(net);
         enable_irq();
@@ -174,12 +174,12 @@ impl create::CreateRv6Net for PDomain {
     }
 }
 
-impl create::CreateRv6NetShadow for PDomain {
+impl domain_creation::CreateRv6NetShadow for PDomain {
     fn create_domain_xv6net_shadow(
         &self,
-        create: Arc<dyn create::CreateRv6Net>,
-        net: Box<dyn usr::net::Net>,
-    ) -> (Box<dyn syscalls::Domain>, Box<dyn usr::usrnet::UsrNet>) {
+        create: Arc<dyn interface::domain_creation::CreateRv6Net>,
+        net: Box<dyn interface::net::Net>,
+    ) -> (Box<dyn syscalls::Domain>, Box<dyn interface::usrnet::UsrNet>) {
         disable_irq();
         let r = create_domain_xv6net_shadow(create, net);
         enable_irq();
@@ -187,11 +187,11 @@ impl create::CreateRv6NetShadow for PDomain {
     }
 }
 
-impl create::CreateRv6Usr for PDomain {
+impl domain_creation::CreateRv6Usr for PDomain {
     fn create_domain_xv6usr(
         &self,
         name: &str,
-        xv6: Box<dyn usr::rv6::Rv6>,
+        xv6: Box<dyn interface::rv6::Rv6>,
         blob: &[u8],
         args: &str,
     ) -> Result<Box<dyn syscalls::Domain>> {
@@ -202,8 +202,8 @@ impl create::CreateRv6Usr for PDomain {
     }
 }
 
-impl create::CreateDomA for PDomain {
-    fn create_domain_dom_a(&self) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_a::DomA>) {
+impl domain_creation::CreateDomA for PDomain {
+    fn create_domain_dom_a(&self) -> (Box<dyn syscalls::Domain>, Box<dyn interface::dom_a::DomA>) {
         disable_irq();
         let r = create_domain_dom_a();
         enable_irq();
@@ -211,8 +211,8 @@ impl create::CreateDomA for PDomain {
     }
 }
 
-impl create::CreateDomB for PDomain {
-    fn create_domain_dom_b(&self, dom_a: Box<dyn usr::dom_a::DomA>) -> Box<dyn syscalls::Domain> {
+impl domain_creation::CreateDomB for PDomain {
+    fn create_domain_dom_b(&self, dom_a: Box<dyn interface::dom_a::DomA>) -> Box<dyn syscalls::Domain> {
         disable_irq();
         let r = create_domain_dom_b(dom_a);
         enable_irq();
@@ -220,8 +220,8 @@ impl create::CreateDomB for PDomain {
     }
 }
 
-impl create::CreateDomC for PDomain {
-    fn create_domain_dom_c(&self) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
+impl domain_creation::CreateDomC for PDomain {
+    fn create_domain_dom_c(&self) -> (Box<dyn syscalls::Domain>, Box<dyn interface::dom_c::DomC>) {
         disable_irq();
         let r = create_domain_dom_c();
         enable_irq();
@@ -231,7 +231,7 @@ impl create::CreateDomC for PDomain {
     fn recreate_domain_dom_c(
         &self,
         dom: Box<dyn syscalls::Domain>,
-    ) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
+    ) -> (Box<dyn syscalls::Domain>, Box<dyn interface::dom_c::DomC>) {
         disable_irq();
         let r = recreate_domain_dom_c(dom);
         enable_irq();
@@ -239,8 +239,8 @@ impl create::CreateDomC for PDomain {
     }
 }
 
-impl create::CreateDomD for PDomain {
-    fn create_domain_dom_d(&self, dom_c: Box<dyn usr::dom_c::DomC>) -> Box<dyn syscalls::Domain> {
+impl domain_creation::CreateDomD for PDomain {
+    fn create_domain_dom_d(&self, dom_c: Box<dyn interface::dom_c::DomC>) -> Box<dyn syscalls::Domain> {
         disable_irq();
         let r = create_domain_dom_d(dom_c);
         enable_irq();
@@ -248,11 +248,11 @@ impl create::CreateDomD for PDomain {
     }
 }
 
-impl create::CreateShadow for PDomain {
+impl domain_creation::CreateShadow for PDomain {
     fn create_domain_shadow(
         &self,
-        create_dom_c: Arc<dyn create::CreateDomC>,
-    ) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
+        create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
+    ) -> (Box<dyn syscalls::Domain>, Box<dyn interface::dom_c::DomC>) {
         disable_irq();
         let r = create_domain_shadow(create_dom_c);
         enable_irq();
@@ -260,8 +260,8 @@ impl create::CreateShadow for PDomain {
     }
 }
 
-impl create::CreateBenchnet for PDomain {
-    fn create_domain_benchnet(&self, net: Box<dyn usr::net::Net>) -> Box<dyn syscalls::Domain> {
+impl domain_creation::CreateBenchnet for PDomain {
+    fn create_domain_benchnet(&self, net: Box<dyn interface::net::Net>) -> Box<dyn syscalls::Domain> {
         disable_irq();
         let r = create_domain_benchnet(net);
         enable_irq();
@@ -269,10 +269,10 @@ impl create::CreateBenchnet for PDomain {
     }
 }
 
-impl create::CreateBenchnvme for PDomain {
+impl domain_creation::CreateBenchnvme for PDomain {
     fn create_domain_benchnvme(
         &self,
-        nvme: Box<dyn usr::bdev::NvmeBDev>,
+        nvme: Box<dyn interface::bdev::NvmeBDev>,
     ) -> Box<dyn syscalls::Domain> {
         disable_irq();
         let r = create_domain_benchnvme(nvme);
@@ -281,7 +281,7 @@ impl create::CreateBenchnvme for PDomain {
     }
 }
 
-impl create::CreateHashStore for PDomain {
+impl domain_creation::CreateHashStore for PDomain {
     fn create_domain_hashstore(&self) -> Box<dyn syscalls::Domain> {
         disable_irq();
         let r = create_domain_hashstore();
@@ -290,8 +290,8 @@ impl create::CreateHashStore for PDomain {
     }
 }
 
-impl create::CreateTpm for PDomain {
-    fn create_domain_tpm(&self) -> (Box<dyn syscalls::Domain>, Box<dyn usr::tpm::UsrTpm>) {
+impl domain_creation::CreateTpm for PDomain {
+    fn create_domain_tpm(&self) -> (Box<dyn syscalls::Domain>, Box<dyn interface::tpm::UsrTpm>) {
         disable_irq();
         let r = create_domain_tpm();
         enable_irq();
@@ -302,27 +302,27 @@ impl create::CreateTpm for PDomain {
 impl proxy::CreateProxy for PDomain {
     fn create_domain_proxy(
         &self,
-        create_pci: Arc<dyn create::CreatePCI>,
-        create_ahci: Arc<dyn create::CreateAHCI>,
-        create_membdev: Arc<dyn create::CreateMemBDev>,
-        create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
-        create_ixgbe: Arc<dyn create::CreateIxgbe>,
-        create_nvme: Arc<dyn create::CreateNvme>,
-        create_net_shadow: Arc<dyn create::CreateNetShadow>,
-        create_nvme_shadow: Arc<dyn create::CreateNvmeShadow>,
-        create_benchnet: Arc<dyn create::CreateBenchnet>,
-        create_benchnvme: Arc<dyn create::CreateBenchnvme>,
-        create_xv6fs: Arc<dyn create::CreateRv6FS>,
-        create_xv6net: Arc<dyn create::CreateRv6Net>,
-        create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
-        create_xv6usr: Arc<dyn create::CreateRv6Usr>,
-        create_xv6: Arc<dyn create::CreateRv6>,
-        create_dom_a: Arc<dyn create::CreateDomA>,
-        create_dom_b: Arc<dyn create::CreateDomB>,
-        create_dom_c: Arc<dyn create::CreateDomC>,
-        create_dom_d: Arc<dyn create::CreateDomD>,
-        create_shadow: Arc<dyn create::CreateShadow>,
-    ) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
+        create_pci: Arc<dyn interface::domain_creation::CreatePCI>,
+        create_ahci: Arc<dyn interface::domain_creation::CreateAHCI>,
+        create_membdev: Arc<dyn interface::domain_creation::CreateMemBDev>,
+        create_bdev_shadow: Arc<dyn interface::domain_creation::CreateBDevShadow>,
+        create_ixgbe: Arc<dyn interface::domain_creation::CreateIxgbe>,
+        create_nvme: Arc<dyn interface::domain_creation::CreateNvme>,
+        create_net_shadow: Arc<dyn interface::domain_creation::CreateNetShadow>,
+        create_nvme_shadow: Arc<dyn interface::domain_creation::CreateNvmeShadow>,
+        create_benchnet: Arc<dyn interface::domain_creation::CreateBenchnet>,
+        create_benchnvme: Arc<dyn interface::domain_creation::CreateBenchnvme>,
+        create_xv6fs: Arc<dyn interface::domain_creation::CreateRv6FS>,
+        create_xv6net: Arc<dyn interface::domain_creation::CreateRv6Net>,
+        create_xv6net_shadow: Arc<dyn interface::domain_creation::CreateRv6NetShadow>,
+        create_xv6usr: Arc<dyn interface::domain_creation::CreateRv6Usr>,
+        create_xv6: Arc<dyn interface::domain_creation::CreateRv6>,
+        create_dom_a: Arc<dyn interface::domain_creation::CreateDomA>,
+        create_dom_b: Arc<dyn interface::domain_creation::CreateDomB>,
+        create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
+        create_dom_d: Arc<dyn interface::domain_creation::CreateDomD>,
+        create_shadow: Arc<dyn interface::domain_creation::CreateShadow>,
+    ) -> (Box<dyn syscalls::Domain>, Arc<dyn interface::proxy::Proxy>) {
         disable_irq();
         let r = create_domain_proxy(
             create_pci,
@@ -365,7 +365,7 @@ pub fn create_domain_init() -> Box<dyn syscalls::Domain> {
     return build_domain_init("sys_init", binary_range);
 }
 
-pub fn create_domain_pci() -> (Box<dyn syscalls::Domain>, Box<dyn usr::pci::PCI>) {
+pub fn create_domain_pci() -> (Box<dyn syscalls::Domain>, Box<dyn interface::pci::PCI>) {
     extern "C" {
         fn _binary_domains_build_pci_start();
         fn _binary_domains_build_pci_end();
@@ -380,8 +380,8 @@ pub fn create_domain_pci() -> (Box<dyn syscalls::Domain>, Box<dyn usr::pci::PCI>
 }
 
 pub fn create_domain_ahci(
-    _pci: Box<dyn usr::pci::PCI>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev>) {
+    _pci: Box<dyn interface::pci::PCI>,
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::bdev::BDev>) {
     // extern "C" {
     //     fn _binary_domains_build_ahci_driver_start();
     //     fn _binary_domains_build_ahci_driver_end();
@@ -397,8 +397,8 @@ pub fn create_domain_ahci(
 }
 
 pub fn create_domain_ixgbe(
-    pci: Box<dyn usr::pci::PCI>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::net::Net>) {
+    pci: Box<dyn interface::pci::PCI>,
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::net::Net>) {
     extern "C" {
         fn _binary_domains_build_ixgbe_start();
         fn _binary_domains_build_ixgbe_end();
@@ -413,9 +413,9 @@ pub fn create_domain_ixgbe(
 }
 
 pub fn create_domain_net_shadow(
-    create: Arc<dyn create::CreateIxgbe>,
-    pci: Box<dyn usr::pci::PCI>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::net::Net>) {
+    create: Arc<dyn interface::domain_creation::CreateIxgbe>,
+    pci: Box<dyn interface::pci::PCI>,
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::net::Net>) {
     extern "C" {
         fn _binary_domains_build_net_shadow_start();
         fn _binary_domains_build_net_shadow_end();
@@ -430,9 +430,9 @@ pub fn create_domain_net_shadow(
 }
 
 pub fn create_domain_nvme_shadow(
-    create: Arc<dyn create::CreateNvme>,
-    pci: Box<dyn usr::pci::PCI>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::NvmeBDev>) {
+    create: Arc<dyn interface::domain_creation::CreateNvme>,
+    pci: Box<dyn interface::pci::PCI>,
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::bdev::NvmeBDev>) {
     extern "C" {
         fn _binary_domains_build_nvme_shadow_start();
         fn _binary_domains_build_nvme_shadow_end();
@@ -447,8 +447,8 @@ pub fn create_domain_nvme_shadow(
 }
 
 pub fn create_domain_nvme(
-    pci: Box<dyn usr::pci::PCI>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::NvmeBDev>) {
+    pci: Box<dyn interface::pci::PCI>,
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::bdev::NvmeBDev>) {
     extern "C" {
         fn _binary_domains_build_nvme_start();
         fn _binary_domains_build_nvme_end();
@@ -464,7 +464,7 @@ pub fn create_domain_nvme(
 
 pub fn create_domain_membdev(
     memdisk: &'static mut [u8],
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev>) {
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::bdev::BDev>) {
     #[cfg(debug_assertions)]
     let binary_range = {
         extern "C" {
@@ -494,8 +494,8 @@ pub fn create_domain_membdev(
 }
 
 pub fn create_domain_bdev_shadow(
-    create: Arc<dyn create::CreateMemBDev>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev>) {
+    create: Arc<dyn interface::domain_creation::CreateMemBDev>,
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::bdev::BDev>) {
     #[cfg(debug_assertions)]
     let binary_range = {
         extern "C" {
@@ -526,15 +526,15 @@ pub fn create_domain_bdev_shadow(
 
 pub fn create_domain_xv6kernel(
     ints: Box<dyn syscalls::Interrupt>,
-    create_xv6fs: Arc<dyn create::CreateRv6FS>,
-    create_xv6net: Arc<dyn create::CreateRv6Net>,
-    create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
-    create_xv6usr: Arc<dyn create::CreateRv6Usr + Send + Sync>,
-    bdev: Box<dyn usr::bdev::BDev>,
-    net: Box<dyn usr::net::Net>,
-    nvme: Box<dyn usr::bdev::NvmeBDev>,
-    usr_tpm: Box<dyn usr::tpm::UsrTpm>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::rv6::Rv6>) {
+    create_xv6fs: Arc<dyn interface::domain_creation::CreateRv6FS>,
+    create_xv6net: Arc<dyn interface::domain_creation::CreateRv6Net>,
+    create_xv6net_shadow: Arc<dyn interface::domain_creation::CreateRv6NetShadow>,
+    create_xv6usr: Arc<dyn interface::domain_creation::CreateRv6Usr + Send + Sync>,
+    bdev: Box<dyn interface::bdev::BDev>,
+    net: Box<dyn interface::net::Net>,
+    nvme: Box<dyn interface::bdev::NvmeBDev>,
+    usr_tpm: Box<dyn interface::tpm::UsrTpm>,
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::rv6::Rv6>) {
     extern "C" {
         fn _binary_domains_build_xv6kernel_start();
         fn _binary_domains_build_xv6kernel_end();
@@ -561,8 +561,8 @@ pub fn create_domain_xv6kernel(
 }
 
 pub fn create_domain_xv6fs(
-    bdev: Box<dyn usr::bdev::BDev>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::vfs::VFS>) {
+    bdev: Box<dyn interface::bdev::BDev>,
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::vfs::VFS>) {
     extern "C" {
         fn _binary_domains_build_xv6fs_start();
         fn _binary_domains_build_xv6fs_end();
@@ -581,7 +581,7 @@ pub fn create_domain_xv6fs(
 // which is hidden, e.g., create_thread, etc.
 pub fn create_domain_xv6usr(
     name: &str,
-    xv6: Box<dyn usr::rv6::Rv6>,
+    xv6: Box<dyn interface::rv6::Rv6>,
     blob: &[u8],
     args: &str,
 ) -> Result<Box<dyn syscalls::Domain>> {
@@ -592,8 +592,8 @@ pub fn create_domain_xv6usr(
 }
 
 pub fn create_domain_xv6net(
-    net: Box<dyn usr::net::Net>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::usrnet::UsrNet>) {
+    net: Box<dyn interface::net::Net>,
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::usrnet::UsrNet>) {
     extern "C" {
         fn _binary_domains_build_xv6net_start();
         fn _binary_domains_build_xv6net_end();
@@ -608,9 +608,9 @@ pub fn create_domain_xv6net(
 }
 
 pub fn create_domain_xv6net_shadow(
-    create: Arc<dyn create::CreateRv6Net>,
-    net: Box<dyn usr::net::Net>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::usrnet::UsrNet>) {
+    create: Arc<dyn interface::domain_creation::CreateRv6Net>,
+    net: Box<dyn interface::net::Net>,
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::usrnet::UsrNet>) {
     extern "C" {
         fn _binary_domains_build_xv6net_shadow_start();
         fn _binary_domains_build_xv6net_shadow_end();
@@ -624,7 +624,7 @@ pub fn create_domain_xv6net_shadow(
     build_domain_xv6net_shadow("xv6net_shadow", binary_range, create, net)
 }
 
-pub fn create_domain_dom_a() -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_a::DomA>) {
+pub fn create_domain_dom_a() -> (Box<dyn syscalls::Domain>, Box<dyn interface::dom_a::DomA>) {
     extern "C" {
         fn _binary_domains_build_dom_a_start();
         fn _binary_domains_build_dom_a_end();
@@ -638,7 +638,7 @@ pub fn create_domain_dom_a() -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_a::
     build_domain_dom_a("dom_a", binary_range)
 }
 
-pub fn create_domain_dom_b(dom_a: Box<dyn usr::dom_a::DomA>) -> Box<dyn syscalls::Domain> {
+pub fn create_domain_dom_b(dom_a: Box<dyn interface::dom_a::DomA>) -> Box<dyn syscalls::Domain> {
     extern "C" {
         fn _binary_domains_build_dom_b_start();
         fn _binary_domains_build_dom_b_end();
@@ -652,7 +652,7 @@ pub fn create_domain_dom_b(dom_a: Box<dyn usr::dom_a::DomA>) -> Box<dyn syscalls
     build_domain_dom_b("dom_b", binary_range, dom_a)
 }
 
-pub fn create_domain_dom_c() -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
+pub fn create_domain_dom_c() -> (Box<dyn syscalls::Domain>, Box<dyn interface::dom_c::DomC>) {
     extern "C" {
         fn _binary_domains_build_dom_c_start();
         fn _binary_domains_build_dom_c_end();
@@ -668,7 +668,7 @@ pub fn create_domain_dom_c() -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::
 
 pub fn recreate_domain_dom_c(
     _dom: Box<dyn syscalls::Domain>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::dom_c::DomC>) {
     extern "C" {
         fn _binary_domains_build_dom_c_start();
         fn _binary_domains_build_dom_c_end();
@@ -682,7 +682,7 @@ pub fn recreate_domain_dom_c(
     build_domain_dom_c("dom_c", binary_range)
 }
 
-pub fn create_domain_dom_d(dom_c: Box<dyn usr::dom_c::DomC>) -> Box<dyn syscalls::Domain> {
+pub fn create_domain_dom_d(dom_c: Box<dyn interface::dom_c::DomC>) -> Box<dyn syscalls::Domain> {
     extern "C" {
         fn _binary_domains_build_dom_d_start();
         fn _binary_domains_build_dom_d_end();
@@ -697,8 +697,8 @@ pub fn create_domain_dom_d(dom_c: Box<dyn usr::dom_c::DomC>) -> Box<dyn syscalls
 }
 
 pub fn create_domain_shadow(
-    create_dom_c: Arc<dyn create::CreateDomC>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
+    create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::dom_c::DomC>) {
     extern "C" {
         fn _binary_domains_build_shadow_start();
         fn _binary_domains_build_shadow_end();
@@ -712,7 +712,7 @@ pub fn create_domain_shadow(
     build_domain_shadow("shadow", binary_range, create_dom_c)
 }
 
-pub fn create_domain_benchnet(net: Box<dyn usr::net::Net>) -> Box<dyn syscalls::Domain> {
+pub fn create_domain_benchnet(net: Box<dyn interface::net::Net>) -> Box<dyn syscalls::Domain> {
     extern "C" {
         fn _binary_domains_build_benchnet_inside_start();
         fn _binary_domains_build_benchnet_inside_end();
@@ -726,7 +726,7 @@ pub fn create_domain_benchnet(net: Box<dyn usr::net::Net>) -> Box<dyn syscalls::
     build_domain_benchnet_helper("benchnet", binary_range, net)
 }
 
-pub fn create_domain_benchnvme(nvme: Box<dyn usr::bdev::NvmeBDev>) -> Box<dyn syscalls::Domain> {
+pub fn create_domain_benchnvme(nvme: Box<dyn interface::bdev::NvmeBDev>) -> Box<dyn syscalls::Domain> {
     extern "C" {
         fn _binary_domains_build_benchnvme_start();
         fn _binary_domains_build_benchnvme_end();
@@ -754,7 +754,7 @@ pub fn create_domain_hashstore() -> Box<dyn syscalls::Domain> {
     build_domain_hashstore("benchhash", binary_range)
 }
 
-pub fn create_domain_tpm() -> (Box<dyn syscalls::Domain>, Box<dyn usr::tpm::UsrTpm>) {
+pub fn create_domain_tpm() -> (Box<dyn syscalls::Domain>, Box<dyn interface::tpm::UsrTpm>) {
     extern "C" {
         fn _binary_domains_build_tpm_start();
         fn _binary_domains_build_tpm_end();
@@ -769,27 +769,27 @@ pub fn create_domain_tpm() -> (Box<dyn syscalls::Domain>, Box<dyn usr::tpm::UsrT
 }
 
 pub fn create_domain_proxy(
-    create_pci: Arc<dyn create::CreatePCI>,
-    create_ahci: Arc<dyn create::CreateAHCI>,
-    create_membdev: Arc<dyn create::CreateMemBDev>,
-    create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
-    create_ixgbe: Arc<dyn create::CreateIxgbe>,
-    create_nvme: Arc<dyn create::CreateNvme>,
-    create_net_shadow: Arc<dyn create::CreateNetShadow>,
-    create_nvme_shadow: Arc<dyn create::CreateNvmeShadow>,
-    create_benchnet: Arc<dyn create::CreateBenchnet>,
-    create_benchnvme: Arc<dyn create::CreateBenchnvme>,
-    create_xv6fs: Arc<dyn create::CreateRv6FS>,
-    create_xv6net: Arc<dyn create::CreateRv6Net>,
-    create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
-    create_xv6usr: Arc<dyn create::CreateRv6Usr>,
-    create_xv6: Arc<dyn create::CreateRv6>,
-    create_dom_a: Arc<dyn create::CreateDomA>,
-    create_dom_b: Arc<dyn create::CreateDomB>,
-    create_dom_c: Arc<dyn create::CreateDomC>,
-    create_dom_d: Arc<dyn create::CreateDomD>,
-    create_shadow: Arc<dyn create::CreateShadow>,
-) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
+    create_pci: Arc<dyn interface::domain_creation::CreatePCI>,
+    create_ahci: Arc<dyn interface::domain_creation::CreateAHCI>,
+    create_membdev: Arc<dyn interface::domain_creation::CreateMemBDev>,
+    create_bdev_shadow: Arc<dyn interface::domain_creation::CreateBDevShadow>,
+    create_ixgbe: Arc<dyn interface::domain_creation::CreateIxgbe>,
+    create_nvme: Arc<dyn interface::domain_creation::CreateNvme>,
+    create_net_shadow: Arc<dyn interface::domain_creation::CreateNetShadow>,
+    create_nvme_shadow: Arc<dyn interface::domain_creation::CreateNvmeShadow>,
+    create_benchnet: Arc<dyn interface::domain_creation::CreateBenchnet>,
+    create_benchnvme: Arc<dyn interface::domain_creation::CreateBenchnvme>,
+    create_xv6fs: Arc<dyn interface::domain_creation::CreateRv6FS>,
+    create_xv6net: Arc<dyn interface::domain_creation::CreateRv6Net>,
+    create_xv6net_shadow: Arc<dyn interface::domain_creation::CreateRv6NetShadow>,
+    create_xv6usr: Arc<dyn interface::domain_creation::CreateRv6Usr>,
+    create_xv6: Arc<dyn interface::domain_creation::CreateRv6>,
+    create_dom_a: Arc<dyn interface::domain_creation::CreateDomA>,
+    create_dom_b: Arc<dyn interface::domain_creation::CreateDomB>,
+    create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
+    create_dom_d: Arc<dyn interface::domain_creation::CreateDomD>,
+    create_shadow: Arc<dyn interface::domain_creation::CreateShadow>,
+) -> (Box<dyn syscalls::Domain>, Arc<dyn interface::proxy::Proxy>) {
     extern "C" {
         fn _binary_domains_build_dom_proxy_start();
         fn _binary_domains_build_dom_proxy_end();
@@ -829,12 +829,12 @@ pub fn create_domain_proxy(
 pub fn create_domain_pci_bus(
     name: &str,
     binary_range: (*const u8, *const u8),
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::pci::PCI>) {
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::pci::PCI>) {
     type UserInit = fn(
         Box<dyn syscalls::Syscall>,
         Box<dyn syscalls::Mmap>,
         Box<dyn syscalls::Heap>,
-    ) -> Box<dyn usr::pci::PCI>;
+    ) -> Box<dyn interface::pci::PCI>;
 
     let (dom, entry) = unsafe { load_domain(name, binary_range) };
 
@@ -870,13 +870,13 @@ pub fn create_domain_pci_bus(
 pub fn create_domain_bdev(
     name: &str,
     binary_range: (*const u8, *const u8),
-    pci: Box<dyn usr::pci::PCI>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev>) {
+    pci: Box<dyn interface::pci::PCI>,
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::bdev::BDev>) {
     type UserInit = fn(
         Box<dyn syscalls::Syscall>,
         Box<dyn syscalls::Heap>,
-        Box<dyn usr::pci::PCI>,
-    ) -> Box<dyn usr::bdev::BDev>;
+        Box<dyn interface::pci::PCI>,
+    ) -> Box<dyn interface::bdev::BDev>;
 
     let (dom, entry) = unsafe { load_domain(name, binary_range) };
 
@@ -912,12 +912,12 @@ pub fn create_domain_bdev_mem(
     name: &str,
     binary_range: (*const u8, *const u8),
     memdisk: &'static mut [u8],
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev>) {
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::bdev::BDev>) {
     type UserInit = fn(
         Box<dyn syscalls::Syscall>,
         Box<dyn syscalls::Heap>,
         &'static mut [u8],
-    ) -> Box<dyn usr::bdev::BDev>;
+    ) -> Box<dyn interface::bdev::BDev>;
 
     let (dom, entry) = unsafe { load_domain(name, binary_range) };
 
@@ -952,13 +952,13 @@ pub fn create_domain_bdev_mem(
 pub fn create_domain_bdev_shadow_helper(
     name: &str,
     binary_range: (*const u8, *const u8),
-    create: Arc<dyn create::CreateMemBDev>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::BDev>) {
+    create: Arc<dyn interface::domain_creation::CreateMemBDev>,
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::bdev::BDev>) {
     type UserInit = fn(
         Box<dyn syscalls::Syscall>,
         Box<dyn syscalls::Heap>,
-        Arc<dyn create::CreateMemBDev>,
-    ) -> Box<dyn usr::bdev::BDev>;
+        Arc<dyn interface::domain_creation::CreateMemBDev>,
+    ) -> Box<dyn interface::bdev::BDev>;
 
     let (dom, entry) = unsafe { load_domain(name, binary_range) };
 
@@ -993,13 +993,13 @@ pub fn create_domain_bdev_shadow_helper(
 pub fn create_domain_net(
     name: &str,
     binary_range: (*const u8, *const u8),
-    pci: Box<dyn usr::pci::PCI>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::net::Net>) {
+    pci: Box<dyn interface::pci::PCI>,
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::net::Net>) {
     type UserInit = fn(
         Box<dyn syscalls::Syscall>,
         Box<dyn syscalls::Heap>,
-        Box<dyn usr::pci::PCI>,
-    ) -> Box<dyn usr::net::Net>;
+        Box<dyn interface::pci::PCI>,
+    ) -> Box<dyn interface::net::Net>;
 
     let (dom, entry) = unsafe { load_domain(name, binary_range) };
 
@@ -1034,15 +1034,15 @@ pub fn create_domain_net(
 pub fn build_domain_net_shadow(
     name: &str,
     binary_range: (*const u8, *const u8),
-    create: Arc<dyn create::CreateIxgbe>,
-    pci: Box<dyn usr::pci::PCI>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::net::Net>) {
+    create: Arc<dyn interface::domain_creation::CreateIxgbe>,
+    pci: Box<dyn interface::pci::PCI>,
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::net::Net>) {
     type UserInit = fn(
         Box<dyn syscalls::Syscall>,
         Box<dyn syscalls::Heap>,
-        Arc<dyn create::CreateIxgbe>,
-        Box<dyn usr::pci::PCI>,
-    ) -> Box<dyn usr::net::Net>;
+        Arc<dyn interface::domain_creation::CreateIxgbe>,
+        Box<dyn interface::pci::PCI>,
+    ) -> Box<dyn interface::net::Net>;
 
     let (dom, entry) = unsafe { load_domain(name, binary_range) };
 
@@ -1077,15 +1077,15 @@ pub fn build_domain_net_shadow(
 pub fn build_domain_nvme_shadow(
     name: &str,
     binary_range: (*const u8, *const u8),
-    create: Arc<dyn create::CreateNvme>,
-    pci: Box<dyn usr::pci::PCI>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::NvmeBDev>) {
+    create: Arc<dyn interface::domain_creation::CreateNvme>,
+    pci: Box<dyn interface::pci::PCI>,
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::bdev::NvmeBDev>) {
     type UserInit = fn(
         Box<dyn syscalls::Syscall>,
         Box<dyn syscalls::Heap>,
-        Arc<dyn create::CreateNvme>,
-        Box<dyn usr::pci::PCI>,
-    ) -> Box<dyn usr::bdev::NvmeBDev>;
+        Arc<dyn interface::domain_creation::CreateNvme>,
+        Box<dyn interface::pci::PCI>,
+    ) -> Box<dyn interface::bdev::NvmeBDev>;
 
     let (dom, entry) = unsafe { load_domain(name, binary_range) };
 
@@ -1120,13 +1120,13 @@ pub fn build_domain_nvme_shadow(
 pub fn create_domain_nvmedev(
     name: &str,
     binary_range: (*const u8, *const u8),
-    pci: Box<dyn usr::pci::PCI>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::bdev::NvmeBDev>) {
+    pci: Box<dyn interface::pci::PCI>,
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::bdev::NvmeBDev>) {
     type UserInit = fn(
         Box<dyn syscalls::Syscall>,
         Box<dyn syscalls::Heap>,
-        Box<dyn usr::pci::PCI>,
-    ) -> Box<dyn usr::bdev::NvmeBDev>;
+        Box<dyn interface::pci::PCI>,
+    ) -> Box<dyn interface::bdev::NvmeBDev>;
 
     let (dom, entry) = unsafe { load_domain(name, binary_range) };
 
@@ -1147,8 +1147,8 @@ pub fn create_domain_nvmedev(
 // AB: XXX: The following is is not supported in Rust at the moment
 //
 //pub fn init(s: Box<dyn syscalls::Syscall
-//                    + create::CreateRv6 + create::CreateRv6FS /* + CreateRv6User */
-//                    + create::CreatePCI + create::CreateAHCI + Send + Sync>)
+//                    + domain_creation::CreateRv6 + domain_creation::CreateRv6FS /* + CreateRv6User */
+//                    + domain_creation::CreatePCI + domain_creation::CreateAHCI + Send + Sync>)
 // See
 //   rustc --explain E0225
 //
@@ -1162,29 +1162,29 @@ pub fn build_domain_init(
         Box<dyn syscalls::Syscall + Send + Sync>,
         Box<dyn syscalls::Heap + Send + Sync>,
         Box<dyn syscalls::Interrupt>,
-        Box<dyn proxy::CreateProxy>,
-        Arc<dyn create::CreateRv6>,
-        Arc<dyn create::CreateRv6FS>,
-        Arc<dyn create::CreateRv6Net>,
-        Arc<dyn create::CreateRv6NetShadow>,
-        Arc<dyn create::CreateRv6Usr>,
-        Arc<dyn create::CreatePCI>,
-        Arc<dyn create::CreateIxgbe>,
-        Arc<dyn create::CreateNvme>,
-        Arc<dyn create::CreateNetShadow>,
-        create_nvme_shadow: Arc<dyn create::CreateNvmeShadow>,
-        Arc<dyn create::CreateBenchnet>,
-        Arc<dyn create::CreateBenchnvme>,
-        Arc<dyn create::CreateAHCI>,
-        Arc<dyn create::CreateMemBDev>,
-        Arc<dyn create::CreateBDevShadow>,
-        Arc<dyn create::CreateDomA>,
-        Arc<dyn create::CreateDomB>,
-        Arc<dyn create::CreateDomC>,
-        Arc<dyn create::CreateDomD>,
-        Arc<dyn create::CreateHashStore>,
-        Arc<dyn create::CreateTpm>,
-        Arc<dyn create::CreateShadow>,
+        Box<dyn interface::proxy::CreateProxy>,
+        Arc<dyn interface::domain_creation::CreateRv6>,
+        Arc<dyn interface::domain_creation::CreateRv6FS>,
+        Arc<dyn interface::domain_creation::CreateRv6Net>,
+        Arc<dyn interface::domain_creation::CreateRv6NetShadow>,
+        Arc<dyn interface::domain_creation::CreateRv6Usr>,
+        Arc<dyn interface::domain_creation::CreatePCI>,
+        Arc<dyn interface::domain_creation::CreateIxgbe>,
+        Arc<dyn interface::domain_creation::CreateNvme>,
+        Arc<dyn interface::domain_creation::CreateNetShadow>,
+        create_nvme_shadow: Arc<dyn interface::domain_creation::CreateNvmeShadow>,
+        Arc<dyn interface::domain_creation::CreateBenchnet>,
+        Arc<dyn interface::domain_creation::CreateBenchnvme>,
+        Arc<dyn interface::domain_creation::CreateAHCI>,
+        Arc<dyn interface::domain_creation::CreateMemBDev>,
+        Arc<dyn interface::domain_creation::CreateBDevShadow>,
+        Arc<dyn interface::domain_creation::CreateDomA>,
+        Arc<dyn interface::domain_creation::CreateDomB>,
+        Arc<dyn interface::domain_creation::CreateDomC>,
+        Arc<dyn interface::domain_creation::CreateDomD>,
+        Arc<dyn interface::domain_creation::CreateHashStore>,
+        Arc<dyn interface::domain_creation::CreateTpm>,
+        Arc<dyn interface::domain_creation::CreateShadow>,
     );
 
     let (dom, entry) = unsafe { load_domain(name, binary_range) };
@@ -1244,13 +1244,13 @@ pub fn build_domain_init(
 pub fn build_domain_fs(
     name: &str,
     binary_range: (*const u8, *const u8),
-    bdev: Box<dyn usr::bdev::BDev>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::vfs::VFS>) {
+    bdev: Box<dyn interface::bdev::BDev>,
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::vfs::VFS>) {
     type UserInit = fn(
         Box<dyn syscalls::Syscall>,
         Box<dyn syscalls::Heap>,
-        Box<dyn usr::bdev::BDev>,
-    ) -> Box<dyn usr::vfs::VFS>;
+        Box<dyn interface::bdev::BDev>,
+    ) -> Box<dyn interface::vfs::VFS>;
 
     let (dom, entry) = unsafe { load_domain(name, binary_range) };
 
@@ -1285,13 +1285,13 @@ pub fn build_domain_fs(
 pub fn build_domain_xv6net(
     name: &str,
     binary_range: (*const u8, *const u8),
-    net: Box<dyn usr::net::Net>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::usrnet::UsrNet>) {
+    net: Box<dyn interface::net::Net>,
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::usrnet::UsrNet>) {
     type UserInit = fn(
         Box<dyn syscalls::Syscall>,
         Box<dyn syscalls::Heap>,
-        Box<dyn usr::net::Net>,
-    ) -> Box<dyn usr::usrnet::UsrNet>;
+        Box<dyn interface::net::Net>,
+    ) -> Box<dyn interface::usrnet::UsrNet>;
 
     let (dom, entry) = unsafe { load_domain(name, binary_range) };
 
@@ -1326,15 +1326,15 @@ pub fn build_domain_xv6net(
 pub fn build_domain_xv6net_shadow(
     name: &str,
     binary_range: (*const u8, *const u8),
-    create: Arc<dyn create::CreateRv6Net>,
-    net: Box<dyn usr::net::Net>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::usrnet::UsrNet>) {
+    create: Arc<dyn interface::domain_creation::CreateRv6Net>,
+    net: Box<dyn interface::net::Net>,
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::usrnet::UsrNet>) {
     type UserInit = fn(
         Box<dyn syscalls::Syscall>,
         Box<dyn syscalls::Heap>,
-        Arc<dyn create::CreateRv6Net>,
-        Box<dyn usr::net::Net>,
-    ) -> Box<dyn usr::usrnet::UsrNet>;
+        Arc<dyn interface::domain_creation::CreateRv6Net>,
+        Box<dyn interface::net::Net>,
+    ) -> Box<dyn interface::usrnet::UsrNet>;
 
     let (dom, entry) = unsafe { load_domain(name, binary_range) };
 
@@ -1369,51 +1369,51 @@ pub fn build_domain_xv6net_shadow(
 pub fn build_domain_proxy(
     name: &str,
     binary_range: (*const u8, *const u8),
-    create_pci: Arc<dyn create::CreatePCI>,
-    create_ahci: Arc<dyn create::CreateAHCI>,
-    create_membdev: Arc<dyn create::CreateMemBDev>,
-    create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
-    create_ixgbe: Arc<dyn create::CreateIxgbe>,
-    create_nvme: Arc<dyn create::CreateNvme>,
-    create_net_shadow: Arc<dyn create::CreateNetShadow>,
-    create_nvme_shadow: Arc<dyn create::CreateNvmeShadow>,
-    create_benchnet: Arc<dyn create::CreateBenchnet>,
-    create_benchnvme: Arc<dyn create::CreateBenchnvme>,
-    create_xv6fs: Arc<dyn create::CreateRv6FS>,
-    create_xv6net: Arc<dyn create::CreateRv6Net>,
-    create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
-    create_xv6usr: Arc<dyn create::CreateRv6Usr>,
-    create_xv6: Arc<dyn create::CreateRv6>,
-    create_dom_a: Arc<dyn create::CreateDomA>,
-    create_dom_b: Arc<dyn create::CreateDomB>,
-    create_dom_c: Arc<dyn create::CreateDomC>,
-    create_dom_d: Arc<dyn create::CreateDomD>,
-    create_shadow: Arc<dyn create::CreateShadow>,
-) -> (Box<dyn syscalls::Domain>, Arc<dyn proxy::Proxy>) {
+    create_pci: Arc<dyn interface::domain_creation::CreatePCI>,
+    create_ahci: Arc<dyn interface::domain_creation::CreateAHCI>,
+    create_membdev: Arc<dyn interface::domain_creation::CreateMemBDev>,
+    create_bdev_shadow: Arc<dyn interface::domain_creation::CreateBDevShadow>,
+    create_ixgbe: Arc<dyn interface::domain_creation::CreateIxgbe>,
+    create_nvme: Arc<dyn interface::domain_creation::CreateNvme>,
+    create_net_shadow: Arc<dyn interface::domain_creation::CreateNetShadow>,
+    create_nvme_shadow: Arc<dyn interface::domain_creation::CreateNvmeShadow>,
+    create_benchnet: Arc<dyn interface::domain_creation::CreateBenchnet>,
+    create_benchnvme: Arc<dyn interface::domain_creation::CreateBenchnvme>,
+    create_xv6fs: Arc<dyn interface::domain_creation::CreateRv6FS>,
+    create_xv6net: Arc<dyn interface::domain_creation::CreateRv6Net>,
+    create_xv6net_shadow: Arc<dyn interface::domain_creation::CreateRv6NetShadow>,
+    create_xv6usr: Arc<dyn interface::domain_creation::CreateRv6Usr>,
+    create_xv6: Arc<dyn interface::domain_creation::CreateRv6>,
+    create_dom_a: Arc<dyn interface::domain_creation::CreateDomA>,
+    create_dom_b: Arc<dyn interface::domain_creation::CreateDomB>,
+    create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
+    create_dom_d: Arc<dyn interface::domain_creation::CreateDomD>,
+    create_shadow: Arc<dyn interface::domain_creation::CreateShadow>,
+) -> (Box<dyn syscalls::Domain>, Arc<dyn interface::proxy::Proxy>) {
     type UserInit = fn(
         Box<dyn syscalls::Syscall>,
         Box<dyn syscalls::Heap>,
-        create_pci: Arc<dyn create::CreatePCI>,
-        create_ahci: Arc<dyn create::CreateAHCI>,
-        create_membdev: Arc<dyn create::CreateMemBDev>,
-        create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
-        create_ixgbe: Arc<dyn create::CreateIxgbe>,
-        create_nvme: Arc<dyn create::CreateNvme>,
-        create_net_shadow: Arc<dyn create::CreateNetShadow>,
-        create_nvme_shadow: Arc<dyn create::CreateNvmeShadow>,
-        create_benchnet: Arc<dyn create::CreateBenchnet>,
-        create_benchnvme: Arc<dyn create::CreateBenchnvme>,
-        create_xv6fs: Arc<dyn create::CreateRv6FS>,
-        create_xv6net: Arc<dyn create::CreateRv6Net>,
-        create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
-        create_xv6usr: Arc<dyn create::CreateRv6Usr>,
-        create_xv6: Arc<dyn create::CreateRv6>,
-        create_dom_a: Arc<dyn create::CreateDomA>,
-        create_dom_b: Arc<dyn create::CreateDomB>,
-        create_dom_c: Arc<dyn create::CreateDomC>,
-        create_dom_d: Arc<dyn create::CreateDomD>,
-        create_shadow: Arc<dyn create::CreateShadow>,
-    ) -> Arc<dyn proxy::Proxy>;
+        create_pci: Arc<dyn interface::domain_creation::CreatePCI>,
+        create_ahci: Arc<dyn interface::domain_creation::CreateAHCI>,
+        create_membdev: Arc<dyn interface::domain_creation::CreateMemBDev>,
+        create_bdev_shadow: Arc<dyn interface::domain_creation::CreateBDevShadow>,
+        create_ixgbe: Arc<dyn interface::domain_creation::CreateIxgbe>,
+        create_nvme: Arc<dyn interface::domain_creation::CreateNvme>,
+        create_net_shadow: Arc<dyn interface::domain_creation::CreateNetShadow>,
+        create_nvme_shadow: Arc<dyn interface::domain_creation::CreateNvmeShadow>,
+        create_benchnet: Arc<dyn interface::domain_creation::CreateBenchnet>,
+        create_benchnvme: Arc<dyn interface::domain_creation::CreateBenchnvme>,
+        create_xv6fs: Arc<dyn interface::domain_creation::CreateRv6FS>,
+        create_xv6net: Arc<dyn interface::domain_creation::CreateRv6Net>,
+        create_xv6net_shadow: Arc<dyn interface::domain_creation::CreateRv6NetShadow>,
+        create_xv6usr: Arc<dyn interface::domain_creation::CreateRv6Usr>,
+        create_xv6: Arc<dyn interface::domain_creation::CreateRv6>,
+        create_dom_a: Arc<dyn interface::domain_creation::CreateDomA>,
+        create_dom_b: Arc<dyn interface::domain_creation::CreateDomB>,
+        create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
+        create_dom_d: Arc<dyn interface::domain_creation::CreateDomD>,
+        create_shadow: Arc<dyn interface::domain_creation::CreateShadow>,
+    ) -> Arc<dyn interface::proxy::Proxy>;
 
     let (dom, entry) = unsafe { load_domain(name, binary_range) };
 
@@ -1472,28 +1472,28 @@ pub fn build_domain_xv6kernel(
     name: &str,
     binary_range: (*const u8, *const u8),
     ints: Box<dyn syscalls::Interrupt>,
-    create_xv6fs: Arc<dyn create::CreateRv6FS>,
-    create_xv6net: Arc<dyn create::CreateRv6Net>,
-    create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
-    create_xv6usr: Arc<dyn create::CreateRv6Usr + Send + Sync>,
-    bdev: Box<dyn usr::bdev::BDev>,
-    net: Box<dyn usr::net::Net>,
-    nvme: Box<dyn usr::bdev::NvmeBDev>,
-    usr_tpm: Box<dyn usr::tpm::UsrTpm>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::rv6::Rv6>) {
+    create_xv6fs: Arc<dyn interface::domain_creation::CreateRv6FS>,
+    create_xv6net: Arc<dyn interface::domain_creation::CreateRv6Net>,
+    create_xv6net_shadow: Arc<dyn interface::domain_creation::CreateRv6NetShadow>,
+    create_xv6usr: Arc<dyn interface::domain_creation::CreateRv6Usr + Send + Sync>,
+    bdev: Box<dyn interface::bdev::BDev>,
+    net: Box<dyn interface::net::Net>,
+    nvme: Box<dyn interface::bdev::NvmeBDev>,
+    usr_tpm: Box<dyn interface::tpm::UsrTpm>,
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::rv6::Rv6>) {
     type UserInit = fn(
         Box<dyn syscalls::Syscall>,
         Box<dyn syscalls::Heap>,
         Box<dyn syscalls::Interrupt>,
-        create_xv6fs: Arc<dyn create::CreateRv6FS>,
-        create_xv6net: Arc<dyn create::CreateRv6Net>,
-        create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
-        create_xv6kernel: Arc<dyn create::CreateRv6Usr>,
-        bdev: Box<dyn usr::bdev::BDev>,
-        net: Box<dyn usr::net::Net>,
-        nvme: Box<dyn usr::bdev::NvmeBDev>,
-        usr_tpm: Box<dyn usr::tpm::UsrTpm>,
-    ) -> Box<dyn usr::rv6::Rv6>;
+        create_xv6fs: Arc<dyn interface::domain_creation::CreateRv6FS>,
+        create_xv6net: Arc<dyn interface::domain_creation::CreateRv6Net>,
+        create_xv6net_shadow: Arc<dyn interface::domain_creation::CreateRv6NetShadow>,
+        create_xv6kernel: Arc<dyn interface::domain_creation::CreateRv6Usr>,
+        bdev: Box<dyn interface::bdev::BDev>,
+        net: Box<dyn interface::net::Net>,
+        nvme: Box<dyn interface::bdev::NvmeBDev>,
+        usr_tpm: Box<dyn interface::tpm::UsrTpm>,
+    ) -> Box<dyn interface::rv6::Rv6>;
 
     let (dom, entry) = unsafe { load_domain(name, binary_range) };
 
@@ -1539,12 +1539,12 @@ pub fn build_domain_xv6kernel(
 
 pub fn build_domain_xv6usr(
     name: &str,
-    xv6: Box<dyn usr::rv6::Rv6>,
+    xv6: Box<dyn interface::rv6::Rv6>,
     blob: &[u8],
     args: &str,
 ) -> Box<dyn syscalls::Domain> {
     type UserInit =
-        fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, Box<dyn usr::rv6::Rv6>, &str);
+        fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, Box<dyn interface::rv6::Rv6>, &str);
 
     let begin = blob.as_ptr();
     let end = unsafe { begin.offset(blob.len() as isize) };
@@ -1584,9 +1584,9 @@ pub fn build_domain_xv6usr(
 pub fn build_domain_dom_a(
     name: &str,
     binary_range: (*const u8, *const u8),
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_a::DomA>) {
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::dom_a::DomA>) {
     type UserInit =
-        fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>) -> Box<dyn usr::dom_a::DomA>;
+        fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>) -> Box<dyn interface::dom_a::DomA>;
 
     let (dom, entry) = unsafe { load_domain(name, binary_range) };
 
@@ -1621,10 +1621,10 @@ pub fn build_domain_dom_a(
 pub fn build_domain_dom_b(
     name: &str,
     binary_range: (*const u8, *const u8),
-    dom_a: Box<dyn usr::dom_a::DomA>,
+    dom_a: Box<dyn interface::dom_a::DomA>,
 ) -> Box<dyn syscalls::Domain> {
     type UserInit =
-        fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, Box<dyn usr::dom_a::DomA>);
+        fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, Box<dyn interface::dom_a::DomA>);
 
     let (dom, entry) = unsafe { load_domain(name, binary_range) };
 
@@ -1659,9 +1659,9 @@ pub fn build_domain_dom_b(
 pub fn build_domain_dom_c(
     name: &str,
     binary_range: (*const u8, *const u8),
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::dom_c::DomC>) {
     type UserInit =
-        fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>) -> Box<dyn usr::dom_c::DomC>;
+        fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>) -> Box<dyn interface::dom_c::DomC>;
 
     let (dom, entry) = unsafe { load_domain(name, binary_range) };
 
@@ -1696,10 +1696,10 @@ pub fn build_domain_dom_c(
 pub fn build_domain_dom_d(
     name: &str,
     binary_range: (*const u8, *const u8),
-    dom_c: Box<dyn usr::dom_c::DomC>,
+    dom_c: Box<dyn interface::dom_c::DomC>,
 ) -> Box<dyn syscalls::Domain> {
     type UserInit =
-        fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, Box<dyn usr::dom_c::DomC>);
+        fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, Box<dyn interface::dom_c::DomC>);
 
     let (dom, entry) = unsafe { load_domain(name, binary_range) };
 
@@ -1734,13 +1734,13 @@ pub fn build_domain_dom_d(
 pub fn build_domain_shadow(
     name: &str,
     binary_range: (*const u8, *const u8),
-    create_dom_c: Arc<dyn create::CreateDomC>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::dom_c::DomC>) {
+    create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::dom_c::DomC>) {
     type UserInit = fn(
         Box<dyn syscalls::Syscall>,
         Box<dyn syscalls::Heap>,
-        create_dom_c: Arc<dyn create::CreateDomC>,
-    ) -> Box<dyn usr::dom_c::DomC>;
+        create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
+    ) -> Box<dyn interface::dom_c::DomC>;
 
     let (dom, entry) = unsafe { load_domain(name, binary_range) };
 
@@ -1775,10 +1775,10 @@ pub fn build_domain_shadow(
 pub fn build_domain_benchnet_helper(
     name: &str,
     binary_range: (*const u8, *const u8),
-    net: Box<dyn usr::net::Net>,
+    net: Box<dyn interface::net::Net>,
 ) -> Box<dyn syscalls::Domain> {
     type UserInit =
-        fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, net: Box<dyn usr::net::Net>);
+        fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, net: Box<dyn interface::net::Net>);
 
     let (dom, entry) = unsafe { load_domain(name, binary_range) };
 
@@ -1813,10 +1813,10 @@ pub fn build_domain_benchnet_helper(
 pub fn build_domain_benchnvme(
     name: &str,
     binary_range: (*const u8, *const u8),
-    nvme: Box<dyn usr::bdev::NvmeBDev>,
+    nvme: Box<dyn interface::bdev::NvmeBDev>,
 ) -> Box<dyn syscalls::Domain> {
     type UserInit =
-        fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, nvme: Box<dyn usr::bdev::NvmeBDev>);
+        fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>, nvme: Box<dyn interface::bdev::NvmeBDev>);
 
     let (dom, entry) = unsafe { load_domain(name, binary_range) };
 
@@ -1887,9 +1887,9 @@ pub fn build_domain_hashstore(
 pub fn build_domain_tpm(
     name: &str,
     binary_range: (*const u8, *const u8),
-) -> (Box<dyn syscalls::Domain>, Box<dyn usr::tpm::UsrTpm>) {
+) -> (Box<dyn syscalls::Domain>, Box<dyn interface::tpm::UsrTpm>) {
     type UserInit =
-        fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>) -> Box<dyn usr::tpm::UsrTpm>;
+        fn(Box<dyn syscalls::Syscall>, Box<dyn syscalls::Heap>) -> Box<dyn interface::tpm::UsrTpm>;
 
     let (dom, entry) = unsafe { load_domain(name, binary_range) };
 

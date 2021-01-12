@@ -14,10 +14,10 @@ use core::panic::PanicInfo;
 
 use rref::RRef;
 
-use create::CreateMemBDev;
+use interface::domain_creation::CreateMemBDev;
 use spin::Mutex;
-use usr::bdev::{BDev, BSIZE};
-use usr::rpc::RpcResult;
+use interface::bdev::{BDev, BSIZE};
+use interface::rpc::RpcResult;
 
 #[derive(Debug)]
 struct Stats {

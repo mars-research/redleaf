@@ -22,10 +22,10 @@ use core::panic::PanicInfo;
 use rref::RRefVec;
 use spin::Mutex;
 use syscalls::{Heap, Syscall};
-use usr_interface::error::{ErrorKind, Result};
-use usr_interface::net::Net;
-use usr_interface::rpc::RpcResult;
-use usr_interface::usrnet::UsrNet;
+use interface::error::{ErrorKind, Result};
+use interface::net::Net;
+use interface::rpc::RpcResult;
+use interface::usrnet::UsrNet;
 
 use smolnet::SmolPhy;
 use smoltcp::iface::{EthernetInterface, EthernetInterfaceBuilder, NeighborCache};

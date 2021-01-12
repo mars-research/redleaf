@@ -30,7 +30,7 @@ pub use datastructure::*;
 use libtime::sys_ns_loopsleep;
 pub use regs::*;
 use sha2::{Digest, Sha256};
-use usr::tpm::{TpmDev, TpmRegs};
+use interface::tpm::{TpmDev, TpmRegs};
 
 pub const ONE_MS_IN_NS: u64 = 1000 * 1000;
 

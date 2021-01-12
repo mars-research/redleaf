@@ -25,9 +25,9 @@ use core::panic::PanicInfo;
 use rref::RRefVec;
 use syscalls::{Heap, Syscall};
 use sysfile::{FileMode, FileStat};
-use usr_interface::bdev::BDev;
-use usr_interface::rpc::RpcResult;
-use usr_interface::vfs::{KernelVFS, Result, UsrVFS, NFILE, VFS};
+use interface::bdev::BDev;
+use interface::rpc::RpcResult;
+use interface::vfs::{KernelVFS, Result, UsrVFS, NFILE, VFS};
 
 mod bcache;
 mod block;
@@ -149,7 +149,7 @@ pub fn trusted_entry(
 ) -> Box<dyn VFS> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
-    // libusr::sysbdev::init(bdev);
+    // libinterface::sysbdev::init(bdev);
 
     println!("init xv6 filesystem");
     fs::fsinit(params::ROOTDEV, bdev);

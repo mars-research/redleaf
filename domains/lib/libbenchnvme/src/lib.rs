@@ -9,8 +9,8 @@ use b2histogram::Base2Histogram;
 use console::{print, println};
 use libtime::get_rdtsc as rdtsc;
 use rref::{RRef, RRefDeque};
-use usr::bdev::{BlkReq, NvmeBDev};
-use usr::error::Result;
+use interface::bdev::{BlkReq, NvmeBDev};
+use interface::error::Result;
 
 static mut seed: u64 = 123456789;
 static pow: u64 = 2u64.pow(31);

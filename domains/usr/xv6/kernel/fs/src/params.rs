@@ -2,8 +2,8 @@ use crate::icache;
 use core::mem;
 
 // https://github.com/mit-pdos/xv6-public/blob/master/param.h
-pub use usr_interface::bdev::BSIZE;
-pub use usr_interface::vfs::NFILE; // open files per system // block size
+pub use interface::bdev::BSIZE;
+pub use interface::vfs::NFILE; // open files per system // block size
 
 pub const NOFILE: usize = 16; // open files per process
 pub const NINODE: usize = 50; // maximum number of active i-nodes

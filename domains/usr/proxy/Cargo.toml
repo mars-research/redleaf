@@ -6,8 +6,6 @@ edition = "2018"
 
 [dependencies]
 syscalls = { path = "../../../lib/core/interfaces/syscalls" }
-create = { path = "../../../lib/core/interfaces/create" }
-proxy = { path = "../../../lib/core/interfaces/proxy" }
 libsyscalls = { path = "../../../lib/core/libsyscalls" }
 libtime = { path = "../../../lib/core/libtime" }
 console = { path = "../../../lib/core/console" }

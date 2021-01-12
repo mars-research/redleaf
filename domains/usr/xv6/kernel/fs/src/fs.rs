@@ -2,7 +2,7 @@ use alloc::boxed::Box;
 use byteorder::{ByteOrder, LittleEndian};
 use spin::Once;
 
-use usr_interface::bdev::BDev;
+use interface::bdev::BDev;
 
 use crate::bcache::{BufferCache, BCACHE};
 use crate::log::{Log, LOG};

@@ -7,7 +7,7 @@ extern crate core;
 
 use alloc::vec::Vec;
 use console::println;
-use usr::tpm::*;
+use interface::tpm::*;
 
 pub fn test_tpm(tpm: &dyn UsrTpm) {
     println!("Starting tests");

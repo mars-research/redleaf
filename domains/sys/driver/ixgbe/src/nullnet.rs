@@ -3,8 +3,8 @@ use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 use rref::RRefDeque;
-use usr::error::Result;
-use usr::rpc::RpcResult;
+use interface::error::Result;
+use interface::rpc::RpcResult;
 
 pub struct NullNet {}
 
@@ -14,8 +14,8 @@ impl NullNet {
     }
 }
 
-impl usr::net::Net for NullNet {
-    fn clone_net(&self) -> RpcResult<Box<dyn usr::net::Net>> {
+impl interface::net::Net for NullNet {
+    fn clone_net(&self) -> RpcResult<Box<dyn interface::net::Net>> {
         Ok(box Self::new())
     }
 

@@ -15,13 +15,13 @@ use console::println;
 use core::panic::PanicInfo;
 
 use alloc::vec::Vec;
-use create::CreateIxgbe;
+use interface::domain_creation::CreateIxgbe;
 use rref::RRefDeque;
 use spin::Mutex;
-use usr::error::Result;
-use usr::net::{Net, NetworkStats};
-use usr::pci::PCI;
-use usr::rpc::RpcResult;
+use interface::error::Result;
+use interface::net::{Net, NetworkStats};
+use interface::pci::PCI;
+use interface::rpc::RpcResult;
 
 struct ShadowInternal {
     create: Arc<dyn CreateIxgbe>,

@@ -26,7 +26,7 @@ use nvme_regs::NvmeArrayRegs;
 use queue::{NvmeCommandQueue, NvmeCompletionQueue};
 pub use libsyscalls::errors::Result;
 use rref::{RRef, RRefDeque};
-use usr::bdev::BlkReq;
+use interface::bdev::BlkReq;
 
 const ONE_MS_IN_NS: u64 = 1_000_000 * 1;
 pub (crate) const NUM_LBAS: u64 = 781422768;

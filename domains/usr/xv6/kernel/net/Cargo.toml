@@ -10,7 +10,7 @@ spin = { path = "../../../../../lib/core/spin-rs" }
 byteorder = { version = "1.2", default-features = false }
 num-traits = { version = "0.2", default-features = false }
 syscalls = { path = "../../../../../lib/core/interfaces/syscalls" }
-usr_interface = { package = "usr", path = "../../../../../lib/core/interfaces/usr", version = "0.1.0" }
+interface = { path = "../../../../../interface/generated" }
 libusr = { path = "../../../../../lib/external/libusr" }
 rv6_sync = { package = "sync", path = "../../lib/sync", version = "0.1.0" }
 libsyscalls = { path = "../../../../../lib/core/libsyscalls" }

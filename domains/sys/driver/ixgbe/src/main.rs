@@ -36,15 +36,15 @@ use libsyscalls::syscalls::sys_backtrace;
 use pci_driver::DeviceBarRegions;
 pub use platform::PciBarAddr;
 use spin::Mutex;
-use usr::rpc::RpcResult;
+use interface::rpc::RpcResult;
 
 use crate::device::Intel8259x;
 use core::cell::RefCell;
-pub use usr::error::{ErrorKind, Result};
+pub use interface::error::{ErrorKind, Result};
 
 use rref::RRefDeque;
 
-pub use usr::net::NetworkStats;
+pub use interface::net::NetworkStats;
 
 struct IxgbeInternal {
     vendor_id: u16,
@@ -86,8 +86,8 @@ impl core::ops::Deref for Ixgbe {
     }
 }
 
-impl usr::net::Net for Ixgbe {
-    fn clone_net(&self) -> RpcResult<Box<dyn usr::net::Net>> {
+impl interface::net::Net for Ixgbe {
+    fn clone_net(&self) -> RpcResult<Box<dyn interface::net::Net>> {
         Ok(box Self(self.0.clone()))
     }
 
@@ -360,8 +360,8 @@ fn run_sashstoretest(dev: &Ixgbe, pkt_size: u16) {
 pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
     heap: Box<dyn Heap + Send + Sync>,
-    pci: Box<dyn usr::pci::PCI>,
-) -> Box<dyn usr::net::Net> {
+    pci: Box<dyn interface::pci::PCI>,
+) -> Box<dyn interface::net::Net> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
@@ -483,7 +483,7 @@ fn smoltcp_main(dev: &Ixgbe) {
     }
 }
 
-fn smoltcp_rref_main(net: Box<dyn usr::net::Net>) {
+fn smoltcp_rref_main(net: Box<dyn interface::net::Net>) {
     use smolnet::SmolPhy as SmolIxgbe;
 
     use smoltcp::time::Instant;

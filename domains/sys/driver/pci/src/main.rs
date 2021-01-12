@@ -29,7 +29,7 @@ impl PCI {
     }
 }
 
-impl usr::pci::PCI for PCI {
+impl interface::pci::PCI for PCI {
     fn pci_register_driver(
         &self,
         pci_driver: &mut dyn PciDriver,
@@ -63,7 +63,7 @@ impl usr::pci::PCI for PCI {
         Ok(())
     }
 
-    fn pci_clone(&self) -> Box<dyn usr::pci::PCI> {
+    fn pci_clone(&self) -> Box<dyn interface::pci::PCI> {
         Box::new((*self).clone())
     }
 }
@@ -73,7 +73,7 @@ pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
     m: Box<dyn syscalls::Mmap + Send + Sync>,
     heap: Box<dyn Heap + Send + Sync>,
-) -> Box<dyn usr::pci::PCI> {
+) -> Box<dyn interface::pci::PCI> {
     libsyscalls::syscalls::init(s);
 
     libsyscalls::syscalls::init_mmap(m);

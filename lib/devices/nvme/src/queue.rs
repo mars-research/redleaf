@@ -14,7 +14,7 @@ use crate::array_init;
 use console::{println, print};
 use rref::{RRef, RRefDeque};
 use alloc::vec::Vec;
-use usr::bdev::BlkReq;
+use interface::bdev::BlkReq;
 
 pub struct Request {
     pub block: u64,

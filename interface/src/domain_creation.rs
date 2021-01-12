@@ -1,11 +1,8 @@
-#![no_std]
-#![feature(associated_type_defaults)]
-extern crate alloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use syscalls::{Heap, Domain, Interrupt};
-use usr::{bdev::{BDev, NvmeBDev}, vfs::VFS, usrnet::UsrNet, rv6::Rv6, dom_a::DomA, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}};
-use usr::error::Result;
+use crate::{bdev::{BDev, NvmeBDev}, vfs::VFS, usrnet::UsrNet, rv6::Rv6, dom_a::DomA, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}};
+use crate::error::Result;
 
 /* AB: XXX: first thing: change all names to create_domain -- it's absurd */
 pub trait CreatePCI: Send + Sync {
@@ -38,7 +35,7 @@ pub trait CreateNvmeShadow: Send + Sync {
 }
 
 pub trait CreateNvme: Send + Sync {
-    fn create_domain_nvme(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn usr::bdev::NvmeBDev>);
+    fn create_domain_nvme(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn crate::bdev::NvmeBDev>);
 }
 
 pub trait CreateRv6FS: Send + Sync {
@@ -54,7 +51,7 @@ pub trait CreateRv6NetShadow: Send + Sync {
 }
 
 pub trait CreateRv6Usr: Send + Sync {
-    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn usr::rv6::Rv6>, blob: &[u8], args: &str) -> Result<Box<dyn syscalls::Domain>>;
+    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn crate::rv6::Rv6>, blob: &[u8], args: &str) -> Result<Box<dyn syscalls::Domain>>;
 }
 pub type CreateRv6UsrPtr = Box<dyn CreateRv6Usr + Send + Sync>;
 
@@ -66,9 +63,9 @@ pub trait CreateRv6: Send + Sync {
                                create_xv6net_shadow: Arc<dyn CreateRv6NetShadow>,
                                create_xv6usr: Arc<dyn CreateRv6Usr + Send + Sync>,
                                bdev: Box<dyn BDev>,
-                               net: Box<dyn usr::net::Net>,
-                               nvme: Box<dyn usr::bdev::NvmeBDev>,
-                               usr_tpm: Box<dyn usr::tpm::UsrTpm>,
+                               net: Box<dyn crate::net::Net>,
+                               nvme: Box<dyn crate::bdev::NvmeBDev>,
+                               usr_tpm: Box<dyn crate::tpm::UsrTpm>,
                             ) -> (Box<dyn Domain>, Box<dyn Rv6>);
 }
 
@@ -106,5 +103,5 @@ pub trait CreateHashStore: Send + Sync {
 }
 
 pub trait CreateTpm: Send + Sync {
-    fn create_domain_tpm(&self) -> (Box<dyn Domain>, Box<dyn usr::tpm::UsrTpm>);
+    fn create_domain_tpm(&self) -> (Box<dyn Domain>, Box<dyn crate::tpm::UsrTpm>);
 }

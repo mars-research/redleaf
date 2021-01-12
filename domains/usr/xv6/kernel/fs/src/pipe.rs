@@ -2,7 +2,7 @@ use alloc::sync::Arc;
 use spin::Mutex;
 
 use libsyscalls::sync::CondVar;
-use usr_interface::vfs::{ErrorKind, Result};
+use interface::vfs::{ErrorKind, Result};
 
 use crate::opened_file::{FileType, OpenedFile};
 

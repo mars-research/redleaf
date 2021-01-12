@@ -7,13 +7,15 @@
 )]
 mod gen;
 
+use interface::proxy;
+
 extern crate alloc;
 extern crate malloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use console::println;
 use core::panic::PanicInfo;
-use create;
+use interface::domain_creation;
 use libsyscalls;
 use rref;
 use syscalls;
@@ -22,27 +24,27 @@ use syscalls;
 pub fn trusted_entry(
     s: Box<dyn syscalls::Syscall + Send + Sync>,
     heap: Box<dyn syscalls::Heap + Send + Sync>,
-    create_pci: Arc<dyn create::CreatePCI>,
-    create_ahci: Arc<dyn create::CreateAHCI>,
-    create_membdev: Arc<dyn create::CreateMemBDev>,
-    create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
-    create_ixgbe: Arc<dyn create::CreateIxgbe>,
-    create_nvme: Arc<dyn create::CreateNvme>,
-    create_net_shadow: Arc<dyn create::CreateNetShadow>,
-    create_nvme_shadow: Arc<dyn create::CreateNvmeShadow>,
-    create_benchnet: Arc<dyn create::CreateBenchnet>,
-    create_benchnvme: Arc<dyn create::CreateBenchnvme>,
-    create_xv6fs: Arc<dyn create::CreateRv6FS>,
-    create_xv6net: Arc<dyn create::CreateRv6Net>,
-    create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
-    create_xv6usr: Arc<dyn create::CreateRv6Usr + Send + Sync>,
-    create_xv6: Arc<dyn create::CreateRv6>,
-    create_dom_a: Arc<dyn create::CreateDomA>,
-    create_dom_b: Arc<dyn create::CreateDomB>,
-    create_dom_c: Arc<dyn create::CreateDomC>,
-    create_dom_d: Arc<dyn create::CreateDomD>,
-    create_shadow: Arc<dyn create::CreateShadow>,
-) -> Arc<dyn proxy::Proxy> {
+    create_pci: Arc<dyn interface::domain_creation::CreatePCI>,
+    create_ahci: Arc<dyn interface::domain_creation::CreateAHCI>,
+    create_membdev: Arc<dyn interface::domain_creation::CreateMemBDev>,
+    create_bdev_shadow: Arc<dyn interface::domain_creation::CreateBDevShadow>,
+    create_ixgbe: Arc<dyn interface::domain_creation::CreateIxgbe>,
+    create_nvme: Arc<dyn interface::domain_creation::CreateNvme>,
+    create_net_shadow: Arc<dyn interface::domain_creation::CreateNetShadow>,
+    create_nvme_shadow: Arc<dyn interface::domain_creation::CreateNvmeShadow>,
+    create_benchnet: Arc<dyn interface::domain_creation::CreateBenchnet>,
+    create_benchnvme: Arc<dyn interface::domain_creation::CreateBenchnvme>,
+    create_xv6fs: Arc<dyn interface::domain_creation::CreateRv6FS>,
+    create_xv6net: Arc<dyn interface::domain_creation::CreateRv6Net>,
+    create_xv6net_shadow: Arc<dyn interface::domain_creation::CreateRv6NetShadow>,
+    create_xv6usr: Arc<dyn interface::domain_creation::CreateRv6Usr + Send + Sync>,
+    create_xv6: Arc<dyn interface::domain_creation::CreateRv6>,
+    create_dom_a: Arc<dyn interface::domain_creation::CreateDomA>,
+    create_dom_b: Arc<dyn interface::domain_creation::CreateDomB>,
+    create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
+    create_dom_d: Arc<dyn interface::domain_creation::CreateDomD>,
+    create_shadow: Arc<dyn interface::domain_creation::CreateShadow>,
+) -> Arc<dyn interface::proxy::Proxy> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 

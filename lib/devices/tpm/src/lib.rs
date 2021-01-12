@@ -10,7 +10,7 @@ use core::{mem, ptr};
 use platform::MmioAddr;
 use libtime::sys_ns_loopsleep;
 use alloc::format;
-use usr::tpm::TpmRegs;
+use interface::tpm::TpmRegs;
 
 const TPM_BASE_ADDR: u32 = 0xFED4_0000;
 const TPM_REGION_SIZE: usize = 5 * 4096;

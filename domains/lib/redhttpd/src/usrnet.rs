@@ -20,7 +20,7 @@ use core::fmt::Write;
 use arrayvec::{ArrayString, ArrayVec};
 
 use rref::RRefVec;
-use usr::usrnet::UsrNet;
+use interface::usrnet::UsrNet;
 
 #[macro_use]
 use core::include_bytes;

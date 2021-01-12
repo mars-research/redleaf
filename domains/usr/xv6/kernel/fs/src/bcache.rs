@@ -12,7 +12,7 @@ use core::ops::{Deref, DerefMut};
 use spin::{Mutex, Once};
 
 use rref::RRef;
-use usr_interface::bdev::BDev;
+use interface::bdev::BDev;
 
 pub static BCACHE: Once<BufferCache> = Once::new();
 

@@ -15,12 +15,12 @@ use core::panic::PanicInfo;
 
 use rref::RRefVec;
 
-use create::CreateRv6Net;
+use interface::domain_creation::CreateRv6Net;
 use spin::Mutex;
-use usr::error::Result;
-use usr::net::Net;
-use usr::rpc::RpcResult;
-use usr::usrnet::UsrNet;
+use interface::error::Result;
+use interface::net::Net;
+use interface::rpc::RpcResult;
+use interface::usrnet::UsrNet;
 
 struct ShadowInternal {
     create: Arc<dyn CreateRv6Net>,

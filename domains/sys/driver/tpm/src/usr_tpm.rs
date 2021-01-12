@@ -1,22 +1,22 @@
 use alloc::vec::Vec;
-use usr::tpm::*;
+use interface::tpm::*;
 
 macro_rules! generate_tpm {
     ($($(#[$attr:meta])* fn $func:ident(&self $(,)? $($arg:ident : $ty:ty),* $(,)? ) $(-> $ret:ty)? );* $(;)?) => {
         pub struct UsrTpm {
-            tpm: ::alloc::boxed::Box<dyn ::usr::tpm::TpmDev>,
+            tpm: ::alloc::boxed::Box<dyn ::interface::tpm::TpmDev>,
         }
 
         impl UsrTpm {
-            pub fn new(tpm: ::alloc::boxed::Box<dyn ::usr::tpm::TpmDev>) -> Self {
+            pub fn new(tpm: ::alloc::boxed::Box<dyn ::interface::tpm::TpmDev>) -> Self {
                 Self {
                     tpm,
                 }
             }
         }
 
-        impl ::usr::tpm::UsrTpm for UsrTpm {
-            fn clone_usrtpm(&self) -> alloc::boxed::Box<dyn ::usr::tpm::UsrTpm> {
+        impl ::interface::tpm::UsrTpm for UsrTpm {
+            fn clone_usrtpm(&self) -> alloc::boxed::Box<dyn ::interface::tpm::UsrTpm> {
                 box Self::new(self.tpm.clone_tpmdev())
             }
 

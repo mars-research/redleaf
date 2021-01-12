@@ -16,8 +16,7 @@ test_sleeplock = []
 array-init = "0.1.1"
 rv6_sync = { package = "sync", path = "../../lib/sync", version = "0.1.0" }
 syscalls = { path = "../../../../../lib/core/interfaces/syscalls" }
-usr_interface = { package = "usr", path = "../../../../../lib/core/interfaces/usr", version = "0.1.0" }
-create = { path = "../../../../../lib/core/interfaces/create" }
+interface = { path = "../../../../../interface/generated" }
 libsyscalls = { path = "../../../../../lib/core/libsyscalls" }
 rref = { path = "../../../../../lib/core/rref" }
 console = { path = "../../../../../lib/core/console" }

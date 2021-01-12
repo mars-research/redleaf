@@ -11,7 +11,7 @@ use console::println;
 
 use core::panic::PanicInfo;
 
-use usr::net::Net;
+use interface::net::Net;
 
 #[no_mangle]
 pub fn trusted_entry(

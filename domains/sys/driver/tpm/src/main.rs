@@ -24,9 +24,9 @@ use syscalls::{Heap, Syscall};
 
 use console::println;
 use libsyscalls::syscalls::sys_backtrace;
-pub use usr::error::{ErrorKind, Result};
+pub use interface::error::{ErrorKind, Result};
 
-use usr::tpm::TpmRegs;
+use interface::tpm::TpmRegs;
 
 pub const ONE_MS_IN_NS: u64 = 1000 * 1000;
 
@@ -34,14 +34,14 @@ pub const ONE_MS_IN_NS: u64 = 1000 * 1000;
 pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
     heap: Box<dyn Heap + Send + Sync>,
-) -> Box<dyn usr::tpm::UsrTpm> {
+) -> Box<dyn interface::tpm::UsrTpm> {
     libsyscalls::syscalls::init(s);
 
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!("tpm_init: =>  starting tpm driver domain");
 
-    let tpm: Box<dyn usr::tpm::TpmDev> = box tpm_dev::Tpm::new();
+    let tpm: Box<dyn interface::tpm::TpmDev> = box tpm_dev::Tpm::new();
 
     let rev_id = tpm.read_u8(0, TpmRegs::TPM_RID);
     println!("RID {:x?}", rev_id);

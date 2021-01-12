@@ -12,4 +12,4 @@ libtime = { path = "../../core/libtime" }
 console = { path = "../../core/console" }
 malloc = { path = "../../core/malloc" }
 platform = { path = "../../core/interfaces/platform" }
-usr = { path = "../../core/interfaces/usr" }
+interface = { path = "../../../interface/generated" }

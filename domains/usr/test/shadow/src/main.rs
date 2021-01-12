@@ -14,19 +14,19 @@ use core::panic::PanicInfo;
 use rref::RRef;
 
 use spin::Mutex;
-use usr::rpc::RpcResult;
+use interface::rpc::RpcResult;
 
 struct ShadowDomain {
     dom: Option<Box<dyn syscalls::Domain>>,
-    dom_c: Box<dyn usr::dom_c::DomC>,
-    create_dom_c: Arc<dyn create::CreateDomC>,
+    dom_c: Box<dyn interface::dom_c::DomC>,
+    create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
 }
 
 impl ShadowDomain {
     fn new(
         dom: Box<dyn syscalls::Domain>,
-        create_dom_c: Arc<dyn create::CreateDomC>,
-        dom_c: Box<dyn usr::dom_c::DomC>,
+        create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
+        dom_c: Box<dyn interface::dom_c::DomC>,
     ) -> Self {
         Self {
             dom: Some(dom),
@@ -43,8 +43,8 @@ struct Shadow {
 impl Shadow {
     fn new(
         dom: Box<dyn syscalls::Domain>,
-        create_dom_c: Arc<dyn create::CreateDomC>,
-        dom_c: Box<dyn usr::dom_c::DomC>,
+        create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
+        dom_c: Box<dyn interface::dom_c::DomC>,
     ) -> Self {
         Self {
             dom: Mutex::new(ShadowDomain::new(dom, create_dom_c, dom_c)),
@@ -52,7 +52,7 @@ impl Shadow {
     }
 }
 
-impl usr::dom_c::DomC for Shadow {
+impl interface::dom_c::DomC for Shadow {
     fn no_arg(&self) -> RpcResult<()> {
         self.dom.lock().dom_c.no_arg()
     }
@@ -85,8 +85,8 @@ impl usr::dom_c::DomC for Shadow {
 pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
     heap: Box<dyn Heap + Send + Sync>,
-    create_dom_c: Arc<dyn create::CreateDomC>,
-) -> Box<dyn usr::dom_c::DomC> {
+    create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
+) -> Box<dyn interface::dom_c::DomC> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 

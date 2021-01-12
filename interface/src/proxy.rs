@@ -1,10 +1,8 @@
-#![no_std]
-extern crate alloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use syscalls::{Domain};
-use usr::{bdev};
-use create::{CreatePCI,
+use crate::{bdev};
+use crate::domain_creation::{CreatePCI,
              CreateAHCI,
              CreateMemBDev, 
              CreateBDevShadow,
@@ -35,13 +33,13 @@ pub trait CreateProxy {
         create_bdev_shadow: Arc<dyn CreateBDevShadow>,
         create_ixgbe: Arc<dyn CreateIxgbe>,
         create_nvme: Arc<dyn CreateNvme>,
-        create_net_shadow: Arc<dyn create::CreateNetShadow>,
-        create_nvme_shadow: Arc<dyn create::CreateNvmeShadow>,
+        create_net_shadow: Arc<dyn crate::domain_creation::CreateNetShadow>,
+        create_nvme_shadow: Arc<dyn crate::domain_creation::CreateNvmeShadow>,
         create_benchnet: Arc<dyn CreateBenchnet>,
-        create_benchnvme: Arc<dyn create::CreateBenchnvme>,
+        create_benchnvme: Arc<dyn crate::domain_creation::CreateBenchnvme>,
         create_xv6fs: Arc<dyn CreateRv6FS>,
-        create_xv6net: Arc<dyn create::CreateRv6Net>,
-        create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
+        create_xv6net: Arc<dyn crate::domain_creation::CreateRv6Net>,
+        create_xv6net_shadow: Arc<dyn crate::domain_creation::CreateRv6NetShadow>,
         create_xv6usr: Arc<dyn CreateRv6Usr>,
         create_xv6: Arc<dyn CreateRv6>,
         create_dom_a: Arc<dyn CreateDomA>,

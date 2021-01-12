@@ -43,10 +43,7 @@ unwind = { path = "../lib/core/unwind" }
 
 # Interfaces
 syscalls = { path = "../lib/core/interfaces/syscalls" }
-create = { path = "../lib/core/interfaces/create" }
-usr = { path = "../lib/core/interfaces/usr" }
-proxy = { path = "../lib/core/interfaces/proxy" }
-# ixgbe = { path = "../lib/core/interfaces/dev/ixgbe" }
+interface = { path = "../interface/generated" }
 ahci = { path = "../lib/core/interfaces/dev/ahci" }
 platform = { path = "../lib/core/interfaces/platform" }
 # pci_driver = { path = "../lib/core/interfaces/dev/pci/pci_driver" }

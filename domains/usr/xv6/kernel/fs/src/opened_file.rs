@@ -2,7 +2,7 @@ use alloc::sync::Arc;
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use tls::ThreadLocal;
-use usr_interface::vfs::{ErrorKind, Result};
+use interface::vfs::{ErrorKind, Result};
 
 use crate::console_device::DEVICES;
 use crate::icache::{ICache, INode};

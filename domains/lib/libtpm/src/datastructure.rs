@@ -139,7 +139,7 @@ impl TpmIDhPcr {
 }
 
 // Table 3:79 - TPMT_HA
-pub use usr::tpm::TpmTHa;
+pub use interface::tpm::TpmTHa;
 
 // Table 3:110 - TPM2B_DIGEST_VALUES
 pub struct TpmLDigestValues {

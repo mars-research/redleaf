@@ -11,7 +11,7 @@ use console::println;
 
 use core::panic::PanicInfo;
 
-use usr::bdev::NvmeBDev;
+use interface::bdev::NvmeBDev;
 
 #[no_mangle]
 pub fn trusted_entry(

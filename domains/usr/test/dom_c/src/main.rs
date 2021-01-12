@@ -13,7 +13,7 @@ use core::panic::PanicInfo;
 
 use rref::RRef;
 
-use usr::rpc::RpcResult;
+use interface::rpc::RpcResult;
 
 struct DomC {}
 
@@ -23,7 +23,7 @@ impl DomC {
     }
 }
 
-impl usr::dom_c::DomC for DomC {
+impl interface::dom_c::DomC for DomC {
     fn no_arg(&self) -> RpcResult<()> {
         Ok(())
     }
@@ -47,7 +47,7 @@ impl usr::dom_c::DomC for DomC {
 pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
     heap: Box<dyn Heap + Send + Sync>,
-) -> Box<dyn usr::dom_c::DomC> {
+) -> Box<dyn interface::dom_c::DomC> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 

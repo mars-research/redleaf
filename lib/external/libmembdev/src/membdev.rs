@@ -1,8 +1,8 @@
 use spin::Mutex;
 
 use rref::RRef;
-use usr::bdev::{BDev, BSIZE};
-use usr::rpc::RpcResult;
+use interface::bdev::{BDev, BSIZE};
+use interface::rpc::RpcResult;
 
 pub struct MemBDev {
     memdisk: Mutex<&'static mut [u8]>,

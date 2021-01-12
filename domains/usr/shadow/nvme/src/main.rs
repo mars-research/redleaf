@@ -16,12 +16,12 @@ use core::panic::PanicInfo;
 
 use rref::RRefDeque;
 
-use create::CreateNvme;
+use interface::domain_creation::CreateNvme;
 use spin::Mutex;
-use usr::bdev::{BlkReq, NvmeBDev};
-use usr::error::Result;
-use usr::pci::PCI;
-use usr::rpc::RpcResult;
+use interface::bdev::{BlkReq, NvmeBDev};
+use interface::error::Result;
+use interface::pci::PCI;
+use interface::rpc::RpcResult;
 
 struct ShadowInternal {
     create: Arc<dyn CreateNvme>,

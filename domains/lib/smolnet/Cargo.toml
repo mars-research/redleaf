@@ -13,7 +13,7 @@ spin = { path = "../../../lib/core/spin-rs" }
 libsyscalls = { path = "../../../lib/core/libsyscalls" }
 
 # Interfaces
-usr = { path = "../../../lib/core/interfaces/usr" }
+interface = { path = "../../../interface/generated" }
 
 [dependencies.smoltcp]
 path = "../../../lib/external/smoltcp"

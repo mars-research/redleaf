@@ -6,7 +6,7 @@
 use alloc::sync::Arc;
 use core::sync::atomic::AtomicUsize;
 
-pub use usr_interface::vfs::{DirectoryEntry, ErrorKind, FileMode, FileStat, Result, NFILE};
+pub use interface::vfs::{DirectoryEntry, ErrorKind, FileMode, FileStat, Result, NFILE};
 
 use crate::cross_thread_temp_store::CrossThreadTempStorage;
 use crate::icache::{ICache, INode, INodeFileType, ICACHE};

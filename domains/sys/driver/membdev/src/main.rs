@@ -11,7 +11,7 @@ use alloc::boxed::Box;
 use core::panic::PanicInfo;
 
 use syscalls::{Heap, Syscall};
-use usr::bdev::BDev;
+use interface::bdev::BDev;
 
 extern crate alloc;
 extern crate malloc;

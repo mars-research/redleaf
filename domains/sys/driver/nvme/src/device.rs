@@ -12,7 +12,7 @@ use libtime::sys_ns_loopsleep;
 use crate::BlockReq;
 
 use rref::RRefDeque;
-use usr::bdev::BlkReq;
+use interface::bdev::BlkReq;
 
 use platform::PciBarAddr;
 

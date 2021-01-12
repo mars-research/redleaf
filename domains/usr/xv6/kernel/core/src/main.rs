@@ -15,24 +15,26 @@ use core::panic::PanicInfo;
 
 use console::println;
 
+use interface::domain_creation;
+
 use syscalls::{Heap, Syscall};
-use usr_interface::bdev::BDev;
-use usr_interface::rv6::Rv6;
-use usr_interface::vfs::VFS;
+use interface::bdev::BDev;
+use interface::rv6::Rv6;
+use interface::vfs::VFS;
 
 #[no_mangle]
 pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
     heap: Box<dyn Heap + Send + Sync>,
     ints: Box<dyn syscalls::Interrupt + Send + Sync>,
-    create_xv6fs: Arc<dyn create::CreateRv6FS>,
-    create_xv6net: Arc<dyn create::CreateRv6Net>,
-    _create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
-    create_xv6usr: Arc<dyn create::CreateRv6Usr + Send + Sync>,
+    create_xv6fs: Arc<dyn interface::domain_creation::CreateRv6FS>,
+    create_xv6net: Arc<dyn interface::domain_creation::CreateRv6Net>,
+    _create_xv6net_shadow: Arc<dyn interface::domain_creation::CreateRv6NetShadow>,
+    create_xv6usr: Arc<dyn interface::domain_creation::CreateRv6Usr + Send + Sync>,
     bdev: Box<dyn BDev>,
-    net: Box<dyn usr_interface::net::Net>,
-    nvme: Box<dyn usr_interface::bdev::NvmeBDev>,
-    usr_tpm: Box<dyn usr_interface::tpm::UsrTpm>,
+    net: Box<dyn interface::net::Net>,
+    nvme: Box<dyn interface::bdev::NvmeBDev>,
+    usr_tpm: Box<dyn interface::tpm::UsrTpm>,
 ) -> Box<dyn Rv6> {
     libsyscalls::syscalls::init(s);
     libsyscalls::syscalls::init_interrupts(ints);

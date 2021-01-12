@@ -166,7 +166,7 @@ qemu-nox-gdb:
 ################
 
 .PHONY: kernel
-kernel:
+kernel: idl_generation
 	make -C kernel
 
 .PHONY: idl_generation

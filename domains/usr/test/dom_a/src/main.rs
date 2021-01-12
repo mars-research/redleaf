@@ -22,7 +22,7 @@ impl DomA {
     }
 }
 
-impl usr::dom_a::DomA for DomA {
+impl interface::dom_a::DomA for DomA {
     fn ping_pong(&self, mut buffer: RRef<[u8; 1024]>) -> RRef<[u8; 1024]> {
         println!("[dom_a]: ping pong");
         for i in 0..buffer.len() {
@@ -73,7 +73,7 @@ fn bench_tls() {
 pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
     heap: Box<dyn Heap + Send + Sync>,
-) -> Box<dyn usr::dom_a::DomA> {
+) -> Box<dyn interface::dom_a::DomA> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 

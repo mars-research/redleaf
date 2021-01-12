@@ -11,7 +11,7 @@ use console::println;
 use core::panic::PanicInfo;
 use libtime::get_rdtsc as rdtsc;
 use rref::{RRef, RRefDeque};
-use usr::dom_a::DomA;
+use interface::dom_a::DomA;
 
 fn test_submit_and_poll(dom_a: &mut Box<dyn DomA>) {
     let mut packets = RRefDeque::<[u8; 100], 32>::default();

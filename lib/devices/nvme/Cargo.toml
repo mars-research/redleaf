@@ -14,4 +14,4 @@ libdma = { path = "../libdma" }
 platform = { path = "../../core/interfaces/platform" }
 malloc = { path = "../../core/malloc" }
 rref = { path = "../../core/rref" }
-usr = { path = "../../core/interfaces/usr" }
+interface = { path = "../../../interface/generated" }

@@ -4,7 +4,7 @@
 //
 use alloc::vec::Vec;
 use byteorder::{BigEndian, ByteOrder};
-pub use usr::tpm::{TpmAlgorithms, TpmBankInfo, TpmDevInfo, TpmSE};
+pub use interface::tpm::{TpmAlgorithms, TpmBankInfo, TpmDevInfo, TpmSE};
 
 pub const TPM_HEADER_SIZE: usize = 10;
 pub const TPM_PLATRFORM_PCR: usize = 24;

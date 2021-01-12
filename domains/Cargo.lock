@@ -54,18 +54,16 @@ name = "bdev_shadow"
 version = "0.1.0"
 dependencies = [
  "console",
- "create",
+ "interface",
  "lazy_static",
  "libmembdev",
  "libsyscalls",
  "libtime",
  "malloc",
  "num-traits",
- "proxy",
  "rref",
  "spin 0.5.3",
  "syscalls",
- "usr",
 ]
 
 [[package]]
@@ -73,20 +71,18 @@ name = "benchhash"
 version = "0.1.0"
 dependencies = [
  "console",
- "create",
  "fnv",
  "hashbrown 0.7.2",
+ "interface",
  "lazy_static",
  "libsyscalls",
  "libtime",
  "malloc",
  "num-traits",
- "proxy",
  "rref",
  "sashstore-redleaf",
  "syscalls",
  "twox-hash",
- "usr",
 ]
 
 [[package]]
@@ -94,17 +90,15 @@ name = "benchnet_inside"
 version = "0.1.0"
 dependencies = [
  "console",
- "create",
+ "interface",
  "lazy_static",
  "libbenchnet",
  "libsyscalls",
  "libtime",
  "malloc",
  "num-traits",
- "proxy",
  "rref",
  "syscalls",
- "usr",
 ]
 
 [[package]]
@@ -112,17 +106,15 @@ name = "benchnvme"
 version = "0.1.0"
 dependencies = [
  "console",
- "create",
+ "interface",
  "lazy_static",
  "libbenchnvme",
  "libsyscalls",
  "libtime",
  "malloc",
  "num-traits",
- "proxy",
  "rref",
  "syscalls",
- "usr",
 ]
 
 [[package]]
@@ -130,6 +122,7 @@ name = "bin"
 version = "0.1.0"
 dependencies = [
  "arrayvec",
+ "interface",
  "lib",
  "libbenchnet",
  "libbenchnvme",
@@ -140,7 +133,6 @@ dependencies = [
  "redhttpd",
  "rref",
  "syscalls",
- "usr",
  "utils",
 ]
 
@@ -231,14 +223,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8aebca1129a03dc6dc2b127edd729435bbc4a37e1d5f4d7513165089ceb02634"
 
 [[package]]
-name = "create"
-version = "0.1.0"
-dependencies = [
- "syscalls",
- "usr",
-]
-
-[[package]]
 name = "digest"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -252,18 +236,16 @@ name = "dom_a"
 version = "0.1.0"
 dependencies = [
  "console",
- "create",
+ "interface",
  "lazy_static",
  "libsyscalls",
  "libtime",
  "malloc",
  "num-traits",
- "proxy",
  "rref",
  "spin 0.5.3",
  "syscalls",
  "tls",
- "usr",
 ]
 
 [[package]]
@@ -271,17 +253,15 @@ name = "dom_b"
 version = "0.1.0"
 dependencies = [
  "console",
- "create",
+ "interface",
  "lazy_static",
  "libsyscalls",
  "libtime",
  "malloc",
  "num-traits",
- "proxy",
  "rref",
  "spin 0.5.3",
  "syscalls",
- "usr",
 ]
 
 [[package]]
@@ -289,17 +269,15 @@ name = "dom_c"
 version = "0.1.0"
 dependencies = [
  "console",
- "create",
+ "interface",
  "lazy_static",
  "libsyscalls",
  "libtime",
  "malloc",
  "num-traits",
- "proxy",
  "rref",
  "spin 0.5.3",
  "syscalls",
- "usr",
 ]
 
 [[package]]
@@ -307,17 +285,15 @@ name = "dom_d"
 version = "0.1.0"
 dependencies = [
  "console",
- "create",
+ "interface",
  "lazy_static",
  "libsyscalls",
  "libtime",
  "malloc",
  "num-traits",
- "proxy",
  "rref",
  "spin 0.5.3",
  "syscalls",
- "usr",
 ]
 
 [[package]]
@@ -326,14 +302,12 @@ version = "0.1.0"
 dependencies = [
  "codegen-lib",
  "console",
- "create",
  "interface",
  "lazy_static",
  "libsyscalls",
  "libtime",
  "malloc",
  "num-traits",
- "proxy",
  "rref",
  "spin 0.5.3",
  "syscalls",
@@ -410,6 +384,7 @@ dependencies = [
  "bitflags",
  "byteorder",
  "console",
+ "interface",
  "ixgbe_device",
  "lazy_static",
  "libbenchnet",
@@ -427,7 +402,6 @@ dependencies = [
  "smoltcp",
  "spin 0.5.3",
  "syscalls",
- "usr",
 ]
 
 [[package]]
@@ -458,9 +432,9 @@ name = "lib"
 version = "0.1.0"
 dependencies = [
  "array-init",
+ "interface",
  "rref",
  "spin 0.5.2",
- "usr",
 ]
 
 [[package]]
@@ -472,12 +446,12 @@ dependencies = [
  "console",
  "fnv",
  "hashbrown 0.7.2",
+ "interface",
  "libsyscalls",
  "libtime",
  "rref",
  "sashstore-redleaf",
  "twox-hash",
- "usr",
 ]
 
 [[package]]
@@ -487,10 +461,10 @@ dependencies = [
  "b2histogram",
  "byteorder",
  "console",
+ "interface",
  "libsyscalls",
  "libtime",
  "rref",
- "usr",
 ]
 
 [[package]]
@@ -498,11 +472,11 @@ name = "libbenchtpm"
 version = "0.1.0"
 dependencies = [
  "console",
+ "interface",
  "libsyscalls",
  "libtime",
  "libtpm",
  "rref",
- "usr",
 ]
 
 [[package]]
@@ -524,10 +498,10 @@ version = "0.1.0"
 dependencies = [
  "bin",
  "console",
+ "interface",
  "libtime",
  "rref",
  "spin 0.5.3",
- "usr",
 ]
 
 [[package]]
@@ -555,20 +529,20 @@ dependencies = [
  "bitfield",
  "byteorder",
  "console",
+ "interface",
  "libsyscalls",
  "libtime",
  "malloc",
  "sha2",
- "usr",
 ]
 
 [[package]]
 name = "libusr"
 version = "0.1.0"
 dependencies = [
+ "interface",
  "rref",
  "spin 0.5.3",
- "usr",
 ]
 
 [[package]]
@@ -601,6 +575,7 @@ version = "0.1.0"
 dependencies = [
  "bitflags",
  "console",
+ "interface",
  "lazy_static",
  "libmembdev",
  "libsyscalls",
@@ -610,7 +585,6 @@ dependencies = [
  "rref",
  "spin 0.5.3",
  "syscalls",
- "usr",
 ]
 
 [[package]]
@@ -618,17 +592,15 @@ name = "net_shadow"
 version = "0.1.0"
 dependencies = [
  "console",
- "create",
+ "interface",
  "lazy_static",
  "libsyscalls",
  "libtime",
  "malloc",
  "num-traits",
- "proxy",
  "rref",
  "spin 0.5.3",
  "syscalls",
- "usr",
 ]
 
 [[package]]
@@ -659,6 +631,7 @@ dependencies = [
  "bitflags",
  "byteorder",
  "console",
+ "interface",
  "lazy_static",
  "libbenchnvme",
  "libdma",
@@ -674,7 +647,6 @@ dependencies = [
  "serde_derive",
  "spin 0.5.2",
  "syscalls",
- "usr",
 ]
 
 [[package]]
@@ -682,13 +654,13 @@ name = "nvme_device"
 version = "0.1.0"
 dependencies = [
  "console",
+ "interface",
  "libdma",
  "libsyscalls",
  "libtime",
  "malloc",
  "platform",
  "rref",
- "usr",
 ]
 
 [[package]]
@@ -696,17 +668,15 @@ name = "nvme_shadow"
 version = "0.1.0"
 dependencies = [
  "console",
- "create",
+ "interface",
  "lazy_static",
  "libsyscalls",
  "libtime",
  "malloc",
  "num-traits",
- "proxy",
  "rref",
  "spin 0.5.3",
  "syscalls",
- "usr",
 ]
 
 [[package]]
@@ -732,6 +702,7 @@ name = "pci"
 version = "0.1.0"
 dependencies = [
  "console",
+ "interface",
  "lazy_static",
  "libsyscalls",
  "malloc",
@@ -741,7 +712,6 @@ dependencies = [
  "rref",
  "spin 0.5.3",
  "syscalls",
- "usr",
  "x86",
 ]
 
@@ -792,15 +762,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "proxy"
-version = "0.1.0"
-dependencies = [
- "create",
- "syscalls",
- "usr",
-]
-
-[[package]]
 name = "quote"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -826,10 +787,10 @@ version = "0.1.0"
 dependencies = [
  "arrayvec",
  "console",
+ "interface",
  "libsyscalls",
  "rref",
  "smoltcp",
- "usr",
 ]
 
 [[package]]
@@ -838,18 +799,16 @@ version = "0.1.0"
 dependencies = [
  "array-init",
  "console",
- "create",
+ "interface",
  "lazy_static",
  "libsyscalls",
  "libtime",
  "malloc",
  "num-traits",
  "pc-keyboard",
- "proxy",
  "rref",
  "spin 0.5.3",
  "syscalls",
- "usr",
 ]
 
 [[package]]
@@ -927,17 +886,15 @@ name = "shadow"
 version = "0.1.0"
 dependencies = [
  "console",
- "create",
+ "interface",
  "lazy_static",
  "libsyscalls",
  "libtime",
  "malloc",
  "num-traits",
- "proxy",
  "rref",
  "spin 0.5.3",
  "syscalls",
- "usr",
 ]
 
 [[package]]
@@ -953,11 +910,11 @@ version = "0.1.0"
 dependencies = [
  "arrayvec",
  "console",
+ "interface",
  "libsyscalls",
  "rref",
  "smoltcp",
  "spin 0.5.3",
- "usr",
 ]
 
 [[package]]
@@ -1014,15 +971,13 @@ name = "testtpm"
 version = "0.1.0"
 dependencies = [
  "console",
- "create",
+ "interface",
  "libsyscalls",
  "libtime",
  "libtpm",
  "malloc",
- "proxy",
  "rref",
  "syscalls",
- "usr",
 ]
 
 [[package]]
@@ -1044,6 +999,7 @@ dependencies = [
  "bitflags",
  "byteorder",
  "console",
+ "interface",
  "libbenchtpm",
  "libsyscalls",
  "libtime",
@@ -1056,7 +1012,6 @@ dependencies = [
  "spin 0.5.3",
  "syscalls",
  "tpm_device",
- "usr",
 ]
 
 [[package]]
@@ -1064,11 +1019,11 @@ name = "tpm_device"
 version = "0.1.0"
 dependencies = [
  "console",
+ "interface",
  "libsyscalls",
  "libtime",
  "malloc",
  "platform",
- "usr",
 ]
 
 [[package]]
@@ -1094,19 +1049,6 @@ name = "unwind"
 version = "0.1.0"
 dependencies = [
  "libsyscalls",
- "syscalls",
-]
-
-[[package]]
-name = "usr"
-version = "0.1.0"
-dependencies = [
- "bitflags",
- "byteorder",
- "num-derive",
- "num-traits",
- "pci_driver",
- "rref",
  "syscalls",
 ]
 
@@ -1148,6 +1090,7 @@ dependencies = [
  "byteorder",
  "console",
  "hashbrown 0.7.2",
+ "interface",
  "lazy_static",
  "libsyscalls",
  "libtime",
@@ -1160,7 +1103,6 @@ dependencies = [
  "sync",
  "syscalls",
  "tls",
- "usr",
  "utils",
 ]
 
@@ -1170,7 +1112,7 @@ version = "0.1.0"
 dependencies = [
  "array-init",
  "console",
- "create",
+ "interface",
  "lazy_static",
  "libsyscalls",
  "libtime",
@@ -1180,7 +1122,6 @@ dependencies = [
  "spin 0.5.3",
  "sync",
  "syscalls",
- "usr",
 ]
 
 [[package]]
@@ -1191,6 +1132,7 @@ dependencies = [
  "arrayvec",
  "byteorder",
  "console",
+ "interface",
  "lazy_static",
  "libsyscalls",
  "libtime",
@@ -1205,7 +1147,6 @@ dependencies = [
  "sync",
  "syscalls",
  "tls",
- "usr",
  "utils",
 ]
 
@@ -1214,15 +1155,13 @@ name = "xv6net_shadow"
 version = "0.1.0"
 dependencies = [
  "console",
- "create",
+ "interface",
  "lazy_static",
  "libsyscalls",
  "libtime",
  "malloc",
  "num-traits",
- "proxy",
  "rref",
  "spin 0.5.3",
  "syscalls",
- "usr",
 ]

@@ -7,15 +7,15 @@ use alloc::vec::Vec;
 use spin::Mutex;
 
 use console::println;
-use create::CreateRv6Usr;
+use interface::domain_creation::CreateRv6Usr;
 use rref::{RRefDeque, RRefVec};
-use usr_interface::bdev::{BlkReq, NvmeBDev};
-use usr_interface::net::{Net, NetworkStats};
-use usr_interface::rpc::RpcResult;
-use usr_interface::rv6::{Rv6, Thread};
-use usr_interface::tpm::UsrTpm;
-use usr_interface::usrnet::UsrNet;
-use usr_interface::vfs::{FileMode, FileStat, Result, UsrVFS, NFILE, VFS};
+use interface::bdev::{BlkReq, NvmeBDev};
+use interface::net::{Net, NetworkStats};
+use interface::rpc::RpcResult;
+use interface::rv6::{Rv6, Thread};
+use interface::tpm::UsrTpm;
+use interface::usrnet::UsrNet;
+use interface::vfs::{FileMode, FileStat, Result, UsrVFS, NFILE, VFS};
 
 pub struct Rv6Syscalls {
     create_xv6usr: Arc<dyn CreateRv6Usr + Send + Sync>,

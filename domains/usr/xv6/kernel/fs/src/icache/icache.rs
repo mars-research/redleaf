@@ -4,7 +4,7 @@ use core::mem;
 use core::sync::atomic::Ordering;
 use spin::Mutex;
 
-use usr_interface::vfs::{ErrorKind, Result};
+use interface::vfs::{ErrorKind, Result};
 
 use super::inode::{DINode, INode, INodeFileType};
 use crate::bcache::BCACHE;

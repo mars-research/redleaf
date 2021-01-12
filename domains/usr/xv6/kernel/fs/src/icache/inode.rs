@@ -6,8 +6,8 @@ use core::sync::atomic::{AtomicBool, Ordering};
 use num_traits::FromPrimitive;
 use spin::{Mutex, MutexGuard};
 
-pub use usr_interface::vfs::{DirectoryEntry, DirectoryEntryRef, INodeFileType};
-use usr_interface::vfs::{ErrorKind, Result};
+pub use interface::vfs::{DirectoryEntry, DirectoryEntryRef, INodeFileType};
+use interface::vfs::{ErrorKind, Result};
 
 use crate::bcache::BCACHE;
 use crate::block;

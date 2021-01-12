@@ -21,20 +21,20 @@ use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 use core::panic::PanicInfo;
 use syscalls::{Heap, Syscall};
-use usr::pci::PCI;
+use interface::pci::PCI;
 
 use console::{print, println};
 use core::cell::RefCell;
 use pci_driver::DeviceBarRegions;
-use usr::error::{ErrorKind, Result};
-use usr::rpc::RpcResult;
+use interface::error::{ErrorKind, Result};
+use interface::rpc::RpcResult;
 
 use crate::device::NvmeDev;
 use libtime::get_rdtsc as rdtsc;
 use libtime::sys_ns_loopsleep;
 pub use nvme_device::BlockReq;
 use rref::RRefDeque;
-use usr::bdev::BlkReq;
+use interface::bdev::BlkReq;
 
 #[macro_use]
 use b2histogram::Base2Histogram;
@@ -63,7 +63,7 @@ impl Nvme {
     }
 }
 
-impl usr::bdev::NvmeBDev for Nvme {
+impl interface::bdev::NvmeBDev for Nvme {
     fn submit_and_poll_rref(
         &self,
         submit: RRefDeque<BlkReq, 128>,
@@ -580,8 +580,8 @@ fn run_blocktest(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
 pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
     heap: Box<dyn Heap + Send + Sync>,
-    pci: Box<dyn usr::pci::PCI>,
-) -> Box<dyn usr::bdev::NvmeBDev> {
+    pci: Box<dyn interface::pci::PCI>,
+) -> Box<dyn interface::bdev::NvmeBDev> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 

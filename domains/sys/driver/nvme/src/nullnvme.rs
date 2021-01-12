@@ -1,7 +1,7 @@
 use rref::RRefDeque;
-use usr::bdev::{BlkReq, NvmeBDev};
-use usr::error::Result;
-use usr::rpc::RpcResult;
+use interface::bdev::{BlkReq, NvmeBDev};
+use interface::error::Result;
+use interface::rpc::RpcResult;
 
 pub struct NullNvme {}
 

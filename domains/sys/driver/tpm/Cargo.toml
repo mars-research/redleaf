@@ -14,7 +14,7 @@ rref = { path = "../../../../lib/core/rref" }
 spin = { path = "../../../../lib/core/spin-rs" }
 protocol = { path = "../../../../lib/core/interfaces/protocol" }
 platform = { path = "../../../../lib/core/interfaces/platform" }
-usr = { path = "../../../../lib/core/interfaces/usr" }
+interface = { path = "../../../../interface/generated" }
 b2histogram = "1.0"
 byteorder = { version = "1.3.4", default-features = false }
 tpm_device = { path = "../../../../lib/devices/tpm" }

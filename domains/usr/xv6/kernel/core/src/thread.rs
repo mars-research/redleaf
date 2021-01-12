@@ -7,9 +7,9 @@ use spin::Mutex;
 
 use libsyscalls::sync::CondVar;
 use libsyscalls::syscalls::sys_create_thread;
-use usr_interface::rpc::RpcResult;
-use usr_interface::rv6::Thread;
-use usr_interface::vfs::VFS;
+use interface::rpc::RpcResult;
+use interface::rv6::Thread;
+use interface::vfs::VFS;
 
 lazy_static! {
     static ref thread_queue: Mutex<VecDeque<ThreadContext>> = Default::default();

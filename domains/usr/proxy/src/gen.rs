@@ -2,11 +2,11 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use console::{print, println};
 use core::mem::transmute;
-use create;
+use interface::domain_creation;
 use libsyscalls::syscalls::{
     sys_discard_cont, sys_get_current_domain_id, sys_update_current_domain_id,
 };
-use proxy;
+use interface::proxy;
 use rref::{traits::CustomCleanup, RRef, RRefDeque, RRefVec};
 use syscalls::{Domain, Heap, Interrupt};
 use unwind::trampoline;
@@ -30,26 +30,26 @@ use alloc::{collections::VecDeque, vec::Vec};
 
 #[derive(Clone)]
 pub struct Proxy {
-    create_pci: Arc<dyn create::CreatePCI>,
-    create_ahci: Arc<dyn create::CreateAHCI>,
-    create_membdev: Arc<dyn create::CreateMemBDev>,
-    create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
-    create_ixgbe: Arc<dyn create::CreateIxgbe>,
-    create_nvme: Arc<dyn create::CreateNvme>,
-    create_net_shadow: Arc<dyn create::CreateNetShadow>,
-    create_nvme_shadow: Arc<dyn create::CreateNvmeShadow>,
-    create_benchnet: Arc<dyn create::CreateBenchnet>,
-    create_benchnvme: Arc<dyn create::CreateBenchnvme>,
-    create_xv6fs: Arc<dyn create::CreateRv6FS>,
-    create_xv6net: Arc<dyn create::CreateRv6Net>,
-    create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
-    create_xv6usr: Arc<dyn create::CreateRv6Usr + Send + Sync>,
-    create_xv6: Arc<dyn create::CreateRv6>,
-    create_dom_a: Arc<dyn create::CreateDomA>,
-    create_dom_b: Arc<dyn create::CreateDomB>,
-    create_dom_c: Arc<dyn create::CreateDomC>,
-    create_dom_d: Arc<dyn create::CreateDomD>,
-    create_shadow: Arc<dyn create::CreateShadow>,
+    create_pci: Arc<dyn interface::domain_creation::CreatePCI>,
+    create_ahci: Arc<dyn interface::domain_creation::CreateAHCI>,
+    create_membdev: Arc<dyn interface::domain_creation::CreateMemBDev>,
+    create_bdev_shadow: Arc<dyn interface::domain_creation::CreateBDevShadow>,
+    create_ixgbe: Arc<dyn interface::domain_creation::CreateIxgbe>,
+    create_nvme: Arc<dyn interface::domain_creation::CreateNvme>,
+    create_net_shadow: Arc<dyn interface::domain_creation::CreateNetShadow>,
+    create_nvme_shadow: Arc<dyn interface::domain_creation::CreateNvmeShadow>,
+    create_benchnet: Arc<dyn interface::domain_creation::CreateBenchnet>,
+    create_benchnvme: Arc<dyn interface::domain_creation::CreateBenchnvme>,
+    create_xv6fs: Arc<dyn interface::domain_creation::CreateRv6FS>,
+    create_xv6net: Arc<dyn interface::domain_creation::CreateRv6Net>,
+    create_xv6net_shadow: Arc<dyn interface::domain_creation::CreateRv6NetShadow>,
+    create_xv6usr: Arc<dyn interface::domain_creation::CreateRv6Usr + Send + Sync>,
+    create_xv6: Arc<dyn interface::domain_creation::CreateRv6>,
+    create_dom_a: Arc<dyn interface::domain_creation::CreateDomA>,
+    create_dom_b: Arc<dyn interface::domain_creation::CreateDomB>,
+    create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
+    create_dom_d: Arc<dyn interface::domain_creation::CreateDomD>,
+    create_shadow: Arc<dyn interface::domain_creation::CreateShadow>,
 }
 
 unsafe impl Send for Proxy {}
@@ -57,26 +57,26 @@ unsafe impl Sync for Proxy {}
 
 impl Proxy {
     pub fn new(
-        create_pci: Arc<dyn create::CreatePCI>,
-        create_ahci: Arc<dyn create::CreateAHCI>,
-        create_membdev: Arc<dyn create::CreateMemBDev>,
-        create_bdev_shadow: Arc<dyn create::CreateBDevShadow>,
-        create_ixgbe: Arc<dyn create::CreateIxgbe>,
-        create_nvme: Arc<dyn create::CreateNvme>,
-        create_net_shadow: Arc<dyn create::CreateNetShadow>,
-        create_nvme_shadow: Arc<dyn create::CreateNvmeShadow>,
-        create_benchnet: Arc<dyn create::CreateBenchnet>,
-        create_benchnvme: Arc<dyn create::CreateBenchnvme>,
-        create_xv6fs: Arc<dyn create::CreateRv6FS>,
-        create_xv6net: Arc<dyn create::CreateRv6Net>,
-        create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
-        create_xv6usr: Arc<dyn create::CreateRv6Usr + Send + Sync>,
-        create_xv6: Arc<dyn create::CreateRv6>,
-        create_dom_a: Arc<dyn create::CreateDomA>,
-        create_dom_b: Arc<dyn create::CreateDomB>,
-        create_dom_c: Arc<dyn create::CreateDomC>,
-        create_dom_d: Arc<dyn create::CreateDomD>,
-        create_shadow: Arc<dyn create::CreateShadow>,
+        create_pci: Arc<dyn interface::domain_creation::CreatePCI>,
+        create_ahci: Arc<dyn interface::domain_creation::CreateAHCI>,
+        create_membdev: Arc<dyn interface::domain_creation::CreateMemBDev>,
+        create_bdev_shadow: Arc<dyn interface::domain_creation::CreateBDevShadow>,
+        create_ixgbe: Arc<dyn interface::domain_creation::CreateIxgbe>,
+        create_nvme: Arc<dyn interface::domain_creation::CreateNvme>,
+        create_net_shadow: Arc<dyn interface::domain_creation::CreateNetShadow>,
+        create_nvme_shadow: Arc<dyn interface::domain_creation::CreateNvmeShadow>,
+        create_benchnet: Arc<dyn interface::domain_creation::CreateBenchnet>,
+        create_benchnvme: Arc<dyn interface::domain_creation::CreateBenchnvme>,
+        create_xv6fs: Arc<dyn interface::domain_creation::CreateRv6FS>,
+        create_xv6net: Arc<dyn interface::domain_creation::CreateRv6Net>,
+        create_xv6net_shadow: Arc<dyn interface::domain_creation::CreateRv6NetShadow>,
+        create_xv6usr: Arc<dyn interface::domain_creation::CreateRv6Usr + Send + Sync>,
+        create_xv6: Arc<dyn interface::domain_creation::CreateRv6>,
+        create_dom_a: Arc<dyn interface::domain_creation::CreateDomA>,
+        create_dom_b: Arc<dyn interface::domain_creation::CreateDomB>,
+        create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
+        create_dom_d: Arc<dyn interface::domain_creation::CreateDomD>,
+        create_shadow: Arc<dyn interface::domain_creation::CreateShadow>,
     ) -> Proxy {
         Proxy {
             create_pci,
@@ -105,75 +105,75 @@ impl Proxy {
 
 impl proxy::Proxy for Proxy {
     // TODO: figure out how to do this without Arc::new every time
-    fn as_create_pci(&self) -> Arc<dyn create::CreatePCI> {
+    fn as_create_pci(&self) -> Arc<dyn interface::domain_creation::CreatePCI> {
         Arc::new(self.clone())
     }
-    fn as_create_ahci(&self) -> Arc<dyn create::CreateAHCI> {
+    fn as_create_ahci(&self) -> Arc<dyn interface::domain_creation::CreateAHCI> {
         Arc::new(self.clone())
     }
-    fn as_create_membdev(&self) -> Arc<dyn create::CreateMemBDev> {
+    fn as_create_membdev(&self) -> Arc<dyn interface::domain_creation::CreateMemBDev> {
         Arc::new(self.clone())
     }
-    fn as_create_bdev_shadow(&self) -> Arc<dyn create::CreateBDevShadow> {
+    fn as_create_bdev_shadow(&self) -> Arc<dyn interface::domain_creation::CreateBDevShadow> {
         Arc::new(self.clone())
     }
-    fn as_create_ixgbe(&self) -> Arc<dyn create::CreateIxgbe> {
+    fn as_create_ixgbe(&self) -> Arc<dyn interface::domain_creation::CreateIxgbe> {
         Arc::new(self.clone())
     }
-    fn as_create_net_shadow(&self) -> Arc<dyn create::CreateNetShadow> {
+    fn as_create_net_shadow(&self) -> Arc<dyn interface::domain_creation::CreateNetShadow> {
         Arc::new(self.clone())
     }
-    fn as_create_nvme_shadow(&self) -> Arc<dyn create::CreateNvmeShadow> {
+    fn as_create_nvme_shadow(&self) -> Arc<dyn interface::domain_creation::CreateNvmeShadow> {
         Arc::new(self.clone())
     }
-    fn as_create_benchnet(&self) -> Arc<dyn create::CreateBenchnet> {
+    fn as_create_benchnet(&self) -> Arc<dyn interface::domain_creation::CreateBenchnet> {
         Arc::new(self.clone())
     }
-    fn as_create_benchnvme(&self) -> Arc<dyn create::CreateBenchnvme> {
+    fn as_create_benchnvme(&self) -> Arc<dyn interface::domain_creation::CreateBenchnvme> {
         Arc::new(self.clone())
     }
-    fn as_create_nvme(&self) -> Arc<dyn create::CreateNvme> {
+    fn as_create_nvme(&self) -> Arc<dyn interface::domain_creation::CreateNvme> {
         Arc::new(self.clone())
     }
-    fn as_create_xv6fs(&self) -> Arc<dyn create::CreateRv6FS> {
+    fn as_create_xv6fs(&self) -> Arc<dyn interface::domain_creation::CreateRv6FS> {
         Arc::new(self.clone())
     }
-    fn as_create_xv6net(&self) -> Arc<dyn create::CreateRv6Net> {
+    fn as_create_xv6net(&self) -> Arc<dyn interface::domain_creation::CreateRv6Net> {
         Arc::new(self.clone())
     }
-    fn as_create_xv6net_shadow(&self) -> Arc<dyn create::CreateRv6NetShadow> {
+    fn as_create_xv6net_shadow(&self) -> Arc<dyn interface::domain_creation::CreateRv6NetShadow> {
         Arc::new(self.clone())
     }
-    fn as_create_xv6usr(&self) -> Arc<dyn create::CreateRv6Usr + Send + Sync> {
+    fn as_create_xv6usr(&self) -> Arc<dyn interface::domain_creation::CreateRv6Usr + Send + Sync> {
         Arc::new(self.clone())
     }
-    fn as_create_xv6(&self) -> Arc<dyn create::CreateRv6> {
+    fn as_create_xv6(&self) -> Arc<dyn interface::domain_creation::CreateRv6> {
         Arc::new(self.clone())
     }
-    fn as_create_dom_a(&self) -> Arc<dyn create::CreateDomA> {
+    fn as_create_dom_a(&self) -> Arc<dyn interface::domain_creation::CreateDomA> {
         Arc::new(self.clone())
     }
-    fn as_create_dom_b(&self) -> Arc<dyn create::CreateDomB> {
+    fn as_create_dom_b(&self) -> Arc<dyn interface::domain_creation::CreateDomB> {
         Arc::new(self.clone())
     }
-    fn as_create_dom_c(&self) -> Arc<dyn create::CreateDomC> {
+    fn as_create_dom_c(&self) -> Arc<dyn interface::domain_creation::CreateDomC> {
         Arc::new(self.clone())
     }
-    fn as_create_dom_d(&self) -> Arc<dyn create::CreateDomD> {
+    fn as_create_dom_d(&self) -> Arc<dyn interface::domain_creation::CreateDomD> {
         Arc::new(self.clone())
     }
-    fn as_create_shadow(&self) -> Arc<dyn create::CreateShadow> {
+    fn as_create_shadow(&self) -> Arc<dyn interface::domain_creation::CreateShadow> {
         Arc::new(self.clone())
     }
 }
 
-impl create::CreatePCI for Proxy {
+impl interface::domain_creation::CreatePCI for Proxy {
     fn create_domain_pci(&self) -> (Box<dyn Domain>, Box<dyn PCI>) {
         self.create_pci.create_domain_pci()
     }
 }
 
-impl create::CreateAHCI for Proxy {
+impl interface::domain_creation::CreateAHCI for Proxy {
     fn create_domain_ahci(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn BDev>) {
         let (domain, ahci) = self.create_ahci.create_domain_ahci(pci);
         let domain_id = domain.get_domain_id();
@@ -181,7 +181,7 @@ impl create::CreateAHCI for Proxy {
     }
 }
 
-impl create::CreateMemBDev for Proxy {
+impl interface::domain_creation::CreateMemBDev for Proxy {
     fn create_domain_membdev(
         &self,
         memdisk: &'static mut [u8],
@@ -202,10 +202,10 @@ impl create::CreateMemBDev for Proxy {
     }
 }
 
-impl create::CreateBDevShadow for Proxy {
+impl interface::domain_creation::CreateBDevShadow for Proxy {
     fn create_domain_bdev_shadow(
         &self,
-        create: Arc<dyn create::CreateMemBDev>,
+        create: Arc<dyn interface::domain_creation::CreateMemBDev>,
     ) -> (Box<dyn Domain>, Box<dyn BDev>) {
         let (domain, shadow) = self.create_bdev_shadow.create_domain_bdev_shadow(create);
         let domain_id = domain.get_domain_id();
@@ -213,7 +213,7 @@ impl create::CreateBDevShadow for Proxy {
     }
 }
 
-impl create::CreateIxgbe for Proxy {
+impl interface::domain_creation::CreateIxgbe for Proxy {
     fn create_domain_ixgbe(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net>) {
         let (domain, ixgbe) = self.create_ixgbe.create_domain_ixgbe(pci);
         let domain_id = domain.get_domain_id();
@@ -221,10 +221,10 @@ impl create::CreateIxgbe for Proxy {
     }
 }
 
-impl create::CreateNetShadow for Proxy {
+impl interface::domain_creation::CreateNetShadow for Proxy {
     fn create_domain_net_shadow(
         &self,
-        create: Arc<dyn create::CreateIxgbe>,
+        create: Arc<dyn interface::domain_creation::CreateIxgbe>,
         pci: Box<dyn PCI>,
     ) -> (Box<dyn Domain>, Box<dyn Net>) {
         let (domain, shadow) = self.create_net_shadow.create_domain_net_shadow(create, pci);
@@ -233,10 +233,10 @@ impl create::CreateNetShadow for Proxy {
     }
 }
 
-impl create::CreateNvmeShadow for Proxy {
+impl interface::domain_creation::CreateNvmeShadow for Proxy {
     fn create_domain_nvme_shadow(
         &self,
-        create: Arc<dyn create::CreateNvme>,
+        create: Arc<dyn interface::domain_creation::CreateNvme>,
         pci: Box<dyn PCI>,
     ) -> (Box<dyn Domain>, Box<dyn NvmeBDev>) {
         let (domain, shadow) = self
@@ -247,7 +247,7 @@ impl create::CreateNvmeShadow for Proxy {
     }
 }
 
-impl create::CreateNvme for Proxy {
+impl interface::domain_creation::CreateNvme for Proxy {
     fn create_domain_nvme(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn interface::bdev::NvmeBDev>) {
         // TODO: write NvmeBDevProxy
         let (domain, nvme) = self.create_nvme.create_domain_nvme(pci);
@@ -256,14 +256,14 @@ impl create::CreateNvme for Proxy {
     }
 }
 
-impl create::CreateRv6FS for Proxy {
+impl interface::domain_creation::CreateRv6FS for Proxy {
     fn create_domain_xv6fs(&self, bdev: Box<dyn BDev>) -> (Box<dyn Domain>, Box<dyn VFS>) {
         // TODO: write Rv6FSProxy
         self.create_xv6fs.create_domain_xv6fs(bdev)
     }
 }
 
-impl create::CreateRv6Net for Proxy {
+impl interface::domain_creation::CreateRv6Net for Proxy {
     fn create_domain_xv6net(&self, net: Box<dyn Net>) -> (Box<dyn Domain>, Box<dyn UsrNet>) {
         let (domain, xv6net) = self.create_xv6net.create_domain_xv6net(net);
         let domain_id = domain.get_domain_id();
@@ -271,10 +271,10 @@ impl create::CreateRv6Net for Proxy {
     }
 }
 
-impl create::CreateRv6NetShadow for Proxy {
+impl interface::domain_creation::CreateRv6NetShadow for Proxy {
     fn create_domain_xv6net_shadow(
         &self,
-        create: Arc<dyn create::CreateRv6Net>,
+        create: Arc<dyn interface::domain_creation::CreateRv6Net>,
         net: Box<dyn Net>,
     ) -> (Box<dyn Domain>, Box<dyn UsrNet>) {
         let (domain, xv6net) = self
@@ -285,7 +285,7 @@ impl create::CreateRv6NetShadow for Proxy {
     }
 }
 
-impl create::CreateRv6Usr for Proxy {
+impl interface::domain_creation::CreateRv6Usr for Proxy {
     fn create_domain_xv6usr(
         &self,
         name: &str,
@@ -299,14 +299,14 @@ impl create::CreateRv6Usr for Proxy {
     }
 }
 
-impl create::CreateRv6 for Proxy {
+impl interface::domain_creation::CreateRv6 for Proxy {
     fn create_domain_xv6kernel(
         &self,
         ints: Box<dyn Interrupt>,
-        create_xv6fs: Arc<dyn create::CreateRv6FS>,
-        create_xv6net: Arc<dyn create::CreateRv6Net>,
-        create_xv6net_shadow: Arc<dyn create::CreateRv6NetShadow>,
-        create_xv6usr: Arc<dyn create::CreateRv6Usr + Send + Sync>,
+        create_xv6fs: Arc<dyn interface::domain_creation::CreateRv6FS>,
+        create_xv6net: Arc<dyn interface::domain_creation::CreateRv6Net>,
+        create_xv6net_shadow: Arc<dyn interface::domain_creation::CreateRv6NetShadow>,
+        create_xv6usr: Arc<dyn interface::domain_creation::CreateRv6Usr + Send + Sync>,
         bdev: Box<dyn BDev>,
         net: Box<dyn interface::net::Net>,
         nvme: Box<dyn interface::bdev::NvmeBDev>,
@@ -328,7 +328,7 @@ impl create::CreateRv6 for Proxy {
     }
 }
 
-impl create::CreateDomA for Proxy {
+impl interface::domain_creation::CreateDomA for Proxy {
     fn create_domain_dom_a(&self) -> (Box<dyn Domain>, Box<dyn DomA>) {
         let (domain, dom_a) = self.create_dom_a.create_domain_dom_a();
         let domain_id = domain.get_domain_id();
@@ -336,13 +336,13 @@ impl create::CreateDomA for Proxy {
     }
 }
 
-impl create::CreateDomB for Proxy {
+impl interface::domain_creation::CreateDomB for Proxy {
     fn create_domain_dom_b(&self, dom_a: Box<dyn DomA>) -> (Box<dyn Domain>) {
         self.create_dom_b.create_domain_dom_b(dom_a)
     }
 }
 
-impl create::CreateDomC for Proxy {
+impl interface::domain_creation::CreateDomC for Proxy {
     fn create_domain_dom_c(&self) -> (Box<dyn Domain>, Box<dyn DomC>) {
         let (domain, dom_c) = self.create_dom_c.create_domain_dom_c();
         let domain_id = domain.get_domain_id();
@@ -356,16 +356,16 @@ impl create::CreateDomC for Proxy {
     }
 }
 
-impl create::CreateDomD for Proxy {
+impl interface::domain_creation::CreateDomD for Proxy {
     fn create_domain_dom_d(&self, dom_c: Box<dyn DomC>) -> (Box<dyn Domain>) {
         self.create_dom_d.create_domain_dom_d(dom_c)
     }
 }
 
-impl create::CreateShadow for Proxy {
+impl interface::domain_creation::CreateShadow for Proxy {
     fn create_domain_shadow(
         &self,
-        create_dom_c: Arc<dyn create::CreateDomC>,
+        create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
     ) -> (Box<dyn Domain>, Box<dyn DomC>) {
         let (domain, shadow) = self.create_shadow.create_domain_shadow(create_dom_c);
         let domain_id = domain.get_domain_id();
@@ -373,13 +373,13 @@ impl create::CreateShadow for Proxy {
     }
 }
 
-impl create::CreateBenchnet for Proxy {
+impl interface::domain_creation::CreateBenchnet for Proxy {
     fn create_domain_benchnet(&self, net: Box<dyn Net>) -> (Box<dyn Domain>) {
         self.create_benchnet.create_domain_benchnet(net)
     }
 }
 
-impl create::CreateBenchnvme for Proxy {
+impl interface::domain_creation::CreateBenchnvme for Proxy {
     fn create_domain_benchnvme(&self, nvme: Box<dyn interface::bdev::NvmeBDev>) -> (Box<dyn Domain>) {
         self.create_benchnvme.create_domain_benchnvme(nvme)
     }

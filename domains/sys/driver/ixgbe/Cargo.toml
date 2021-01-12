@@ -31,7 +31,7 @@ ixgbe_device = { path = "../../../../lib/devices/ixgbe" }
 pci_driver = { path = "../../../../lib/core/interfaces/dev/pci/pci_driver" }
 protocol = { path = "../../../../lib/core/interfaces/protocol" }
 platform = { path = "../../../../lib/core/interfaces/platform" }
-usr = { path = "../../../../lib/core/interfaces/usr" }
+interface = { path = "../../../../interface/generated" }
 
 [dependencies.lazy_static]
 version = "1.3.0"

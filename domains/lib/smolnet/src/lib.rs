@@ -23,7 +23,7 @@ use smoltcp::Result as SmolResult;
 use core::default::Default;
 use core::ops::Deref;
 use rref::{RRef, RRefDeque};
-use usr::net::Net;
+use interface::net::Net;
 
 const BATCH_SZ: usize = 32;
 
