@@ -1,0 +1,8 @@
+[package]
+name = "xv6fs"
+version = "0.1.0"
+authors = ["RedLeaf Team"]
+edition = "2018"
+
+[dependencies]
+fs = { path = "../../domains/usr/xv6/fs" }
