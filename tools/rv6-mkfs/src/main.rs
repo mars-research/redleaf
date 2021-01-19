@@ -1,20 +1,30 @@
-
+use std::fs::File;
 use crate::fs::{SuperBlock, SUPER_BLOCK};
 use crate::params::*;
+use std::io::SeekFrom;
 
-const BSIZE : u32 = 4096;
+const BSIZE : usize = 4096;
 pub const FSSIZE: usize = 1000; // size of file system in blocks
 
 fn main() {
-    let args: Vec<String> = std::env::args().collect();
+    let argv: Vec<String> = std::env::args().collect();
 
-    if args.len() < 2 {
+    if argv.len() < 2 {
         print!("Usage: mkfs fs.img files...\n");
     }
     
+    // create make a new file if current one doesnt not exist
+    // and truncate file if it does exist
+    let mut f = File::create(argv[i]); 
+
+    let f = match f {
+        Ok(file) => file,
+        Err(error) => panic!("Problem opening the file: {:?}", error),
+    };
+
     
-    let nmeta: u32 = 2 + nlog + ninodeblocsk + nbitmap;
-    let nblocks: u32 = FSSIZE - nmeta;
+    let nmeta: usize = 2 + nlog + ninodeblocsk + nbitmap;
+    let nblocks: usize = FSSIZE - nmeta;
 
     // assert!(BSIZE % )
     let superblock = SuperBlock{
@@ -26,7 +36,4 @@ fn main() {
         inodestart: 2 + LOGSIZE,
         bmapstart: 2+LOGSIZE + NINODEBLOCKSs,
     };
-
-
-
 }

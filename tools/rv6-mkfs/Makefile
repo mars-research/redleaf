@@ -22,6 +22,10 @@ build/mkfs: mkfs.c fs.h param.h stat.h types.h
 	mkdir -p build
 	gcc -Werror -Wall -Wno-error=stringop-truncation -g -o $@ mkfs.c
 
+build/mkfs-rs:
+	echo "Rust make" >> shit.txt
+	cargo build
+
 # Prevent deletion of intermediate files, e.g. cat.o, after first build, so
 # that disk image changes after first build are persistent until clean.  More
 # details:
@@ -37,7 +41,11 @@ FILES=\
 
 BINS=$(shell find $(root)/domains/usr/xv6/usr/bin/src/bin -maxdepth 1 -mindepth 1 ! -name htdocs ! -name target -exec basename {} .rs \;)
 
-build/fs.img: build/mkfs $(FILES) $(BINS) $(HTDOCS) Makefile
+build/fs.img: build/mkfs-rs $(FILES) $(BINS) $(HTDOCS) Makefile
+	mkdir -p build
+	cd build/ && ./mkfs fs.img $(FILES) $(BINS) $(HTDOCS)
+
+build/fs-rs.img: build/mkfs-rs $(FILES) $(BINS) $(HTDOCS) Makefile
 	mkdir -p build
 	cd build/ && ./mkfs fs.img $(FILES) $(BINS) $(HTDOCS)
 
