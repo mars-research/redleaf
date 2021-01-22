@@ -35,7 +35,7 @@ use console::println;
 use sashstore_redleaf::cindexmap::CIndex;
 
 const TABLE_SIZE: usize = 65537;
-const CACHE_SIZE: usize = 1 << 22;
+const CACHE_SIZE: usize = 1 << 21;
 
 static mut HIT_COUNT: usize = 0;
 static mut HASHMAP_TOTAL: usize = 0;
@@ -171,7 +171,7 @@ impl<N: Hash + Eq> Maglev<N> {
         let x = match cache.get(&hash) {
             Some(idx) => {
                 // Use cached backend
-                //unsafe { HIT_COUNT += 1; }
+                unsafe { HIT_COUNT += 1; }
                 idx
             }
             None => {
@@ -180,7 +180,7 @@ impl<N: Hash + Eq> Maglev<N> {
                 self.lookup[hash % self.lookup.len()] as usize
             }
         };
-        //unsafe { HASHMAP_TOTAL += 1; }
+        unsafe { HASHMAP_TOTAL += 1; }
 
         if set_cache {
             //println!("inserting ");
