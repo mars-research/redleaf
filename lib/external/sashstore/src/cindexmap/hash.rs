@@ -23,7 +23,7 @@ pub fn fnv<K: Sized>(value: &K) -> u64 {
 
         for i in 0isize..(num_bytes as isize) {
             let byte: u8 = unsafe { *(address.offset(i)) };
-            state *= 0x100000001b3;
+            state = state.wrapping_mul(0x100000001b3);
             state ^= byte as u64;
             // print!("{} ", byte);
         }

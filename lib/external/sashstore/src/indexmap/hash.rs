@@ -25,6 +25,19 @@ pub fn fnv_2<K: ?Sized>(value: &K, num_bytes: isize) -> u64 {
 }
 
 #[inline]
+pub fn fnv_3(value: &[u8], num_bytes: isize) -> u64 {
+    let mut state: u64 = 0xcbf29ce484222325;
+
+    for i in 0..value.len() {
+        state = state.wrapping_mul(0x100_0000_01b3);
+        state ^= value[i] as u64;
+        //print!("{} ", byte);
+    }
+    //print!("-> {} ", state);
+
+    state
+}
+#[inline]
 pub fn fnv<K: Sized>(value: &K) -> u64 {
     let num_bytes = core::mem::size_of::<K>() as isize;
 

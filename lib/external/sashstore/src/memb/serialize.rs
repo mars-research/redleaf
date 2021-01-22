@@ -98,21 +98,21 @@ impl SetResponse {
 #[derive(Debug)]
 pub struct GetResponse {
     header: Header,
-    value_str: [u8; 5], // "VALUE"
-    space: u8,
+    //value_str: [u8; 5], // "VALUE"
+    //space: u8,
     key: [u8; KEY_SIZE],
-    space1: u8,
-    flags: [u8; 4],
-    len: [u8; 4],
-    line_end: [u8; 2],
+    //space1: u8,
+    //flags: [u8; 4],
+    //len: [u8; 4],
+    //line_end: [u8; 2],
     value: [u8; VALUE_SIZE],
-    line_end1: [u8; 2],
-    end: [u8; 3], // "END"
-    line_end2: [u8; 2],
+    //line_end1: [u8; 2],
+    //end: [u8; 3], // "END"
+    //line_end2: [u8; 2],
 }
 
 impl GetResponse {
-    fn new(req_id: u32) -> Self {
+    pub fn new(req_id: u32) -> Self {
 
         GetResponse {
             header: Header {
@@ -121,17 +121,17 @@ impl GetResponse {
                 dgram_tot: u16::to_le_bytes(0),
                 rsvd: u16::to_le_bytes(0),
             },
-            value_str: [b'V', b'A', b'L', b'U', b'E'],
-            space: b' ',
+            //value_str: [b'V', b'A', b'L', b'U', b'E'],
+            //space: b' ',
             key: [0u8; KEY_SIZE],
-            space1: b' ',
+            /*space1: b' ',
             flags: [0, 0, 0, 0],
             len: [0, 0, 0, 0],
-            line_end: [b'\r', b'\n'],
+            line_end: [b'\r', b'\n'],*/
             value: [0u8; VALUE_SIZE],
-            line_end1: [b'\r', b'\n'],
+            /*line_end1: [b'\r', b'\n'],
             end : [b'E', b'N', b'D'],
-            line_end2: [b'\r', b'\n'],
+            line_end2: [b'\r', b'\n'],*/
         }
     }
 }
@@ -172,8 +172,8 @@ pub fn buf_encode(value: &ServerValue, buf: &mut Vec<u8>) {
     match value {
         ServerValue::Value(request_id, k, bundle) => {
             //println!("found");
-            let flags = bundle.0;
-            let v = &bundle.1;
+            //let flags = bundle.0;
+            let v = &bundle;
 
             // Construct UDP header
             /*buf.extend_from_slice(&u32::to_be_bytes(*request_id));
@@ -210,21 +210,19 @@ pub fn buf_encode(value: &ServerValue, buf: &mut Vec<u8>) {
         }
         ServerValue::Stored(request_id) => {
             //println!("stored");
-            let resp = SetResponse::new(*request_id);
-            /*buf.extend_from_slice(&u32::to_be_bytes(*request_id));
+            //let resp = SetResponse::new(*request_id);
+            buf.extend_from_slice(&u32::to_be_bytes(*request_id));
             buf.extend_from_slice(&u16::to_be_bytes(0)); // seq number
             buf.extend_from_slice(&u16::to_be_bytes(1)); // #datagram
             buf.extend_from_slice(&u16::to_be_bytes(0)); // reserved
-            buf.extend_from_slice(b"STORED\r\n");*/
-            unsafe {
+            buf.extend_from_slice(b"STORED\r\n");
+            /*unsafe {
                 let resp_bytes = &resp as *const _ as *const u8;
                 let resp_len = mem::size_of::<SetResponse>();
                 core::ptr::copy(resp_bytes, buf.as_mut_ptr(), resp_len);
                 buf.set_len(resp_len);
-            }
-            unsafe {
-                TOTAL_STORED += 1;
-            }
+            }*/
+            unsafe { TOTAL_STORED += 1; }
         }
         ServerValue::NotStored(request_id) => {
             println!("notstored");
@@ -331,7 +329,7 @@ impl Decoder {
 
         for (i, el) in cur_buf.windows(2).enumerate() {
             //trace!("{:?}", el); 
-            if el == &[b'\r', b'\n'] {
+           if el == &[b'\r', b'\n'] {
                 *cursor = old_cursor + i + 3;  
                 trace!("cursor {}", *cursor);
                 break;
