@@ -33,3 +33,5 @@ pub const IPB: usize = BSIZE / mem::size_of::<icache::DINode>();
 pub const DIRSIZ: usize = 14;
 
 pub const NINODEBLOCKS: usize = NINODES / IPB + 1;
+// int nbitmap = FSSIZE/(BSIZE*8) + 1;
+pub const NBITMAP: usize = FSSIZE / (BSIZE*8) + 1; 
