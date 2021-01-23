@@ -23,7 +23,7 @@ build/mkfs: mkfs.c fs.h param.h stat.h types.h
 	gcc -Werror -Wall -Wno-error=stringop-truncation -g -o $@ mkfs.c
 
 build/mkfs-rs:
-	echo "Rust make" >> shit.txt
+	echo "Rust make" >> oops.txt
 	cargo build
 
 # Prevent deletion of intermediate files, e.g. cat.o, after first build, so
