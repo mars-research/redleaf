@@ -170,7 +170,11 @@ kernel: idl_generation
 	make -C kernel
 
 .PHONY: idl_generation
-idl_generation:
+idl_generation: tools/redIDL
+	@ if [ ! -f "tools/redIDL/codegen/ngc/Cargo.toml" ]; \
+	then echo "redIDL not found. Maybe you want to do 'git submodule init && git submodule update' then try again?"; \
+			exit -1; \
+	fi
 	make -C interface
 
 .PHONY: domains
