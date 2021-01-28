@@ -22,6 +22,8 @@ impl DomA {
     }
 }
 
+use interface::dom_a::OwnedTest;
+
 impl interface::dom_a::DomA for DomA {
     fn ping_pong(&self, mut buffer: RRef<[u8; 1024]>) -> RRef<[u8; 1024]> {
         println!("[dom_a]: ping pong");
@@ -44,6 +46,17 @@ impl interface::dom_a::DomA for DomA {
         }
 
         (read, packets, reap_queue)
+    }
+
+    fn test_owned(&self, mut rref: RRef<OwnedTest>) -> RRef<OwnedTest> {
+        match rref.owned.take() {
+            None => rref,
+            Some(mut inner) => {
+                *inner += 1;
+                rref.owned.replace(inner);
+                rref
+            }
+        }
     }
 }
 

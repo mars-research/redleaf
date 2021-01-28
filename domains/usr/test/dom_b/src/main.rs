@@ -10,8 +10,9 @@ use console::println;
 
 use core::panic::PanicInfo;
 use libtime::get_rdtsc as rdtsc;
-use rref::{RRef, RRefDeque};
-use interface::dom_a::DomA;
+use rref::{RRef, RRefDeque, Owned};
+use interface::dom_a::{DomA, OwnedTest};
+use core::ops::Deref;
 
 fn test_submit_and_poll(dom_a: &mut Box<dyn DomA>) {
     let mut packets = RRefDeque::<[u8; 100], 32>::default();
@@ -74,6 +75,15 @@ pub fn trusted_entry(
         let rref2 = RRef::new(rref1); // RRef<RRef<usize>>
         println!("dropping rref2, should print drop_t::RRef<RRef<usize>> then drop_t::RRef<usize>");
         drop(rref2);
+    }
+
+    {
+        println!("RRef::Owned<T> test");
+        let mut outer = RRef::new(OwnedTest {
+            owned: Owned::new(RRef::new(0))
+        });
+        outer = dom_a.test_owned(outer);
+        assert_eq!(outer.owned.take().as_deref().unwrap(), &1);
     }
 
     let mut dom_a = dom_a;
