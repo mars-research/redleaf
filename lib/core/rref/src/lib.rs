@@ -193,7 +193,7 @@ mod tests {
             if borrow_count < 10 {
                 rref.borrow();
                 borrow_count += 1;
-                // borrow_rref_recursively(borrow_count, rref);
+                borrow_rref_recursively(borrow_count, rref);
                 rref.forfeit();
             }
         };
