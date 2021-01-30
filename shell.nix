@@ -30,4 +30,7 @@ in pkgs.mkShell {
     gcc10 clang_10 nasm
     qemu grub2 xorriso
   ];
+  shellHook = ''
+    export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
+  '';
 }
