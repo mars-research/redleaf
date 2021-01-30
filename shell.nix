@@ -11,12 +11,19 @@
     channel = "nightly";
     date = rustNightly;
   };
+  rustPlatform = pkgs.makeRustPlatform {
+    rustc = pinnedRust;
+    cargo = pinnedRust;
+  };
   pinnedRust = rustChannel.rust.override {
     extensions = [ "rust-src" ];
   };
+  cargoExpand = pkgs.cargo-expand.override {
+    inherit rustPlatform;
+  };
 in pkgs.mkShell {
   buildInputs = with pkgs; [
-    pinnedRust
+    pinnedRust cargoExpand
 
     gnumake utillinux
 
