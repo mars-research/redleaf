@@ -3,7 +3,7 @@
 	url = https://github.com/zhaofengli/smoltcp
 [submodule "lib/memcpy/musl"]
 	path = lib/external/memops/musl
-	url = git://git.musl-libc.org/musl
+	url = git@github.com:mars-research/musl.git
 [submodule "lib/external/hashes"]
 	path = lib/external/hashes
 	url = https://github.com/mars-research/hashes
