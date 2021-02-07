@@ -1,12 +1,13 @@
 [submodule "sys/lib/smoltcp"]
 	path = lib/external/smoltcp
 	url = https://github.com/zhaofengli/smoltcp
-[submodule "lib/memcpy/musl"]
-	path = lib/external/memops/musl
-	url = git@github.com:mars-research/musl.git
 [submodule "lib/external/hashes"]
 	path = lib/external/hashes
 	url = https://github.com/mars-research/hashes
 [submodule "tools/redIDL"]
 	path = tools/redIDL
 	url = git@github.com:mars-research/redIDL.git
+[submodule "lib/external/memops/musl"]
+	path = lib/external/memops/musl
+	url = https://github.com/mars-research/musl
+	branch = redleaf
