@@ -1,7 +1,7 @@
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use syscalls::{Domain};
-use crate::{bdev};
+use crate::{bdev, domain_creation::CreateVirtioNet};
 use crate::domain_creation::{CreatePCI,
              CreateAHCI,
              CreateMemBDev, 
@@ -32,6 +32,7 @@ pub trait CreateProxy {
         create_membdev: Arc<dyn CreateMemBDev>,
         create_bdev_shadow: Arc<dyn CreateBDevShadow>,
         create_ixgbe: Arc<dyn CreateIxgbe>,
+        create_virtio_net: Arc<dyn CreateVirtioNet>,
         create_nvme: Arc<dyn CreateNvme>,
         create_net_shadow: Arc<dyn crate::domain_creation::CreateNetShadow>,
         create_nvme_shadow: Arc<dyn crate::domain_creation::CreateNvmeShadow>,
@@ -72,6 +73,7 @@ pub trait Proxy: CreatePCI +
     fn as_create_membdev(&self) -> Arc<dyn CreateMemBDev>;
     fn as_create_bdev_shadow(&self) -> Arc<dyn CreateBDevShadow>;
     fn as_create_ixgbe(&self) -> Arc<dyn CreateIxgbe>;
+    fn as_create_virtio_net(&self) -> Arc<dyn CreateVirtioNet>;
     fn as_create_nvme(&self) -> Arc<dyn CreateNvme>;
     fn as_create_net_shadow(&self) -> Arc<dyn CreateNetShadow>;
     fn as_create_nvme_shadow(&self) -> Arc<dyn CreateNvmeShadow>;
