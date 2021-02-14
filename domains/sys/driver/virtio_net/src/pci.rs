@@ -4,7 +4,7 @@ use console::println;
 use crate::{VirtioNet, VirtioNetInner};
 
 const VIRTIO_PCI_VID: u16 = 0x1af4;
-const VIRTIO_PCI_DID: u16 = 0x1040;
+const VIRTIO_PCI_DID: u16 = 0x1000;
 
 pub(crate) struct PciFactory {
     mmio_base: Option<usize>,
@@ -25,10 +25,12 @@ impl pci_driver::PciDriver for PciFactory {
         }
     }
 
+    /// Returns the Vendor ID for a VIRTIO Network Device
     fn get_vid(&self) -> u16 {
         VIRTIO_PCI_VID
     }
 
+    /// Returns the Device ID for a VIRTIO Network Device
     fn get_did(&self) -> u16 {
         // FIXME: Another possibility is the Transitional Device ID 0x1000
         VIRTIO_PCI_DID
