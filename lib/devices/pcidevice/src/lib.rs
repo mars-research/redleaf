@@ -38,7 +38,7 @@ macro_rules! is_page_aligned {
     };
 }
 
-
+#[derive(Debug)]
 pub struct PciAddress {
     bus: u16,
     dev: u8,
@@ -59,6 +59,7 @@ impl PciAddress {
     }
 }
 
+#[derive(Debug)]
 pub struct PciDevice {
     pci_addr: PciAddress,
     pci_hdr: PciDeviceHeader,
