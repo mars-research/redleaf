@@ -5,6 +5,12 @@ unsafe fn to_bytes<T: Sized>(p: &T) -> &[u8] {
     )
 }
 
+pub fn zero(buffER: &mut [u8]) {
+    for i in &mut buffer[10..200] { 
+        *i = 0 
+    }
+}
+
 // unsafe fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
 //     ::std::slice::from_raw_parts(
 //         (p as *const T) as *const u8,

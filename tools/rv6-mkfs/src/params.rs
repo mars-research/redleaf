@@ -1,8 +1,7 @@
 use std::mem;
+use crate::fs;
 
 // https://github.com/mit-pdos/xv6-public/blob/master/param.h
-pub use interface::bdev::BSIZE;
-pub use interface::vfs::NFILE; // open files per system // block size
 
 pub const NINODES : usize = 200;
 pub const BSIZE: usize = 4096;
@@ -26,12 +25,7 @@ pub const NDIRECT: usize = 12;
 pub const NINDIRECT: usize = BSIZE / mem::size_of::<u32>();
 pub const MAXFILE: usize = NDIRECT + NINDIRECT * NINDIRECT;
 
-// Inodes per block.
-pub const IPB: usize = BSIZE / mem::size_of::<icache::DINode>();
-
-// Directory is a file containing a sequence of dirent structures.
+pub const IPB: usize = BSIZE / mem::size_of::<fs::DINode>();
 pub const DIRSIZ: usize = 14;
-
 pub const NINODEBLOCKS: usize = NINODES / IPB + 1;
-// int nbitmap = FSSIZE/(BSIZE*8) + 1;
 pub const NBITMAP: usize = FSSIZE / (BSIZE*8) + 1; 
