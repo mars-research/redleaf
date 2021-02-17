@@ -1,5 +1,8 @@
 use crate::params;
 use serde::{Deserialize, Serialize};
+use std::{
+    mem::{size_of},
+};
 
 #[derive(Debug)]
 pub struct SuperBlock {
@@ -152,6 +155,7 @@ impl INodeData {
 }
 
 pub type DINode = INodeData;
+pub const DINODE_SIZE = size_of<DINode>();
 
 // Block containing inode i
 pub fn iblock(i: u32, sb: &SuperBlock) {

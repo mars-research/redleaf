@@ -5,8 +5,8 @@ unsafe fn to_bytes<T: Sized>(p: &T) -> &[u8] {
     )
 }
 
-pub fn zero(buffER: &mut [u8]) {
-    for i in &mut buffer[10..200] { 
+pub fn zero(buffer: &mut [u8]) {
+    for i in &buffer { 
         *i = 0 
     }
 }

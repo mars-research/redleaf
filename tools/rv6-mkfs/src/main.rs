@@ -1,7 +1,7 @@
 mod params;
 mod fs;
 
-use crate::fs::{SuperBlock};
+use crate::fs::{SuperBlock, DINode, DINODE_SIZE};
 // use crate::params::*;
 use serde::{Deserialize, Serialize};
 // use memcpy::{memcpy ,memmove, memset, memcmp};
@@ -17,49 +17,51 @@ use std::{
 
 
 // static mut SUPERBLOCK: SuperBlock = SuperBlock::new();
-static mut freeinode: u32 = 1;
+static mut freeinode: u32 = 1; // TODO: Change this so it is not global
 pub static sb: Once<SuperBlock> = Once::new();
-pub static file: Once<File> = Once::new();
+static mut freeblock: u32 = 0; // TODO: Change this so it is not global
+// static mut file: File; // TODO: Change this so it is not global
+// static mut file: Option<File> = None;
 
-fn wsect(sec :u32, buf: &mut u8) {
-    assert(buf.len() == BSIZE);
+fn write_sector(file: &mut File, sec :u32, buf: &mut [u8]) {
+    assert!(buf.len() == params::BSIZE);
 
-    if file.seek(SeekFrom::Start(sec * BSIZE)) != sec * BSIZE {
+    if file.seek(SeekFrom::Start(sec * params::BSIZE)) != sec * params::BSIZE {
         panic!("seek");
     }
 
-    if file.write(buf) != BSIZE {
+    if file.write(buf) != params::BSIZE {
         panic!("write");
     }
 }
 
-fn winode(inum: u32, ip: &DINode) -> Result<usize> {
-    // let mut buffer = [0u8; params::BSIZE];
+fn write_inode(file: &mut File, inum: u32, ip: &DINode) {
+    let mut buffer = [0u8; params::BSIZE];
 
-    let bn = fS::iblock(inum, sb);
-    let mut buffer = rsect(bn);
+    let bn = fs::iblock(inum, sb);
+    read_sector(file, bn, buffer);
 
-    const DINODE_SIZE: usize = mem::size_of::<DINode>();
+    // const DINODE_SIZE: usize = mem::size_of::<DINode>();
     let offset = (inum as usize % params::IPB) * DINODE_SIZE;
     let slice = &mut buffer[offset..offset + DINODE_SIZE];
     // let mut dinode = DINode::from_bytes(slice);
     let dinode = bincode::deserialize(&slice).unwrap();
-    wsect(bn, buffer);
+    write_sector(file, bn, buffer);
 
-    Ok(offset + DINODE_SIZE);
+    // Ok(offset + DINODE_SIZE);
 }
 
-fn rinode(inum: u32, ip: &mut DInode) {
+fn read_inode(inum: u32, ip: &mut DINode) {
     let mut buf = &mut [0u8; params::BSIZE];
-    let bn = fs::iblock(inum, sup);
+    let bn = fs::iblock(inum, sb);
 
-    rsect(bn, buf);
-    let dinode_offset = (inum as usize % params::IPB) * params::DINODE_SIZE;
-    let dinode_slice = buf[dinode_offset..dinode_offset + params::DINODE_SIZE];
+    read_sector(file, bn, buf);
+    let dinode_offset = (inum as usize % params::IPB) * DINODE_SIZE;
+    let dinode_slice = buf[dinode_offset..dinode_offset + DINODE_SIZE];
     ip = bincode::deserialize(&dinode_slice).unwrap();
 }
 
-fn rsect(sec: u32, buf: &mut u8) {
+fn read_sector(file: &mut File, sec: u32, buf: &mut [u8]) {
     if file.seek(SeekFrom::Start(sec * params::BSIZE)) != sec * params::BSIZE {
         panic!("seek");
     }
@@ -86,7 +88,7 @@ fn ialloc(t: i16) -> u32 {
     inum;
 }
 
-fn balloc(used: u32) {
+fn balloc(file: &mut File, used: i32) {
     let mut buf = [0u8; params::BSIZE];
 
     for block_offset in 0..params::NBITMAP {
@@ -95,13 +97,37 @@ fn balloc(used: u32) {
         }
 
         for elem in buf.iter_mut() { *elem = 0; }
-        let nbits = if used > params::BPB { params::BPB } else { used };
+        let nbits: i32 = if used > params::BPB as i32 { params::BPB as i32 } else { used };
         
         for bi in 0..nbits {
             let m = 1 << (bi % 8);
-            buf[bi / 8] |= m; // mark block as used
+            let index : usize = bi / 8;
+            buf[index] |= m; // mark block as used
         }
-        wsect(sb.bmapstart + block_offset, buf);
+        write_sector(file, sb.bmapstart + block_offset, buf);
+    }
+}
+
+fn append_inode(inum: u32, xp, n: i32) {
+    //TODO: should xp be a buffer or a dirent?
+    let mut dinode = DINode::new();
+    read_inode(inum, dinode);
+    let offset = dinode.size;
+
+    while n > 0 {
+        let fbn: usize = offset / params::BSIZE as u32;
+
+        if fbn < params::NDIRECT as u32 {
+            // Direct
+            if dinode.addrs[fbn] == 0 {
+                unsafe {
+                    dinode.addrs[fbn] = freeblock;
+                    freeblock += 1;
+                }
+            
+            x = dinode.addrs[fbn];
+        }
+        }
     }
 }
 
@@ -113,7 +139,16 @@ fn main() {
         print!("Usage: mkfs fs.img files...\n");
     }
 
-    file = OpenOptions::new()
+    // unsafe {
+    //     file = OpenOptions::new()
+    //         .read(true)
+    //         .write(true)
+    //         .create(true)
+    //         .truncate(true)
+    //         .open(argv[1]);
+    // }
+    
+    let file = OpenOptions::new()
         .read(true)
         .write(true)
         .create(true)
