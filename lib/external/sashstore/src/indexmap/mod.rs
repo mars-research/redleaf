@@ -17,6 +17,7 @@ use core::hash::{BuildHasher, Hash};
 use core::fmt;
 use core::mem;
 
+use crate::{KVKey, KVVal, KVPair, KEY_SIZE, VALUE_SIZE, empty_key};
 use alloc::vec::Vec;
 use alloc::format;
 use core::alloc::Layout;
@@ -189,6 +190,7 @@ pub struct Index<K, V, S = IndexHasherBuilder> {
     capacity: usize,
     len: usize,
     table: Vec<Bucket<K, V>>,
+    ntable: Vec<KVPair>,
 }
 
 impl<K, V> Index<K, V, IndexHasherBuilder>
@@ -578,23 +580,40 @@ where
         let mut index = { 
             let num_bytes = core::mem::size_of::<Bucket<K, V>>() * capacity;
 
-            // println!("Creating a layout of {} * {} = {}",
-            //                        std::mem::size_of::<Bucket<K,V>>(),
-            //                        capacity, num_bytes);
+            println!("Creating a layout of {} * {} = {}",
+                                    core::mem::size_of::<Bucket<K,V>>(),
+                                    capacity, num_bytes);
 
             let layout = Layout::from_size_align(num_bytes, 4096)
                     .map_err(|e| panic!("Layout error: {}", e)).unwrap();
 
 
             let buf = unsafe {alloc::alloc::alloc(layout) as *mut Bucket<K,V> };
-            //println!("vector aligned buf {:?}", buf);
-            let mut v: Vec<Bucket<K,V>> = unsafe { Vec::from_raw_parts(buf, capacity, capacity)} ;
-            //println!("vec len {} cap {}", v.len(), v.capacity());
+            println!("vector aligned buf {:?}", buf);
+            let mut v: Vec<Bucket<K,V>> = unsafe { Vec::from_raw_parts(buf, capacity, num_bytes)} ;
+            println!("vec len {} cap {}", v.len(), v.capacity());
+
+            let num_bytes = core::mem::size_of::<KVPair>() * capacity;
+
+            println!("ntable: Creating a layout of {} * {} = {}",
+                                    core::mem::size_of::<KVPair>(),
+                                    capacity, num_bytes);
+
+            let layout = Layout::from_size_align(num_bytes, 4096)
+                    .map_err(|e| panic!("Layout error: {}", e)).unwrap();
+
+
+            let buf = unsafe {alloc::alloc::alloc(layout) as *mut KVPair };
+            println!("ntable vector aligned buf {:?}", buf);
+            let mut kv: Vec<KVPair> = unsafe { Vec::from_raw_parts(buf, capacity, num_bytes)} ;
+            println!("ntable vec len {} cap {}", kv.len(), kv.capacity());
+
             Index {
                 params,
                 capacity,
                 len: 0,
-                table: v
+                table: v,
+                ntable: kv,
             }
         };
 
@@ -607,6 +626,7 @@ where
         };
 
         Self::init_table(&mut index.table, index.capacity);
+        Self::init_ntable(&mut index.ntable, index.capacity);
 
         index
     }
@@ -622,12 +642,22 @@ where
         }
 
         // useless but that paranoia
-        assert_eq!(capacity, table.len());
-        assert_eq!(capacity, table.capacity());
+        // assert_eq!(capacity, table.len());
+        // assert_eq!(capacity, table.capacity());
     }
 
-    // methods
+    fn init_ntable(table: &mut Vec<KVPair>, capacity: usize) {
+        for i in 0..capacity {
+            #[cfg(feature = "aligned-mem")]
+            { table[i] = empty_key }
+        }
 
+        // useless but that paranoia
+        // assert_eq!(capacity, table.len());
+        // assert_eq!(capacity, table.capacity());
+    }
+    // methods
+/*
     /// Resizes `Index` with new capacity by allocating a new `Index`
     /// and moving entries from the old one to the new one by using insert to
     /// rehash the entries (if the new capacity is to small, the insert operation will grow
@@ -640,13 +670,13 @@ where
         }
 
         *self = new_index;
-    }
+    }*/
 
     /// Grows `Index` according to growth policy.
     fn grow(&mut self) {
         println!("growing");
         let new_cap = (self.capacity as f64 * self.params.growth_policy) as usize;
-        self.resize(new_cap);
+        //self.resize(new_cap);
     }
 
     /// Searches for an entry according to specified hash and discriminating closure.
@@ -658,23 +688,23 @@ where
         F: Fn(Ref<(K, V)>) -> bool,
     {
         for i in 0..self.capacity {
-            //let probe = if core::intrinsics::likely(self.capacity.is_power_of_two()) {
-            let probe = (hash + i + i * i) & (self.capacity - 1);
-            //} else {
-            //    (hash + i + i * i) % self.capacity
-            //};
+            let probe = if core::intrinsics::likely(self.capacity.is_power_of_two()) {
+                (self.params.probe)(hash, i) & (self.capacity - 1)
+            } else {
+                (self.params.probe)(hash, i) % self.capacity
+            };
 
-            /*if i > 0 {
+            if i > 0 {
                 unsafe { REPROBE_COUNT += 1; }
-            }*/
+            }
 
             match &self.table[probe] {
                 Some(pair) if f(pair.borrow()) => return (Some(pair), Some(probe)), // found matching bucket
                 None => return (None, Some(probe)), // found empty bucket
                 Some(_) => {
-                    /*unsafe {
+                    unsafe {
                         COLLISIONS += 1;
-                    }*/
+                    }
                     continue;
                 },
             }
@@ -727,7 +757,8 @@ where
         // let hash = make_hash(&self.params.hasher_builder, &key) as usize;
         let hash = fnv_2(&key, crate::KEY_SIZE as isize) as usize;
         //let num_bytes = core::mem::size_of::<K>() as isize;
-        //println!(" set_hash = {:x}", hash);
+        //println!(" {:x?} num_bytes {} set_hash = {:x}",
+        //         unsafe { &key as *const _ as *const u8 }, num_bytes, hash);
         // /* PERF */ let hash_end = unsafe { core::arch::x86_64::_rdtsc() };
         // /* PERF */ record_hist!(TSC_HASH_HISTOGRAM, TSC_HASH_TOTAL, hash_end - hash_start);
         /*unsafe {
@@ -833,6 +864,51 @@ where
         // /* PERF */ record_hist!(TSC_INSERT_HISTOGRAM, TSC_INSERT_TOTAL, insert_end - insert_start);
         // /* PERF */ eprintln!("1,{},{},{},{}", self.len, self.capacity, self.load(), insert_end - insert_start);
     }
+
+    #[inline]
+    pub fn insert_simple(&mut self, key: &[u8], value: &[u8]) -> bool {
+        let hash = fnv_3(key, crate::KEY_SIZE as isize) as usize;
+
+        use core::convert::TryInto;
+        #[cfg(feature = "c-style-insert")]
+        {
+            for i in 0..self.capacity {
+                let probe = (hash + i) & (self.capacity - 1);
+
+                let elem = &self.ntable[probe];
+                let key_vec: [u8; KEY_SIZE] = key.try_into().expect("insert");
+
+                if elem.key == key_vec || elem.key == empty_key.key {
+                    core::mem::replace(&mut self.ntable[probe], KVPair{ key: key_vec, val: value.try_into().expect("kvpair") });
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    #[inline]
+    pub fn get_simple(&self, key: &[u8]) -> (bool, &KVPair) {
+        let hash = fnv_3(key, crate::KEY_SIZE as isize) as usize;
+
+        #[cfg(feature="c-style-insert")]
+        { 
+            for i in 0..self.capacity {
+                let probe = (hash + i) & (self.capacity - 1);
+                let elem = &self.ntable[probe];
+
+                if elem.key == empty_key.key {
+                    return (false, &empty_key);
+                }
+
+                if elem.key == key {
+                        return (true, elem);
+                }
+            }
+            return (false, &empty_key);
+        }
+    }
+
 
     // pub fn remove_entry<Q>(&mut self, key: &Q) -> Bucket<K, V> where K: Borrow<Q>, Q: Hash + Eq + ?Sized
     /*

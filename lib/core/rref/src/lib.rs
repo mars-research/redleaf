@@ -13,12 +13,14 @@ mod rref_deque;
 mod rref_array;
 mod rref_vec;
 pub mod traits;
+mod owned;
 
 pub use self::rref::init as init;
 pub use self::rref::RRef as RRef;
 pub use self::rref_array::RRefArray as RRefArray;
 pub use self::rref_deque::RRefDeque as RRefDeque;
 pub use self::rref_vec::RRefVec as RRefVec;
+pub use self::owned::Owned as Owned;
 
 #[cfg(test)]
 mod tests {
@@ -100,6 +102,7 @@ mod tests {
             drop_map.add_type::<[Option<RRef<usize>>; 3]>();
             drop_map.add_type::<[Option<RRef<usize>>; 10]>();
             drop_map.add_type::<[Option<RRef<CleanupTest>>; 4]>();
+            drop_map.add_type::<Owner>();
 
 
             TestHeap {
@@ -157,8 +160,8 @@ mod tests {
         fn sys_yield(&self) {}
         fn sys_create_thread(&self, name: &str, func: extern fn()) -> Box<dyn Thread> { panic!() }
         fn sys_current_thread(&self) -> Box<dyn Thread> { panic!() }
-        fn sys_current_thread_id(&self) -> u64 { 0 }
-        fn sys_get_current_domain_id(&self) -> u64 { 0 }
+        fn sys_current_thread_id(&self) -> u64 { 1 }
+        fn sys_get_current_domain_id(&self) -> u64 { 1 }
         unsafe fn sys_update_current_domain_id(&self, new_domain_id: u64) -> u64 { 0 }
         fn sys_alloc(&self) -> *mut u8 { panic!() }
         fn sys_free(&self, p: *mut u8) { }
@@ -174,7 +177,7 @@ mod tests {
     }
 
     fn init_heap() {
-        init(Box::new(TestHeap::new()), 55);
+        init(Box::new(TestHeap::new()), 1);
     }
     fn init_syscall() {
         libsyscalls::syscalls::init(Box::new(TestSyscall::new()));
@@ -190,7 +193,7 @@ mod tests {
             if borrow_count < 10 {
                 rref.borrow();
                 borrow_count += 1;
-                // borrow_rref_recursively(borrow_count, rref);
+                borrow_rref_recursively(borrow_count, rref);
                 rref.forfeit();
             }
         };
@@ -574,5 +577,45 @@ mod tests {
             assert_eq!(&mut (i * 2), n); // check that every element was doubled
             i += 1;
         }
+    }
+
+    struct Owner {
+        inner: Owned<usize>,
+    }
+
+    impl TypeIdentifiable for Owner {
+        fn type_id() -> u64 {
+            123456789
+        }
+    }
+
+    #[test]
+    fn owned_rref_domain_id() {
+        init_heap();
+        init_syscall();
+        let guard = reset_cleanup();
+
+        let mut owner = RRef::new(Owner {
+            inner: Owned::new(RRef::new(0))
+        });
+
+        assert_eq!(owner.domain_id(), 1);
+
+        // inner dom_id should be 0, since it is owned by a parent rref
+        assert_eq!(owner.inner.rref.as_ref().unwrap().domain_id(), 0);
+
+        // take the inner rref out
+        let inner = owner.inner.take().unwrap();
+
+        // inner dom_id should now be 1 (the current domain's id)
+        assert_eq!(inner.domain_id(), 1);
+
+        // put it back...
+        owner.inner.replace(inner);
+
+        // inner dom_id should be back to 0
+        assert_eq!(owner.inner.rref.as_ref().unwrap().domain_id(), 0);
+
+        drop(guard);
     }
 }

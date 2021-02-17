@@ -114,6 +114,12 @@ impl<T: RRefable> RRef<T> {
             &mut *self.value_pointer
         }
     }
+
+    pub(crate) fn domain_id(&self) -> u64 {
+        unsafe {
+            *self.domain_id_pointer
+        }
+    }
 }
 
 impl<T: RRefable> Drop for RRef<T> {

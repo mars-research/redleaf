@@ -1,4 +1,5 @@
 use crate::rref::RRef;
+use crate::Owned;
 
 pub unsafe auto trait RRefable {}
 impl<T> !RRefable for *mut T {}
@@ -51,6 +52,12 @@ impl TypeIdentifiable for bool {
 impl<T: TypeIdentifiable + RRefable> TypeIdentifiable for RRef<T> {
     fn type_id() -> u64 {
         (T::type_id().wrapping_add(123)).wrapping_pow(2).wrapping_sub(1)
+    }
+}
+
+impl<T: TypeIdentifiable + RRefable> TypeIdentifiable for Owned<T> {
+    fn type_id() -> u64 {
+        (T::type_id().wrapping_add(321)).wrapping_pow(2).wrapping_sub(1)
     }
 }
 

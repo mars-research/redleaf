@@ -761,6 +761,20 @@ impl interface::dom_a::DomA for DomAProxy {
 
         r
     }
+
+    fn test_owned(&self, rref: RRef<OwnedTest>) -> RRef<OwnedTest> {
+        // move thread to next domain
+        let caller_domain = unsafe { sys_update_current_domain_id(self.domain_id) };
+
+        rref.move_to(self.domain_id);
+        let r = self.domain.test_owned(rref);
+        r.move_to(caller_domain);
+
+        // move thread back
+        unsafe { sys_update_current_domain_id(caller_domain) };
+
+        r
+    }
 }
 
 use interface::dom_c::DomCProxy;
@@ -770,7 +784,7 @@ use interface::rv6::Rv6Proxy;
 use interface::bdev::BDevProxy;
 
 use interface::bdev::NvmeBDevProxy;
-
+use interface::dom_a::OwnedTest;
 
 
 /*

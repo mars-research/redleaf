@@ -7,12 +7,6 @@ SECTIONS {
 
   /* . = 0x227000;  */
 
-  .rodata :
-  {
-    *(.rodata .rodata.*)
-    . = ALIGN(4K);
-  }
-
   .text :
   {
     __text_start = .;

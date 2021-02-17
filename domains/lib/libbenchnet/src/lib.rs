@@ -218,6 +218,128 @@ pub fn run_tx_udptest_rref(net: &dyn Net, pkt_len: usize, mut debug: bool) -> Re
     println!("+++++++++++++++++++++++++++++++++++++++++++++++++");
     Ok(())
 }
+/*
+pub fn run_push_pop_test(net: &dyn Net, pkt_len: usize, mut debug: bool) -> Result<()> {
+    let batch_sz: usize = BATCH_SIZE;
+    let mut packets = RRefDeque::<[u8; 1514], 32>::default();
+    let mut collect = RRefDeque::<[u8; 1514], 32>::default();
+    let mut poll =  RRefDeque::<[u8; 1514], 512>::default();
+
+    let mac_data = alloc::vec![
+        0x90, 0xe2, 0xba, 0xb3, 0x74, 0x81, // Dst mac
+        0x90, 0xe2, 0xba, 0xb5, 0x14, 0xcd, // Src mac
+        0x08, 0x00,                         // Protocol
+    ];
+    let mut ip_data = alloc::vec![
+        0x45, 0x00,
+        0x00,
+        0x2e,
+        0x00, 0x0, 0x0, 0x00,
+        0x40, 0x11, 0x00, 0x00,
+        0x0a, 0x0a, 0x03, 0x01,
+        0x0a, 0x0a, 0x03, 0x02,
+    ];
+
+    let udp_hdr = alloc::vec![
+        0xb2, 0x6f, 0x14, 0x51,
+        0x00,
+        0x1a,
+        0x9c, 0xaf,
+    ];
+
+    let mut payload = alloc::vec![0u8; pkt_len - 42];
+
+    payload[0] = b'R';
+    payload[1] = b'e';
+    payload[2] = b'd';
+    payload[3] = b'l';
+    payload[4] = b'e';
+    payload[5] = b'a';
+    payload[6] = b'f';
+
+    let checksum = calc_ipv4_checksum(&ip_data);
+    // Calculated checksum is little-endian; checksum field is big-endian
+    ip_data[10] = (checksum >> 8) as u8;
+    ip_data[11] = (checksum & 0xff) as u8;
+
+    let mut pkt:Vec<u8> = Vec::new();
+    pkt.extend(mac_data.iter());
+    pkt.extend(ip_data.iter());
+    pkt.extend(udp_hdr.iter());
+    pkt.extend(payload.iter());
+
+    let len = pkt.len();
+    if len < 1514 {
+        let pad = alloc::vec![0u8; 1514 - len];
+        pkt.extend(pad.iter());
+    }
+
+    let mut pkt_arr = [0; 1514];
+
+    pkt_arr.copy_from_slice(pkt.as_slice());
+
+    for i in 0..batch_sz {
+        packets.push_back(RRef::<[u8; 1514]>::new(pkt_arr.clone()));
+    }
+
+    let mut append_rdtsc: u64 = 0;
+    let mut alloc_count = 0;
+    let mut alloc_elapsed = 0;
+
+    let mut collect_tx_hist = Base2Histogram::new();
+
+    let mut sum: usize = 0;
+
+    println!("======== Starting push-pop test (rrefs)  ==========");
+
+    let runtime = 30;
+
+    let stats_start = net.get_stats().unwrap()?;
+
+    let start = rdtsc();
+
+    let end = rdtsc() + runtime * CPU_MHZ;
+
+    loop {
+        while let Some(packet) = packets.pop_front() {
+            collect.push_back(packet);
+            sum += 1;
+        }
+
+        packets = collect;
+
+        if rdtsc() > end {
+            break;
+        }
+    }
+
+    let elapsed = rdtsc() - start;
+
+    let mut stats_end = net.get_stats().unwrap()?;
+
+    stats_end.stats_diff(stats_start);
+
+    let adj_runtime = elapsed as f64 / CPU_MHZ as f64;
+
+    if sum > 0 {
+        println!("runtime: {:.2} seconds", adj_runtime);
+        println!("push_pop_rref ({}): push-pop {} packets took {} cycles (avg = {})",
+                                        pkt_len, sum, elapsed, elapsed as f64 / sum as f64);
+
+        println!("Observed Pkts/s: {}", sum as f64 / adj_runtime as f64);
+
+        println!("Device Stats\n{}", stats_end);
+
+        println!("Tx Pkts/s {:.2}", stats_end.tx_dma_ok as f64 / adj_runtime as f64);
+    } else {
+        println!("Test failed! No packets transmitted");
+    }
+
+    print_hist!(collect_tx_hist);
+
+    println!("+++++++++++++++++++++++++++++++++++++++++++++++++");
+    Ok(())
+}*/
 
 pub fn run_tx_udptest(net: &dyn Net, pkt_len: usize, mut debug: bool) -> Result<()> {
     #[cfg(feature = "noop")]
@@ -700,9 +822,9 @@ pub fn dump_packet_rref(pkt: &[u8; 1514], len: usize) {
 
 static mut SASHSTORE: Option<SashStore> = None;
 
-pub const CAPACITY: usize = (1 << 20) * 16;
+pub const CAPACITY: usize = (1 << 20) * 1;
 
-pub fn run_sashstoretest(net: &dyn Net, pkt_size: u16) -> Result<()> {
+pub fn run_sashstoretest(net: &dyn Net, pkt_size: u16, capacity: usize) -> Result<()> {
     let batch_sz = BATCH_SIZE;
     let mut rx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
     let mut tx_packets: VecDeque<Vec<u8>> = VecDeque::with_capacity(batch_sz);
@@ -711,11 +833,15 @@ pub fn run_sashstoretest(net: &dyn Net, pkt_size: u16) -> Result<()> {
 
     unsafe {
         // SASHSTORE = Some(SashStore::with_capacity((1 << 20)));
-        SASHSTORE = Some(SashStore::with_capacity(CAPACITY));
+        SASHSTORE = Some(SashStore::with_capacity(capacity));
     }
 
     for i in 0..batch_sz {
         rx_packets.push_front(Vec::with_capacity(2048));
+    }
+
+    for (i, v) in rx_packets.iter().enumerate() {
+        println!("{} : {:x?}", i, v.as_ptr());
     }
 
     let mut sum: usize = 0;
@@ -725,7 +851,7 @@ pub fn run_sashstoretest(net: &dyn Net, pkt_size: u16) -> Result<()> {
     let stats_start = net.get_stats().unwrap()?;
 
     let start = rdtsc();
-    let end = start + 300 * CPU_MHZ;
+    let end = start + 120 * CPU_MHZ;
 
     let mut alloc_count = 0;
     let mut alloc_elapsed = 0;
@@ -756,18 +882,20 @@ pub fn run_sashstoretest(net: &dyn Net, pkt_size: u16) -> Result<()> {
         for i in 0..tx_packets.len() {
             // Prefetch ahead
             {
-                if i < (tx_packets.len() - 1) {
+                if (i + 1) < tx_packets.len() {
                     let pkt_next = &tx_packets[i + 1];
                     unsafe {
-                        core::intrinsics::prefetch_write_data(pkt_next.as_ptr(), 3);
-                        core::intrinsics::prefetch_write_data(pkt_next.as_ptr().offset(64), 3);
-                        core::intrinsics::prefetch_write_data(pkt_next.as_ptr().offset(128), 3);
+                        let pkt_addr = pkt_next.as_ptr();
+                        core::intrinsics::prefetch_read_data(pkt_addr, 3);
+                        core::intrinsics::prefetch_read_data(pkt_addr.offset(64), 3);
+                        //core::intrinsics::prefetch_read_data(pkt_addr.offset(128), 3);
                     }
                 }
             }
 
             let mut pkt = &mut tx_packets[i];
 
+            //print!(" cur pkt {:x?}\n", pkt.as_ptr());
             if let Some((padding, payload)) = packettool::get_mut_udp_payload(pkt) {
                 if let Some(mut sashstore) = unsafe { SASHSTORE.as_mut() } {
                     let payloadptr = payload as *mut _ as *mut u8;
@@ -780,21 +908,23 @@ pub fn run_sashstoretest(net: &dyn Net, pkt_size: u16) -> Result<()> {
                     };
 
                     // println!("Before handle: payloadvec.capacity() = {}, len() = {}", payloadvec.capacity(), payloadvec.len());
-                    let responsevec = unsafe { sashstore.handle_network_request(payloadvec) };
+                    //let responsevec = unsafe { sashstore.handle_network_request(payloadvec) };
+                    sashstore.handle_network_request_simple(&mut payloadvec);
 
                     // assert!(responsevec.as_ptr() == payloadptr);
                     // println!("Handled: {:x?} -> {:x?}", responsevec.as_ptr(), payloadptr);
                     // println!("After handle: responsevec.capacity() = {}, len() = {}", responsevec.capacity(), responsevec.len());
-                    if responsevec.as_ptr() != payloadptr {
+                    /*if responsevec.as_ptr() != payloadptr {
                         unsafe {
                             ptr::copy(responsevec.as_ptr(), payloadptr, responsevec.len());
                         }
                         println!("copied");
-                    }
+                    }*/
 
                     // println!("Before set_len: {}", pkt.len());
                     unsafe {
-                        pkt.set_len(padding + responsevec.len());
+                        //pkt.set_len(padding + responsevec.len());
+                        pkt.set_len(padding + payloadvec.len());
                     }
                     // println!("After set_len: padding={}, resposevec.len() = {}, set to {}", padding, responsevec.len(), pkt.len());
 
@@ -917,6 +1047,7 @@ pub fn run_sashstoretest(net: &dyn Net, pkt_size: u16) -> Result<()> {
 
     if let Some(mut sashstore) = unsafe { SASHSTORE.as_mut() } {
         sashstore.print_stats();
+        sashstore.print_stats_simple();
     }
     Ok(())
 }
@@ -999,16 +1130,13 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
         for i in 0..tx_packets.len() {
             // Prefetch ahead
             {
-                if i < (tx_packets.len() - 2) {
-                    if ((i + 1) < tx_packets.len()) && ((i + 2) < tx_packets.len()) {
-                        let pkt_next = &tx_packets[i + 1];
-                        let pkt_next2 = &tx_packets[i + 2];
-                        unsafe {
-                            core::intrinsics::prefetch_write_data(pkt_next.as_ptr(), 3);
-                            // core::arch::x86_64::_mm_prefetch(pkt_next.as_ptr() as *const i8, 3);
-                            core::intrinsics::prefetch_write_data(pkt_next2.as_ptr(), 3);
-                            // core::arch::x86_64::_mm_prefetch(pkt_next2.as_ptr() as *const i8, 3);
-                        }
+                if (i + 2) < tx_packets.len() {
+                    let pkt_next = &tx_packets[i + 2];
+                    unsafe {
+                        let pkt_addr = pkt_next.as_ptr();
+                        core::intrinsics::prefetch_read_data(pkt_addr, 3);
+                        //core::intrinsics::prefetch_read_data(pkt_addr.offset(64), 3);
+                        //core::intrinsics::prefetch_read_data(pkt_addr.offset(128), 3);
                     }
                 }
             }
@@ -1018,22 +1146,15 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
                 if let Some(hash) = packettool::get_flowhash(&pkt) {
                     Some(maglev.get_index_from_hash(hash))
                 } else {
+                    println!("flowhash failed");
                     None
                 }
             };
 
-            if let Some(b) = backend {
-                unsafe {
-                    ptr::copy(
-                        our_mac.as_ptr(),
-                        pkt.as_mut_ptr().offset(6),
-                        our_mac.capacity(),
-                    );
-                    ptr::copy(
-                        sender_mac.as_ptr(),
-                        pkt.as_mut_ptr().offset(0),
-                        sender_mac.capacity(),
-                    );
+            if let Some(_) = backend {
+                unsafe { 
+                    ptr::copy(our_mac.as_ptr(), pkt.as_mut_ptr().offset(6), our_mac.capacity());
+                    ptr::copy(sender_mac.as_ptr(), pkt.as_mut_ptr().offset(0), sender_mac.capacity());
                 }
             };
 
@@ -1226,18 +1347,10 @@ pub fn run_fwd_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, delay: u64
                 (pkt).swap(i, 6 + i);
             }*/
             //let mut pkt = pkt as *mut [u8; 1514] as *mut u8;
-            unsafe {
-                ptr::copy(
-                    our_mac.as_ptr(),
-                    pkt.as_mut_ptr().offset(6),
-                    our_mac.capacity(),
-                );
-                ptr::copy(
-                    sender_mac.as_ptr(),
-                    pkt.as_mut_ptr().offset(0),
-                    sender_mac.capacity(),
-                );
-            }
+            /*unsafe {
+                ptr::copy(our_mac.as_ptr(), pkt.as_mut_ptr().offset(6), our_mac.capacity());
+                ptr::copy(sender_mac.as_ptr(), pkt.as_mut_ptr().offset(0), sender_mac.capacity());
+            }*/
         }
         mswap_elapsed += rdtsc() - ms_start;
 
@@ -1376,6 +1489,11 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
         rx_submit.push_back(RRef::<[u8; 1514]>::new(pkt_arr.clone()));
     }
 
+    for (i, v) in rx_submit.iter().enumerate() {
+        println!("{} : {:x?}", i, v.as_ptr());
+    }
+
+
     // Make the packets valid so that they don't get rejected by maglev
     for packet in rx_submit.iter_mut() {
         // Set protocol to ipv4
@@ -1404,7 +1522,7 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
     let mut tx_poll = Some(tx_poll);
     let mut rx_poll = Some(rx_poll);
 
-    let runtime = 30;
+    let runtime = 120;
 
     println!("======== Starting udp maglev fwd test (rrefs) ==========");
 
@@ -1431,21 +1549,19 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
 
         let ms_start = rdtsc();
 
-        let mut pkt_iter = rx_collect_.iter_mut();
-
-        while let Some(pkt) = pkt_iter.next() {
-            let next = pkt_iter.next();
+        for pkt in rx_collect_.iter_mut() {
+            //let next = pkt_iter.next();
             // TODO : Prefetch the next packet here
             //
             let backend = {
                 if let Some(hash) = packettool::get_flowhash(pkt) {
-                    Some(maglev.get_index_from_hash(hash))
+                   Some(maglev.get_index_from_hash(hash))
                 } else {
                     None
                 }
             };
-
-            if let Some(_) = backend {
+ 
+            if let Some(_) = Some(backend) {
                 /*
                 for i in 0..6 {
                     (pkt).swap(i, 6 + i);

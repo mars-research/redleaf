@@ -24,6 +24,7 @@ bitflags! {
     }
 }
 
+#[derive(Debug)]
 pub struct PciDeviceHeader {
     hdr: PciHeader,
 }
@@ -57,6 +58,7 @@ impl PciDeviceHeader {
 
 }
 
+#[derive(Debug)]
 enum PciHeader {
     General {
         vendor_id: u16,
