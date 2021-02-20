@@ -7,6 +7,11 @@ RedLeaf is a research operating system developed from scratch in Rust to explore
 
 ## Setup
 
+### Downloading the code
+```
+git clone --recursive https://github.com/mars-research/redleaf.git
+```
+
 ### Nix
 
 The easiest way to set up a reproducible environment with all dependencies is with [Nix](https://nixos.org/download.html).
