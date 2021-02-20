@@ -2,6 +2,7 @@ use crate::params;
 use serde::{Deserialize, Serialize};
 use std::{
     mem::{size_of},
+    fs::{File},
 };
 
 #[derive(Debug)]
@@ -69,6 +70,12 @@ impl SuperBlock {
 //         }
 //     }
 // }
+#[repr(C)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DirEntry {
+    inum: u16,
+    name: [u8; params::DIRSIZE],
+}
 
 #[repr(C)]
 #[derive(Debug, Serialize, Deserialize)]
@@ -98,66 +105,42 @@ impl INodeData {
             addresses: [0; params::NDIRECT + 1],
         }
     }
-
-    // // TODO: A lot copying, fix it in the future
-    // pub fn copy_from_bytes(&mut self, bytes: &[u8]) {
-    //     let mut offset: usize = 0;
-    //     let file_type = LittleEndian::read_u16(&bytes[offset..]);
-    //     self.file_type = FromPrimitive::from_u16(file_type).unwrap();
-    //     offset += mem::size_of_val(&self.file_type);
-
-    //     self.major = LittleEndian::read_i16(&bytes[offset..]);
-    //     offset += mem::size_of_val(&self.major);
-
-    //     self.minor = LittleEndian::read_i16(&bytes[offset..]);
-    //     offset += mem::size_of_val(&self.minor);
-
-    //     self.nlink = LittleEndian::read_i16(&bytes[offset..]);
-    //     offset += mem::size_of_val(&self.nlink);
-
-    //     self.size = LittleEndian::read_u32(&bytes[offset..]);
-    //     offset += mem::size_of_val(&self.size);
-
-    //     for a in &mut self.addresses {
-    //         *a = LittleEndian::read_u32(&bytes[offset..]);
-    //         offset += mem::size_of_val(a);
-    //     }
-    // }
-
-    // pub fn from_bytes(bytes: &[u8]) -> Self {
-    //     let mut dinode = Self::new();
-    //     dinode.copy_from_bytes(bytes);
-    //     dinode
-    // }
-
-    // pub fn to_bytes(&self, bytes: &mut [u8]) {
-    //     let mut offset: usize = 0;
-    //     LittleEndian::write_u16(&mut bytes[offset..], self.file_type as u16);
-    //     offset += mem::size_of_val(&self.file_type);
-
-    //     LittleEndian::write_i16(&mut bytes[offset..], self.major);
-    //     offset += mem::size_of_val(&self.major);
-
-    //     LittleEndian::write_i16(&mut bytes[offset..], self.minor);
-    //     offset += mem::size_of_val(&self.minor);
-
-    //     LittleEndian::write_i16(&mut bytes[offset..], self.nlink);
-    //     offset += mem::size_of_val(&self.nlink);
-
-    //     LittleEndian::write_u32(&mut bytes[offset..], self.size);
-    //     offset += mem::size_of_val(&self.size);
-
-    //     for a in &self.addresses {
-    //         LittleEndian::write_u32(&mut bytes[offset..], *a);
-    //         offset += mem::size_of_val(a);
-    //     }
-    // }
 }
 
 pub type DINode = INodeData;
-pub const DINODE_SIZE = size_of<DINode>();
+// pub const DINODE_SIZE: usize = size_of::<DINode>();
 
 // Block containing inode i
 pub fn iblock(i: u32, sb: &SuperBlock) {
-    i / params::IPB as u32 + sb.inodestart
+    i / params::IPB as u32 + sb.inodestart;
+}
+
+pub struct INodeIO {
+    dinode: DINode,
+    file: File,
+}
+
+impl INodeIO {
+    pub fn write_inode(file: &mut File, inum: u32, ip: &DINode) {
+        let mut buffer = [0u8; params::BSIZE];
+    
+        let bn = fs::iblock(inum, sb.get_mut());
+        read_sector(file, bn, &mut buffer);
+                    unsafe {
+                        dinode.addresses[fbn] = freeblock;
+                        freeblock += 1;
+                    }
+        const DINODE_SIZE: usize = size_of::<DINode>();
+    
+        let offset = (inum as usize % params::IPB) * DINODE_SIZE;
+        let slice = &mut buffer[offset..offset + DINODE_SIZE];
+        // let mut dinode = DINode::from_bytes(slice);
+        let dinode = bincode::deserialize(&slice).unwrap();
+        write_sector(file, bn, buffer);
+    
+        // Ok(off
+}
+
+pub struct BlockIO {
+
 }

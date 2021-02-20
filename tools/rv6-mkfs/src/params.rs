@@ -26,6 +26,6 @@ pub const NINDIRECT: usize = BSIZE / mem::size_of::<u32>();
 pub const MAXFILE: usize = NDIRECT + NINDIRECT * NINDIRECT;
 
 pub const IPB: usize = BSIZE / mem::size_of::<fs::DINode>();
-pub const DIRSIZ: usize = 14;
+pub const DIRSIZE: usize = 14;
 pub const NINODEBLOCKS: usize = NINODES / IPB + 1;
 pub const NBITMAP: usize = FSSIZE / (BSIZE*8) + 1; 
