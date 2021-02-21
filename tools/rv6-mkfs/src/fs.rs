@@ -2,7 +2,8 @@ use crate::params;
 use serde::{Deserialize, Serialize};
 use std::{
     mem::{size_of},
-    fs::{File},
+    fs::{File, OpenOptions},
+    io::{SeekFrom},
 };
 
 #[derive(Debug)]
@@ -117,30 +118,76 @@ pub fn iblock(i: u32, sb: &SuperBlock) {
 
 pub struct INodeIO {
     dinode: DINode,
+    blockio: BlockIO,
+    // file: File,
+}
+
+// impl INodeIO {
+//     pub fn write_inode(file: &mut File, inum: u32, ip: &DINode) {
+//         let mut buffer = [0u8; params::BSIZE];
+    
+//         let bn = fs::iblock(inum, sb.get_mut());
+//         read_sector(file, bn, &mut buffer);
+//                     unsafe {
+//                         dinode.addresses[fbn] = freeblock;
+//                         freeblock += 1;
+//                     }
+//         const DINODE_SIZE: usize = size_of::<DINode>();
+    
+//         let offset = (inum as usize % params::IPB) * DINODE_SIZE;
+//         let slice = &mut buffer[offset..offset + DINODE_SIZE];
+//         // let mut dinode = DINode::from_bytes(slice);
+//         let dinode = bincode::deserialize(&slice).unwrap();
+//         write_sector(file, bn, buffer);
+//     }
+// }
+
+pub struct BlockIO {
     file: File,
 }
 
-impl INodeIO {
-    pub fn write_inode(file: &mut File, inum: u32, ip: &DINode) {
-        let mut buffer = [0u8; params::BSIZE];
-    
-        let bn = fs::iblock(inum, sb.get_mut());
-        read_sector(file, bn, &mut buffer);
-                    unsafe {
-                        dinode.addresses[fbn] = freeblock;
-                        freeblock += 1;
-                    }
-        const DINODE_SIZE: usize = size_of::<DINode>();
-    
-        let offset = (inum as usize % params::IPB) * DINODE_SIZE;
-        let slice = &mut buffer[offset..offset + DINODE_SIZE];
-        // let mut dinode = DINode::from_bytes(slice);
-        let dinode = bincode::deserialize(&slice).unwrap();
-        write_sector(file, bn, buffer);
-    
-        // Ok(off
-}
+impl BlockIO {
+    pub fn new(filename: &String) -> Self {
+        BlockIO {
+            // turn into a match
+            file: OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(filename).unwrap(),
+        }
+    }
 
-pub struct BlockIO {
+    pub fn read_sector(&self, sec: u32, buf: *mut [u8]) {
+        let mut f = File::open("foo.txt");
+        f.seek(SeekFrom::Start(42));
 
+        let block: u64 = sec as u64 * params::BSIZE as u64;
+        if self.file.seek(SeekFrom::Start(block)).unwrap() != block {
+            panic!("seek");
+        }
+    
+        let bytes_read = self.file.read_exact(buf);
+    
+        if bytes_read != params::BSIZE {
+            eprint!("error: read {} bytes. usually caused by not having enough space. 
+                    increase FSZIE in params.rs to fix this. \n", bytes_read);
+            panic!("read");
+        }
+    }
+
+    pub fn write_sector(&self, sec :u32, buf: &mut [u8]) {
+        // assert!(buf.len() == params::BSIZE);
+        assert_eq!(buf.len(), params::BSIZE);
+    
+        if self.file.seek(SeekFrom::Start(sec * params::BSIZE as u64)).unwrap() != sec * params::BSIZE {
+            panic!("seek");
+        }
+    
+        if self.file.write(buf) != params::BSIZE {
+            panic!("write");
+        }
+    }
+    
 }
