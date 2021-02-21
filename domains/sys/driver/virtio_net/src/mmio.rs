@@ -16,16 +16,23 @@ pub enum Register {
     VendorId,
 
     // TODO: Implement here
+    MmioStatus,
+    MmioDeviceFeatures,
+    MimoDriverFeatures,
 }
 
 impl Register {
     /// Returns the byte offset of the register.
     fn offset(&self) -> usize {
         match self {
-            Register::Magic    => 0x0,
-            Register::Version  => 0x4,
+            Register::Magic => 0x0,
+            Register::Version => 0x4,
             Register::DeviceId => 0x8,
-            Register::VendorId    => 0xc,
+            Register::VendorId => 0xc,
+
+            Register::MmioStatus => 0x1000,
+            Register::MmioDeviceFeatures => 0x10,
+            Register::MimoDriverFeatures => 0x20,
         }
     }
 
@@ -47,9 +54,7 @@ pub struct Mmio {
 
 impl Mmio {
     pub fn new(mmio_base: usize) -> Self {
-        Self {
-            mmio_base,
-        }
+        Self { mmio_base }
     }
 
     /// Performs a sanity check.
@@ -64,7 +69,10 @@ impl Mmio {
 
         let device_id = self.read(Register::DeviceId);
         if device_id != VIRTIO_DEVID_NET {
-            panic!("Invalid MMIO base: Not a VirtIO Network device but {}", device_id);
+            panic!(
+                "Invalid MMIO base: Not a VirtIO Network device but {}",
+                device_id
+            );
         }
 
         // TODO: Remove this

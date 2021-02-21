@@ -93,17 +93,18 @@ qemu_common     += -drive id=satadisk,file=$(xv6fs_img),format=raw,if=none
 qemu_common     += -device ahci,id=ahci
 qemu_common     += -device ide-hd,drive=satadisk,bus=ahci.0
 #qemu_common    += -smp 4
-qemu_common     += -monitor telnet:127.0.0.1:55555,server,nowait
+# qemu_common     += -monitor telnet:127.0.0.1:55555,server,nowait
 qemu_common     += -cpu 'Haswell,pdpe1gb' -machine q35
 # qemu_common     += -net nic,model=virtio
 qemu_common 	+= -device virtio-net-pci,netdev=net0
 qemu_common 	+= -netdev user,id=net0
+# qemu_common		+= -nic user,model=virtio-net-pci
 #qemu_common    += -device vfio-pci,romfile=,host=06:00.1
 #qemu_common    += -vnc 127.0.0.1:0
 #qemu_common	+= -mem-path /dev/hugepages
 
 ifeq ($(LARGE_MEM),true)
-qemu_common     += -m 20G
+qemu_common     += -m 8G
 else
 qemu_common     += -m 2048M
 endif

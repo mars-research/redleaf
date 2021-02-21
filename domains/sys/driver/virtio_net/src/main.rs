@@ -34,7 +34,17 @@ mod mmio;
 mod pci;
 
 use mmio::Mmio;
+use mmio::Register;
 use pci::PciFactory;
+
+// Virtio Constants
+const VIRTIO_CONFIG_S_ACKNOWLEDGE: u32 = 1;
+const VIRTIO_CONFIG_S_DRIVER: u32 = 2;
+const VIRTIO_CONFIG_S_DRIVER_OK: u32 = 4;
+const VIRTIO_CONFIG_S_FEATURES_OK: u32 = 8;
+
+const VIRTIO_NET_F_MAC: u32 = 5;
+const VIRTIO_NET_F_STATUS: u32 = 16;
 
 struct VirtioNetInner {
     mmio: Mmio,
@@ -47,7 +57,48 @@ impl VirtioNetInner {
     unsafe fn new(mmio_base: usize) -> Self {
         let mut mmio = Mmio::new(mmio_base);
 
-        mmio.sanity_check_panic();
+        // mmio.sanity_check_panic();
+
+        // Negotiate Features
+        let mut status: u32 = 0;
+
+        // Reset the device
+
+        mmio.write(Register::MmioStatus, 0);
+
+        for i in 0..100 {
+            println!("VIRTIO DEVICE STATUS BEFORE CHANGE {}", mmio.read(Register::MmioStatus));
+        }
+
+        //
+
+        status |= VIRTIO_CONFIG_S_ACKNOWLEDGE;
+        mmio.write(Register::MmioStatus, status);
+
+        status |= VIRTIO_CONFIG_S_DRIVER;
+        mmio.write(Register::MmioStatus, status);
+
+        mmio.write(Register::MmioStatus, 0xDEADBEEF);
+
+        for i in 0..100 {
+            println!("VIRTIO DEVICE STATUS AFTER CHANGE {}", mmio.read(Register::MmioStatus));
+        }
+
+        let mut features = mmio.read(Register::MmioDeviceFeatures);
+        println!("VIRTIO FEATURES BEFORE: {:x}", features);
+
+        features &= !(1 << VIRTIO_NET_F_MAC);
+        features &= !(1 << VIRTIO_NET_F_STATUS);
+
+        mmio.write(Register::MmioDeviceFeatures, features);
+
+        // status |= VIRTIO_CONFIG_S_FEATURES_OK;
+        // mmio.write(Register::MmioStatus, status);
+
+        // status |= VIRTIO_CONFIG_S_DRIVER_OK;
+        // mmio.write(Register::MmioStatus, status);
+
+        println!("VIRTIO STATUS: {:x}", mmio.read(Register::MmioStatus));
         
         Self {
             mmio,
@@ -117,7 +168,7 @@ pub fn trusted_entry(
 
     let net = {
         let mut pci_factory = PciFactory::new();
-        if pci.pci_register_driver(&mut pci_factory, 0, None).is_err() {
+        if pci.pci_register_driver(&mut pci_factory, 4, None).is_err() {
             panic!("Failed to probe VirtioNet PCI");
         }
         pci_factory.to_device().unwrap()
