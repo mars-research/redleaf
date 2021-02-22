@@ -14,72 +14,7 @@ use std::{
     io::{BufReader, BufWriter, Write, Seek, SeekFrom},
     os::unix::io::{FromRawFd, IntoRawFd},
     mem::{size_of},
-};
-
-
-static mut freeinode: u32 = 1; // TODO: Change this so it is not global
-// pub static sb: Once<SuperBlock> = Once::new();
-static mut freeblock: u32 = 0; // TODO: Change this so it is not global
-
-fn write_sector(file: &mut File, sec :u32, buf: &mut [u8]) {
-    assert!(buf.len() == params::BSIZE);
-
-    if file.seek(SeekFrom::Start(sec * params::BSIZE as u64)).unwrap() != sec * params::BSIZE {
-        panic!("seek");
-    }
-
-    if file.write(buf) != params::BSIZE {
-        panic!("write");
-    }
-}
-
-
-fn write_inode(file: &mut File, inum: u32, ip: &DINode) {
-    let mut buffer = [0u8; params::BSIZE];
-
-    let bn = fs::iblock(inum, sb.get_mut());
-    read_sector(file, bn, &mut buffer);
-                unsafe {
-                    dinode.addresses[fbn] = freeblock;
-                    freeblock += 1;
-                }
-    const DINODE_SIZE: usize = size_of::<DINode>();
-
-    let offset = (inum as usize % params::IPB) * DINODE_SIZE;
-    let slice = &mut buffer[offset..offset + DINODE_SIZE];
-    // let mut dinode = DINode::from_bytes(slice);
-    let dinode = bincode::deserialize(&slice).unwrap();
-    write_sector(file, bn, buffer);
-
-    // Ok(offset + DINODE_SIZE);
-}
-
-fn read_inode(file: &mut File, inum: u32, ip: &mut DINode) {
-    let mut buf = &mut [0u8; params::BSIZE];
-    let bn = fs::iblock(inum, sb.get_mut());
-// 
-    read_sector(file, bn, buf);
-    const DINODE_SIZE: usize = size_of::<DINode>();
-
-    let dinode_offset = (inum as usize % params::IPB) * DINODE_SIZE;
-    let dinode_slice = buf[dinode_offset..dinode_offset + DINODE_SIZE];
-    let temp = bincode::deserialize(&dinode_slice).unwrap();
-}
-
-fn read_sector(file: &mut File, sec: u32, buf: *mut [u8]) {
-    let block: u64 = sec as u64 * params::BSIZE as u64;
-    if file.seek(SeekFrom::Start(block)).unwrap() != block {
-        panic!("seek");
-    }
-
-    let bytes_read = file.read_exact(buf);
-
-    if bytes_read != params::BSIZE {
-        eprint!("error: read {} bytes. usually caused by not having enough space. 
-                increase FSZIE in params.rs to fix this. \n", bytes_read);
-        panic!("read");
-    }
-}
+};}
 
 fn ialloc(file: &mut File, t: i16) -> u32 {
     let inum: u32 = freeinode;

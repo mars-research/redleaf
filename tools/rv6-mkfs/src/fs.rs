@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     mem::{size_of},
     fs::{File, OpenOptions},
-    io::{SeekFrom},
+    io::{Write, Read, Seek, SeekFrom},
 };
 
 #[derive(Debug)]
@@ -35,42 +35,22 @@ impl SuperBlock {
             bmapstart: 0u32
         }
     }
-    
-    // pub fn from_bytes(bytes: &[u8]) -> Self {
-    //     Self {
-    //         size: LittleEndian::read_u32(&bytes[0..4]),
-    //         nblocks: LittleEndian::read_u32(&bytes[4..8]),
-    //         ninodes: LittleEndian::read_u32(&bytes[8..12]),
-    //         nlog: LittleEndian::read_u32(&bytes[12..16]),
-    //         logstart: LittleEndian::read_u32(&bytes[16..20]),
-    //         inodestart: LittleEndian::read_u32(&bytes[20..24]),
-    //         bmapstart: LittleEndian::read_u32(&bytes[24..28]),
-    //     }
-    // }
+    pub fn init() -> SuperBlock {
+        let offset = 2;
+        let nmeta: usize = 2 + nlog + params::NINODEBLOCKS + params::NBITMAP;
+        let nblocks: usize = params::FSSIZE - nmeta;
+
+        SuperBlock {
+            size: params::FSSIZE as u32,
+            nblocks: nblocks as u32,
+            ninodes: params::NINODES as u32,
+            nlog: params::LOGSIZE as u32,
+            logstart: offset,
+            inodestart: offset + params::LOGSIZE,
+            bmapstart: offset + params::LOGSIZE + params::NINODEBLOCKS,
+        }
+    }
 }
-
-// impl Iter for SuperBlock {
-//     impl<'a, T> IntoIterator for &'a mut Vec<T> {
-//         // impl iterator that returns buffer to next dinode
-//         type Item = DINode;
-
-//         // TODO
-//         fn next(&mut self) -> Option<Self::Item> {
-//             let bguard = BCACHE
-//                 .r#try()
-//                 .unwrap()
-//                 .read(device, block_num_for_node(inum, self));
-//             let mut buffer = bguard.lock();
-
-//             const DINODE_SIZE: usize = mem::size_of::<DINode>();
-//             let offset = (inum as usize % params::IPB) * DINODE_SIZE;
-//             // let slice = &mut buffer[offset..offset + DINODE_SIZE];
-//             // let mut dinode = bincode::deserialize(&slice).unwrap();
-        
-//             // Some(dinode);
-//         }
-//     }
-// }
 #[repr(C)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DirEntry {
@@ -109,44 +89,61 @@ impl INodeData {
 }
 
 pub type DINode = INodeData;
-// pub const DINODE_SIZE: usize = size_of::<DINode>();
 
 // Block containing inode i
 pub fn iblock(i: u32, sb: &SuperBlock) {
     i / params::IPB as u32 + sb.inodestart;
 }
 
-pub struct INodeIO {
-    dinode: DINode,
-    blockio: BlockIO,
-    // file: File,
+#[derivce(Debug)]
+pub struct NodeHandler {
+    super_block: SuperBlock,
+    sector_handler: &'a SectorHandler,
+    dinode_size: usize,
+    freeblock: u32,
 }
 
-// impl INodeIO {
-//     pub fn write_inode(file: &mut File, inum: u32, ip: &DINode) {
-//         let mut buffer = [0u8; params::BSIZE];
-    
-//         let bn = fs::iblock(inum, sb.get_mut());
-//         read_sector(file, bn, &mut buffer);
-//                     unsafe {
-//                         dinode.addresses[fbn] = freeblock;
-//                         freeblock += 1;
-//                     }
-//         const DINODE_SIZE: usize = size_of::<DINode>();
-    
-//         let offset = (inum as usize % params::IPB) * DINODE_SIZE;
-//         let slice = &mut buffer[offset..offset + DINODE_SIZE];
-//         // let mut dinode = DINode::from_bytes(slice);
-//         let dinode = bincode::deserialize(&slice).unwrap();
-//         write_sector(file, bn, buffer);
-//     }
-// }
+impl INodeIO {
+    pub fn new(s_handler: &'a SectorHandler) -> Self {
+        DINodeHandler {
+            sector_handler: s_handler,
+            dinode_size: size_of::<DINode>(),
+            freeblock: 0,
+        }
+    }
 
-pub struct BlockIO {
+    pub fn iblock(&self, i: u32) {
+        i / params::IPB as u32 + self.super_block.inodestart;
+    }
+
+    pub fn write_inode(&self, inum: u32, ip: &mut DINode) {
+        let mut buffer = [0u8; params::BSIZE];
+        self.block.read_sector(iblock(inum), &mut buffer);
+        dinode.addresses[fbn] = self.freeblock;
+        self.freeblock += 1;
+    
+        let offset = (inum as usize % params::IPB) * self.dinode_size;
+        let slice = &mut buffer[offset..offset + self.dinode_size];
+        ip = bincode::deserialize(&slice).unwrap();
+        self.block.write_sector(bn, &mut buffer);
+    }
+
+    fn read_inode(&self, inum: u32, ip: &mut DINode) {
+        let mut buf = &mut [0u8; params::BSIZE];
+        self.sector_handler.read_sector(iblock(inum), buf);
+        const DINODE_SIZE: usize = size_of::<DINode>();
+
+        let dinode_offset = (inum as usize % params::IPB) * self.dinode_size;
+        let dinode_slice = buf[dinode_offset..dinode_offset + self.dinode_size];
+        ip = bincode::deserialize(&dinode_slice).unwrap();
+    }
+}
+
+pub struct SectorHandler {
     file: File,
 }
 
-impl BlockIO {
+impl SectorHandler {
     pub fn new(filename: &String) -> Self {
         BlockIO {
             // turn into a match
@@ -159,7 +156,7 @@ impl BlockIO {
         }
     }
 
-    pub fn read_sector(&self, sec: u32, buf: *mut [u8]) {
+    pub fn read_sector(&mut self, sec: u32, buf: &mut [u8]) {
         let mut f = File::open("foo.txt");
         f.seek(SeekFrom::Start(42));
 
@@ -168,7 +165,7 @@ impl BlockIO {
             panic!("seek");
         }
     
-        let bytes_read = self.file.read_exact(buf);
+        let bytes_read = self.file.read(buf).unwrap();
     
         if bytes_read != params::BSIZE {
             eprint!("error: read {} bytes. usually caused by not having enough space. 
@@ -177,11 +174,12 @@ impl BlockIO {
         }
     }
 
-    pub fn write_sector(&self, sec :u32, buf: &mut [u8]) {
+    pub fn write_sector(&mut self, sec :u32, buf: &mut [u8]) {
         // assert!(buf.len() == params::BSIZE);
         assert_eq!(buf.len(), params::BSIZE);
-    
-        if self.file.seek(SeekFrom::Start(sec * params::BSIZE as u64)).unwrap() != sec * params::BSIZE {
+
+        let location: u64 = (sec * params::BSIZE) as u64;
+        if self.file.seek(SeekFrom::Start(location)).unwrap() != location {
             panic!("seek");
         }
     
