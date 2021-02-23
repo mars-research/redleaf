@@ -2,37 +2,59 @@ use core::ptr;
 
 use console::println;
 
-pub const VIRTIO_MAGIC: u32 = 0x74726976;
-pub const VIRTIO_DEVID_NET: u32 = 0x1;
+#[derive(Debug)]
+#[repr(packed, C)]
+pub struct VirtioPciCommonConfig {
+    /* About the whole device. */
+    device_feature_select: u32, /* read-write */
+    device_feature: u32,        /* read-only for driver */
+    driver_feature_select: u32, /* read-write */
+    driver_feature: u32,        /* read-write */
+    msix_config: u16,           /* read-write */
+    num_queues: u16,            /* read-only for driver */
+    device_status: u8,          /* read-write */
+    config_generation: u8,      /* read-only for driver */
+
+    /* About a specific virtqueue. */
+    queue_select: u16,      /* read-write */
+    queue_size: u16,        /* read-write */
+    queue_msix_vector: u16, /* read-write */
+    queue_enable: u16,      /* read-write */
+    queue_notify_off: u16,  /* read-only for driver */
+    queue_desc: u64,        /* read-write */
+    queue_driver: u64,      /* read-write */
+    queue_device: u64,      /* read-write */
+}
 
 /// VirtIO Network Device registers.
 ///
 /// Specs: https://docs.oasis-open.org/virtio/virtio/v1.1/csprd01/virtio-v1.1-csprd01.html#x1-1460002
 #[derive(Debug, Copy, Clone)]
 pub enum Register {
-    Magic,
-    Version,
-    DeviceId,
-    VendorId,
-
     // TODO: Implement here
-    MmioStatus,
-    MmioDeviceFeatures,
-    MimoDriverFeatures,
+
+    // Capabilities: [70] Vendor Specific Information: VirtIO: Notify
+    //     BAR=4 offset=00003000 size=00001000 multiplier=00000004
+    // Capabilities: [60] Vendor Specific Information: VirtIO: DeviceCfg
+    //     BAR=4 offset=00002000 size=00001000
+    // Capabilities: [50] Vendor Specific Information: VirtIO: ISR
+    //     BAR=4 offset=00001000 size=00001000
+    // Capabilities: [40] Vendor Specific Information: VirtIO: CommonCfg
+    //     BAR=4 offset=00000000 size=00001000
+    CommonCfg,
+    ISR,
+    DeviceCfg,
+    Notify,
 }
 
 impl Register {
     /// Returns the byte offset of the register.
     fn offset(&self) -> usize {
         match self {
-            Register::Magic => 0x0,
-            Register::Version => 0x4,
-            Register::DeviceId => 0x8,
-            Register::VendorId => 0xc,
-
-            Register::MmioStatus => 0x1000,
-            Register::MmioDeviceFeatures => 0x10,
-            Register::MimoDriverFeatures => 0x20,
+            Register::CommonCfg => 0x0,
+            Register::ISR => 0x1000,
+            Register::DeviceCfg => 0x2000,
+            Register::Notify => 0x3000,
         }
     }
 
@@ -57,26 +79,9 @@ impl Mmio {
         Self { mmio_base }
     }
 
-    /// Performs a sanity check.
-    pub unsafe fn sanity_check_panic(&mut self) {
-        if self.read(Register::Magic) != VIRTIO_MAGIC {
-            panic!("Invalid MMIO base: Not a VirtIO device");
-        }
-
-        if self.read(Register::Version) != 0x2 {
-            panic!("Invalid MMIO base: Unsupported VirtIO version");
-        }
-
-        let device_id = self.read(Register::DeviceId);
-        if device_id != VIRTIO_DEVID_NET {
-            panic!(
-                "Invalid MMIO base: Not a VirtIO Network device but {}",
-                device_id
-            );
-        }
-
-        // TODO: Remove this
-        println!("Found valid VirtIO Network MMIO @ {:X?}", self.mmio_base);
+    pub unsafe fn readCommonConfig(&mut self) -> VirtioPciCommonConfig {
+        let cfg_ptr = (self.mmio_base + Register::CommonCfg.offset()) as *mut VirtioPciCommonConfig;
+        ptr::read_unaligned(cfg_ptr)
     }
 
     pub unsafe fn write(&mut self, register: Register, value: u32) {
