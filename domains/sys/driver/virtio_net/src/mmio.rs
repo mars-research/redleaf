@@ -6,24 +6,61 @@ use console::println;
 #[repr(packed, C)]
 pub struct VirtioPciCommonConfig {
     /* About the whole device. */
-    device_feature_select: u32, /* read-write */
-    device_feature: u32,        /* read-only for driver */
-    driver_feature_select: u32, /* read-write */
-    driver_feature: u32,        /* read-write */
-    msix_config: u16,           /* read-write */
-    num_queues: u16,            /* read-only for driver */
-    device_status: u8,          /* read-write */
-    config_generation: u8,      /* read-only for driver */
+    pub device_feature_select: u32, /* read-write */
+    pub device_feature: u32,        /* read-only for driver */
+    pub driver_feature_select: u32, /* read-write */
+    pub driver_feature: u32,        /* read-write */
+    pub msix_config: u16,           /* read-write */
+    pub num_queues: u16,            /* read-only for driver */
+    pub device_status: u8,          /* read-write */
+    pub config_generation: u8,      /* read-only for driver */
 
     /* About a specific virtqueue. */
-    queue_select: u16,      /* read-write */
-    queue_size: u16,        /* read-write */
-    queue_msix_vector: u16, /* read-write */
-    queue_enable: u16,      /* read-write */
-    queue_notify_off: u16,  /* read-only for driver */
-    queue_desc: u64,        /* read-write */
-    queue_driver: u64,      /* read-write */
-    queue_device: u64,      /* read-write */
+    pub queue_select: u16,      /* read-write */
+    pub queue_size: u16,        /* read-write */
+    pub queue_msix_vector: u16, /* read-write */
+    pub queue_enable: u16,      /* read-write */
+    pub queue_notify_off: u16,  /* read-only for driver */
+    pub queue_desc: u64,        /* read-write */
+    pub queue_driver: u64,      /* read-write */
+    pub queue_device: u64,      /* read-write */
+}
+#[derive(PartialEq, Debug)]
+pub enum VirtioDeviceStatus {
+    Reset,
+    Acknowledge,
+    Driver,
+    Failed,
+    FeaturesOk,
+    DriverOk,
+    DeviceNeedsReset,
+}
+
+impl VirtioDeviceStatus {
+    fn value(&self) -> u8 {
+        match self {
+            VirtioDeviceStatus::Reset => 0,
+            VirtioDeviceStatus::Acknowledge => 1,
+            VirtioDeviceStatus::Driver => 2,
+            VirtioDeviceStatus::Failed => 128,
+            VirtioDeviceStatus::FeaturesOk => 8,
+            VirtioDeviceStatus::DriverOk => 4,
+            VirtioDeviceStatus::DeviceNeedsReset => 64,
+        }
+    }
+
+    fn value_to_status(value: u8) -> VirtioDeviceStatus {
+        match value {
+            0 => Self::Reset,
+            1 => Self::Acknowledge,
+            2 => Self::Driver,
+            128 => Self::Failed,
+            8 => Self::FeaturesOk,
+            4 => Self::DriverOk,
+            64 => Self::DeviceNeedsReset,
+            _ => Self::DeviceNeedsReset,
+        }
+    }
 }
 
 /// VirtIO Network Device registers.
@@ -45,6 +82,9 @@ pub enum Register {
     ISR,
     DeviceCfg,
     Notify,
+
+    // If reading and writting CommonCfg is too much work
+    DeviceStatus,
 }
 
 impl Register {
@@ -55,6 +95,8 @@ impl Register {
             Register::ISR => 0x1000,
             Register::DeviceCfg => 0x2000,
             Register::Notify => 0x3000,
+
+            Register::DeviceStatus => 0xa0,
         }
     }
 
@@ -79,9 +121,28 @@ impl Mmio {
         Self { mmio_base }
     }
 
-    pub unsafe fn readCommonConfig(&mut self) -> VirtioPciCommonConfig {
-        let cfg_ptr = (self.mmio_base + Register::CommonCfg.offset()) as *mut VirtioPciCommonConfig;
+    pub unsafe fn read_common_config(&mut self) -> VirtioPciCommonConfig {
+        let cfg_ptr =
+            (self.mmio_base + Register::CommonCfg.offset()) as *const VirtioPciCommonConfig;
         ptr::read_unaligned(cfg_ptr)
+    }
+
+    pub unsafe fn write_common_config(&mut self, common_config: VirtioPciCommonConfig) {
+        let cfg_ptr = (self.mmio_base + Register::CommonCfg.offset()) as *mut VirtioPciCommonConfig;
+        ptr::write_unaligned(cfg_ptr, common_config);
+    }
+
+    pub unsafe fn read_device_status(&mut self) -> VirtioDeviceStatus {
+        let value =
+            ptr::read_volatile((self.mmio_base + Register::DeviceStatus.offset()) as *const u8);
+        VirtioDeviceStatus::value_to_status(value)
+    }
+
+    pub unsafe fn write_device_status(&mut self, status: VirtioDeviceStatus) {
+        ptr::write_volatile(
+            (self.mmio_base + Register::DeviceStatus.offset()) as *mut u8,
+            status.value(),
+        );
     }
 
     pub unsafe fn write(&mut self, register: Register, value: u32) {
