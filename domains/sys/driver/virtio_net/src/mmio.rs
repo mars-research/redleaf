@@ -96,7 +96,7 @@ impl Register {
             Register::DeviceCfg => 0x2000,
             Register::Notify => 0x3000,
 
-            Register::DeviceStatus => 0xa0,
+            Register::DeviceStatus => 0x14,
         }
     }
 
@@ -135,6 +135,7 @@ impl Mmio {
     pub unsafe fn read_device_status(&mut self) -> VirtioDeviceStatus {
         let value =
             ptr::read_volatile((self.mmio_base + Register::DeviceStatus.offset()) as *const u8);
+        println!("VALUE OF DEVICE STATUS: {}", value);
         VirtioDeviceStatus::value_to_status(value)
     }
 
