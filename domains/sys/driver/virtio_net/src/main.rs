@@ -62,28 +62,37 @@ impl VirtioNetInner {
         println!("Initializing Virtio Network Device");
 
         // Negotiate Status
-        if mmio.read_device_status() == VirtioDeviceStatus::Reset {
-            mmio.write_device_status(VirtioDeviceStatus::Acknowledge);
-            println!("Virtio Device Acknowledged");
+        mmio.write_device_status(VirtioDeviceStatus::Acknowledge);
+        println!("Virtio Device Acknowledged");
 
-            let mut cfg = mmio.read_common_config();
-            println!("{:#?}", cfg);
+        println!("Initial Configuration");
+        let mut cfg = mmio.read_common_config();
+        println!("{:#?}", cfg);
 
-            let mut feature_bits: u32 = cfg.device_feature;
-            feature_bits |= 5; // Enable Device MAC Address
-            feature_bits |= 16; // Enable Device Status
-            cfg.driver_feature = feature_bits;
+        println!("Negotiating VirtIO Features");
+        let mut feature_bits: u32 = cfg.device_feature;
+        feature_bits |= 5; // Enable Device MAC Address
+        feature_bits |= 16; // Enable Device Status
+        cfg.driver_feature = feature_bits;
 
-            mmio.write_common_config(cfg);
+        mmio.write_common_config(cfg);
 
-            let device_status = mmio.read_device_status();
-            println!("After Feature Negotiation {:#?}", device_status);
+        let device_status = mmio.read_device_status();
+        println!("After Feature Negotiation {:#?}", device_status);
 
-            mmio.write_device_status(VirtioDeviceStatus::FeaturesOk);
+        mmio.write_device_status(VirtioDeviceStatus::FeaturesOk);
 
-            let device_status = mmio.read_device_status();
-            println!("After Features OK {:#?}", device_status);
-        }
+        let device_status = mmio.read_device_status();
+        println!("After Features OK {:#?}", device_status);
+
+        // let mut cfg = mmio.read_common_config();
+        // cfg.device_status = 1;
+        // mmio.write_common_config(cfg);
+
+        // let cfg2 = mmio.read_common_config();
+        // println!("{:#?}", cfg2);
+
+        // println!("{:#?}", mmio.read_device_status());
 
         Self { mmio }
     }
