@@ -86,7 +86,8 @@ domain_list := $(addprefix domains/build/, \
 # QEMU
 ################
 
-qemu_common     := ${QEMU_MEM} -vga std -s
+# qemu_common     := ${QEMU_MEM} -vga std -s
+qemu_common     := ${QEMU_MEM} -vga std
 qemu_common     += -cdrom $(iso)
 #qemu_common    += -no-reboot -no-shutdown -d int,cpu_reset
 qemu_common     += -drive id=satadisk,file=$(xv6fs_img),format=raw,if=none
@@ -245,6 +246,16 @@ $(mb2): kernel domains memops $(linker_script)
 .PHONY: memops
 memops:
 	make -C lib/external/memops
+
+.PHONY: just-run-qemu
+just-run-qemu:
+	qemu-system-x86_64 -vga std -cdrom build/redleaf.iso \
+	-drive id=satadisk,file=tools/rv6-mkfs/build/fs.img,format=raw,if=none \
+	-device ahci,id=ahci -device ide-hd,drive=satadisk,bus=ahci.0 \
+	-cpu 'Haswell,pdpe1gb' -machine q35 \
+	-device virtio-net-pci,netdev=net0 -netdev user,id=net0 \
+	-m 12G -nographic -chardev stdio,id=char0,mux=on,logfile=serial.log,signal=off \
+	-serial file:/dev/null -serial chardev:char0 -mon chardev=char0
 
 include $(root)/checkstack.mk
 
