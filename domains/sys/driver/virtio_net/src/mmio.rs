@@ -3,7 +3,7 @@ use core::ptr;
 use console::println;
 
 #[derive(Debug)]
-#[repr(packed, C)]
+#[repr(C)]
 pub struct VirtioPciCommonConfig {
     /* About the whole device. */
     pub device_feature_select: u32, /* read-write */
@@ -135,7 +135,6 @@ impl Mmio {
     pub unsafe fn read_device_status(&mut self) -> VirtioDeviceStatus {
         let value =
             ptr::read_volatile((self.mmio_base + Register::DeviceStatus.offset()) as *const u8);
-        println!("VALUE OF DEVICE STATUS: {}", value);
         VirtioDeviceStatus::value_to_status(value)
     }
 

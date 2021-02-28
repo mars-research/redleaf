@@ -4,6 +4,7 @@
     box_syntax,
     const_fn,
     const_raw_ptr_to_usize_cast,
+    const_in_array_repeat_expressions,
     untagged_unions,
     maybe_uninit_extra
 )]
@@ -38,14 +39,24 @@ use mmio::Register;
 use mmio::VirtioDeviceStatus;
 use pci::PciFactory;
 
-// Virtio Constants
-// const VIRTIO_CONFIG_S_ACKNOWLEDGE: u32 = 1;
-// const VIRTIO_CONFIG_S_DRIVER: u32 = 2;
-// const VIRTIO_CONFIG_S_DRIVER_OK: u32 = 4;
-// const VIRTIO_CONFIG_S_FEATURES_OK: u32 = 8;
+/// The number of Descriptors (must be a multiple of 2)
+pub const DESCRIPTOR_COUNT: usize = 8;
 
-// const VIRTIO_NET_F_MAC: u32 = 5;
-// const VIRTIO_NET_F_STATUS: u32 = 16;
+static DESCRIPTOR_QUEUE: [Option<VirtqDescriptor>; DESCRIPTOR_COUNT] = [None; DESCRIPTOR_COUNT];
+
+#[derive(Debug)]
+#[repr(C)]
+struct VirtqDescriptor {
+    /// Address (guest-physical)
+    addr: u64,
+    /// Length
+    len: u32,
+
+    flags: u16,
+
+    /// Next field if flags contains NEXT
+    next: u16,
+}
 
 struct VirtioNetInner {
     mmio: Mmio,
@@ -61,38 +72,57 @@ impl VirtioNetInner {
 
         println!("Initializing Virtio Network Device");
 
-        // Negotiate Status
+        // VIRTIO DEVICE INIT
+        // https://docs.oasis-open.org/virtio/virtio/v1.1/cs01/virtio-v1.1-cs01.html#x1-920001
+        //
+        // Reset the device.
+        // Set the ACKNOWLEDGE status bit: the guest OS has noticed the device.
+        // Set the DRIVER status bit: the guest OS knows how to drive the device.
+        // Read device feature bits, and write the subset of feature bits understood by the OS and driver to the device. During this step the driver MAY read (but MUST NOT write) the device-specific configuration fields to check that it can support the device before accepting it.
+        // Set the FEATURES_OK status bit. The driver MUST NOT accept new feature bits after this step.
+        // Re-read device status to ensure the FEATURES_OK bit is still set: otherwise, the device does not support our subset of features and the device is unusable.
+        // Perform device-specific setup, including discovery of virtqueues for the device, optional per-bus setup, reading and possibly writing the device’s virtio configuration space, and population of virtqueues.
+        // Set the DRIVER_OK status bit. At this point the device is “live”.
+
+        // Acknowlege Device
         mmio.write_device_status(VirtioDeviceStatus::Acknowledge);
-        println!("Virtio Device Acknowledged");
+        mmio.write_device_status(VirtioDeviceStatus::Driver); // But do we really know how to drive the device?
 
-        println!("Initial Configuration");
+        // Negotiate Features
         let mut cfg = mmio.read_common_config();
-        println!("{:#?}", cfg);
-
-        println!("Negotiating VirtIO Features");
-        let mut feature_bits: u32 = cfg.device_feature;
+        // let mut feature_bits: u32 = cfg.device_feature;
+        let mut feature_bits: u32 = 0;
         feature_bits |= 5; // Enable Device MAC Address
         feature_bits |= 16; // Enable Device Status
         cfg.driver_feature = feature_bits;
 
+        // Write back the Config
+        println!("{:#?}", cfg);
         mmio.write_common_config(cfg);
 
-        let device_status = mmio.read_device_status();
-        println!("After Feature Negotiation {:#?}", device_status);
-
+        // Tell the Device that feature Negotiation is complete
         mmio.write_device_status(VirtioDeviceStatus::FeaturesOk);
 
-        let device_status = mmio.read_device_status();
-        println!("After Features OK {:#?}", device_status);
+        if mmio.read_device_status() != VirtioDeviceStatus::FeaturesOk {
+            panic!("Requested features *NOT* supported by VirtIO Device!");
+        }
 
-        // let mut cfg = mmio.read_common_config();
-        // cfg.device_status = 1;
-        // mmio.write_common_config(cfg);
+        println!("{:#?}", mmio.read_common_config());
 
-        // let cfg2 = mmio.read_common_config();
-        // println!("{:#?}", cfg2);
+        // Setup VirtQueues
+        let mut cfg = mmio.read_common_config();
+        cfg.queue_desc =
+            (&DESCRIPTOR_QUEUE as *const [Option<VirtqDescriptor>; DESCRIPTOR_COUNT]) as u64;
+        cfg.queue_enable = 1;
 
-        // println!("{:#?}", mmio.read_device_status());
+        println!("{:#?}", cfg);
+
+        mmio.write_common_config(cfg);
+
+        // Tell the Device we're all done
+        mmio.write_device_status(VirtioDeviceStatus::DriverOk);
+
+        println!("VirtIO Device Initialized!");
 
         Self { mmio }
     }
