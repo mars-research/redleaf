@@ -6,12 +6,12 @@ unsafe fn to_bytes<T: Sized>(p: &T) -> &[u8] {
 }
 
 pub fn zero(buffer: &mut [u8]) {
-    for i in &buffer { 
+    for i in buffer.iter_mut() {
         *i = 0 
     }
 }
 
-pub fn u32_as_u8_mut<'a>(src: &'a mut [u32]) -> &'a mut [u8] {
+pub fn usize_as_u8_mut<'a>(src: &'a mut [usize]) -> &'a mut [u8] {
     unsafe {
         std::slice::from_raw_parts_mut(src.as_mut_ptr() as *mut u8,
                                         src.len() * 4)
@@ -54,21 +54,9 @@ pub(crate) fn read_up_to(file: &mut impl std::io::Read, mut buf: &mut [u8]) -> R
     Ok(buf_len - buf.len())
 }
 
-
-// unsafe fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
-//     ::std::slice::from_raw_parts(
-//         (p as *const T) as *const u8,
-//         ::std::mem::size_of::<T>(),
-//     )
-// }
-
-// fn main() {
-//     struct MyStruct {
-//         id: u8,
-//         data: [u8; 1024],
-//     }
-//     let my_struct = MyStruct { id: 0, data: [1; 1024] };
-//     let bytes: &[u8] = unsafe { any_as_u8_slice(&my_struct) };
-//     // tcp_stream.write(bytes);
-//     println!("{:?}", bytes);
-// }
+pub unsafe fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
+    std::slice::from_raw_parts(
+        (p as *const T) as *const u8,
+        ::std::mem::size_of::<T>(),
+    )
+}
