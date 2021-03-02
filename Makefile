@@ -98,7 +98,8 @@ qemu_common     += -device ide-hd,drive=satadisk,bus=ahci.0
 qemu_common     += -cpu 'Haswell,pdpe1gb' -machine q35
 # qemu_common     += -net nic,model=virtio
 qemu_common 	+= -device virtio-net-pci,netdev=net0
-qemu_common 	+= -netdev user,id=net0
+# qemu_common 	+= -netdev user,id=net0
+qemu_common		+= -netdev tap,id=net0,ifname=virtio,script=no,downscript=no
 # qemu_common		+= -nic user,model=virtio-net-pci
 #qemu_common    += -device vfio-pci,romfile=,host=06:00.1
 #qemu_common    += -vnc 127.0.0.1:0
@@ -256,6 +257,14 @@ just-run-qemu:
 	-device virtio-net-pci,netdev=net0 -netdev user,id=net0 \
 	-m 12G -nographic -chardev stdio,id=char0,mux=on,logfile=serial.log,signal=off \
 	-serial file:/dev/null -serial chardev:char0 -mon chardev=char0
+
+.PHONY: create-virtio-tap
+create-virtio-tap:
+	ip tuntap add mode tap user ${USER} name virtio
+	# Courtesy of Vincent
+	ip address add 10.69.69.1/24 dev virtio
+	ip link set virtio up
+
 
 include $(root)/checkstack.mk
 

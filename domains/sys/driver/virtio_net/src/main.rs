@@ -39,15 +39,58 @@ use mmio::Register;
 use mmio::VirtioDeviceStatus;
 use pci::PciFactory;
 
-/// The number of Descriptors (must be a multiple of 2)
-pub const DESCRIPTOR_COUNT: usize = 8;
+/// The number of Descriptors (must be a multiple of 2), called "Queue Size" in documentation
+pub const DESCRIPTOR_COUNT: usize = 256; // Maybe change this to 256, was 8 before
 
-static DESCRIPTOR_QUEUE: [Option<VirtqDescriptor>; DESCRIPTOR_COUNT] = [None; DESCRIPTOR_COUNT];
+static mut TRANSMIT_QUEUE: VirtQueue = VirtQueue {
+    descriptors: [None; DESCRIPTOR_COUNT],
+    available: VirtqAvailable {
+        flags: 0,
+        idx: 0,
+        ring: [0; DESCRIPTOR_COUNT],
+    },
+    used: VirtqUsed {
+        flags: 0,
+        idx: 0,
+        ring: [None; DESCRIPTOR_COUNT],
+    },
+};
+
+static mut RECIEVE_QUEUE: VirtQueue = VirtQueue {
+    descriptors: [None; DESCRIPTOR_COUNT],
+    available: VirtqAvailable {
+        flags: 0,
+        idx: 0,
+        ring: [0; DESCRIPTOR_COUNT],
+    },
+    used: VirtqUsed {
+        flags: 0,
+        idx: 0,
+        ring: [None; DESCRIPTOR_COUNT],
+    },
+};
+
+// First page - first section is descriptors
+// Second portion of 1st page is available
+// Second page is used
+
+// 2.6.12 Virtqueue Operation
+// There are two parts to virtqueue operation: supplying new available buffers to the device, and processing used buffers from the device.
+// Note: As an example, the simplest virtio network device has two virtqueues: the transmit virtqueue and the receive virtqueue.
+// The driver adds outgoing (device-readable) packets to the transmit virtqueue, and then frees them after they are used.
+// Similarly, incoming (device-writable) buffers are added to the receive virtqueue, and processed after they are used.
+
+#[repr(C)]
+struct VirtQueue {
+    descriptors: [Option<VirtqDescriptor>; DESCRIPTOR_COUNT],
+    available: VirtqAvailable,
+    used: VirtqUsed,
+}
 
 #[derive(Debug)]
 #[repr(C)]
 struct VirtqDescriptor {
-    /// Address (guest-physical)
+    /// Address (guest-physical) to Virtio Net Packet Header
     addr: u64,
     /// Length
     len: u32,
@@ -56,6 +99,37 @@ struct VirtqDescriptor {
 
     /// Next field if flags contains NEXT
     next: u16,
+}
+
+#[derive(Debug)]
+#[repr(C)]
+struct VirtqAvailable {
+    flags: u16,
+
+    /// Index into VirtqDescriptor Array (Count of Descriptor Chain Heads???)
+    idx: u16,
+
+    ring: [u16; DESCRIPTOR_COUNT],
+}
+
+#[derive(Debug)]
+#[repr(C)]
+struct VirtqUsedElement {
+    /// Index of start of used descriptor chain
+    id: u32,
+    /// Total length of the descriptor chain used
+    len: u32,
+}
+
+#[derive(Debug)]
+#[repr(C)]
+struct VirtqUsed {
+    flags: u16,
+
+    /// Index into VirtqDescriptor Array
+    idx: u16,
+
+    ring: [Option<VirtqUsedElement>; DESCRIPTOR_COUNT],
 }
 
 struct VirtioNetInner {
@@ -110,17 +184,43 @@ impl VirtioNetInner {
         println!("{:#?}", mmio.read_common_config());
 
         // Setup VirtQueues
+
+        // Setup TRANSMIT_QUEUE
         let mut cfg = mmio.read_common_config();
-        cfg.queue_desc =
-            (&DESCRIPTOR_QUEUE as *const [Option<VirtqDescriptor>; DESCRIPTOR_COUNT]) as u64;
+        cfg.queue_select = 0;
+        cfg.queue_desc = (&TRANSMIT_QUEUE.descriptors
+            as *const [Option<VirtqDescriptor>; DESCRIPTOR_COUNT]) as u64;
+        cfg.queue_driver = (&TRANSMIT_QUEUE.available as *const VirtqAvailable) as u64;
+        cfg.queue_device = (&TRANSMIT_QUEUE.used as *const VirtqUsed) as u64;
         cfg.queue_enable = 1;
+        println!("WRITING TRANSMIT_QUEUE: {:#?}", cfg);
+        mmio.write_common_config(cfg);
 
-        println!("{:#?}", cfg);
-
+        // Setup RECEIEVE_QUEUE
+        let mut cfg = mmio.read_common_config();
+        cfg.queue_select = 1;
+        cfg.queue_desc = (&RECIEVE_QUEUE.descriptors
+            as *const [Option<VirtqDescriptor>; DESCRIPTOR_COUNT]) as u64;
+        cfg.queue_driver = (&RECIEVE_QUEUE.available as *const VirtqAvailable) as u64;
+        cfg.queue_device = (&RECIEVE_QUEUE.used as *const VirtqUsed) as u64;
+        cfg.queue_enable = 1;
+        println!("WRITING RECIEVE_QUEUE: {:#?}", cfg);
         mmio.write_common_config(cfg);
 
         // Tell the Device we're all done
         mmio.write_device_status(VirtioDeviceStatus::DriverOk);
+
+        let mut memory_location = [0u64; 100];
+
+        RECIEVE_QUEUE.descriptors[0] = Some(VirtqDescriptor {
+            addr: (&memory_location as *const [u64; 100]) as u64,
+            len: 8 * 100,
+            flags: 2, // For VIRTQ_DESC_F_WRITE
+            next: 0,
+        });
+
+        RECIEVE_QUEUE.available.ring[0] = 0;
+        RECIEVE_QUEUE.available.idx = 1;
 
         println!("VirtIO Device Initialized!");
 
