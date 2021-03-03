@@ -43,7 +43,7 @@ use pci::PciFactory;
 pub const DESCRIPTOR_COUNT: usize = 256; // Maybe change this to 256, was 8 before
 
 static mut TRANSMIT_QUEUE: VirtQueue = VirtQueue {
-    descriptors: [VirtqDescriptor.new(); DESCRIPTOR_COUNT],
+    descriptors: [VirtqDescriptor::default(); DESCRIPTOR_COUNT],
     available: VirtqAvailable {
         flags: 0,
         idx: 0,
@@ -57,7 +57,7 @@ static mut TRANSMIT_QUEUE: VirtQueue = VirtQueue {
 };
 
 static mut RECEIVE_QUEUE: VirtQueue = VirtQueue {
-    descriptors: [VirtqDescriptor.new(); DESCRIPTOR_COUNT],
+    descriptors: [VirtqDescriptor::default(); DESCRIPTOR_COUNT],
     available: VirtqAvailable {
         flags: 0,
         idx: 0,
@@ -66,7 +66,7 @@ static mut RECEIVE_QUEUE: VirtQueue = VirtQueue {
     used: VirtqUsed {
         flags: 0,
         idx: 0,
-        ring: [VirtqUsedElement.new(); DESCRIPTOR_COUNT],
+        ring: [VirtqUsedElement::default(); DESCRIPTOR_COUNT],
     },
 };
 
