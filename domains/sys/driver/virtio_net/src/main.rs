@@ -43,7 +43,7 @@ use pci::PciFactory;
 pub const DESCRIPTOR_COUNT: usize = 256; // Maybe change this to 256, was 8 before
 
 static mut TRANSMIT_QUEUE: VirtQueue = VirtQueue {
-    descriptors: [None; DESCRIPTOR_COUNT],
+    descriptors: [VirtqDescriptor.new(); DESCRIPTOR_COUNT],
     available: VirtqAvailable {
         flags: 0,
         idx: 0,
@@ -56,8 +56,8 @@ static mut TRANSMIT_QUEUE: VirtQueue = VirtQueue {
     },
 };
 
-static mut RECIEVE_QUEUE: VirtQueue = VirtQueue {
-    descriptors: [None; DESCRIPTOR_COUNT],
+static mut RECEIVE_QUEUE: VirtQueue = VirtQueue {
+    descriptors: [VirtqDescriptor.new(); DESCRIPTOR_COUNT],
     available: VirtqAvailable {
         flags: 0,
         idx: 0,
@@ -66,7 +66,7 @@ static mut RECIEVE_QUEUE: VirtQueue = VirtQueue {
     used: VirtqUsed {
         flags: 0,
         idx: 0,
-        ring: [None; DESCRIPTOR_COUNT],
+        ring: [VirtqUsedElement.new(); DESCRIPTOR_COUNT],
     },
 };
 
@@ -80,15 +80,15 @@ static mut RECIEVE_QUEUE: VirtQueue = VirtQueue {
 // The driver adds outgoing (device-readable) packets to the transmit virtqueue, and then frees them after they are used.
 // Similarly, incoming (device-writable) buffers are added to the receive virtqueue, and processed after they are used.
 
-#[repr(C)]
+#[repr(C, packed)]
 struct VirtQueue {
     descriptors: [Option<VirtqDescriptor>; DESCRIPTOR_COUNT],
     available: VirtqAvailable,
     used: VirtqUsed,
 }
 
-#[derive(Debug)]
-#[repr(C)]
+#[derive(Debug, Default)]
+#[repr(C, packed)]
 struct VirtqDescriptor {
     /// Address (guest-physical) to Virtio Net Packet Header
     addr: u64,
@@ -101,8 +101,8 @@ struct VirtqDescriptor {
     next: u16,
 }
 
-#[derive(Debug)]
-#[repr(C)]
+#[derive(Debug, Default)]
+#[repr(C, packed)]
 struct VirtqAvailable {
     flags: u16,
 
@@ -112,8 +112,8 @@ struct VirtqAvailable {
     ring: [u16; DESCRIPTOR_COUNT],
 }
 
-#[derive(Debug)]
-#[repr(C)]
+#[derive(Debug, Default)]
+#[repr(C, packed)]
 struct VirtqUsedElement {
     /// Index of start of used descriptor chain
     id: u32,
@@ -121,15 +121,15 @@ struct VirtqUsedElement {
     len: u32,
 }
 
-#[derive(Debug)]
-#[repr(C)]
+#[derive(Debug, Default)]
+#[repr(C, packed)]
 struct VirtqUsed {
     flags: u16,
 
     /// Index into VirtqDescriptor Array
     idx: u16,
 
-    ring: [Option<VirtqUsedElement>; DESCRIPTOR_COUNT],
+    ring: [VirtqUsedElement; DESCRIPTOR_COUNT],
 }
 
 struct VirtioNetInner {
@@ -199,12 +199,12 @@ impl VirtioNetInner {
         // Setup RECEIEVE_QUEUE
         let mut cfg = mmio.read_common_config();
         cfg.queue_select = 1;
-        cfg.queue_desc = (&RECIEVE_QUEUE.descriptors
+        cfg.queue_desc = (&RECEIVE_QUEUE.descriptors
             as *const [Option<VirtqDescriptor>; DESCRIPTOR_COUNT]) as u64;
-        cfg.queue_driver = (&RECIEVE_QUEUE.available as *const VirtqAvailable) as u64;
-        cfg.queue_device = (&RECIEVE_QUEUE.used as *const VirtqUsed) as u64;
+        cfg.queue_driver = (&RECEIVE_QUEUE.available as *const VirtqAvailable) as u64;
+        cfg.queue_device = (&RECEIVE_QUEUE.used as *const VirtqUsed) as u64;
         cfg.queue_enable = 1;
-        println!("WRITING RECIEVE_QUEUE: {:#?}", cfg);
+        println!("WRITING RECEIVE_QUEUE: {:#?}", cfg);
         mmio.write_common_config(cfg);
 
         // Tell the Device we're all done
@@ -212,15 +212,15 @@ impl VirtioNetInner {
 
         let mut memory_location = [0u64; 100];
 
-        RECIEVE_QUEUE.descriptors[0] = Some(VirtqDescriptor {
+        RECEIVE_QUEUE.descriptors[0] = Some(VirtqDescriptor {
             addr: (&memory_location as *const [u64; 100]) as u64,
             len: 8 * 100,
             flags: 2, // For VIRTQ_DESC_F_WRITE
             next: 0,
         });
 
-        RECIEVE_QUEUE.available.ring[0] = 0;
-        RECIEVE_QUEUE.available.idx = 1;
+        RECEIVE_QUEUE.available.ring[0] = 0;
+        RECEIVE_QUEUE.available.idx = 1;
 
         println!("VirtIO Device Initialized!");
 
