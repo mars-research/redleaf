@@ -1,5 +1,5 @@
-use pci_driver::DeviceBarRegions;
 use console::println;
+use pci_driver::DeviceBarRegions;
 
 use crate::{VirtioNet, VirtioNetInner};
 
@@ -14,11 +14,9 @@ impl pci_driver::PciDriver for PciFactory {
     fn probe(&mut self, bar_region: DeviceBarRegions) {
         println!("VirtioNet PCI probe called");
         match bar_region {
-            DeviceBarRegions::Virtio(bar) => {
-                unsafe {
-                    self.mmio_base = Some(bar.get_base() as usize);
-                }
-            }
+            DeviceBarRegions::Virtio(bar) => unsafe {
+                self.mmio_base = Some(bar.get_base() as usize);
+            },
             ty => {
                 println!("VirtioNet PCI probed with unsupported device {:?}", ty);
             }
@@ -43,9 +41,7 @@ impl pci_driver::PciDriver for PciFactory {
 
 impl PciFactory {
     pub(crate) fn new() -> Self {
-        Self {
-            mmio_base: None,
-        }
+        Self { mmio_base: None }
     }
 
     pub(crate) fn to_device(self) -> Option<VirtioNet> {

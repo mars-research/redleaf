@@ -2,7 +2,6 @@ use core::ptr;
 
 use console::println;
 
-
 #[derive(Debug)]
 #[repr(C)]
 pub struct VirtioPciCommonConfig {
@@ -17,20 +16,20 @@ pub struct VirtioPciCommonConfig {
     pub config_generation: u8,      /* read-only for driver */
 
     /* About a specific virtqueue. */
-    pub queue_select: u16,      /* read-write */
+    pub queue_select: u16, /* read-write */
 
     /// Maximum number of items in Descriptor Queue
-    pub queue_size: u16,        /* read-write */
+    pub queue_size: u16, /* read-write */
     pub queue_msix_vector: u16, /* read-write */
     pub queue_enable: u16,      /* read-write */
     pub queue_notify_off: u16,  /* read-only for driver */
     pub queue_desc: u64,        /* read-write */
 
     /// Available Ring
-    pub queue_driver: u64,      /* read-write */
+    pub queue_driver: u64, /* read-write */
 
     /// Used Ring
-    pub queue_device: u64,      /* read-write */
+    pub queue_device: u64, /* read-write */
 }
 
 #[derive(PartialEq, Debug)]
@@ -43,8 +42,6 @@ pub enum VirtioDeviceStatus {
     DriverOk,
     DeviceNeedsReset,
 }
-
-
 
 impl VirtioDeviceStatus {
     fn value(&self) -> u8 {

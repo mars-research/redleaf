@@ -43,7 +43,12 @@ use pci::PciFactory;
 pub const DESCRIPTOR_COUNT: usize = 256; // Maybe change this to 256, was 8 before
 
 static mut TRANSMIT_QUEUE: VirtQueue = VirtQueue {
-    descriptors: [VirtqDescriptor::default(); DESCRIPTOR_COUNT],
+    descriptors: [VirtqDescriptor {
+        addr: 0,
+        len: 0,
+        flags: 0,
+        next: 0,
+    }; DESCRIPTOR_COUNT],
     available: VirtqAvailable {
         flags: 0,
         idx: 0,
@@ -52,12 +57,17 @@ static mut TRANSMIT_QUEUE: VirtQueue = VirtQueue {
     used: VirtqUsed {
         flags: 0,
         idx: 0,
-        ring: [None; DESCRIPTOR_COUNT],
+        ring: [VirtqUsedElement { id: 0, len: 0 }; DESCRIPTOR_COUNT],
     },
 };
 
 static mut RECEIVE_QUEUE: VirtQueue = VirtQueue {
-    descriptors: [VirtqDescriptor::default(); DESCRIPTOR_COUNT],
+    descriptors: [VirtqDescriptor {
+        addr: 0,
+        len: 0,
+        flags: 0,
+        next: 0,
+    }; DESCRIPTOR_COUNT],
     available: VirtqAvailable {
         flags: 0,
         idx: 0,
@@ -66,7 +76,7 @@ static mut RECEIVE_QUEUE: VirtQueue = VirtQueue {
     used: VirtqUsed {
         flags: 0,
         idx: 0,
-        ring: [VirtqUsedElement::default(); DESCRIPTOR_COUNT],
+        ring: [VirtqUsedElement { id: 0, len: 0 }; DESCRIPTOR_COUNT],
     },
 };
 
@@ -82,12 +92,12 @@ static mut RECEIVE_QUEUE: VirtQueue = VirtQueue {
 
 #[repr(C, packed)]
 struct VirtQueue {
-    descriptors: [Option<VirtqDescriptor>; DESCRIPTOR_COUNT],
+    descriptors: [VirtqDescriptor; DESCRIPTOR_COUNT],
     available: VirtqAvailable,
     used: VirtqUsed,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Copy, Clone, Default)]
 #[repr(C, packed)]
 struct VirtqDescriptor {
     /// Address (guest-physical) to Virtio Net Packet Header
@@ -101,7 +111,7 @@ struct VirtqDescriptor {
     next: u16,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Copy, Clone)]
 #[repr(C, packed)]
 struct VirtqAvailable {
     flags: u16,
@@ -112,7 +122,17 @@ struct VirtqAvailable {
     ring: [u16; DESCRIPTOR_COUNT],
 }
 
-#[derive(Debug, Default)]
+impl VirtqAvailable {
+    fn default() -> VirtqAvailable {
+        VirtqAvailable {
+            flags: 0,
+            idx: 0,
+            ring: [0; DESCRIPTOR_COUNT],
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, Default)]
 #[repr(C, packed)]
 struct VirtqUsedElement {
     /// Index of start of used descriptor chain
@@ -121,7 +141,7 @@ struct VirtqUsedElement {
     len: u32,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Copy, Clone)]
 #[repr(C, packed)]
 struct VirtqUsed {
     flags: u16,
@@ -130,6 +150,16 @@ struct VirtqUsed {
     idx: u16,
 
     ring: [VirtqUsedElement; DESCRIPTOR_COUNT],
+}
+
+impl VirtqUsed {
+    fn default() -> VirtqUsed {
+        VirtqUsed {
+            flags: 0,
+            idx: 0,
+            ring: [VirtqUsedElement { id: 0, len: 0 }; DESCRIPTOR_COUNT],
+        }
+    }
 }
 
 struct VirtioNetInner {
@@ -188,8 +218,8 @@ impl VirtioNetInner {
         // Setup TRANSMIT_QUEUE
         let mut cfg = mmio.read_common_config();
         cfg.queue_select = 0;
-        cfg.queue_desc = (&TRANSMIT_QUEUE.descriptors
-            as *const [Option<VirtqDescriptor>; DESCRIPTOR_COUNT]) as u64;
+        cfg.queue_desc =
+            (&TRANSMIT_QUEUE.descriptors as *const [VirtqDescriptor; DESCRIPTOR_COUNT]) as u64;
         cfg.queue_driver = (&TRANSMIT_QUEUE.available as *const VirtqAvailable) as u64;
         cfg.queue_device = (&TRANSMIT_QUEUE.used as *const VirtqUsed) as u64;
         cfg.queue_enable = 1;
@@ -199,8 +229,8 @@ impl VirtioNetInner {
         // Setup RECEIEVE_QUEUE
         let mut cfg = mmio.read_common_config();
         cfg.queue_select = 1;
-        cfg.queue_desc = (&RECEIVE_QUEUE.descriptors
-            as *const [Option<VirtqDescriptor>; DESCRIPTOR_COUNT]) as u64;
+        cfg.queue_desc =
+            (&RECEIVE_QUEUE.descriptors as *const [VirtqDescriptor; DESCRIPTOR_COUNT]) as u64;
         cfg.queue_driver = (&RECEIVE_QUEUE.available as *const VirtqAvailable) as u64;
         cfg.queue_device = (&RECEIVE_QUEUE.used as *const VirtqUsed) as u64;
         cfg.queue_enable = 1;
@@ -212,12 +242,14 @@ impl VirtioNetInner {
 
         let mut memory_location = [0u64; 100];
 
-        RECEIVE_QUEUE.descriptors[0] = Some(VirtqDescriptor {
+        RECEIVE_QUEUE.descriptors[0] = VirtqDescriptor {
             addr: (&memory_location as *const [u64; 100]) as u64,
             len: 8 * 100,
             flags: 2, // For VIRTQ_DESC_F_WRITE
             next: 0,
-        });
+        };
+
+        println!("LOCATION OF BUFFER: {:x?}", (&memory_location as *const [u64; 100]) as u64);
 
         RECEIVE_QUEUE.available.ring[0] = 0;
         RECEIVE_QUEUE.available.idx = 1;
