@@ -38,10 +38,10 @@ fn main() {
 
     print!("nmeta {} (boot, super, log blocks {} inode blocks {}, bitmapblocks {}) blocks {} total {}\n",
             nmeta, params::LOGSIZE, params::NINODEBLOCKS, params::NBITMAP, nblocks, params::FSSIZE);
-    let freeblock: usize = nmeta;
+     node_handler.freeblock = nmeta as u32;
 
     for i in 0..params::FSSIZE {
-        node_handler.write_file(1, &mut zeroes);
+        node_handler.write_file(i as u32, &mut zeroes);
        // sector_handler.write_sector(1, &mut zeroes);
     }
 
@@ -53,13 +53,12 @@ fn main() {
     let mut dir_entry = DirEntry::new(rootino as u16, ".");
     node_handler.append_inode(rootino, &mut dir_entry.bytes(), size_of::<DirEntry>() as i32);
 
-    let rootino: u32 = node_handler.alloc_inode(1);
     let mut dir_entry = DirEntry::new(rootino as u16, "..");
     node_handler.append_inode(rootino, dir_entry.bytes(), size_of::<DirEntry>() as i32);
 
     for arg in argv.iter_mut().skip(2) {
-
-        assert!(arg.contains("/"));
+        println!("adding {:?}", arg);
+        assert!(!arg.contains("/"));
         let p = Path::new(&arg);
         let mut fd =  OpenOptions::new()
             .read(true)
@@ -69,19 +68,25 @@ fn main() {
             arg.chars().next();
         }
 
+
         let inum = node_handler.alloc_inode(1);
         let mut de = DirEntry::new(inum as u16, &arg);
-        node_handler.append_inode(inum, &mut de.bytes(), size_of::<DirEntry>() as i32);
+        node_handler.append_inode(rootino, &mut de.bytes(), size_of::<DirEntry>() as i32);
+
+
 
         let mut done = false;
-        while !done{
-            let read_res = utils::read_up_to(&mut fd, &mut buf);
+        while !done {
+           let read_res = utils::read_up_to(&mut fd, &mut buf);
            let bytes = match read_res   {
                 Ok(b) => b,
                 Err(_) => panic!(),
             };
 
+
             if bytes > 0 {
+                // println!("\tbytes: {:?}", bytes);
+
                 let mut temp_de: DirEntry = bincode::deserialize(&buf).unwrap();
                 node_handler.append_inode(inum, &mut temp_de.bytes(), bytes as i32);
             }
@@ -89,6 +94,7 @@ fn main() {
                 done = true;
             }
         }
+
     }
 
     let mut din = DINode::new();
@@ -96,5 +102,5 @@ fn main() {
     let mut off = din.size;
     off = ((off / params::BSIZE as u32) + 1) * params::BSIZE as u32;
     node_handler.write_inode(rootino, &mut din);
-    node_handler.alloc_block(freeblock as i32);
+    node_handler.alloc_block(node_handler.freeblock as i32);
 }

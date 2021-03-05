@@ -11,7 +11,7 @@ pub fn zero(buffer: &mut [u8]) {
     }
 }
 
-pub fn usize_as_u8_mut<'a>(src: &'a mut [usize]) -> &'a mut [u8] {
+pub fn u32_as_u8_mut<'a>(src: &'a mut [u32]) -> &'a mut [u8] {
     unsafe {
         std::slice::from_raw_parts_mut(src.as_mut_ptr() as *mut u8,
                                         src.len() * 4)

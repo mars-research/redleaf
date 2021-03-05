@@ -23,7 +23,7 @@ build/mkfs: mkfs.c fs.h param.h stat.h types.h
 	gcc -Werror -Wall -Wno-error=stringop-truncation -g -o $@ mkfs.c
 
 build/mkfs-rs:
-	echo "Rust make" >> oops.txt
+	#echo "Rust make" >> oops.txt
 	cargo build
 
 # Prevent deletion of intermediate files, e.g. cat.o, after first build, so
@@ -35,19 +35,16 @@ build/mkfs-rs:
 HTDOCS_DIR = $(root)/domains/usr/xv6/usr/bin/src/bin/htdocs/
 HTDOCS=$(shell ls $(HTDOCS_DIR) -1)
 
-FILES=\
-	README\
-	large\
+FILES=README large
 
 BINS=$(shell find $(root)/domains/usr/xv6/usr/bin/src/bin -maxdepth 1 -mindepth 1 ! -name htdocs ! -name target -exec basename {} .rs \;)
 
-build/fs.img: build/mkfs-rs $(FILES) $(BINS) $(HTDOCS) Makefile
+build/fs.img: build/mkfs $(FILES) $(BINS) $(HTDOCS) Makefile
 	mkdir -p build
 	cd build/ && ./mkfs fs.img $(FILES) $(BINS) $(HTDOCS)
 
 build/fs-rs.img: build/mkfs-rs $(FILES) $(BINS) $(HTDOCS) Makefile
-	mkdir -p build
-	cd build/ && ./mkfs fs.img $(FILES) $(BINS) $(HTDOCS)
+	mkdir -p build && cd build && pwd && ../target/debug/rv6-mkfs fs.img $(FILES) $(BINS) $(HTDOCS)
 
 build/fs.o: build/fs.img
 	objcopy -I binary -O elf64-x86-64 -B i386 build/fs.img build/fs.o

@@ -16,7 +16,7 @@ pub const NBUF: usize = MAXOPBLOCKS * 3; // size of disk block cache
 pub const SECTOR_SIZE: usize = 512;
 
 pub const BPB: usize = BSIZE * 8; // bits per block
-pub const FSSIZE: usize = 1000; // size of file system in blocks
+pub const FSSIZE: usize = 15000; // size of file system in blocks
 
 // https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/fs.h
 pub const ROOTINO: u16 = 1; // root i-number

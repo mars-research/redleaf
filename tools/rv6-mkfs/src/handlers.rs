@@ -10,7 +10,7 @@ pub struct NodeHandler {
     super_block: SuperBlock,
     sector_handler: SectorHandler,
     dinode_size: usize,
-    freeblock: u32,
+    pub freeblock: u32,
     freeinode: u32,
 }
 
@@ -36,8 +36,8 @@ impl NodeHandler {
     pub fn write_inode(&mut self, inum: u32, ip: &DINode) {
         let mut buffer = [0u8; params::BSIZE];
         let block_num = self.iblock(inum);
+        // println!("block num: {:?}", block_num);
         self.sector_handler.read_sector(block_num, &mut buffer);
-
         const DINODE_SIZE: usize = mem::size_of::<DINode>();
 
 
@@ -52,8 +52,11 @@ impl NodeHandler {
            // utils::memcpy(mut* slice, mut* bytes, bytes.len());
            // core::ptr::write(slice, bytes);
        // }
-        // utils::fill(slice, bytes, bytes.len());
+       //  utils::fill(slice, ip.to_bytes(slice), bytes.len());
+       //  println!("after: {:p}", slice);
+
         ip.to_bytes(slice);
+        // println!("before: {:p}", slice);
 
         self.sector_handler.write_sector(block_num, &mut buffer);
     }
@@ -82,6 +85,7 @@ impl NodeHandler {
     }
 
     pub fn read_inode(&mut self, inum: u32, ip: &mut DINode) {
+        // TODO investigate bug in reading inode
         let buf: &mut [u8; params::BSIZE] = &mut [0u8; params::BSIZE];
         self.sector_handler.read_sector(self.iblock(inum), buf);
         const DINODE_SIZE: usize = mem::size_of::<DINode>();
@@ -89,40 +93,46 @@ impl NodeHandler {
         unsafe {
             let dinode_slice = &buf[dinode_offset..dinode_offset + DINODE_SIZE];
             *ip = DINode::from_bytes(&dinode_slice);
-            // ip = bincode::deserialize(&dinode_slice).unwrap();
-
+            // println!("ip: {:?}", ip.size);
         }
         // ip = bincode::deserialize(&dinode_slice).unwrap();
     }
 
     pub fn alloc_inode(&mut self, t: i16) -> u32 {
+        let inum = self.freeinode;
         self.freeinode += 1;
 
         let mut dinode: DINode = DINode::new();
         dinode.file_type = t;
         dinode.nlink = 1 as i16;
         dinode.size = 0 as u32;
-        self.write_inode(self.freeinode, &mut dinode);
+        self.write_inode(inum, &mut dinode);
 
-        self.freeinode
+        inum
     }
 
     pub fn append_inode(&mut self, inum: u32, xp: &mut [u8], mut n: i32) {
-        //TODO: should xp be a buffer or a dirent?
         let mut dinode: DINode = DINode::new();
+        // println!("inum: {:?}", inum);
         self.read_inode(inum, &mut dinode);
-        let mut offset: usize = dinode.size as usize;
+        let mut offset: usize = dinode.size.clone() as usize;
         let mut x;
 
         let p: *mut u8 = xp.as_mut_ptr();
 
-        let mut indirect: [usize; params::NINDIRECT] = [0; params::NINDIRECT];
+        let mut indirect: [u32; params::NINDIRECT] = [0; params::NINDIRECT];
         let mut buf: [u8; params::BSIZE] = [0; params::BSIZE];
+        let mut good = false;
+        // println!("append inum {:?} at off {:?} sz {:?}", inum, offset, n);
 
         while n > 0 {
             let fbn: usize = offset / params::BSIZE;
+            // println!("fbn: {}", fbn);
 
             if fbn < params::NDIRECT as usize {
+                // println!("inside");
+
+
                 // Direct
                 if dinode.addresses[fbn] == 0 {
                     dinode.addresses[fbn] = self.freeblock;
@@ -135,59 +145,111 @@ impl NodeHandler {
                     dinode.addresses[params::NDIRECT] = self.freeblock;
                     self.freeblock += 1;
                 }
+                let mut indirect_buf = utils::u32_as_u8_mut(&mut indirect);
 
-                // ip = bincode::deserialize(&dinode_slice).unwrap();
-                let mut indirect_buf = utils::usize_as_u8_mut(&mut indirect);
                 self.sector_handler.read_sector(dinode.addresses[params::NDIRECT], &mut indirect_buf);
+                // if fbn == 24 {
+                //     println!("\n\tindirect: {:?}", indirect);
+                // }
+                // put indirect buf back into indirect
+
                 let indirect_block_num = fbn - params::NDIRECT;
-                let layer1_index = indirect_block_num / params::NDIRECT;
+                let layer1_index = indirect_block_num / params::NINDIRECT;
+
+                // println!("ibn: {}, layer1_inidex: {}", indirect_block_num, layer1_index);
 
                 if indirect[layer1_index] == 0 {
-                    indirect[layer1_index] = self.freeblock as usize;
+                    indirect[layer1_index] = self.freeblock;
                     self.freeblock += 1;
 
-                    let new_buf = utils::usize_as_u8_mut(&mut indirect);
+                    let new_buf = utils::u32_as_u8_mut(&mut indirect);
+
                     self.sector_handler.write_sector(dinode.addresses[params::NDIRECT], new_buf);
-                    // unsafe {write_sector(file, dinode.addresses[params::NDIRECT], indirect as *mut u8); }
+                    // println!("\n\n!freeblock\n\t{:?}", self.freeblock);
+
                 }
+                // println!("\n\n!indirect before reading\n\t{:?}", indirect);
+
                 let level2_bnum = indirect[layer1_index];
-                let mut level2_indirect: [usize; params::NINDIRECT] = [0; params::NINDIRECT];
-                let level2_buf = utils::usize_as_u8_mut(&mut level2_indirect);
+                // println!("nlevel2 bnum: {:?} {:?}", level2_bnum, self.freeblock);
+                // // panic!();
+                //
+                // if level2_bnum == 66 {
+                //     println!("indirect \n\t{:?}", indirect);
+                //     // println!("indirect \n\t{:?}", indirect_buf);
+                //
+                // }
+
+                let mut level2_indirect: [u32; params::NINDIRECT] = [0; params::NINDIRECT];
+                let level2_buf = utils::u32_as_u8_mut(&mut level2_indirect);
                 self.sector_handler.read_sector(level2_bnum as u32, level2_buf);
+
                 let layer2_index = indirect_block_num - layer1_index * params::NINDIRECT;
 
+                // if layer2_index == 11 {
+                //     println!("\n\tindirect: {:?}", indirect);
+                //     // println!("{:?}", "hit");
+                //
+                // }
+
                 if level2_indirect[layer2_index] == 0 {
-                    level2_indirect[layer2_index] = self.freeblock as usize;
+                    // println!("inside");
+                    level2_indirect[layer2_index] = self.freeblock;
                     self.freeblock += 1;
 
-                    let new_level2_buf = utils::usize_as_u8_mut(&mut level2_indirect);
-                    self.sector_handler.write_sector(dinode.addresses[params::NDIRECT], new_level2_buf);
+                    // if self.freeblock == 66  {
+                    //     println!("level2 \n\t{:?}", level2_indirect);
+                    //     println!("level1 \n\t{:?}", indirect);
+                    //
+                    //
+                    // }
+                    let new_level2_buf = utils::u32_as_u8_mut(&mut level2_indirect);
+
+                    // if self.freeblock == 65 {
+                    //     println!("{:?}", new_level2_buf);
+                    //
+                    // }
+                    // println!("{:?}", new_level2_buf);
+                    self.sector_handler.write_sector(level2_bnum as u32, new_level2_buf);
                 }
-                let actual_block_num: usize = level2_indirect[layer2_index];
-                x = actual_block_num as u32;
+
+
+
+                let actual_block_num: u32 = level2_indirect[layer2_index];
+                x = actual_block_num;
+                // println!("indirect bn index {:?} | layer2 index {:?} | x {:?}", level2_bnum, layer2_index, x);
+
             }
 
             let block_num: i32 = ((fbn + 1) * params::BSIZE - offset) as i32;
             let n1 = std::cmp::min(n, block_num);
             self.sector_handler.read_sector(x, &mut buf);
-            // block copy
+
             unsafe {
-                utils::memcpy(buf.as_mut_ptr().
-                        offset((offset - offset - (fbn * params::BSIZE)) as isize),
+                utils::memcpy(buf.as_mut_ptr().offset((offset - (fbn * params::BSIZE)) as isize),
                               p,
                               n1 as usize);
             }
+
+            // if self.freeblock == 65 || self.freeblock == 66 {
+            //     println!("x {:?}", x);
+            // }
             self.sector_handler.write_sector(x, &mut buf);
 
-            n -= n1;
-            offset += n1 as usize;
 
-            // use core::ptr::write() 
-            // let ptr: *mut usize = p as &mut usize;
+            n -= n1;
+            offset += (n1 as usize);
             unsafe{
                 p.offset(n1 as isize);
             }
+            // println!("x: {:?}", x);
+
+            if x == 65 {
+                // println!("\t\t{:?}", level2_indirect);
+            }
+
         }
+        // println!("offset: {:?}", offset);
         dinode.size = offset as u32;
         self.write_inode(inum, &dinode);
     }
@@ -211,21 +273,25 @@ pub struct SectorHandler {
 
 impl SectorHandler {
     pub fn new(filename: &String) -> Self {
+        let p = Path::new(&filename);
+        println!("fname: {:?}", filename);
+        println!("path: {:?}", p);
+
         SectorHandler {
-            // turn into a match
+            // TODO: turn into a match
             file: OpenOptions::new()
                 .read(true)
                 .write(true)
                 .create(true)
                 .truncate(true)
-                .open(filename).unwrap(),
+                .open(p).unwrap(),
         }
     }
 
     pub fn changefile(filename: &String) -> Self {
         let filename_path = Path::new(&filename);
         SectorHandler {
-            // turn into a match
+            // TODO: turn into a match
             file: OpenOptions::new()
                 .read(true)
                 .write(true)
@@ -237,14 +303,17 @@ impl SectorHandler {
 
     pub fn read_sector(&mut self, sec: u32, buf: &mut [u8]) {
         // let mut f = File::open("foo.txt").unwrap();
-        self.file.seek(SeekFrom::Start(42));
+        // self.file.seek(SeekFrom::Start((sec * params::BSIZE as u32) as u64));
 
-        let block: u64 = sec as u64 * params::BSIZE as u64;
-        if self.file.seek(SeekFrom::Start(block)).unwrap() != block {
+        let offset: u64 = sec as u64 * params::BSIZE as u64;
+
+        // println!("offset: {:?}, sec: {:?}, BSIZE: {:?}", offset, sec, params::BSIZE);
+        if self.file.seek(SeekFrom::Start(offset)).unwrap() != offset {
             panic!("seek");
         }
 
         let bytes_read = self.file.read(buf).unwrap();
+        // println!("{:?}", buf);
 
         if bytes_read != params::BSIZE {
             eprint!("error: read {} bytes. usually caused by not having enough space.
