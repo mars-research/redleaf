@@ -42,7 +42,9 @@ use pci::PciFactory;
 /// The number of Descriptors (must be a multiple of 2), called "Queue Size" in documentation
 pub const DESCRIPTOR_COUNT: usize = 256; // Maybe change this to 256, was 8 before
 
-static mut TRANSMIT_QUEUE: VirtQueue = VirtQueue {
+static mut memory_location: [u64; 100] = [0u64; 100];
+
+static mut RECEIVE_QUEUE: VirtQueue = VirtQueue {
     descriptors: [VirtqDescriptor {
         addr: 0,
         len: 0,
@@ -61,7 +63,7 @@ static mut TRANSMIT_QUEUE: VirtQueue = VirtQueue {
     },
 };
 
-static mut RECEIVE_QUEUE: VirtQueue = VirtQueue {
+static mut TRANSMIT_QUEUE: VirtQueue = VirtQueue {
     descriptors: [VirtqDescriptor {
         addr: 0,
         len: 0,
@@ -90,7 +92,7 @@ static mut RECEIVE_QUEUE: VirtQueue = VirtQueue {
 // The driver adds outgoing (device-readable) packets to the transmit virtqueue, and then frees them after they are used.
 // Similarly, incoming (device-writable) buffers are added to the receive virtqueue, and processed after they are used.
 
-#[repr(C, packed)]
+#[repr(C, packed(16))]
 struct VirtQueue {
     descriptors: [VirtqDescriptor; DESCRIPTOR_COUNT],
     available: VirtqAvailable,
@@ -98,7 +100,7 @@ struct VirtQueue {
 }
 
 #[derive(Debug, Copy, Clone, Default)]
-#[repr(C, packed)]
+#[repr(C, packed(16))]
 struct VirtqDescriptor {
     /// Address (guest-physical) to Virtio Net Packet Header
     addr: u64,
@@ -240,8 +242,6 @@ impl VirtioNetInner {
         // Tell the Device we're all done
         mmio.write_device_status(VirtioDeviceStatus::DriverOk);
 
-        let mut memory_location = [0u64; 100];
-
         RECEIVE_QUEUE.descriptors[0] = VirtqDescriptor {
             addr: (&memory_location as *const [u64; 100]) as u64,
             len: 8 * 100,
@@ -249,10 +249,15 @@ impl VirtioNetInner {
             next: 0,
         };
 
-        println!("LOCATION OF BUFFER: {:x?}", (&memory_location as *const [u64; 100]) as u64);
+        println!(
+            "LOCATION OF BUFFER: {:x?}",
+            RECEIVE_QUEUE.descriptors[0].addr
+        );
 
         RECEIVE_QUEUE.available.ring[0] = 0;
-        RECEIVE_QUEUE.available.idx = 1;
+        RECEIVE_QUEUE.available.idx = 0;
+
+        println!("{:#?}", mmio.read_device_status());
 
         println!("VirtIO Device Initialized!");
 
