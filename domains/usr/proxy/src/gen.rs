@@ -35,7 +35,6 @@ pub struct Proxy {
     create_membdev: Arc<dyn interface::domain_creation::CreateMemBDev>,
     create_bdev_shadow: Arc<dyn interface::domain_creation::CreateBDevShadow>,
     create_ixgbe: Arc<dyn interface::domain_creation::CreateIxgbe>,
-    create_virtio_net: Arc<dyn interface::domain_creation::CreateVirtioNet>,
     create_nvme: Arc<dyn interface::domain_creation::CreateNvme>,
     create_net_shadow: Arc<dyn interface::domain_creation::CreateNetShadow>,
     create_nvme_shadow: Arc<dyn interface::domain_creation::CreateNvmeShadow>,
@@ -63,7 +62,6 @@ impl Proxy {
         create_membdev: Arc<dyn interface::domain_creation::CreateMemBDev>,
         create_bdev_shadow: Arc<dyn interface::domain_creation::CreateBDevShadow>,
         create_ixgbe: Arc<dyn interface::domain_creation::CreateIxgbe>,
-        create_virtio_net: Arc<dyn interface::domain_creation::CreateVirtioNet>,
         create_nvme: Arc<dyn interface::domain_creation::CreateNvme>,
         create_net_shadow: Arc<dyn interface::domain_creation::CreateNetShadow>,
         create_nvme_shadow: Arc<dyn interface::domain_creation::CreateNvmeShadow>,
@@ -86,7 +84,6 @@ impl Proxy {
             create_membdev,
             create_bdev_shadow,
             create_ixgbe,
-            create_virtio_net,
             create_nvme,
             create_net_shadow,
             create_nvme_shadow,
@@ -121,9 +118,6 @@ impl proxy::Proxy for Proxy {
         Arc::new(self.clone())
     }
     fn as_create_ixgbe(&self) -> Arc<dyn interface::domain_creation::CreateIxgbe> {
-        Arc::new(self.clone())
-    }
-    fn as_create_virtio_net(&self) -> Arc<dyn interface::domain_creation::CreateVirtioNet> {
         Arc::new(self.clone())
     }
     fn as_create_net_shadow(&self) -> Arc<dyn interface::domain_creation::CreateNetShadow> {
@@ -224,14 +218,6 @@ impl interface::domain_creation::CreateIxgbe for Proxy {
         let (domain, ixgbe) = self.create_ixgbe.create_domain_ixgbe(pci);
         let domain_id = domain.get_domain_id();
         (domain, Box::new(IxgbeProxy::new(domain_id, ixgbe)))
-    }
-}
-
-impl interface::domain_creation::CreateVirtioNet for Proxy {
-    fn create_domain_virtio_net(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net>) {
-        let (domain, virtnet) = self.create_virtio_net.create_domain_virtio_net(pci);
-        let domain_id = domain.get_domain_id();
-        (domain, Box::new(IxgbeProxy::new(domain_id, virtnet)))
     }
 }
 
