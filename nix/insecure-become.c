@@ -8,7 +8,7 @@ int main(int argc , char * argv [], char * envp []) {
 	if (argc < 4) { return 1; }
 
 	uid_t uid = atoi(argv[1]);
-	uid_t gid = atoi(argv[2]);
+	gid_t gid = atoi(argv[2]);
 
 	if (setgid(gid) != 0) {
 		fprintf(stderr, "setgid failed: %d", errno);

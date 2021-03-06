@@ -14,6 +14,7 @@ let
     echo "$GROUP:x:$GID:" >> /etc/group
     echo "$USER:x:$UID:$GID::$HOME:/bin/sh" >> /etc/passwd
 
+    export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     exec ${insecureBecome}/bin/become "$UID" "$GID" "$@"
   '';
   insecureBecome = pkgs.stdenv.mkDerivation {

@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
 
-set -e
-
-BASE=$(dirname "$0")
+BASE=$(realpath $(dirname "$0"))
 IMAGE=${IMAGE:-zhaofengli/redleaf-dev:$(git rev-parse HEAD)}
 
 sub_build() {
+	set -e
+
 	echo "Building $IMAGE..."
 	artifact=$(nix-build $BASE/nix/docker-dev-image.nix --no-out-link)
-	docker load $IMAGE < $artifact
+	loaded=$(docker load < $artifact | sed -n 's/^Loaded image: \(.*\)/\1/p')
+	docker tag $loaded $IMAGE
 }
 
 sub_shell() {
 	echo "Starting Docker dev shell..."
 	docker run --rm -it \
-		-v $PWD:/redleaf -w /redleaf \
+		-v $BASE:/redleaf -w /redleaf \
 		-v $HOME:$HOME \
 		-e HOME=$HOME \
 		-e USER=$(id -nu) -e GROUP=$(id -ng) -e UID=$(id -u) -e GID=$(id -g) \
@@ -22,7 +23,7 @@ sub_shell() {
 }
 
 sub_help() {
-	true
+	echo "Usage: $0 <shell|build>"
 }
 
 subcommand=$1
