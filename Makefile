@@ -193,6 +193,7 @@ clean:
 	-cargo clean --manifest-path=kernel/Cargo.toml
 	-rm -rf build
 	-make -C lib/external/memops clean
+	-make -C interface clean
 
 .PHONY: clean-keys
 clean-keys:
