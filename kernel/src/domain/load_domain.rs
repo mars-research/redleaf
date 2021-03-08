@@ -8,7 +8,7 @@ use spin::Mutex;
 pub unsafe fn load_domain(
     name: &str,
     binary_range: (*const u8, *const u8),
-) -> (Arc<Mutex<Domain>>, *const ()) {
+) -> (Domain, *const ()) {
     let (binary_start, binary_end) = binary_range;
 
     let num_bytes = ((binary_end as usize) - (binary_start as usize)) as usize;
@@ -59,24 +59,24 @@ pub unsafe fn load_domain(
     }
 
     // Create a domain for the to-be-loaded elf file
-    let dom = Arc::new(Mutex::new(Domain::new(name)));
-
-    let mut loader = dom.lock();
+    let mut dom = Domain::new(name);
 
     // load the binary
-    domain_elf.load(&mut *loader).expect("Cannot load binary");
+    domain_elf.load(&mut dom).expect("Cannot load binary");
+
+    let offset = dom.offset().expect("Memory space for domain was not correctly allocated");
 
     // print its entry point for now
     println!(
         "domain/{}: Entry point at {:x}",
         name,
-        loader.offset + domain_elf.entry_point()
+        offset + domain_elf.entry_point()
     );
 
     println!(
         "domain/{}: .text starts at {:x}",
         name,
-        loader.offset
+        offset
             + domain_elf
                 .file
                 .find_section_by_name(".text")
@@ -85,15 +85,11 @@ pub unsafe fn load_domain(
     );
 
     let user_ep: *const () = {
-        let mut entry: *const u8 = (*loader).offset.as_ptr();
+        let mut entry: *const u8 = offset.as_ptr();
         entry = entry.offset(domain_elf.entry_point() as isize);
         let _entry = entry as *const ();
         _entry
     };
-
-    // Drop the lock so if domain starts creating threads we don't
-    // deadlock
-    drop(loader);
 
     (dom, user_ep)
 }

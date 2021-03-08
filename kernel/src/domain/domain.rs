@@ -1,48 +1,83 @@
+//use core::cell::RefCell;
+use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::string::ToString;
-//use core::cell::RefCell;
-use super::super::memory::paddr_to_kernel_vaddr;
-use crate::alloc::vec::Vec;
-use crate::arch::vspace::{MapAction, ResourceType, VSpace};
-use crate::memory::VSPACE;
-use crate::thread::Thread;
 use alloc::sync::Arc;
-use log::{debug, info, trace};
-use spin::Mutex;
-use x86::bits64::paging::{PAddr, VAddr, BASE_PAGE_SHIFT, BASE_PAGE_SIZE};
+use core::sync::atomic::{AtomicU64, Ordering};
+
 //use alloc::rc::Rc;
 use crate::heap::PHeap;
 use crate::syscalls::PDomain;
 use crate::{is_page_aligned, round_up};
-use alloc::boxed::Box;
-use core::sync::atomic::{AtomicU64, Ordering};
+use hashbrown::HashMap;
 use libsyscalls;
-use spin::Once;
+use log::{debug, info, trace};
+use spin::{Mutex, RwLock, Once};
+use x86::bits64::paging::{PAddr, VAddr, BASE_PAGE_SHIFT, BASE_PAGE_SIZE};
+
+use crate::alloc::vec::Vec;
+use crate::arch::vspace::{MapAction, ResourceType, VSpace};
+use crate::memory::VSPACE;
+use crate::thread::Thread;
+use super::super::memory::paddr_to_kernel_vaddr;
 
 /// This should be a cryptographically secure number, for now
 /// just sequential ID
 static DOMAIN_ID: AtomicU64 = AtomicU64::new(0);
 
 /// Global Domain list
-pub static KERNEL_DOMAIN: Once<Arc<Mutex<Domain>>> = Once::new();
+pub static KERNEL_DOMAIN: Once<Domain> = Once::new();
 
 //#[thread_local]
 //pub static BOOTING_DOMAIN: RefCell<Option<Box<PDomain>>> = RefCell::new(None);
 
+/// A strong reference to a reference-counted Domain.
+#[derive(Clone)]
 pub struct Domain {
-    pub id: u64,
-    pub name: String,
-    pub mapping: Vec<(VAddr, usize, u64, MapAction)>,
+    inner: Arc<RwLock<DomainInner>>,
+}
+
+impl Domain {
+    pub fn id(&self) -> u64 {
+        self.inner.read().id
+    }
+
+    pub fn name<'a>(&'a self) -> &'a str {
+        // Invariant: name is guaranteed to remain unchanged throughout
+        // the lifetime of the domain.
+
+        let steal: &'a str = {
+            let name = &self.inner.read().name as &str as *const str;
+            unsafe { &*name }
+        };
+
+        steal
+    }
+
+    pub fn add_thread(&self, t: Arc<Mutex<Thread>>) {
+        self.inner.write().add_thread(t)
+    }
+
+    pub fn offset(&self) -> Option<VAddr> {
+        self.inner.read().offset
+    }
+}
+
+/// A Domain.
+struct DomainInner {
+    id: u64,
+    name: String,
+    mapping: Vec<(VAddr, usize, u64, MapAction)>,
     /// Offset where ELF is located.
-    pub offset: VAddr,
+    offset: Option<VAddr>,
     /// The entry point of the ELF file.
-    pub entry_point: VAddr,
+    entry_point: Option<VAddr>,
     /// List of threads in the domain
     //threads: Option<Arc<Mutex<Rc<RefCell<Thread>>>>>,
     threads: DomainThreads,
 }
 
-pub struct DomainThreads {
+struct DomainThreads {
     head: Option<Arc<Mutex<Thread>>>,
 }
 
@@ -55,14 +90,14 @@ impl DomainThreads {
     }
 }
 
-impl Domain {
-    pub fn new(name: &str) -> Domain {
-        Domain {
+impl DomainInner {
+    fn new(name: &str) -> Self {
+        Self {
             id: DOMAIN_ID.fetch_add(1, Ordering::SeqCst),
             name: name.to_string(),
             mapping: Vec::with_capacity(64),
-            offset: VAddr::from(0usize),
-            entry_point: VAddr::from(0usize),
+            offset: None,
+            entry_point: None,
             threads: DomainThreads::new(),
         }
     }
@@ -71,7 +106,7 @@ impl Domain {
     /// We explicitly avoid using another lock, but the assumption
     /// is that it's imposible to access the domain without holding
     /// a lock on the domain data structure
-    pub fn add_thread(&mut self, t: Arc<Mutex<Thread>>) {
+    fn add_thread(&mut self, t: Arc<Mutex<Thread>>) {
         let previous_head = self.threads.head.take();
 
         if let Some(node) = previous_head {
@@ -82,17 +117,27 @@ impl Domain {
     }
 }
 
+impl Domain {
+    pub fn new(name: &str) -> Self {
+        let inner = DomainInner::new(name);
+
+        Self {
+            inner: Arc::new(RwLock::new(inner)),
+        }
+    }
+}
+
 /// Create kernel domain (must be called before any threads are
 /// created)
 pub fn init_domains() {
-    let kernel = Arc::new(Mutex::new(Domain::new("kernel")));
-    libsyscalls::syscalls::init(Box::new(PDomain::new(Arc::clone(&kernel))));
+    let kernel = Domain::new("kernel");
+    libsyscalls::syscalls::init(Box::new(PDomain::new(kernel.clone())));
     KERNEL_DOMAIN.call_once(|| kernel);
     // init global references to syscalls (mostly for RRef deallocation)
     rref::init(Box::new(PHeap::new()), 0);
 }
 
-impl elfloader::ElfLoader for Domain {
+impl elfloader::ElfLoader for DomainInner {
     /// Makes sure the domain vspace is backed for the regions
     /// reported by the ELF loader as loadable.
     ///
@@ -180,11 +225,13 @@ impl elfloader::ElfLoader for Domain {
         }
         println!("num_pages: {}", (max_end - min_base) >> BASE_PAGE_SHIFT);
 
-        self.offset = VAddr::from(pbase.as_usize());
+        let offset = VAddr::from(pbase.as_usize());
         info!(
             "Binary loaded at address: {:#x} entry {:#x}",
-            self.offset, self.entry_point
+            offset, self.entry_point.unwrap(),
         );
+
+        self.offset = Some(offset);
 
         // XXX: Pages are already mapped on the global vspace. We do not need to map it again. But
         // for security reasons, we need to change the permission bits of those pages and restore
@@ -200,7 +247,9 @@ impl elfloader::ElfLoader for Domain {
 
     /// Load a region of bytes into the virtual address space of the process.
     fn load(&mut self, destination: u64, region: &[u8]) -> Result<(), &'static str> {
-        let destination = self.offset + destination;
+        let offset = self.offset.expect("The memory region has not been allocated yet");
+
+        let destination = offset + destination;
         trace!(
             "ELF Load at {:#x} -- {:#x}",
             destination,
@@ -238,11 +287,13 @@ impl elfloader::ElfLoader for Domain {
     /// Otherwise, the build would be broken or you got a garbage ELF file.
     /// We return an error in this case.
     fn relocate(&mut self, entry: &elfloader::Rela<elfloader::P64>) -> Result<(), &'static str> {
+        let offset = self.offset.expect("The memory region has not been allocated yet");
+
         // Get the pointer to where the relocation happens in the
         // memory where we loaded the headers
         // The forumla for this is our offset where the kernel is starting,
         // plus the offset of the entry to jump to the code piece
-        let addr = self.offset + entry.get_offset();
+        let addr = offset + entry.get_offset();
 
         // Translate `addr` into a kernel vaddr we can write to:
         let paddr = {
@@ -264,7 +315,7 @@ impl elfloader::ElfLoader for Domain {
             unsafe {
                 // Scary unsafe changing stuff in random memory locations based on
                 // ELF binary values weee!
-                *(vaddr.as_mut_ptr::<u64>()) = self.offset.as_u64() + entry.get_addend();
+                *(vaddr.as_mut_ptr::<u64>()) = offset.as_u64() + entry.get_addend();
             }
             Ok(())
         } else {
@@ -273,19 +324,38 @@ impl elfloader::ElfLoader for Domain {
     }
 
     fn make_readonly(&mut self, base: u64, size: usize) -> Result<(), &'static str> {
+        let offset = self.offset.expect("The memory region has not been allocated yet");
+
         trace!(
             "Make readonly {:#x} -- {:#x}",
-            self.offset + base,
-            self.offset + base + size
+            offset + base,
+            offset + base + size
         );
         assert_eq!(
-            (self.offset + base + size) % BASE_PAGE_SIZE,
+            (offset + base + size) % BASE_PAGE_SIZE,
             0,
             "RELRO segment doesn't end on a page-boundary"
         );
 
-        let _from: VAddr = self.offset + (base & !0xfff); // Round down to nearest page-size
-        let _to = self.offset + base + size;
+        let _from: VAddr = offset + (base & !0xfff); // Round down to nearest page-size
+        let _to = offset + base + size;
         Ok(())
+    }
+}
+
+impl elfloader::ElfLoader for Domain {
+    fn allocate(&mut self, load_headers: elfloader::LoadableHeaders) -> Result<(), &'static str> {
+        let mut inner = self.inner.write();
+        inner.allocate(load_headers)
+    }
+
+    fn load(&mut self, destination: u64, region: &[u8]) -> Result<(), &'static str> {
+        let mut inner = self.inner.write();
+        inner.load(destination, region)
+    }
+
+    fn relocate(&mut self, entry: &elfloader::Rela<elfloader::P64>) -> Result<(), &'static str> {
+        let mut inner = self.inner.write();
+        inner.relocate(entry)
     }
 }

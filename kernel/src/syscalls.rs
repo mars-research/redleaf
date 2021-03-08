@@ -35,11 +35,11 @@ use x86::bits64::paging::{PAddr, VAddr};
 //}
 
 pub struct PDomain {
-    domain: Arc<Mutex<Domain>>,
+    domain: Domain,
 }
 
 impl PDomain {
-    pub const fn new(dom: Arc<Mutex<Domain>>) -> PDomain {
+    pub const fn new(dom: Domain) -> PDomain {
         PDomain { domain: dom }
     }
 
@@ -49,14 +49,13 @@ impl PDomain {
 
         let t = pt.thread.clone();
 
-        let mut d = self.domain.lock();
-        d.add_thread(t);
-        pt.thread.lock().current_domain_id = d.id;
+        self.domain.add_thread(t);
+        pt.thread.lock().current_domain_id = self.domain.id();
 
         println!(
             "Created thread {} for domain {}",
             pt.thread.lock().name,
-            d.name
+            self.domain.name(),
         );
         pt
     }
@@ -65,7 +64,7 @@ impl PDomain {
 impl syscalls::Domain for PDomain {
     fn get_domain_id(&self) -> u64 {
         disable_irq();
-        let domain_id = { self.domain.lock().id };
+        let domain_id = { self.domain.id() };
         enable_irq();
         domain_id
     }

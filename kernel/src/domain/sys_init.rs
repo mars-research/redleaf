@@ -47,32 +47,27 @@ pub unsafe fn load_sys_init() {
     .expect("Got ELF file");
 
     // Create a domain for the to-be-loaded elf file
-    let dom = Arc::new(Mutex::new(Domain::new("sys_init")));
-
-    // Create a domain for the to-be-loaded elf file
-    let mut loader = dom.lock();
+    let mut dom = Domain::new("sys_init");
 
     // load the binary
-    sys_init_elf.load(&mut *loader).expect("Cannot load binary");
+    sys_init_elf.load(&mut dom).expect("Cannot load binary");
+
+    let offset = dom.offset().expect("Memory space for domain was not correctly allocated");
 
     // print its entry point for now
     println!(
         "entry point at {:x}",
-        loader.offset + sys_init_elf.entry_point()
+        offset + sys_init_elf.entry_point()
     );
 
     let user_ep: UserInit = {
-        let mut entry: *const u8 = (*loader).offset.as_ptr();
+        let mut entry: *const u8 = offset.as_ptr();
         entry = entry.offset(sys_init_elf.entry_point() as isize);
         let _entry = entry as *const ();
         transmute::<*const (), UserInit>(_entry)
     };
 
-    // Drop the lock so if domain starts creating threads we don't
-    // deadlock
-    drop(loader);
-
-    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pdom = Box::new(PDomain::new(dom));
     //BOOTING_DOMAIN.replace(Some(pdom));
     //user_ep(BOOT_SYSCALL);
 

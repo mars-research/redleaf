@@ -840,7 +840,7 @@ pub fn create_domain_pci_bus(
 
     let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
 
-    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pdom = Box::new(PDomain::new(dom.clone()));
     let mmap = Box::new(Mmap::new());
     let pheap = Box::new(PHeap::new());
 
@@ -849,7 +849,7 @@ pub fn create_domain_pci_bus(
     let old_id = {
         let mut thread = thread.lock();
         let old_id = thread.current_domain_id;
-        thread.current_domain_id = dom.lock().id;
+        thread.current_domain_id = dom.id();
         old_id
     };
 
@@ -864,7 +864,7 @@ pub fn create_domain_pci_bus(
     }
 
     println!("domain/{}: returned from entry point", name);
-    (Box::new(PDomain::new(Arc::clone(&dom))), pci)
+    (Box::new(PDomain::new(dom.clone())), pci)
 }
 
 pub fn create_domain_bdev(
@@ -882,7 +882,7 @@ pub fn create_domain_bdev(
 
     let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
 
-    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pdom = Box::new(PDomain::new(dom.clone()));
     let pheap = Box::new(PHeap::new());
 
     // update current domain id
@@ -890,7 +890,7 @@ pub fn create_domain_bdev(
     let old_id = {
         let mut thread = thread.lock();
         let old_id = thread.current_domain_id;
-        thread.current_domain_id = dom.lock().id;
+        thread.current_domain_id = dom.id();
         old_id
     };
 
@@ -905,7 +905,7 @@ pub fn create_domain_bdev(
     }
 
     println!("domain/{}: returned from entry point", name);
-    (Box::new(PDomain::new(Arc::clone(&dom))), bdev)
+    (Box::new(PDomain::new(dom.clone())), bdev)
 }
 
 pub fn create_domain_bdev_mem(
@@ -923,7 +923,7 @@ pub fn create_domain_bdev_mem(
 
     let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
 
-    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pdom = Box::new(PDomain::new(dom.clone()));
     let pheap = Box::new(PHeap::new());
 
     // update current domain id
@@ -931,7 +931,7 @@ pub fn create_domain_bdev_mem(
     let old_id = {
         let mut thread = thread.lock();
         let old_id = thread.current_domain_id;
-        thread.current_domain_id = dom.lock().id;
+        thread.current_domain_id = dom.id();
         old_id
     };
 
@@ -946,7 +946,7 @@ pub fn create_domain_bdev_mem(
     }
 
     println!("domain/{}: returned from entry point", name);
-    (Box::new(PDomain::new(Arc::clone(&dom))), bdev)
+    (Box::new(PDomain::new(dom.clone())), bdev)
 }
 
 pub fn create_domain_bdev_shadow_helper(
@@ -964,7 +964,7 @@ pub fn create_domain_bdev_shadow_helper(
 
     let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
 
-    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pdom = Box::new(PDomain::new(dom.clone()));
     let pheap = Box::new(PHeap::new());
 
     // update current domain id
@@ -972,7 +972,7 @@ pub fn create_domain_bdev_shadow_helper(
     let old_id = {
         let mut thread = thread.lock();
         let old_id = thread.current_domain_id;
-        thread.current_domain_id = dom.lock().id;
+        thread.current_domain_id = dom.id();
         old_id
     };
 
@@ -987,7 +987,7 @@ pub fn create_domain_bdev_shadow_helper(
     }
 
     println!("domain/{}: returned from entry point", name);
-    (Box::new(PDomain::new(Arc::clone(&dom))), bdev)
+    (Box::new(PDomain::new(dom.clone())), bdev)
 }
 
 pub fn create_domain_net(
@@ -1005,7 +1005,7 @@ pub fn create_domain_net(
 
     let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
 
-    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pdom = Box::new(PDomain::new(dom.clone()));
     let pheap = Box::new(PHeap::new());
 
     // update current domain id
@@ -1013,7 +1013,7 @@ pub fn create_domain_net(
     let old_id = {
         let mut thread = thread.lock();
         let old_id = thread.current_domain_id;
-        thread.current_domain_id = dom.lock().id;
+        thread.current_domain_id = dom.id();
         old_id
     };
 
@@ -1028,7 +1028,7 @@ pub fn create_domain_net(
     }
 
     println!("domain/{}: returned from entry point", name);
-    (Box::new(PDomain::new(Arc::clone(&dom))), net)
+    (Box::new(PDomain::new(dom.clone())), net)
 }
 
 pub fn build_domain_net_shadow(
@@ -1048,7 +1048,7 @@ pub fn build_domain_net_shadow(
 
     let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
 
-    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pdom = Box::new(PDomain::new(dom.clone()));
     let pheap = Box::new(PHeap::new());
 
     // update current domain id
@@ -1056,7 +1056,7 @@ pub fn build_domain_net_shadow(
     let old_id = {
         let mut thread = thread.lock();
         let old_id = thread.current_domain_id;
-        thread.current_domain_id = dom.lock().id;
+        thread.current_domain_id = dom.id();
         old_id
     };
 
@@ -1071,7 +1071,7 @@ pub fn build_domain_net_shadow(
     }
 
     println!("domain/{}: returned from entry point", name);
-    (Box::new(PDomain::new(Arc::clone(&dom))), net)
+    (Box::new(PDomain::new(dom.clone())), net)
 }
 
 pub fn build_domain_nvme_shadow(
@@ -1091,7 +1091,7 @@ pub fn build_domain_nvme_shadow(
 
     let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
 
-    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pdom = Box::new(PDomain::new(dom.clone()));
     let pheap = Box::new(PHeap::new());
 
     // update current domain id
@@ -1099,7 +1099,7 @@ pub fn build_domain_nvme_shadow(
     let old_id = {
         let mut thread = thread.lock();
         let old_id = thread.current_domain_id;
-        thread.current_domain_id = dom.lock().id;
+        thread.current_domain_id = dom.id();
         old_id
     };
 
@@ -1114,7 +1114,7 @@ pub fn build_domain_nvme_shadow(
     }
 
     println!("domain/{}: returned from entry point", name);
-    (Box::new(PDomain::new(Arc::clone(&dom))), net)
+    (Box::new(PDomain::new(dom.clone())), net)
 }
 
 pub fn create_domain_nvmedev(
@@ -1132,7 +1132,7 @@ pub fn create_domain_nvmedev(
 
     let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
 
-    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pdom = Box::new(PDomain::new(dom.clone()));
     let pheap = Box::new(PHeap::new());
 
     // Enable interrupts on exit to user so it can be preempted
@@ -1141,7 +1141,7 @@ pub fn create_domain_nvmedev(
     disable_irq();
 
     println!("domain/{}: returned from entry point", name);
-    (Box::new(PDomain::new(Arc::clone(&dom))), nvme)
+    (Box::new(PDomain::new(dom.clone())), nvme)
 }
 
 // AB: XXX: The following is is not supported in Rust at the moment
@@ -1196,39 +1196,39 @@ pub fn build_domain_init(
     let old_id = {
         let mut thread = thread.lock();
         let old_id = thread.current_domain_id;
-        thread.current_domain_id = dom.lock().id;
+        thread.current_domain_id = dom.id();
         old_id
     };
 
     // Enable interrupts on exit to user so it can be preempted
     enable_irq();
     user_ep(
-        Box::new(PDomain::new(Arc::clone(&dom))),
+        Box::new(PDomain::new(dom.clone())),
         Box::new(PHeap::new()),
         Box::new(Interrupt::new()),
-        Box::new(PDomain::new(Arc::clone(&dom))),
-        Arc::new(PDomain::new(Arc::clone(&dom))),
-        Arc::new(PDomain::new(Arc::clone(&dom))),
-        Arc::new(PDomain::new(Arc::clone(&dom))),
-        Arc::new(PDomain::new(Arc::clone(&dom))),
-        Arc::new(PDomain::new(Arc::clone(&dom))),
-        Arc::new(PDomain::new(Arc::clone(&dom))),
-        Arc::new(PDomain::new(Arc::clone(&dom))),
-        Arc::new(PDomain::new(Arc::clone(&dom))),
-        Arc::new(PDomain::new(Arc::clone(&dom))),
-        Arc::new(PDomain::new(Arc::clone(&dom))),
-        Arc::new(PDomain::new(Arc::clone(&dom))),
-        Arc::new(PDomain::new(Arc::clone(&dom))),
-        Arc::new(PDomain::new(Arc::clone(&dom))),
-        Arc::new(PDomain::new(Arc::clone(&dom))),
-        Arc::new(PDomain::new(Arc::clone(&dom))),
-        Arc::new(PDomain::new(Arc::clone(&dom))),
-        Arc::new(PDomain::new(Arc::clone(&dom))),
-        Arc::new(PDomain::new(Arc::clone(&dom))),
-        Arc::new(PDomain::new(Arc::clone(&dom))),
-        Arc::new(PDomain::new(Arc::clone(&dom))),
-        Arc::new(PDomain::new(Arc::clone(&dom))),
-        Arc::new(PDomain::new(Arc::clone(&dom))),
+        Box::new(PDomain::new(dom.clone())),
+        Arc::new(PDomain::new(dom.clone())),
+        Arc::new(PDomain::new(dom.clone())),
+        Arc::new(PDomain::new(dom.clone())),
+        Arc::new(PDomain::new(dom.clone())),
+        Arc::new(PDomain::new(dom.clone())),
+        Arc::new(PDomain::new(dom.clone())),
+        Arc::new(PDomain::new(dom.clone())),
+        Arc::new(PDomain::new(dom.clone())),
+        Arc::new(PDomain::new(dom.clone())),
+        Arc::new(PDomain::new(dom.clone())),
+        Arc::new(PDomain::new(dom.clone())),
+        Arc::new(PDomain::new(dom.clone())),
+        Arc::new(PDomain::new(dom.clone())),
+        Arc::new(PDomain::new(dom.clone())),
+        Arc::new(PDomain::new(dom.clone())),
+        Arc::new(PDomain::new(dom.clone())),
+        Arc::new(PDomain::new(dom.clone())),
+        Arc::new(PDomain::new(dom.clone())),
+        Arc::new(PDomain::new(dom.clone())),
+        Arc::new(PDomain::new(dom.clone())),
+        Arc::new(PDomain::new(dom.clone())),
+        Arc::new(PDomain::new(dom.clone())),
     );
     disable_irq();
 
@@ -1238,7 +1238,7 @@ pub fn build_domain_init(
     }
 
     println!("domain/{}: returned from entry point", name);
-    Box::new(PDomain::new(Arc::clone(&dom)))
+    Box::new(PDomain::new(dom.clone()))
 }
 
 pub fn build_domain_fs(
@@ -1256,7 +1256,7 @@ pub fn build_domain_fs(
 
     let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
 
-    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pdom = Box::new(PDomain::new(dom.clone()));
     let pheap = Box::new(PHeap::new());
 
     // update current domain id
@@ -1264,7 +1264,7 @@ pub fn build_domain_fs(
     let old_id = {
         let mut thread = thread.lock();
         let old_id = thread.current_domain_id;
-        thread.current_domain_id = dom.lock().id;
+        thread.current_domain_id = dom.id();
         old_id
     };
 
@@ -1279,7 +1279,7 @@ pub fn build_domain_fs(
     }
 
     println!("domain/{}: returned from entry point", name);
-    (Box::new(PDomain::new(Arc::clone(&dom))), vfs)
+    (Box::new(PDomain::new(dom.clone())), vfs)
 }
 
 pub fn build_domain_xv6net(
@@ -1297,7 +1297,7 @@ pub fn build_domain_xv6net(
 
     let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
 
-    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pdom = Box::new(PDomain::new(dom.clone()));
     let pheap = Box::new(PHeap::new());
 
     // update current domain id
@@ -1305,7 +1305,7 @@ pub fn build_domain_xv6net(
     let old_id = {
         let mut thread = thread.lock();
         let old_id = thread.current_domain_id;
-        thread.current_domain_id = dom.lock().id;
+        thread.current_domain_id = dom.id();
         old_id
     };
 
@@ -1320,7 +1320,7 @@ pub fn build_domain_xv6net(
     }
 
     println!("domain/{}: returned from entry point", name);
-    (Box::new(PDomain::new(Arc::clone(&dom))), usrnet)
+    (Box::new(PDomain::new(dom.clone())), usrnet)
 }
 
 pub fn build_domain_xv6net_shadow(
@@ -1340,7 +1340,7 @@ pub fn build_domain_xv6net_shadow(
 
     let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
 
-    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pdom = Box::new(PDomain::new(dom.clone()));
     let pheap = Box::new(PHeap::new());
 
     // update current domain id
@@ -1348,7 +1348,7 @@ pub fn build_domain_xv6net_shadow(
     let old_id = {
         let mut thread = thread.lock();
         let old_id = thread.current_domain_id;
-        thread.current_domain_id = dom.lock().id;
+        thread.current_domain_id = dom.id();
         old_id
     };
 
@@ -1363,7 +1363,7 @@ pub fn build_domain_xv6net_shadow(
     }
 
     println!("domain/{}: returned from entry point", name);
-    (Box::new(PDomain::new(Arc::clone(&dom))), usrnet)
+    (Box::new(PDomain::new(dom.clone())), usrnet)
 }
 
 pub fn build_domain_proxy(
@@ -1419,7 +1419,7 @@ pub fn build_domain_proxy(
 
     let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
 
-    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pdom = Box::new(PDomain::new(dom.clone()));
     let pheap = Box::new(PHeap::new());
 
     // update current domain id
@@ -1427,7 +1427,7 @@ pub fn build_domain_proxy(
     let old_id = {
         let mut thread = thread.lock();
         let old_id = thread.current_domain_id;
-        thread.current_domain_id = dom.lock().id;
+        thread.current_domain_id = dom.id();
         old_id
     };
 
@@ -1465,7 +1465,7 @@ pub fn build_domain_proxy(
     }
 
     println!("domain/{}: returned from entry point", name);
-    (Box::new(PDomain::new(Arc::clone(&dom))), proxy)
+    (Box::new(PDomain::new(dom.clone())), proxy)
 }
 
 pub fn build_domain_xv6kernel(
@@ -1499,7 +1499,7 @@ pub fn build_domain_xv6kernel(
 
     let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
 
-    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pdom = Box::new(PDomain::new(dom.clone()));
     let pheap = Box::new(PHeap::new());
 
     // update current domain id
@@ -1507,7 +1507,7 @@ pub fn build_domain_xv6kernel(
     let old_id = {
         let mut thread = thread.lock();
         let old_id = thread.current_domain_id;
-        thread.current_domain_id = dom.lock().id;
+        thread.current_domain_id = dom.id();
         old_id
     };
 
@@ -1534,7 +1534,7 @@ pub fn build_domain_xv6kernel(
     }
 
     println!("domain/{}: returned from entry point", name);
-    (Box::new(PDomain::new(Arc::clone(&dom))), rv6)
+    (Box::new(PDomain::new(dom.clone())), rv6)
 }
 
 pub fn build_domain_xv6usr(
@@ -1552,7 +1552,7 @@ pub fn build_domain_xv6usr(
 
     let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
 
-    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pdom = Box::new(PDomain::new(dom.clone()));
     let pheap = Box::new(PHeap::new());
 
     // update current domain id
@@ -1560,7 +1560,7 @@ pub fn build_domain_xv6usr(
     let old_id = {
         let mut thread = thread.lock();
         let old_id = thread.current_domain_id;
-        thread.current_domain_id = dom.lock().id;
+        thread.current_domain_id = dom.id();
         old_id
     };
 
@@ -1578,7 +1578,7 @@ pub fn build_domain_xv6usr(
         "domain/{}: returned from entry point with return code",
         name
     );
-    Box::new(PDomain::new(Arc::clone(&dom)))
+    Box::new(PDomain::new(dom.clone()))
 }
 
 pub fn build_domain_dom_a(
@@ -1592,7 +1592,7 @@ pub fn build_domain_dom_a(
 
     let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
 
-    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pdom = Box::new(PDomain::new(dom.clone()));
     let pheap = Box::new(PHeap::new());
 
     // update current domain id
@@ -1600,7 +1600,7 @@ pub fn build_domain_dom_a(
     let old_id = {
         let mut thread = thread.lock();
         let old_id = thread.current_domain_id;
-        thread.current_domain_id = dom.lock().id;
+        thread.current_domain_id = dom.id();
         old_id
     };
 
@@ -1615,7 +1615,7 @@ pub fn build_domain_dom_a(
     }
 
     println!("domain/{}: returned from entry point", name);
-    (Box::new(PDomain::new(Arc::clone(&dom))), dom_a)
+    (Box::new(PDomain::new(dom.clone())), dom_a)
 }
 
 pub fn build_domain_dom_b(
@@ -1630,7 +1630,7 @@ pub fn build_domain_dom_b(
 
     let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
 
-    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pdom = Box::new(PDomain::new(dom.clone()));
     let pheap = Box::new(PHeap::new());
 
     // update current domain id
@@ -1638,7 +1638,7 @@ pub fn build_domain_dom_b(
     let old_id = {
         let mut thread = thread.lock();
         let old_id = thread.current_domain_id;
-        thread.current_domain_id = dom.lock().id;
+        thread.current_domain_id = dom.id();
         old_id
     };
 
@@ -1653,7 +1653,7 @@ pub fn build_domain_dom_b(
     }
 
     println!("domain/{}: returned from entry point", name);
-    Box::new(PDomain::new(Arc::clone(&dom)))
+    Box::new(PDomain::new(dom.clone()))
 }
 
 pub fn build_domain_dom_c(
@@ -1667,7 +1667,7 @@ pub fn build_domain_dom_c(
 
     let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
 
-    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pdom = Box::new(PDomain::new(dom.clone()));
     let pheap = Box::new(PHeap::new());
 
     // update current domain id
@@ -1675,7 +1675,7 @@ pub fn build_domain_dom_c(
     let old_id = {
         let mut thread = thread.lock();
         let old_id = thread.current_domain_id;
-        thread.current_domain_id = dom.lock().id;
+        thread.current_domain_id = dom.id();
         old_id
     };
 
@@ -1690,7 +1690,7 @@ pub fn build_domain_dom_c(
     }
 
     println!("domain/{}: returned from entry point", name);
-    (Box::new(PDomain::new(Arc::clone(&dom))), dom_c)
+    (Box::new(PDomain::new(dom.clone())), dom_c)
 }
 
 pub fn build_domain_dom_d(
@@ -1705,7 +1705,7 @@ pub fn build_domain_dom_d(
 
     let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
 
-    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pdom = Box::new(PDomain::new(dom.clone()));
     let pheap = Box::new(PHeap::new());
 
     // update current domain id
@@ -1713,7 +1713,7 @@ pub fn build_domain_dom_d(
     let old_id = {
         let mut thread = thread.lock();
         let old_id = thread.current_domain_id;
-        thread.current_domain_id = dom.lock().id;
+        thread.current_domain_id = dom.id();
         old_id
     };
 
@@ -1728,7 +1728,7 @@ pub fn build_domain_dom_d(
     }
 
     println!("domain/{}: returned from entry point", name);
-    Box::new(PDomain::new(Arc::clone(&dom)))
+    Box::new(PDomain::new(dom.clone()))
 }
 
 pub fn build_domain_shadow(
@@ -1746,7 +1746,7 @@ pub fn build_domain_shadow(
 
     let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
 
-    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pdom = Box::new(PDomain::new(dom.clone()));
     let pheap = Box::new(PHeap::new());
 
     // update current domain id
@@ -1754,7 +1754,7 @@ pub fn build_domain_shadow(
     let old_id = {
         let mut thread = thread.lock();
         let old_id = thread.current_domain_id;
-        thread.current_domain_id = dom.lock().id;
+        thread.current_domain_id = dom.id();
         old_id
     };
 
@@ -1769,7 +1769,7 @@ pub fn build_domain_shadow(
     }
 
     println!("domain/{}: returned from entry point", name);
-    (Box::new(PDomain::new(Arc::clone(&dom))), shadow)
+    (Box::new(PDomain::new(dom.clone())), shadow)
 }
 
 pub fn build_domain_benchnet_helper(
@@ -1784,7 +1784,7 @@ pub fn build_domain_benchnet_helper(
 
     let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
 
-    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pdom = Box::new(PDomain::new(dom.clone()));
     let pheap = Box::new(PHeap::new());
 
     // update current domain id
@@ -1792,7 +1792,7 @@ pub fn build_domain_benchnet_helper(
     let old_id = {
         let mut thread = thread.lock();
         let old_id = thread.current_domain_id;
-        thread.current_domain_id = dom.lock().id;
+        thread.current_domain_id = dom.id();
         old_id
     };
 
@@ -1807,7 +1807,7 @@ pub fn build_domain_benchnet_helper(
     }
 
     println!("domain/{}: returned from entry point", name);
-    Box::new(PDomain::new(Arc::clone(&dom)))
+    Box::new(PDomain::new(dom.clone()))
 }
 
 pub fn build_domain_benchnvme(
@@ -1822,7 +1822,7 @@ pub fn build_domain_benchnvme(
 
     let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
 
-    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pdom = Box::new(PDomain::new(dom.clone()));
     let pheap = Box::new(PHeap::new());
 
     // update current domain id
@@ -1830,7 +1830,7 @@ pub fn build_domain_benchnvme(
     let old_id = {
         let mut thread = thread.lock();
         let old_id = thread.current_domain_id;
-        thread.current_domain_id = dom.lock().id;
+        thread.current_domain_id = dom.id();
         old_id
     };
 
@@ -1845,7 +1845,7 @@ pub fn build_domain_benchnvme(
     }
 
     println!("domain/{}: returned from entry point", name);
-    Box::new(PDomain::new(Arc::clone(&dom)))
+    Box::new(PDomain::new(dom.clone()))
 }
 
 pub fn build_domain_hashstore(
@@ -1858,7 +1858,7 @@ pub fn build_domain_hashstore(
 
     let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
 
-    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pdom = Box::new(PDomain::new(dom.clone()));
     let pheap = Box::new(PHeap::new());
 
     // update current domain id
@@ -1866,7 +1866,7 @@ pub fn build_domain_hashstore(
     let old_id = {
         let mut thread = thread.lock();
         let old_id = thread.current_domain_id;
-        thread.current_domain_id = dom.lock().id;
+        thread.current_domain_id = dom.id();
         old_id
     };
 
@@ -1881,7 +1881,7 @@ pub fn build_domain_hashstore(
     }
 
     println!("domain/{}: returned from entry point", name);
-    Box::new(PDomain::new(Arc::clone(&dom)))
+    Box::new(PDomain::new(dom.clone()))
 }
 
 pub fn build_domain_tpm(
@@ -1895,7 +1895,7 @@ pub fn build_domain_tpm(
 
     let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
 
-    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let pdom = Box::new(PDomain::new(dom.clone()));
     let pheap = Box::new(PHeap::new());
 
     // update current domain id
@@ -1903,7 +1903,7 @@ pub fn build_domain_tpm(
     let old_id = {
         let mut thread = thread.lock();
         let old_id = thread.current_domain_id;
-        thread.current_domain_id = dom.lock().id;
+        thread.current_domain_id = dom.id();
         old_id
     };
 
@@ -1918,5 +1918,5 @@ pub fn build_domain_tpm(
     }
 
     println!("domain/{}: returned from entry point", name);
-    (Box::new(PDomain::new(Arc::clone(&dom))), tpmdev)
+    (Box::new(PDomain::new(dom.clone())), tpmdev)
 }

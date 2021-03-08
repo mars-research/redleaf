@@ -280,7 +280,7 @@ pub struct Thread {
     rebalance: bool,
     context: Context,
     stack: *mut u64,
-    domain: Option<Arc<Mutex<Domain>>>,
+    domain: Option<Domain>,
     // Next thread in the scheduling queue
     next: Link,
     // Next thread on the domain list
@@ -696,7 +696,7 @@ pub fn get_current_ref() -> Arc<Mutex<Thread>> {
 }
 
 /// Return domain of the current thread
-pub fn get_domain_of_current() -> Arc<Mutex<Domain>> {
+pub fn get_domain_of_current() -> Domain {
     let rc_t = CURRENT.borrow().as_ref().unwrap().clone();
     let arc_d = rc_t.lock().domain.as_ref().unwrap().clone();
 
