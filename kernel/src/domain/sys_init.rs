@@ -8,7 +8,6 @@ use elfloader::ElfBinary;
 use spin::Mutex;
 use syscalls::Syscall;
 //use syscalls::BootSyscall;
-//use crate::domain::domain::BOOTING_DOMAIN;
 //use crate::syscalls::BOOT_SYSCALL;
 
 fn sys_init_binary_range() -> (u64, u64) {

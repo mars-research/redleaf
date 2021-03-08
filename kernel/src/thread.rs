@@ -8,7 +8,7 @@ use core::cell::RefCell;
 //use alloc::rc::Rc;
 use crate::active_cpus;
 use crate::arch::memory::{PAddr, BASE_PAGE_SIZE};
-use crate::domain::domain::{Domain, KERNEL_DOMAIN};
+use crate::domain::{Domain, KERNEL_DOMAIN};
 use crate::halt;
 use crate::interrupt::{disable_irq, enable_irq};
 use crate::memory::buddy::BUDDY;

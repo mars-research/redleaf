@@ -342,7 +342,7 @@ pub extern "C" fn rust_main_ap() -> ! {
     }
 
     if cpu_id == 0 {
-        domain::domain::init_domains();
+        domain::init_domains();
         // FIXME: kbd irqhandler is broken. disable temporarily
         /*use kbd::KBDCTRL;
         use crate::drivers::Driver;

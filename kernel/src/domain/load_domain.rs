@@ -1,4 +1,4 @@
-use super::domain::Domain;
+use super::Domain;
 use super::trusted_binary;
 use super::trusted_binary::SignatureCheckResult;
 use alloc::sync::Arc;

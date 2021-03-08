@@ -1,6 +1,7 @@
+use core::panic::PanicInfo;
 use crate::arch::vspace::MapAction;
 use crate::arch::vspace::{ResourceType, VSpace};
-use crate::domain::domain::Domain;
+use crate::domain::Domain;
 use crate::interrupt::{disable_irq, enable_irq};
 use crate::kbd::KBDCTRL;
 use crate::memory::{paddr_to_kernel_vaddr, VSPACE};
