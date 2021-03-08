@@ -49,19 +49,24 @@ pub unsafe fn load_sys_init() {
     let mut dom = Domain::new("sys_init");
 
     // load the binary
-    sys_init_elf.load(&mut dom).expect("Cannot load binary");
+    let entry_point = sys_init_elf.entry_point();
+    let text_address = sys_init_elf.file
+        .find_section_by_name(".text")
+        .unwrap()
+        .address();
+    dom.load_elf(sys_init_elf).expect("Cannot load binary");
 
     let offset = dom.offset().expect("Memory space for domain was not correctly allocated");
 
     // print its entry point for now
     println!(
         "entry point at {:x}",
-        offset + sys_init_elf.entry_point()
+        offset + entry_point,
     );
 
     let user_ep: UserInit = {
         let mut entry: *const u8 = offset.as_ptr();
-        entry = entry.offset(sys_init_elf.entry_point() as isize);
+        entry = entry.offset(entry_point as isize);
         let _entry = entry as *const ();
         transmute::<*const (), UserInit>(_entry)
     };

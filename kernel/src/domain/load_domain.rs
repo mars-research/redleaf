@@ -62,7 +62,12 @@ pub unsafe fn load_domain(
     let mut dom = Domain::new(name);
 
     // load the binary
-    domain_elf.load(&mut dom).expect("Cannot load binary");
+    let entry_point = domain_elf.entry_point();
+    let text_address = domain_elf.file
+        .find_section_by_name(".text")
+        .unwrap()
+        .address();
+    dom.load_elf(domain_elf).expect("Cannot load binary");
 
     let offset = dom.offset().expect("Memory space for domain was not correctly allocated");
 
@@ -70,23 +75,18 @@ pub unsafe fn load_domain(
     println!(
         "domain/{}: Entry point at {:x}",
         name,
-        offset + domain_elf.entry_point()
+        offset + entry_point,
     );
 
     println!(
         "domain/{}: .text starts at {:x}",
         name,
-        offset
-            + domain_elf
-                .file
-                .find_section_by_name(".text")
-                .unwrap()
-                .address()
+        offset + text_address,
     );
 
     let user_ep: *const () = {
         let mut entry: *const u8 = offset.as_ptr();
-        entry = entry.offset(domain_elf.entry_point() as isize);
+        entry = entry.offset(entry_point as isize);
         let _entry = entry as *const ();
         _entry
     };

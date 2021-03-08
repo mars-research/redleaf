@@ -1,24 +1,26 @@
+//use alloc::rc::Rc;
 //use core::cell::RefCell;
 use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::string::ToString;
 use alloc::sync::Arc;
+use alloc::vec::Vec;
+use core::result::Result;
 use core::sync::atomic::{AtomicU64, Ordering};
 
-//use alloc::rc::Rc;
-use crate::heap::PHeap;
-use crate::syscalls::PDomain;
-use crate::{is_page_aligned, round_up};
+use elfloader::ElfBinary;
 use hashbrown::HashMap;
-use libsyscalls;
 use log::{debug, info, trace};
 use spin::{Mutex, RwLock, Once};
 use x86::bits64::paging::{PAddr, VAddr, BASE_PAGE_SHIFT, BASE_PAGE_SIZE};
 
-use crate::alloc::vec::Vec;
 use crate::arch::vspace::{MapAction, ResourceType, VSpace};
+use crate::heap::PHeap;
 use crate::memory::VSPACE;
+use crate::syscalls::PDomain;
 use crate::thread::Thread;
+use crate::{is_page_aligned, round_up};
+use libsyscalls;
 use super::memory::paddr_to_kernel_vaddr;
 
 mod load_domain;
@@ -34,6 +36,8 @@ static DOMAIN_ID: AtomicU64 = AtomicU64::new(0);
 
 /// Global Domain list
 pub static KERNEL_DOMAIN: Once<Domain> = Once::new();
+
+static DOMAINS: Once<RwLock<HashMap<String, Domain>>> = Once::new();
 
 /// A strong reference to a reference-counted Domain.
 #[derive(Clone)]
@@ -65,6 +69,38 @@ impl Domain {
     pub fn offset(&self) -> Option<VAddr> {
         self.inner.read().offset
     }
+
+    pub fn contains_address(&self, address: VAddr) -> bool {
+        let inner = self.inner.read();
+        let start = inner.offset.expect("The memory region has not been allocated yet");
+        let end = start + inner.size.unwrap();
+
+        address >= start && address <= end
+    }
+
+    // FIXME: Panics, also useless error type
+    pub fn load_elf(&self, elf: ElfBinary) -> Result<(), &'static str> {
+        let mut inner = self.inner.write();
+        elf.load(&mut *inner)?;
+
+        let file = &elf.file;
+
+        for section in file.section_iter() {
+            let start = section.address() as usize;
+            let end = start + section.size() as usize;
+
+            if start == 0 {
+                continue
+            }
+
+            // FIXME
+            let name = section.get_name(file).expect(&format!("Section starting at {:#x?} does not have a name", start));
+
+            inner.sections.insert(name.to_string(), (start, end));
+        }
+
+        Ok(())
+    }
 }
 
 /// A Domain.
@@ -72,13 +108,25 @@ struct DomainInner {
     id: u64,
     name: String,
     mapping: Vec<(VAddr, usize, u64, MapAction)>,
+
     /// Offset where ELF is located.
     offset: Option<VAddr>,
+
+    /// Size of the allocation.
+    size: Option<usize>,
+
     /// The entry point of the ELF file.
     entry_point: Option<VAddr>,
+
+    // FIXME: This is ugly
+    /// List of sections in the ELF file.
+    sections: HashMap<String, (usize, usize)>,
+
     /// List of threads in the domain
     //threads: Option<Arc<Mutex<Rc<RefCell<Thread>>>>>,
     threads: DomainThreads,
+
+    shared_ref: Option<Domain>,
 }
 
 struct DomainThreads {
@@ -101,8 +149,11 @@ impl DomainInner {
             name: name.to_string(),
             mapping: Vec::with_capacity(64),
             offset: None,
+            size: None,
             entry_point: None,
+            sections: HashMap::new(),
             threads: DomainThreads::new(),
+            shared_ref: None,
         }
     }
 
@@ -125,20 +176,14 @@ impl Domain {
     pub fn new(name: &str) -> Self {
         let inner = DomainInner::new(name);
 
-        Self {
+        let outer = Self {
             inner: Arc::new(RwLock::new(inner)),
-        }
-    }
-}
+        };
 
-/// Create kernel domain (must be called before any threads are
-/// created)
-pub fn init_domains() {
-    let kernel = Domain::new("kernel");
-    libsyscalls::syscalls::init(Box::new(PDomain::new(kernel.clone())));
-    KERNEL_DOMAIN.call_once(|| kernel);
-    // init global references to syscalls (mostly for RRef deallocation)
-    rref::init(Box::new(PHeap::new()), 0);
+        outer.inner.write().shared_ref = Some(outer.clone());
+
+        outer
+    }
 }
 
 impl elfloader::ElfLoader for DomainInner {
@@ -222,7 +267,8 @@ impl elfloader::ElfLoader for DomainInner {
         );
 
         let ptr = pbase.as_u64() as *mut u8;
-        for i in 0..((max_end.as_usize() - min_base.as_usize()) as isize) {
+        let size = max_end.as_usize() - min_base.as_usize();
+        for i in 0..(size as isize) {
             unsafe {
                 *ptr.offset(i) = 0;
             }
@@ -236,6 +282,13 @@ impl elfloader::ElfLoader for DomainInner {
         );
 
         self.offset = Some(offset);
+        self.size = Some(size);
+
+        {
+            let domain_map = DOMAINS.r#try().expect("The domain system has not been initialized");
+            let shared_ref = self.shared_ref.as_ref().unwrap().clone();
+            domain_map.write().insert(self.name.clone(), shared_ref);
+        }
 
         // XXX: Pages are already mapped on the global vspace. We do not need to map it again. But
         // for security reasons, we need to change the permission bits of those pages and restore
@@ -347,19 +400,52 @@ impl elfloader::ElfLoader for DomainInner {
     }
 }
 
-impl elfloader::ElfLoader for Domain {
-    fn allocate(&mut self, load_headers: elfloader::LoadableHeaders) -> Result<(), &'static str> {
-        let mut inner = self.inner.write();
-        inner.allocate(load_headers)
+/// Create kernel domain (must be called before any threads are
+/// created)
+pub fn init_domains() {
+    let kernel = Domain::new("kernel");
+    libsyscalls::syscalls::init(Box::new(PDomain::new(kernel.clone())));
+    KERNEL_DOMAIN.call_once(|| kernel);
+    // init global references to syscalls (mostly for RRef deallocation)
+    rref::init(Box::new(PHeap::new()), 0);
+
+    DOMAINS.call_once(|| {
+        RwLock::new(HashMap::new())
+    });
+}
+
+/// Find a domain containing an address.
+pub fn find_domain_containing(address: VAddr) -> Option<Domain> {
+    // currently just a naive linear search
+
+    let domain_map = DOMAINS.r#try().expect("The domain system has not been initialized");
+    let domain_map = domain_map.read();
+
+    for domain in domain_map.values() {
+        if domain.contains_address(address) {
+            return Some(domain.clone());
+        }
     }
 
-    fn load(&mut self, destination: u64, region: &[u8]) -> Result<(), &'static str> {
-        let mut inner = self.inner.write();
-        inner.load(destination, region)
+    None
+}
+
+// FIXME: The return type is useless for most purposes.
+/// Find a section containing an address.
+pub fn find_section_containing(address: VAddr) -> Option<(VAddr, VAddr)> {
+    let domain = find_domain_containing(address)?;
+
+    let inner = domain.inner.read();
+    let domain_offset = domain.offset().unwrap();
+
+    let offset = (address - domain_offset).as_usize();
+    for (start, end) in inner.sections.values() {
+        if offset >= *start && offset <= *end {
+            let vstart = domain_offset + *start;
+            let vend = domain_offset + *end;
+            return Some((vstart, vend));
+        }
     }
 
-    fn relocate(&mut self, entry: &elfloader::Rela<elfloader::P64>) -> Result<(), &'static str> {
-        let mut inner = self.inner.write();
-        inner.relocate(entry)
-    }
+    None
 }
