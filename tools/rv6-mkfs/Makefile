@@ -35,18 +35,23 @@ build/mkfs-rs:
 HTDOCS_DIR = $(root)/domains/usr/xv6/usr/bin/src/bin/htdocs/
 HTDOCS=$(shell ls $(HTDOCS_DIR) -1)
 
+# HTDOCS=style.css
+TEST_DIR=$(shell pwd)/test
+TEST_FILES=$(shell ls $(TEST_DIR) -1)
+
 FILES=README large
 
 BINS=$(shell find $(root)/domains/usr/xv6/usr/bin/src/bin -maxdepth 1 -mindepth 1 ! -name htdocs ! -name target -exec basename {} .rs \;)
 
+
 build/fs.img: build/mkfs $(FILES) $(BINS) $(HTDOCS) Makefile
 	mkdir -p build
-	cd build/ && ./mkfs fs.img $(FILES) $(BINS) $(HTDOCS)
+	cd build/ && ./mkfs fs.img  $(FILES) $(BINS) $(HTDOCS)
 
 build/fs-rs.img: build/mkfs-rs $(FILES) $(BINS) $(HTDOCS) Makefile
-	mkdir -p build && cd build && pwd && ../target/debug/rv6-mkfs fs.img $(FILES) $(BINS) $(HTDOCS)
+	mkdir -p build && cd build && ../target/debug/rv6-mkfs fs.img  $(FILES) $(BINS) $(HTDOCS)
 
-build/fs.o: build/fs.img
+build/fs.o: build/fs-rs.img
 	objcopy -I binary -O elf64-x86-64 -B i386 build/fs.img build/fs.o
 
 build/libfs.a: build/fs.o

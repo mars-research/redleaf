@@ -14,8 +14,6 @@ use std::{
     mem::{size_of},
 };
 use std::path::Path;
-// use nix::dir::Dir;
-
 
 fn main() {
     /* TODO: make NodeHandler accept a filename and init the Sectorhandler direcrtly from that. Then
@@ -69,7 +67,7 @@ fn main() {
         }
 
 
-        let inum = node_handler.alloc_inode(1);
+        let inum = node_handler.alloc_inode(2);
         let mut de = DirEntry::new(inum as u16, &arg);
         node_handler.append_inode(rootino, &mut de.bytes(), size_of::<DirEntry>() as i32);
 
@@ -88,7 +86,7 @@ fn main() {
                 // println!("\tbytes: {:?}", bytes);
 
                 let mut temp_de: DirEntry = bincode::deserialize(&buf).unwrap();
-                node_handler.append_inode(inum, &mut temp_de.bytes(), bytes as i32);
+                node_handler.append_inode(inum, &mut buf, bytes as i32);
             }
             else {
                 done = true;
