@@ -100,6 +100,8 @@ qemu_common     += -cpu 'Haswell,pdpe1gb' -machine q35
 qemu_common 	+= -device virtio-net-pci,netdev=net0
 # qemu_common 	+= -netdev user,id=net0
 qemu_common		+= -netdev tap,id=net0,ifname=virtio,script=no,downscript=no
+qemu_common		+= --trace virtio* --trace virtqueue*
+# qemu_common		+= -d trace:virtio* -d trace:virtqueue*
 # qemu_common		+= -nic user,model=virtio-net-pci
 #qemu_common    += -device vfio-pci,romfile=,host=06:00.1
 #qemu_common    += -vnc 127.0.0.1:0
