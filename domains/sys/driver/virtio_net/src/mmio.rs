@@ -3,7 +3,7 @@ use core::ptr;
 use console::println;
 
 #[derive(Debug)]
-#[repr(C)]
+#[repr(C, packed)]
 pub struct VirtioPciCommonConfig {
     /* About the whole device. */
     pub device_feature_select: u32, /* read-write */
@@ -30,6 +30,14 @@ pub struct VirtioPciCommonConfig {
 
     /// Used Ring
     pub queue_device: u64, /* read-write */
+}
+#[derive(Debug)]
+#[repr(C, packed)]
+pub struct VirtioNetworkDeviceConfig {
+    mac: [u8; 6],
+    status: u16,
+    max_virtqueue_pairs: u16,
+    mtu: u16,
 }
 
 #[derive(PartialEq, Debug)]
@@ -126,6 +134,12 @@ pub struct Mmio {
 impl Mmio {
     pub fn new(mmio_base: usize) -> Self {
         Self { mmio_base }
+    }
+
+    pub unsafe fn read_device_config(&mut self) -> VirtioNetworkDeviceConfig {
+        let cfg_ptr =
+            (self.mmio_base + Register::DeviceCfg.offset()) as *const VirtioNetworkDeviceConfig;
+        ptr::read_unaligned(cfg_ptr)
     }
 
     pub unsafe fn read_common_config(&mut self) -> VirtioPciCommonConfig {

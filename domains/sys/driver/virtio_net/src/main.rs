@@ -291,6 +291,8 @@ impl VirtioNetInner {
 
         println!("VirtIO Device Initialized!");
 
+        println!("{:#x?}", mmio.read_device_config());
+
         Self { mmio }
     }
 
