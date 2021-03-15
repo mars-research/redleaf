@@ -16,6 +16,15 @@ pub fn u32_as_u8_mut<'a>(src: &'a mut [u32]) -> &'a mut [u8] {
         std::slice::from_raw_parts_mut(src.as_mut_ptr() as *mut u8,
                                         src.len() * 4)
     }
+
+    // let v: Vec<u8> = Vec::new();
+    // v.reserve(src.len() * 4);
+
+    // for num in src.iter() {
+    //     v.extend_from_slice(&num.to_le_bytes());
+    // }
+
+    // v
 }
 
 #[no_mangle]
