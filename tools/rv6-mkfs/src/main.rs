@@ -79,6 +79,7 @@ fn main() {
     node_handler.read_inode(rootino, &mut din);
     let mut off = din.size;
     off = ((off / params::BSIZE as u32) + 1) * params::BSIZE as u32;
+    din.size = off;
     node_handler.write_inode(rootino, &mut din);
     node_handler.alloc_block(node_handler.freeblock as i32);
 }
