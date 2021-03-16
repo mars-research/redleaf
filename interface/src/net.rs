@@ -51,6 +51,7 @@ pub trait Net: Send + Sync {
 
     fn submit_and_poll(&self, packets: &mut VecDeque<Vec<u8>>, reap_queue: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>>;
 
+    // TODO: This is a non-rref interface for benchmark only and it needs to be clean up.
     fn poll(&self, collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>>;
 
     fn submit_and_poll_rref(
