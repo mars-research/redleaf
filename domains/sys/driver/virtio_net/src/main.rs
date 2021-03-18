@@ -44,6 +44,14 @@ pub const DESCRIPTOR_COUNT: usize = 256; // Maybe change this to 256, was 8 befo
 
 static mut memory_location: [u64; 10000] = [0u64; 10000];
 
+static tian_packet: [u8; 66] = [
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x80, 0x61, 0x5F, 0x08, 0x37, 0x23, 0x08, 0x00, 0x45, 0x00,
+    0x00, 0x34, 0x20, 0xF3, 0x40, 0x00, 0x34, 0x06, 0x1C, 0xBF, 0xB8, 0x69, 0x94, 0x72, 0xAC, 0x14,
+    0x10, 0x22, 0x01, 0xBB, 0xCA, 0xFC, 0xDA, 0xD3, 0x61, 0x34, 0xD8, 0xBF, 0xCC, 0x09, 0x80, 0x10,
+    0x00, 0x13, 0xF5, 0xAD, 0x00, 0x00, 0x01, 0x01, 0x08, 0x0A, 0x9E, 0xC6, 0xA7, 0xE1, 0x1D, 0x2A,
+    0x66, 0x8E,
+];
+
 #[derive(Debug)]
 #[repr(C, packed(16))]
 struct VirtualQueues {
@@ -262,26 +270,30 @@ impl VirtioNetInner {
             next: 0,
         };
 
-        VIRTUAL_QUEUES.recieve_queue.descriptors[1] = VirtqDescriptor {
-            addr: (&memory_location as *const u64) as u64,
-            len: 8 * 1000,
-            flags: 2, // For VIRTQ_DESC_F_WRITE
-            next: 0,
-        };
-
         println!(
             "LOCATION OF BUFFER: {:x?}",
             VIRTUAL_QUEUES.recieve_queue.descriptors[0].addr
         );
 
+        Mmio::memory_fence();
         VIRTUAL_QUEUES.recieve_queue.available.ring[0] = 0;
         VIRTUAL_QUEUES.recieve_queue.available.idx += 1;
         Mmio::memory_fence();
-        VIRTUAL_QUEUES.recieve_queue.available.ring[1] = 1;
-        VIRTUAL_QUEUES.recieve_queue.available.idx += 1;
 
         // Notification suppression 2.6.7.1
         // VIRTUAL_QUEUES.recieve_queue.available.flags = 1;
+
+        VIRTUAL_QUEUES.transmit_queue.descriptors[0] = VirtqDescriptor {
+            addr: (&tian_packet as *const u8) as u64,
+            len: tian_packet.len() as u32,
+            flags: 0,
+            next: 0,
+        };
+
+        Mmio::memory_fence();
+        VIRTUAL_QUEUES.transmit_queue.available.ring[0] = 0;
+        VIRTUAL_QUEUES.transmit_queue.available.idx += 1;
+        Mmio::memory_fence();
 
         // 4.1.5.2
         // When VIRTIO_F_NOTIFICATION_DATA has not been negotiated,
@@ -289,7 +301,7 @@ impl VirtioNetInner {
         // by writing the 16-bit virtqueue index of this virtqueue to the Queue Notify address.
 
         println!("Notification Sending");
-        mmio.write(Register::Notify, 0u16);
+        mmio.write(Register::Notify, 1u16);
         println!("Notification Sent");
 
         // Print out some final info
