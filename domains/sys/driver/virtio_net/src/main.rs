@@ -210,29 +210,12 @@ impl VirtioNetInner {
         let mut cfg = mmio.read_common_config();
         println!("{:#?}", cfg);
 
-        // let mut feature_bits: u32 = cfg.device_feature;
         let mut feature_bits: u32 = 0;
         feature_bits |= 5; // Enable Device MAC Address
         feature_bits |= 16; // Enable Device Status
+        feature_bits |= 15; // VIRTIO_NET_F_MRG_RXBUF - Driver can merge recieved buffers
         cfg.driver_feature = feature_bits;
-
-        // Write back the Config
-        println!("{:#?}", cfg);
         mmio.write_common_config(cfg);
-
-        // Negotiate Features Part 2
-        // Select the other feature bits
-        // let mut cfg = mmio.read_common_config();
-        // cfg.device_feature_select = 1;
-        // cfg.driver_feature_select = 1;
-        // mmio.write_common_config(cfg);
-
-        // let mut cfg = mmio.read_common_config();
-        // println!("{:#?}", cfg);
-        // let feature_bits: u32 = 1;
-        // cfg.driver_feature = feature_bits;
-        // println!("{:#?}", cfg);
-        // mmio.write_common_config(cfg);
 
         // Tell the Device that feature Negotiation is complete
         mmio.write_device_status(VirtioDeviceStatus::FeaturesOk);
@@ -240,8 +223,6 @@ impl VirtioNetInner {
         if mmio.read_device_status() != VirtioDeviceStatus::FeaturesOk {
             panic!("Requested features *NOT* supported by VirtIO Device!");
         }
-
-        println!("{:#?}", mmio.read_common_config());
 
         // Setup VirtQueues
 
@@ -269,7 +250,19 @@ impl VirtioNetInner {
         println!("WRITING TRANSMIT_QUEUE: {:#?}", cfg);
         mmio.write_common_config(cfg);
 
+        // Tell the Device we're all done
+        mmio.write_device_status(VirtioDeviceStatus::DriverOk);
+
+        // Add some descriptors
+
         VIRTUAL_QUEUES.recieve_queue.descriptors[0] = VirtqDescriptor {
+            addr: (&memory_location as *const u64) as u64,
+            len: 8 * 1000,
+            flags: 2, // For VIRTQ_DESC_F_WRITE
+            next: 0,
+        };
+
+        VIRTUAL_QUEUES.recieve_queue.descriptors[1] = VirtqDescriptor {
             addr: (&memory_location as *const u64) as u64,
             len: 8 * 1000,
             flags: 2, // For VIRTQ_DESC_F_WRITE
@@ -282,16 +275,30 @@ impl VirtioNetInner {
         );
 
         VIRTUAL_QUEUES.recieve_queue.available.ring[0] = 0;
-        VIRTUAL_QUEUES.recieve_queue.available.idx = 1;
+        VIRTUAL_QUEUES.recieve_queue.available.idx += 1;
+        Mmio::memory_fence();
+        VIRTUAL_QUEUES.recieve_queue.available.ring[1] = 1;
+        VIRTUAL_QUEUES.recieve_queue.available.idx += 1;
 
-        // Tell the Device we're all done
-        mmio.write_device_status(VirtioDeviceStatus::DriverOk);
+        // Notification suppression 2.6.7.1
+        // VIRTUAL_QUEUES.recieve_queue.available.flags = 1;
 
+        // 4.1.5.2
+        // When VIRTIO_F_NOTIFICATION_DATA has not been negotiated,
+        // the driver sends an available buffer notification to the device
+        // by writing the 16-bit virtqueue index of this virtqueue to the Queue Notify address.
+
+        println!("Notification Sending");
+        mmio.write(Register::Notify, 0u16);
+        println!("Notification Sent");
+
+        // Print out some final info
         println!("{:#?}", mmio.read_device_status());
+        println!("{:#x?}", mmio.read_device_config());
 
         println!("VirtIO Device Initialized!");
 
-        println!("{:#x?}", mmio.read_device_config());
+        println!("ISR: {:#?}", mmio.read(Register::ISR));
 
         Self { mmio }
     }

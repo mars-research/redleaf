@@ -253,12 +253,13 @@ memops:
 
 .PHONY: just-run-qemu
 just-run-qemu:
-	qemu-system-x86_64 -vga std -cdrom build/redleaf.iso \
-	-drive id=satadisk,file=tools/rv6-mkfs/build/fs.img,format=raw,if=none \
-	-device ahci,id=ahci -device ide-hd,drive=satadisk,bus=ahci.0 \
-	-cpu 'Haswell,pdpe1gb' -machine q35 \
-	-device virtio-net-pci,netdev=net0 -netdev user,id=net0 \
-	-m 12G -nographic -chardev stdio,id=char0,mux=on,logfile=serial.log,signal=off \
+	/usr/bin/qemu-system-x86_64 -vga std -cdrom build/redleaf.iso 
+	-drive id=satadisk,file=tools/rv6-mkfs/build/fs.img,format=raw,if=none 
+	-device ahci,id=ahci -device ide-hd,drive=satadisk,bus=ahci.0 
+	-cpu 'Haswell,pdpe1gb' -machine q35 -device virtio-net-pci,netdev=net0 
+	-netdev tap,id=net0,ifname=virtio,script=no,downscript=no 
+	--trace virtio* --trace virtqueue* 
+	-m 8G -nographic -chardev stdio,id=char0,mux=on,logfile=serial.log,signal=off 
 	-serial file:/dev/null -serial chardev:char0 -mon chardev=char0
 
 .PHONY: create-virtio-tap

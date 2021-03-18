@@ -36,8 +36,21 @@ pub struct VirtioPciCommonConfig {
 pub struct VirtioNetworkDeviceConfig {
     mac: [u8; 6],
     status: u16,
-    max_virtqueue_pairs: u16,
-    mtu: u16,
+    // Not available without negotiating features VIRTIO_NET_F_MQ and VIRTIO_NET_F_MTU
+    // max_virtqueue_pairs: u16,
+    // mtu: u16,
+}
+
+#[derive(Debug)]
+#[repr(C, packed)]
+pub struct VirtioNetworkHeader {
+    flags: u8,
+    gso_type: u8,
+    header_length: u16,
+    gso_side: u16,
+    csum_start: u16,
+    csum_offset: u16,
+    num_buffers: u16,
 }
 
 #[derive(PartialEq, Debug)]
@@ -136,6 +149,10 @@ impl Mmio {
         Self { mmio_base }
     }
 
+    pub unsafe fn memory_fence() {
+        core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+    }
+
     pub unsafe fn read_device_config(&mut self) -> VirtioNetworkDeviceConfig {
         let cfg_ptr =
             (self.mmio_base + Register::DeviceCfg.offset()) as *const VirtioNetworkDeviceConfig;
@@ -166,11 +183,17 @@ impl Mmio {
         );
     }
 
-    pub unsafe fn write(&mut self, register: Register, value: u32) {
-        ptr::write_volatile(register.as_mut_ptr(self.mmio_base), value)
-    }
+    // pub unsafe fn write(&mut self, register: Register, value: u32) {
+    //     ptr::write_volatile(register.as_mut_ptr(self.mmio_base), value)
+    // }
 
     pub unsafe fn read(&mut self, register: Register) -> u32 {
         ptr::read_volatile(register.as_ptr(self.mmio_base))
+    }
+}
+
+impl Mmio {
+    pub unsafe fn write<T>(&mut self, register: Register, value: T) {
+        ptr::write_volatile((self.mmio_base + register.offset()) as *mut T, value)
     }
 }
