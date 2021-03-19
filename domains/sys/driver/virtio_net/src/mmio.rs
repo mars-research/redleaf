@@ -40,17 +40,22 @@ pub struct VirtioNetworkDeviceConfig {
     // max_virtqueue_pairs: u16,
     // mtu: u16,
 }
-
+#[derive(Debug)]
+#[repr(C, packed)]
+pub struct VirtioNetCompletePacket {
+    pub header: VirtioNetworkHeader,
+    pub data: [u8; 1514],
+}
 #[derive(Debug)]
 #[repr(C, packed)]
 pub struct VirtioNetworkHeader {
-    flags: u8,
-    gso_type: u8,
-    header_length: u16,
-    gso_side: u16,
-    csum_start: u16,
-    csum_offset: u16,
-    num_buffers: u16,
+    pub flags: u8,
+    pub gso_type: u8,
+    pub header_length: u16,
+    pub gso_size: u16,
+    pub csum_start: u16,
+    pub csum_offset: u16,
+    pub num_buffers: u16,
 }
 
 #[derive(PartialEq, Debug)]

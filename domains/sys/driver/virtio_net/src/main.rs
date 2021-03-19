@@ -34,15 +34,30 @@ pub use interface::net::NetworkStats;
 mod mmio;
 mod pci;
 
-use mmio::Mmio;
 use mmio::Register;
 use mmio::VirtioDeviceStatus;
+use mmio::{Mmio, VirtioNetCompletePacket, VirtioNetworkHeader};
 use pci::PciFactory;
 
 /// The number of Descriptors (must be a multiple of 2), called "Queue Size" in documentation
 pub const DESCRIPTOR_COUNT: usize = 256; // Maybe change this to 256, was 8 before
 
-static mut memory_location: [u64; 10000] = [0u64; 10000];
+static mut memory_location0: [u8; 1526] = [0u8; 1526];
+static mut memory_location1: [u8; 1526] = [0u8; 1526];
+static mut memory_location2: [u8; 1526] = [0u8; 1526];
+
+static mut complete_packet: VirtioNetCompletePacket = VirtioNetCompletePacket {
+    header: VirtioNetworkHeader {
+        flags: 0,
+        gso_type: 0,
+        header_length: 12 + 22, // This Header: 12, Ethernet: 22
+        gso_size: 1514,
+        csum_start: 0,
+        csum_offset: 66,
+        num_buffers: 0,
+    },
+    data: [0; 1514],
+};
 
 static tian_packet: [u8; 66] = [
     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x80, 0x61, 0x5F, 0x08, 0x37, 0x23, 0x08, 0x00, 0x45, 0x00,
@@ -263,32 +278,60 @@ impl VirtioNetInner {
 
         // Add some descriptors
 
-        VIRTUAL_QUEUES.recieve_queue.descriptors[0] = VirtqDescriptor {
-            addr: (&memory_location as *const u64) as u64,
-            len: 8 * 1000,
-            flags: 2, // For VIRTQ_DESC_F_WRITE
-            next: 0,
-        };
+        // VIRTUAL_QUEUES.recieve_queue.descriptors[0] = VirtqDescriptor {
+        //     addr: (&memory_location0 as *const u8) as u64,
+        //     len: memory_location0.len() as u32,
+        //     flags: 2, // For VIRTQ_DESC_F_WRITE
+        //     next: 0,
+        // };
 
-        println!(
-            "LOCATION OF BUFFER: {:x?}",
-            VIRTUAL_QUEUES.recieve_queue.descriptors[0].addr
-        );
+        // VIRTUAL_QUEUES.recieve_queue.descriptors[1] = VirtqDescriptor {
+        //     addr: (&memory_location1 as *const u8) as u64,
+        //     len: memory_location1.len() as u32,
+        //     flags: 2, // For VIRTQ_DESC_F_WRITE
+        //     next: 0,
+        // };
 
-        Mmio::memory_fence();
-        VIRTUAL_QUEUES.recieve_queue.available.ring[0] = 0;
-        VIRTUAL_QUEUES.recieve_queue.available.idx += 1;
-        Mmio::memory_fence();
+        // VIRTUAL_QUEUES.recieve_queue.descriptors[2] = VirtqDescriptor {
+        //     addr: (&memory_location2 as *const u8) as u64,
+        //     len: memory_location2.len() as u32,
+        //     flags: 2, // For VIRTQ_DESC_F_WRITE
+        //     next: 0,
+        // };
+
+        // println!(
+        //     "LOCATION OF BUFFERS: {:x?}, {:x?}, {:x?}",
+        //     VIRTUAL_QUEUES.recieve_queue.descriptors[0].addr,
+        //     VIRTUAL_QUEUES.recieve_queue.descriptors[1].addr,
+        //     VIRTUAL_QUEUES.recieve_queue.descriptors[2].addr
+        // );
+
+        // Mmio::memory_fence();
+        // VIRTUAL_QUEUES.recieve_queue.available.ring[0] = 0;
+        // VIRTUAL_QUEUES.recieve_queue.available.ring[1] = 1;
+        // VIRTUAL_QUEUES.recieve_queue.available.ring[2] = 2;
+        // VIRTUAL_QUEUES.recieve_queue.available.idx = 3;
+        // Mmio::memory_fence();
+        // // Notify Device
+        // mmio.write(Register::Notify, 0u16);
+        // Mmio::memory_fence();
 
         // Notification suppression 2.6.7.1
         // VIRTUAL_QUEUES.recieve_queue.available.flags = 1;
 
+        // Copy Tian Packet into complete_packet
+        for d in 0..tian_packet.len() {
+            complete_packet.data[d] = tian_packet[d];
+        }
+
         VIRTUAL_QUEUES.transmit_queue.descriptors[0] = VirtqDescriptor {
-            addr: (&tian_packet as *const u8) as u64,
-            len: tian_packet.len() as u32,
+            addr: (&complete_packet as *const VirtioNetCompletePacket) as u64,
+            len: 1526,
             flags: 0,
             next: 0,
         };
+
+        println!("{:#?}", VIRTUAL_QUEUES.transmit_queue.descriptors[0]);
 
         Mmio::memory_fence();
         VIRTUAL_QUEUES.transmit_queue.available.ring[0] = 0;
