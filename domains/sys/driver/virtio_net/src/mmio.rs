@@ -105,6 +105,7 @@ pub enum Register {
 
     // If reading and writting CommonCfg is too much work
     DeviceStatus,
+    QueueSelect,
 }
 
 impl Register {
@@ -117,6 +118,7 @@ impl Register {
             Register::Notify => 0x3000,
 
             Register::DeviceStatus => 0x14,
+            Register::QueueSelect => 0x16,
         }
     }
 
@@ -160,6 +162,10 @@ impl Mmio {
     pub unsafe fn write_common_config(&mut self, common_config: VirtioPciCommonConfig) {
         let cfg_ptr = (self.mmio_base + Register::CommonCfg.offset()) as *mut VirtioPciCommonConfig;
         ptr::write_unaligned(cfg_ptr, common_config);
+    }
+
+    pub unsafe fn common_config_as_raw_ptr(&mut self) -> *mut VirtioPciCommonConfig {
+        (self.mmio_base + Register::CommonCfg.offset()) as *mut VirtioPciCommonConfig
     }
 
     pub unsafe fn read_device_status(&mut self) -> u8 {
