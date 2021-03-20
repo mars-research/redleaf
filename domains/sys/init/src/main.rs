@@ -238,6 +238,17 @@ pub fn trusted_entry(
     println!("Creating pci");
     let (_dom_pci, pci) = proxy.as_create_pci().create_domain_pci();
 
+    #[cfg(feature = "virtnet")]
+    let (_, net) = proxy
+        .as_create_virtio_net()
+        .create_domain_virtio_net(pci.pci_clone());
+    #[cfg(all(not(feature = "shadow"), not(feature = "virtnet")))]
+    let (_, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci.pci_clone());
+    #[cfg(all(feature = "shadow", not(feature = "virtnet")))]
+    let (_, net) = proxy
+        .as_create_net_shadow()
+        .create_domain_net_shadow(proxy.as_create_ixgbe(), pci.pci_clone());
+
     #[cfg(not(feature = "membdev"))]
     let (dom_ahci, bdev) = proxy.as_create_ahci().create_domain_ahci(pci.pci_clone());
 
@@ -260,15 +271,6 @@ pub fn trusted_entry(
         .create_domain_nvme_shadow(proxy.as_create_nvme(), pci.pci_clone());
 
     println!("Creating ixgbe");
-
-
-    #[cfg(feature = "virtnet")] 
-    let (_, net) = proxy.as_create_virtio_net().create_domain_virtio_net(pci.pci_clone());
-    #[cfg(all(not(feature = "shadow"), not(feature = "virtnet")))] 
-    let (_, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci.pci_clone());
-    #[cfg(all(feature = "shadow", not(feature = "virtnet")))]
-    let (_, net) = proxy.as_create_net_shadow()
-        .create_domain_net_shadow(proxy.as_create_ixgbe(), pci.pci_clone());
 
     #[cfg(feature = "benchnet")]
     let _ = proxy.as_create_benchnet().create_domain_benchnet(net);

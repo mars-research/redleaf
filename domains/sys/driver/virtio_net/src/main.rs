@@ -34,9 +34,9 @@ pub use interface::net::NetworkStats;
 mod mmio;
 mod pci;
 
-use mmio::Register;
 use mmio::VirtioDeviceStatus;
 use mmio::{Mmio, VirtioNetCompletePacket, VirtioNetworkHeader};
+use mmio::{Register, VirtioPciCommonConfig};
 use pci::PciFactory;
 
 /// The number of Descriptors (must be a multiple of 2), called "Queue Size" in documentation
@@ -334,20 +334,14 @@ impl VirtioNetInner {
 
     unsafe fn negotiate_features(mmio: &mut Mmio) {
         // Negotiate Features
-        let mut cfg = mmio.read_common_config();
-        println!("{:#?}", cfg);
+        let mut cfg = mmio.common_config_as_raw_ptr();
+        println!("{:#?}", (*cfg));
 
         let mut driver_features: u32 = 0;
         driver_features |= 1 << 5; // Enable Device MAC Address
         driver_features |= 1 << 16; // Enable Device Status
                                     // feature_bits |= 15; // VIRTIO_NET_F_MRG_RXBUF - Driver can merge recieved buffers
-        cfg.driver_feature = cfg.device_feature & driver_features;
-        mmio.write_common_config(cfg);
-
-        // let mut cfg = mmio.read_common_config();
-        // cfg.device_feature_select = 1;
-        // cfg.driver_feature_select = 1;
-        // mmio.write_common_config(cfg);
+        (*cfg).driver_feature = driver_features; // Should be &'d with device_features
     }
 
     unsafe fn print_device_config(mmio: &mut Mmio) {
@@ -363,39 +357,45 @@ impl VirtioNetInner {
     /// Recieve Queues must be 2*N and Transmit Queues must be 2*N + 1
     /// For example, Revieve Queue must be 0 and Transmit Queue must be 1
     // unsafe fn initialize_virtual_queue(mmio: &mut Mmio, queue_index: u16, virt_queue: &VirtQueue) {
-    //     // Select the correct queue
-    //     mmio.write(Register::QueueSelect, queue_index);
+    //     println!("###CONFIG BEFORE###");
+    //     Self::print_device_config(mmio);
+    //     println!("###################");
 
-    //     // Wait
+    //     mmio.write(Register::QueueSelect, queue_index);
+    //     println!("QUEUE SELECT 1234: {:?}", mmio.read_queue_select());
+
     //     Mmio::memory_fence();
 
-    //     // Adjust the config
-    //     let mut cfg = mmio.read_common_config();
+    //     // let mut cfg = mmio.common_config_as_raw_ptr();
+    //     // println!("QUEUE SELECT: {:}", (*cfg).queue_select);
 
-    //     cfg.queue_desc =
-    //         (&virt_queue.descriptors as *const [VirtqDescriptor; DESCRIPTOR_COUNT]) as u64;
-    //     cfg.queue_driver = (&virt_queue.available as *const VirtqAvailable) as u64;
-    //     cfg.queue_device = (&virt_queue.used as *const VirtqUsed) as u64;
-    //     cfg.queue_enable = 1;
+    //     // (*cfg).queue_select = queue_index;
 
-    //     // ALIGHNMENT CHECKS
-    //     println!("DESC: {:} % 16 = {:}", cfg.queue_desc, cfg.queue_desc % 16);
-    //     println!(
-    //         "DRIV: {:} % 2 = {:}",
-    //         cfg.queue_driver,
-    //         cfg.queue_driver % 2
-    //     );
-    //     println!(
-    //         "DEVI: {:} % 4 = {:}",
-    //         cfg.queue_device,
-    //         cfg.queue_device % 4
-    //     );
+    //     // if ((*cfg).queue_size == 0) {
+    //     //     panic!("Queue is not available!");
+    //     // }
 
-    //     println!("WRITING QUEUE {:}: {:#?}", queue_index, cfg);
+    //     // Mmio::memory_fence();
 
-    //     mmio.write_common_config(cfg);
+    //     // (*cfg).queue_desc =
+    //     //     (&virt_queue.descriptors as *const [VirtqDescriptor; DESCRIPTOR_COUNT]) as u64;
+    //     // (*cfg).queue_driver = (&virt_queue.available as *const VirtqAvailable) as u64;
+    //     // (*cfg).queue_device = (&virt_queue.used as *const VirtqUsed) as u64;
+    //     // (*cfg).queue_enable = 1;
+
+    //     // Mmio::memory_fence();
+
+    //     // println!("Config for QUEUE {:} should be: {:#?}", queue_index, (*cfg));
+
+    //     // Mmio::memory_fence();
+
+    //     println!("###CONFIG AFTER###");
+    //     Self::print_device_config(mmio);
+    //     println!("##################");
     // }
 
+    /// Recieve Queues must be 2*N and Transmit Queues must be 2*N + 1
+    /// For example, Revieve Queue must be 0 and Transmit Queue must be 1
     unsafe fn initialize_virtual_queue(mmio: &mut Mmio, queue_index: u16, virt_queue: &VirtQueue) {
         println!("###CONFIG BEFORE###");
         Self::print_device_config(mmio);
@@ -405,19 +405,25 @@ impl VirtioNetInner {
 
         Mmio::memory_fence();
 
-        let mut cfg = mmio.read_common_config();
+        let mut queue_cfg = mmio.read_queue_config();
 
-        cfg.queue_select = queue_index;
-        cfg.queue_desc =
+        queue_cfg.queue_desc =
             (&virt_queue.descriptors as *const [VirtqDescriptor; DESCRIPTOR_COUNT]) as u64;
-        cfg.queue_driver = (&virt_queue.available as *const VirtqAvailable) as u64;
-        cfg.queue_device = (&virt_queue.used as *const VirtqUsed) as u64;
-        cfg.queue_enable = 1;
-
-        println!("WRITING QUEUE {:}: {:#?}", queue_index, cfg);
-        mmio.write_common_config(cfg);
+        queue_cfg.queue_driver = (&virt_queue.available as *const VirtqAvailable) as u64;
+        queue_cfg.queue_device = (&virt_queue.used as *const VirtqUsed) as u64;
+        queue_cfg.queue_enable = 1;
 
         Mmio::memory_fence();
+
+        println!(
+            "Config for QUEUE {:} should be: {:#?}",
+            queue_index,
+            (&virt_queue.descriptors as *const [VirtqDescriptor; DESCRIPTOR_COUNT]) as u64
+        );
+
+        Mmio::memory_fence();
+
+        mmio.write(Register::QueueConfig, queue_cfg);
 
         println!("###CONFIG AFTER###");
         Self::print_device_config(mmio);

@@ -31,6 +31,21 @@ pub struct VirtioPciCommonConfig {
     /// Used Ring
     pub queue_device: u64, /* read-write */
 }
+
+#[derive(Debug)]
+#[repr(C, packed)]
+pub struct VirtioPciQueueConfig {
+    pub queue_enable: u16,     /* read-write */
+    pub queue_notify_off: u16, /* read-only for driver */
+    pub queue_desc: u64,       /* read-write */
+
+    /// Available Ring
+    pub queue_driver: u64, /* read-write */
+
+    /// Used Ring
+    pub queue_device: u64, /* read-write */
+}
+
 #[derive(Debug)]
 #[repr(C, packed)]
 pub struct VirtioNetworkDeviceConfig {
@@ -106,6 +121,8 @@ pub enum Register {
     // If reading and writting CommonCfg is too much work
     DeviceStatus,
     QueueSelect,
+
+    QueueConfig,
 }
 
 impl Register {
@@ -119,6 +136,8 @@ impl Register {
 
             Register::DeviceStatus => 0x14,
             Register::QueueSelect => 0x16,
+
+            Register::QueueConfig => 0x1c,
         }
     }
 
@@ -150,18 +169,18 @@ impl Mmio {
     pub unsafe fn read_device_config(&mut self) -> VirtioNetworkDeviceConfig {
         let cfg_ptr =
             (self.mmio_base + Register::DeviceCfg.offset()) as *const VirtioNetworkDeviceConfig;
-        ptr::read_unaligned(cfg_ptr)
+        ptr::read_volatile(cfg_ptr)
     }
 
     pub unsafe fn read_common_config(&mut self) -> VirtioPciCommonConfig {
         let cfg_ptr =
             (self.mmio_base + Register::CommonCfg.offset()) as *const VirtioPciCommonConfig;
-        ptr::read_unaligned(cfg_ptr)
+        ptr::read_volatile(cfg_ptr)
     }
 
     pub unsafe fn write_common_config(&mut self, common_config: VirtioPciCommonConfig) {
         let cfg_ptr = (self.mmio_base + Register::CommonCfg.offset()) as *mut VirtioPciCommonConfig;
-        ptr::write_unaligned(cfg_ptr, common_config);
+        ptr::write_volatile(cfg_ptr, common_config);
     }
 
     pub unsafe fn common_config_as_raw_ptr(&mut self) -> *mut VirtioPciCommonConfig {
@@ -173,10 +192,13 @@ impl Mmio {
     }
 
     pub unsafe fn update_device_status(&mut self, status: VirtioDeviceStatus) {
-        ptr::write_volatile(
-            (self.mmio_base + Register::DeviceStatus.offset()) as *mut u8,
-            self.read_device_status() | status.value(),
-        );
+        let cfg = self.common_config_as_raw_ptr();
+        (*cfg).device_status |= status.value();
+
+        // ptr::write_volatile(
+        //     (self.mmio_base + Register::DeviceStatus.offset()) as *mut u8,
+        //     self.read_device_status() | status.value(),
+        // );
     }
 
     pub unsafe fn clear_device_status(&mut self) {
@@ -196,7 +218,17 @@ impl Mmio {
 }
 
 impl Mmio {
+    pub unsafe fn read_queue_config(&mut self) -> VirtioPciQueueConfig {
+        ptr::read_volatile(
+            (self.mmio_base + Register::QueueConfig.offset()) as *mut VirtioPciQueueConfig,
+        )
+    }
+
     pub unsafe fn write<T>(&mut self, register: Register, value: T) {
         ptr::write_volatile((self.mmio_base + register.offset()) as *mut T, value)
+    }
+
+    pub unsafe fn read_queue_select(&mut self) -> u16 {
+        ptr::read_volatile((self.mmio_base + Register::QueueSelect.offset()) as *const u16)
     }
 }
