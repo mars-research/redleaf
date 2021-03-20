@@ -42,18 +42,27 @@ use pci::PciFactory;
 /// The number of Descriptors (must be a multiple of 2), called "Queue Size" in documentation
 pub const DESCRIPTOR_COUNT: usize = 256; // Maybe change this to 256, was 8 before
 
-static mut memory_location0: [u8; 1526] = [0u8; 1526];
-static mut memory_location1: [u8; 1526] = [0u8; 1526];
-static mut memory_location2: [u8; 1526] = [0u8; 1526];
-
-static mut complete_packet: VirtioNetCompletePacket = VirtioNetCompletePacket {
+static BUFFERS: [VirtioNetCompletePacket; DESCRIPTOR_COUNT] = [VirtioNetCompletePacket {
     header: VirtioNetworkHeader {
         flags: 0,
         gso_type: 0,
-        header_length: 12 + 22, // This Header: 12, Ethernet: 22
+        header_length: 0, // This Header: 12, Ethernet: 22
+        gso_size: 0,
+        csum_start: 0,
+        csum_offset: 0,
+        num_buffers: 0,
+    },
+    data: [0; 1514],
+}; DESCRIPTOR_COUNT];
+
+static mut PACKET_FOR_SENDING: VirtioNetCompletePacket = VirtioNetCompletePacket {
+    header: VirtioNetworkHeader {
+        flags: 0,
+        gso_type: 0,
+        header_length: 12 + 22,
         gso_size: 1514,
         csum_start: 0,
-        csum_offset: 66,
+        csum_offset: 1514,
         num_buffers: 0,
     },
     data: [0; 1514],
@@ -76,7 +85,7 @@ struct VirtualQueues {
 }
 
 static mut VIRTUAL_QUEUES: VirtualQueues = VirtualQueues {
-    padding: 255,
+    padding: 0,
     recieve_queue: VirtQueue {
         descriptors: [VirtqDescriptor {
             addr: 0,
@@ -226,115 +235,71 @@ impl VirtioNetInner {
         // Set the DRIVER_OK status bit. At this point the device is “live”.
 
         // Acknowlege Device
-        mmio.write_device_status(VirtioDeviceStatus::Acknowledge);
-        mmio.write_device_status(VirtioDeviceStatus::Driver); // But do we really know how to drive the device?
+        mmio.update_device_status(VirtioDeviceStatus::Acknowledge);
+        mmio.update_device_status(VirtioDeviceStatus::Driver); // But do we really know how to drive the device?
 
-        // Negotiate Features
-        let mut cfg = mmio.read_common_config();
-        println!("{:#?}", cfg);
+        Self::negotiate_features(&mut mmio);
 
-        let mut feature_bits: u32 = 0;
-        feature_bits |= 5; // Enable Device MAC Address
-        feature_bits |= 16; // Enable Device Status
-        feature_bits |= 15; // VIRTIO_NET_F_MRG_RXBUF - Driver can merge recieved buffers
-        cfg.driver_feature = feature_bits;
-        mmio.write_common_config(cfg);
+        Self::print_device_config(&mut mmio);
 
         // Tell the Device that feature Negotiation is complete
-        mmio.write_device_status(VirtioDeviceStatus::FeaturesOk);
+        mmio.update_device_status(VirtioDeviceStatus::FeaturesOk);
 
-        if mmio.read_device_status() != VirtioDeviceStatus::FeaturesOk {
-            panic!("Requested features *NOT* supported by VirtIO Device!");
-        }
+        // Check that Features OK Bit is still set!
+        // TODO: Actually check the Feature Bit!
+        Self::print_device_status(&mut mmio);
 
         // Setup VirtQueues
+        Self::initialize_virtual_queue(&mut mmio, 0, &VIRTUAL_QUEUES.recieve_queue);
+        Self::initialize_virtual_queue(&mut mmio, 1, &VIRTUAL_QUEUES.transmit_queue);
 
-        // Setup RECEIEVE_QUEUE
-        let mut cfg = mmio.read_common_config();
-        cfg.queue_select = 0;
-        cfg.queue_desc = (&VIRTUAL_QUEUES.recieve_queue.descriptors
-            as *const [VirtqDescriptor; DESCRIPTOR_COUNT]) as u64;
-        cfg.queue_driver =
-            (&VIRTUAL_QUEUES.recieve_queue.available as *const VirtqAvailable) as u64;
-        cfg.queue_device = (&VIRTUAL_QUEUES.recieve_queue.used as *const VirtqUsed) as u64;
-        cfg.queue_enable = 1;
-        println!("WRITING RECEIVE_QUEUE: {:#?}", cfg);
-        mmio.write_common_config(cfg);
+        // Tell the Device we're all done, even though we aren't
+        mmio.update_device_status(VirtioDeviceStatus::DriverOk);
 
-        // Setup TRANSMIT_QUEUE
-        let mut cfg = mmio.read_common_config();
-        cfg.queue_select = 1;
-        cfg.queue_desc = (&VIRTUAL_QUEUES.transmit_queue.descriptors
-            as *const [VirtqDescriptor; DESCRIPTOR_COUNT]) as u64;
-        cfg.queue_driver =
-            (&VIRTUAL_QUEUES.transmit_queue.available as *const VirtqAvailable) as u64;
-        cfg.queue_device = (&VIRTUAL_QUEUES.transmit_queue.used as *const VirtqUsed) as u64;
-        cfg.queue_enable = 1;
-        println!("WRITING TRANSMIT_QUEUE: {:#?}", cfg);
-        mmio.write_common_config(cfg);
+        Self::print_device_status(&mut mmio);
 
-        // Tell the Device we're all done
-        mmio.write_device_status(VirtioDeviceStatus::DriverOk);
+        // *** Stuff For Testing ***
 
-        // Add some descriptors
-
-        // VIRTUAL_QUEUES.recieve_queue.descriptors[0] = VirtqDescriptor {
-        //     addr: (&memory_location0 as *const u8) as u64,
-        //     len: memory_location0.len() as u32,
-        //     flags: 2, // For VIRTQ_DESC_F_WRITE
-        //     next: 0,
-        // };
-
-        // VIRTUAL_QUEUES.recieve_queue.descriptors[1] = VirtqDescriptor {
-        //     addr: (&memory_location1 as *const u8) as u64,
-        //     len: memory_location1.len() as u32,
-        //     flags: 2, // For VIRTQ_DESC_F_WRITE
-        //     next: 0,
-        // };
-
-        // VIRTUAL_QUEUES.recieve_queue.descriptors[2] = VirtqDescriptor {
-        //     addr: (&memory_location2 as *const u8) as u64,
-        //     len: memory_location2.len() as u32,
-        //     flags: 2, // For VIRTQ_DESC_F_WRITE
-        //     next: 0,
-        // };
-
-        // println!(
-        //     "LOCATION OF BUFFERS: {:x?}, {:x?}, {:x?}",
-        //     VIRTUAL_QUEUES.recieve_queue.descriptors[0].addr,
-        //     VIRTUAL_QUEUES.recieve_queue.descriptors[1].addr,
-        //     VIRTUAL_QUEUES.recieve_queue.descriptors[2].addr
-        // );
-
-        // Mmio::memory_fence();
-        // VIRTUAL_QUEUES.recieve_queue.available.ring[0] = 0;
-        // VIRTUAL_QUEUES.recieve_queue.available.ring[1] = 1;
-        // VIRTUAL_QUEUES.recieve_queue.available.ring[2] = 2;
-        // VIRTUAL_QUEUES.recieve_queue.available.idx = 3;
-        // Mmio::memory_fence();
-        // // Notify Device
-        // mmio.write(Register::Notify, 0u16);
-        // Mmio::memory_fence();
-
-        // Notification suppression 2.6.7.1
-        // VIRTUAL_QUEUES.recieve_queue.available.flags = 1;
-
-        // Copy Tian Packet into complete_packet
-        for d in 0..tian_packet.len() {
-            complete_packet.data[d] = tian_packet[d];
+        // Populate the testing packet with Tian's packet
+        for i in 0..tian_packet.len() {
+            PACKET_FOR_SENDING.data[i] = tian_packet[i];
         }
 
+        // Populate Recieve Queue
+        for i in 0..DESCRIPTOR_COUNT {
+            VIRTUAL_QUEUES.recieve_queue.descriptors[i] = VirtqDescriptor {
+                addr: (&BUFFERS[i] as *const VirtioNetCompletePacket) as u64,
+                len: 1526,
+                flags: 0 | 2, // Writeable
+                next: 0,
+            };
+            VIRTUAL_QUEUES.recieve_queue.available.ring[i] = i as u16;
+            Mmio::memory_fence();
+            VIRTUAL_QUEUES.recieve_queue.available.idx += 1;
+        }
+
+        for i in 0..10 {
+            println!(
+                "DESCRIPTOR BUFFER {:}: {:x}",
+                i, VIRTUAL_QUEUES.recieve_queue.descriptors[i].addr
+            );
+        }
+
+        Mmio::memory_fence();
+        // Notify the device that we've changed things in Queue 0, the recieve queue
+        mmio.write(Register::Notify, 0u16);
+
+        // SENDING PACKET BELOW
+
         VIRTUAL_QUEUES.transmit_queue.descriptors[0] = VirtqDescriptor {
-            addr: (&complete_packet as *const VirtioNetCompletePacket) as u64,
+            addr: (&PACKET_FOR_SENDING as *const VirtioNetCompletePacket) as u64,
             len: 1526,
             flags: 0,
             next: 0,
         };
 
-        println!("{:#?}", VIRTUAL_QUEUES.transmit_queue.descriptors[0]);
-
-        Mmio::memory_fence();
         VIRTUAL_QUEUES.transmit_queue.available.ring[0] = 0;
+        Mmio::memory_fence();
         VIRTUAL_QUEUES.transmit_queue.available.idx += 1;
         Mmio::memory_fence();
 
@@ -348,14 +313,72 @@ impl VirtioNetInner {
         println!("Notification Sent");
 
         // Print out some final info
-        println!("{:#?}", mmio.read_device_status());
         println!("{:#x?}", mmio.read_device_config());
 
         println!("VirtIO Device Initialized!");
 
-        println!("ISR: {:#?}", mmio.read(Register::ISR));
+        println!("{:#?}", VIRTUAL_QUEUES.transmit_queue.used.ring[0]);
+        println!("{:#?}", VIRTUAL_QUEUES.transmit_queue.used.idx);
 
         Self { mmio }
+    }
+
+    unsafe fn negotiate_features(mmio: &mut Mmio) {
+        // Negotiate Features
+        let mut cfg = mmio.read_common_config();
+        println!("{:#?}", cfg);
+
+        let mut feature_bits: u32 = 0;
+        feature_bits |= 5; // Enable Device MAC Address
+        feature_bits |= 16; // Enable Device Status
+                            // feature_bits |= 15; // VIRTIO_NET_F_MRG_RXBUF - Driver can merge recieved buffers
+        cfg.driver_feature = feature_bits;
+        mmio.write_common_config(cfg);
+
+        // let mut cfg = mmio.read_common_config();
+        // cfg.device_feature_select = 1;
+        // cfg.driver_feature_select = 1;
+        // mmio.write_common_config(cfg);
+    }
+
+    unsafe fn print_device_config(mmio: &mut Mmio) {
+        let mut cfg = mmio.read_common_config();
+        println!("{:#?}", cfg);
+    }
+
+    unsafe fn print_device_status(mmio: &mut Mmio) {
+        let device_status = mmio.read_device_status();
+        println!("Device Status Bits: {:b}", device_status);
+    }
+
+    /// Recieve Queues must be 2*N and Transmit Queues must be 2*N + 1
+    /// For example, Revieve Queue must be 0 and Transmit Queue must be 1
+    unsafe fn initialize_virtual_queue(mmio: &mut Mmio, queue_index: u16, virt_queue: &VirtQueue) {
+        let mut cfg = mmio.read_common_config();
+        cfg.queue_select = queue_index;
+
+        cfg.queue_desc =
+            (&virt_queue.descriptors as *const [VirtqDescriptor; DESCRIPTOR_COUNT]) as u64;
+        cfg.queue_driver = (&virt_queue.available as *const VirtqAvailable) as u64;
+        cfg.queue_device = (&virt_queue.used as *const VirtqUsed) as u64;
+        cfg.queue_enable = 1;
+
+        // ALIGHNMENT CHECKS
+        println!("DESC: {:} % 16 = {:}", cfg.queue_desc, cfg.queue_desc % 16);
+        println!(
+            "DRIV: {:} % 2 = {:}",
+            cfg.queue_driver,
+            cfg.queue_driver % 2
+        );
+        println!(
+            "DEVI: {:} % 4 = {:}",
+            cfg.queue_device,
+            cfg.queue_device % 4
+        );
+
+        println!("WRITING QUEUE {:}: {:#?}", queue_index, cfg);
+
+        mmio.write_common_config(cfg);
     }
 
     fn to_shared(self) -> VirtioNet {

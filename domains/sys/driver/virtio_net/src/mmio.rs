@@ -81,19 +81,6 @@ impl VirtioDeviceStatus {
             VirtioDeviceStatus::DeviceNeedsReset => 64,
         }
     }
-
-    fn value_to_status(value: u8) -> VirtioDeviceStatus {
-        match value {
-            0 => Self::Reset,
-            1 => Self::Acknowledge,
-            2 => Self::Driver,
-            128 => Self::Failed,
-            8 => Self::FeaturesOk,
-            4 => Self::DriverOk,
-            64 => Self::DeviceNeedsReset,
-            _ => Self::DeviceNeedsReset,
-        }
-    }
 }
 
 /// VirtIO Network Device registers.
@@ -175,16 +162,21 @@ impl Mmio {
         ptr::write_unaligned(cfg_ptr, common_config);
     }
 
-    pub unsafe fn read_device_status(&mut self) -> VirtioDeviceStatus {
-        let value =
-            ptr::read_volatile((self.mmio_base + Register::DeviceStatus.offset()) as *const u8);
-        VirtioDeviceStatus::value_to_status(value)
+    pub unsafe fn read_device_status(&mut self) -> u8 {
+        ptr::read_volatile((self.mmio_base + Register::DeviceStatus.offset()) as *const u8)
     }
 
-    pub unsafe fn write_device_status(&mut self, status: VirtioDeviceStatus) {
+    pub unsafe fn update_device_status(&mut self, status: VirtioDeviceStatus) {
         ptr::write_volatile(
             (self.mmio_base + Register::DeviceStatus.offset()) as *mut u8,
-            status.value(),
+            self.read_device_status() | status.value(),
+        );
+    }
+
+    pub unsafe fn clear_device_status(&mut self) {
+        ptr::write_volatile(
+            (self.mmio_base + Register::DeviceStatus.offset()) as *mut u8,
+            0,
         );
     }
 
