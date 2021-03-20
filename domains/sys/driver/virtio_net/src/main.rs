@@ -278,10 +278,15 @@ impl VirtioNetInner {
             VIRTUAL_QUEUES.recieve_queue.available.idx += 1;
         }
 
-        for i in 0..10 {
+        println!(
+            "RX AVAIL IDX: {:} aka {:x?}",
+            VIRTUAL_QUEUES.recieve_queue.available.idx, VIRTUAL_QUEUES.recieve_queue.available.idx
+        );
+
+        for i in 0..5 {
             println!(
-                "DESCRIPTOR BUFFER {:}: {:x}",
-                i, VIRTUAL_QUEUES.recieve_queue.descriptors[i].addr
+                "DESCRIPTOR {:}: {:#x?}",
+                i, VIRTUAL_QUEUES.recieve_queue.descriptors[i]
             );
         }
 
@@ -298,6 +303,9 @@ impl VirtioNetInner {
             next: 0,
         };
 
+        println!("{:#?}", VIRTUAL_QUEUES.transmit_queue.descriptors[0]);
+        // println!("{:#?}", PACKET_FOR_SENDING);
+
         VIRTUAL_QUEUES.transmit_queue.available.ring[0] = 0;
         Mmio::memory_fence();
         VIRTUAL_QUEUES.transmit_queue.available.idx += 1;
@@ -313,7 +321,7 @@ impl VirtioNetInner {
         println!("Notification Sent");
 
         // Print out some final info
-        println!("{:#x?}", mmio.read_device_config());
+        // println!("{:#x?}", mmio.read_device_config());
 
         println!("VirtIO Device Initialized!");
 
@@ -329,9 +337,9 @@ impl VirtioNetInner {
         println!("{:#?}", cfg);
 
         let mut feature_bits: u32 = 0;
-        feature_bits |= 5; // Enable Device MAC Address
-        feature_bits |= 16; // Enable Device Status
-                            // feature_bits |= 15; // VIRTIO_NET_F_MRG_RXBUF - Driver can merge recieved buffers
+        feature_bits |= 1 << 5; // Enable Device MAC Address
+        feature_bits |= 1 << 16; // Enable Device Status
+                                 // feature_bits |= 15; // VIRTIO_NET_F_MRG_RXBUF - Driver can merge recieved buffers
         cfg.driver_feature = feature_bits;
         mmio.write_common_config(cfg);
 
