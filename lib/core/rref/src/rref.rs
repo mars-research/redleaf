@@ -1,13 +1,13 @@
 // although unsafe function's don't need unsafe blocks, it helps readability
 #![allow(unused_unsafe)]
-use crate::traits::{RRefable, TypeIdentifiable, CustomCleanup};
+use crate::traits::{RRefable, TypeIdentifiable};
 
 use alloc::boxed::Box;
 use core::ops::{Deref, DerefMut, Drop};
 use core::alloc::Layout;
 use spin::Once;
 
-// #[cfg(features = "rref_dbg")]
+#[cfg(features = "rref_dbg")]
 use console::println;
 
 static HEAP: Once<Box<dyn syscalls::Heap + Send + Sync>> = Once::new();
@@ -124,17 +124,10 @@ impl<T: RRefable> RRef<T> {
 
 impl<T: RRefable> Drop for RRef<T> {
     fn drop(&mut self) {
-        self.cleanup();
-    }
-}
-
-impl<T: 'static + RRefable> CustomCleanup for RRef<T> {
-    fn cleanup(&mut self) {
+        #[cfg(features = "rref_dbg")]
+        println!("<{}>::drop() dom id {:?} heap? {:?}", core::any::type_name_of_val(self), CRATE_DOMAIN_ID.r#try(), HEAP.r#try().is_some());
         unsafe {
-            #[cfg(features = "rref_dbg")]
-            println!("CustomCleanup::<{}>::cleanup() dom id {:?} heap? {:?}", core::any::type_name_of_val(self), CRATE_DOMAIN_ID.r#try(), HEAP.r#try().is_some());
-            // "drop" the contents, only interesting for recursive cases
-            // self.ptr_mut().cleanup();
+            // heap is in charge of calling (recursive) drop::<T>
             HEAP.force_get().dealloc(self.value_pointer as *mut u8);
         }
     }

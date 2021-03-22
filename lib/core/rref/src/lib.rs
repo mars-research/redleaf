@@ -25,29 +25,29 @@ pub use self::owned::Owned as Owned;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use traits::{RRefable, CustomCleanup, TypeIdentifiable};
+    use traits::{RRefable, TypeIdentifiable};
     use alloc::boxed::Box;
     use core::alloc::Layout;
     use alloc::vec::Vec;
     use core::mem;
     use syscalls::{Syscall, Thread, SharedHeapAllocation};
-    extern crate pc_keyboard;
     use hashbrown::HashMap;
     use spin::{Mutex, MutexGuard};
 
     // Drops the pointer, assumes it is of type T
-    fn drop_t<T: CustomCleanup + TypeIdentifiable>(ptr: *mut u8) {
+    fn drop_t<T>(ptr: *mut u8) {
         unsafe {
-            let ptr_t: *mut T = core::mem::transmute(ptr);
+            CLEANUP_COUNTER += 1;
             // recursively invoke further shared heap deallocation in the tree of rrefs
-            (&mut *ptr_t).cleanup();
+            let t = core::ptr::read(ptr as *mut T);
+            drop(t);
         }
     }
 
     struct DropMap(HashMap<u64, fn (*mut u8) -> ()>);
 
     impl DropMap {
-        fn add_type<T: 'static + CustomCleanup + TypeIdentifiable> (&mut self) {
+        fn add_type<T: 'static + RRefable + TypeIdentifiable> (&mut self) {
             let type_id = T::type_id();
             let type_erased_drop = drop_t::<T>;
             self.0.insert(type_id, type_erased_drop);
@@ -214,11 +214,6 @@ mod tests {
     struct CleanupTest {
         val: usize
     }
-    impl CustomCleanup for CleanupTest {
-        fn cleanup(&mut self) {
-            unsafe { CLEANUP_COUNTER += 1 };
-        }
-    }
     impl TypeIdentifiable for CleanupTest {
         fn type_id() -> u64 {
             1
@@ -226,37 +221,7 @@ mod tests {
     }
 
     #[test]
-    fn cleanup_simple() {
-        let guard = reset_cleanup();
-
-        let mut foo = CleanupTest { val: 10 };
-        assert_eq!(unsafe { CLEANUP_COUNTER }, 0);
-        foo.cleanup();
-        assert_eq!(unsafe { CLEANUP_COUNTER }, 1);
-        drop(foo);
-        // cleanup is not called upon drop on non-rref types
-        assert_eq!(unsafe { CLEANUP_COUNTER }, 1);
-
-        drop(guard);
-    }
-
-    #[test]
-    fn cleanup_option() {
-        let guard = reset_cleanup();
-
-        let mut option = Some(CleanupTest { val: 10 });
-        assert_eq!(unsafe { CLEANUP_COUNTER }, 0);
-        option.cleanup();
-        assert_eq!(unsafe { CLEANUP_COUNTER }, 1);
-        drop(option);
-        // cleanup is not called upon drop on non-rref types
-        assert_eq!(unsafe { CLEANUP_COUNTER }, 1);
-
-        drop(guard);
-    }
-
-    #[test]
-    fn cleanup_drop_option_rref() {
+    fn drop_option_rref() {
         init_heap();
         init_syscall();
         let guard = reset_cleanup();
@@ -265,21 +230,7 @@ mod tests {
         assert_eq!(unsafe { CLEANUP_COUNTER }, 0);
         drop(rref);
         // dropping an rref calls cleanup recursively
-        assert_eq!(unsafe { CLEANUP_COUNTER }, 1);
-
-        drop(guard);
-    }
-
-    #[test]
-    fn cleanup_option_rref() {
-        init_heap();
-        init_syscall();
-        let guard = reset_cleanup();
-
-        let mut rref = RRef::new(Some(RRef::new(Some(CleanupTest { val: 10 }))));
-        assert_eq!(unsafe { CLEANUP_COUNTER }, 0);
-        drop(rref);
-        assert_eq!(unsafe { CLEANUP_COUNTER }, 1);
+        assert_eq!(unsafe { CLEANUP_COUNTER }, 2);
 
         drop(guard);
     }
@@ -298,7 +249,7 @@ mod tests {
         ]);
         assert_eq!(unsafe { CLEANUP_COUNTER }, 0);
         drop(rref_array);
-        assert_eq!(unsafe { CLEANUP_COUNTER }, 3);
+        assert_eq!(unsafe { CLEANUP_COUNTER }, 4);
 
         drop(guard);
     }
@@ -317,42 +268,42 @@ mod tests {
         ]);
         assert_eq!(unsafe { CLEANUP_COUNTER }, 0);
         drop(rref_deque);
-        assert_eq!(unsafe { CLEANUP_COUNTER }, 3);
+        assert_eq!(unsafe { CLEANUP_COUNTER }, 4);
 
         drop(guard);
     }
 
-    #[test]
-    fn access_rref_vec() {
-        init_heap();
-        init_syscall();
-        let guard = reset_cleanup();
+    // #[test]
+    // fn access_rref_vec() {
+    //     init_heap();
+    //     init_syscall();
+    //     let guard = reset_cleanup();
+    //
+    //     let rref_vec = RRefVec::new(CleanupTest { val: 10 }, 3);
+    //     for e in rref_vec.as_slice() {
+    //         assert_eq!(e.val, 10);
+    //     }
+    //
+    //     drop(guard);
+    // }
 
-        let rref_vec = RRefVec::new(CleanupTest { val: 10 }, 3);
-        for e in rref_vec.as_slice() {
-            assert_eq!(e.val, 10);
-        }
-
-        drop(guard);
-    }
-
-    #[test]
-    fn mutate_rref_vec() {
-        init_heap();
-        init_syscall();
-        let guard = reset_cleanup();
-
-        let mut rref_vec = RRefVec::new(CleanupTest { val: 10 }, 3);
-        for (i, e) in rref_vec.as_mut_slice().iter_mut().enumerate() {
-            e.val = i;
-        }
-
-        for (i, e) in rref_vec.as_slice().iter().enumerate() {
-            assert_eq!(i, e.val);
-        }
-
-        drop(guard);
-    }
+    // #[test]
+    // fn mutate_rref_vec() {
+    //     init_heap();
+    //     init_syscall();
+    //     let guard = reset_cleanup();
+    //
+    //     let mut rref_vec = RRefVec::new(CleanupTest { val: 10 }, 3);
+    //     for (i, e) in rref_vec.as_mut_slice().iter_mut().enumerate() {
+    //         e.val = i;
+    //     }
+    //
+    //     for (i, e) in rref_vec.as_slice().iter().enumerate() {
+    //         assert_eq!(i, e.val);
+    //     }
+    //
+    //     drop(guard);
+    // }
 
     // TODO(tianjiao): find a way to test this
     // #[test]
@@ -375,12 +326,6 @@ mod tests {
         inner: RRef<T>,
     }
 
-    impl<T: 'static + RRefable> CustomCleanup for Container<T> {
-        fn cleanup(&mut self) {
-            unsafe { CLEANUP_COUNTER += 1 };
-            self.inner.cleanup();
-        }
-    }
     impl<T: 'static + RRefable> TypeIdentifiable for Container<T> {
         fn type_id() -> u64 {
             2
@@ -401,8 +346,7 @@ mod tests {
 
         assert_eq!(unsafe { CLEANUP_COUNTER }, 0);
         drop(outer);
-        // should call cleanup on inner, but not outer (since cleanup doesn't get called unless dropped by rref/iter)
-        assert_eq!(unsafe { CLEANUP_COUNTER }, 1);
+        assert_eq!(unsafe { CLEANUP_COUNTER }, 2);
 
         drop(guard);
     }

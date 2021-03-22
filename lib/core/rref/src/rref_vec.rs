@@ -1,6 +1,6 @@
 // although unsafe function's don't need unsafe blocks, it helps readability
 #![allow(unused_unsafe)]
-use crate::traits::{RRefable, TypeIdentifiable, CustomCleanup};
+use crate::traits::{RRefable, TypeIdentifiable};
 use crate::rref::RRef;
 
 use alloc::boxed::Box;
@@ -75,27 +75,6 @@ impl<T> RRefVec<T> where T: 'static + RRefable + Copy + TypeIdentifiable  {
 
     pub fn forfeit(&self) {
         self.data.forfeit();
-    }
-}
-
-impl<T> Drop for RRefVec<T> where T: 'static + RRefable + Copy + TypeIdentifiable  {
-    fn drop(&mut self) {
-        self.cleanup();
-    }
-}
-
-/// Drop every elements in the array and 
-/// `RRef::cleanup` will drop the first element and deallocate the arry.
-/// So our job here is to drop every element, besides the first element,
-/// in the array.
-impl<T> CustomCleanup for RRefVec<T> where T: 'static + RRefable + Copy + TypeIdentifiable  {
-    fn cleanup(&mut self) {
-        // This assert statement is currently casuing PageFault.
-        // TODO(tianjiao): investigage this
-        // assert!(self.size > 0);
-        for e in self.as_mut_slice().iter_mut().skip(1) {
-            drop(e);
-        }
     }
 }
 

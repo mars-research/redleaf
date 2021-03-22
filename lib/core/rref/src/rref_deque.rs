@@ -1,6 +1,6 @@
 use crate::rref_array::RRefArray;
 use crate::rref::RRef;
-use crate::traits::{RRefable, CustomCleanup, TypeIdentifiable};
+use crate::traits::{RRefable, TypeIdentifiable};
 
 pub struct RRefDeque<T: RRefable, const N: usize> where T: 'static {
     arr: RRefArray<T, N>,
@@ -9,14 +9,6 @@ pub struct RRefDeque<T: RRefable, const N: usize> where T: 'static {
 }
 
 unsafe impl<T: RRefable, const N: usize> RRefable for RRefDeque<T, N> {}
-
-impl<T: RRefable, const N: usize> CustomCleanup for RRefDeque<T, N> {
-    fn cleanup(&mut self) {
-        #[cfg(features = "rref_dbg")]
-        println!("CustomCleanup::{}::cleanup()", core::any::type_name_of_val(self));
-        self.arr.cleanup();
-    }
-}
 
 impl<T: RRefable, const N: usize> RRefDeque<T, N> where [Option<RRef<T>>; N]: TypeIdentifiable {
     pub fn new(empty_arr: [Option<RRef<T>>; N]) -> Self {

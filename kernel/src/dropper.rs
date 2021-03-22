@@ -1,7 +1,7 @@
 use core::mem::transmute;
 use hashbrown::HashMap;
 
-use rref::{traits::CustomCleanup, traits::TypeIdentifiable, RRef};
+use rref::{traits::TypeIdentifiable, traits::RRefable, RRef};
 use interface;
 
 /// GEN
@@ -34,19 +34,19 @@ lazy_static! {
 /// END GEN
 
 // Drops the pointer, assumes it is of type T
-fn drop_t<T: CustomCleanup + TypeIdentifiable>(ptr: *mut u8) {
+fn drop_t<T: RRefable + TypeIdentifiable>(ptr: *mut u8) {
     // println!("DROPPING {}", core::any::type_name::<T>());
     unsafe {
-        let ptr_t: *mut T = transmute(ptr);
         // recursively invoke further shared heap deallocation in the tree of rrefs
-        (&mut *ptr_t).cleanup();
+        let t = core::ptr::read(ptr as *mut T);
+        drop(t);
     }
 }
 
 struct DropMap(HashMap<u64, fn(*mut u8) -> ()>);
 
 impl DropMap {
-    fn add_type<T: 'static + CustomCleanup + TypeIdentifiable>(&mut self) {
+    fn add_type<T: 'static + RRefable + TypeIdentifiable>(&mut self) {
         let type_id = T::type_id();
         let type_erased_drop = drop_t::<T>;
         self.0.insert(type_id, type_erased_drop);

@@ -7,7 +7,7 @@ use libsyscalls::syscalls::{
     sys_discard_cont, sys_get_current_domain_id, sys_update_current_domain_id,
 };
 use interface::proxy;
-use rref::{traits::CustomCleanup, RRef, RRefDeque, RRefVec};
+use rref::{RRef, RRefDeque, RRefVec};
 use syscalls::{Domain, Heap, Interrupt};
 use unwind::trampoline;
 use interface;
