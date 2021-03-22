@@ -1080,6 +1080,17 @@ dependencies = [
  "rref",
  "spin 0.5.3",
  "syscalls",
+ "volatile_accessor",
+]
+
+[[package]]
+name = "volatile_accessor"
+version = "0.1.0"
+dependencies = [
+ "lazy_static",
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

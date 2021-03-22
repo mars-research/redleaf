@@ -11,6 +11,7 @@ console = { path = "../../../../lib/core/console" }
 malloc = { path = "../../../../lib/core/malloc" }
 rref = { path = "../../../../lib/core/rref" }
 spin = { path = "../../../../lib/core/spin-rs" }
+volatile_accessor = { path = "../../../../lib/external/volatile_accessor" }
 
 # Interfaces
 syscalls = { path = "../../../../lib/core/interfaces/syscalls" }

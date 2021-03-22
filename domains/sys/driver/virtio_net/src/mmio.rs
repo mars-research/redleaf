@@ -2,6 +2,7 @@ use core::ptr;
 
 use console::println;
 
+#[volatile_accessor::volatile_accessor]
 #[derive(Debug)]
 #[repr(C, packed)]
 pub struct VirtioPciCommonConfig {

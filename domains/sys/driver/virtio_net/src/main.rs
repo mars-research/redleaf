@@ -248,6 +248,9 @@ impl VirtioNetInner {
         Self::print_device_status(&mut mmio);
 
         // Setup VirtQueues
+        let accessor = mmio::VirtioPciCommonConfigVolatileAccessor::new(mmio_base);
+        accessor.write_queue_select(2);
+        println!("Queue select {}", accessor.read_queue_select());
         Self::initialize_virtual_queue(&mut mmio, 0, &VIRTUAL_QUEUES.recieve_queue);
         Self::initialize_virtual_queue(&mut mmio, 1, &VIRTUAL_QUEUES.transmit_queue);
 
@@ -400,6 +403,7 @@ impl VirtioNetInner {
         println!("###CONFIG BEFORE###");
         Self::print_device_config(mmio);
         println!("###################");
+
 
         mmio.write(Register::QueueSelect, queue_index);
 
