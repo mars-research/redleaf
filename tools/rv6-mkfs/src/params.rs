@@ -1,5 +1,5 @@
 use std::mem;
-use crate::fs;
+use crate::inode;
 
 // https://github.com/mit-pdos/xv6-public/blob/master/param.h
 
@@ -25,7 +25,7 @@ pub const NDIRECT: usize = 12;
 pub const NINDIRECT: usize = BSIZE / mem::size_of::<u32>();
 pub const MAXFILE: usize = NDIRECT + NINDIRECT * NINDIRECT;
 
-pub const IPB: usize = BSIZE / mem::size_of::<fs::DINode>();
+pub const IPB: usize = BSIZE / mem::size_of::<inode::DINode>();
 pub const DIRSIZE: usize = 14;
 pub const NINODEBLOCKS: usize = NINODES / IPB + 1;
 pub const NBITMAP: usize = FSSIZE / (BSIZE*8) + 1; 

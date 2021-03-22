@@ -1,12 +1,11 @@
 mod params;
 mod fs;
 mod utils;
-mod handlers;
+mod inode;
+mod layer;
 
-use crate::fs::{SuperBlock, DINode, DirEntry};
-use crate::handlers::{FSHandler, SectorHandler};
-use serde::{Deserialize, Serialize};
-
+use crate::fs::{FSHandler, SuperBlock,  DirEntry};
+use crate::inode::DINode;
 use std::{
     vec::Vec,
     fs::{File, OpenOptions},
