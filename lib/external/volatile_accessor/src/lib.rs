@@ -57,24 +57,32 @@ pub fn volatile_accessor(attr: TokenStream, item: TokenStream) -> TokenStream {
                 let size = SIZE_MAP.get(path.as_str()).expect(&format!("Type {} not supported. Supported types are {:?}", path, *SIZE_MAP));
                 let read_accessor_ident = format_ident!("read_{}", &field_ident);
                 let write_accessor_ident = format_ident!("write_{}", &field_ident);
-                
-                // // Generate read and write accessors.
-                // panic!("{:#?}", quote!(
-                //     // fn #read_accessor_ident(&self) -> #path {
-                //     //     ::core::ptr::read_volatile((self.base + #offset) as *const #path)
-                //     // }
-                // ));
+                let offset_accessor_ident = format_ident!("{}_offset", &field_ident);
+                let address_accessor_ident = format_ident!("{}_address", &field_ident);
 
+                
+                // // Generate accessors.
+                accessor_impls.push(parse_quote! {
+                    pub fn #offset_accessor_ident(&self) -> usize {
+                        #offset
+                    }
+                });
+                accessor_impls.push(parse_quote! {
+                    pub fn #address_accessor_ident(&self) -> usize {
+                        self.base + self.#offset_accessor_ident()
+                    }
+                });
                 accessor_impls.push(parse_quote! {
                     pub fn #read_accessor_ident(&self) -> #field_type {
-                        unsafe { ::core::ptr::read_volatile((self.base + #offset) as *const #field_type) }
+                        unsafe { ::core::ptr::read_volatile((self.#address_accessor_ident()) as *const #field_type) }
                     }
                 });
                 accessor_impls.push(parse_quote! {
                     pub fn #write_accessor_ident(&self, value: #field_type) {
-                        unsafe { ::core::ptr::write_volatile((self.base + #offset) as *const #field_type as *mut #field_type, value) }
+                        unsafe { ::core::ptr::write_volatile((self.#address_accessor_ident()) as *const #field_type as *mut #field_type, value) }
                     }
                 });
+
                 offset += size;
             },
         }

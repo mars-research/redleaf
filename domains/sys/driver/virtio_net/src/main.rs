@@ -250,7 +250,7 @@ impl VirtioNetInner {
         // Setup VirtQueues
         let accessor = mmio::VirtioPciCommonConfigVolatileAccessor::new(mmio_base);
         accessor.write_queue_select(2);
-        println!("Queue select {}", accessor.read_queue_select());
+        println!("Queue select offset{}, address {}, value {}", accessor.queue_select_offset(), accessor.queue_select_address(), accessor.read_queue_select());
         Self::initialize_virtual_queue(&mut mmio, 0, &VIRTUAL_QUEUES.recieve_queue);
         Self::initialize_virtual_queue(&mut mmio, 1, &VIRTUAL_QUEUES.transmit_queue);
 
