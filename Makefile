@@ -259,8 +259,11 @@ just-run-qemu:
 create-virtio-tap:
 	ip tuntap add mode tap user ${USER} name virtio
 	# Courtesy of Vincent
-	ip address add 10.69.69.1/24 dev virtio
-	ip link set virtio up
+	# ip address add 10.69.69.1/24 dev virtio
+
+.PHONY: delete-virtio-tap
+delete-virtio-tap:
+	ip link del virtio
 
 
 include $(root)/checkstack.mk
