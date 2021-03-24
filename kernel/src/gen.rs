@@ -82,19 +82,6 @@ impl domain_creation::CreateIxgbe for PDomain {
     }
 }
 
-impl domain_creation::CreateVirtioNet for PDomain {
-    fn create_domain_virtio_net(
-        &self,
-        pci: Box<dyn interface::pci::PCI>,
-    ) -> (Box<dyn syscalls::Domain>, Box<dyn interface::net::Net>) {
-        disable_irq();
-        let r = create_domain_virtio_net(pci);
-        enable_irq();
-        r
-    }
-}
-
-
 impl domain_creation::CreateNetShadow for PDomain {
     fn create_domain_net_shadow(
         &self,
@@ -320,7 +307,6 @@ impl proxy::CreateProxy for PDomain {
         create_membdev: Arc<dyn interface::domain_creation::CreateMemBDev>,
         create_bdev_shadow: Arc<dyn interface::domain_creation::CreateBDevShadow>,
         create_ixgbe: Arc<dyn interface::domain_creation::CreateIxgbe>,
-        create_virtio_net: Arc<dyn interface::domain_creation::CreateVirtioNet>,
         create_nvme: Arc<dyn interface::domain_creation::CreateNvme>,
         create_net_shadow: Arc<dyn interface::domain_creation::CreateNetShadow>,
         create_nvme_shadow: Arc<dyn interface::domain_creation::CreateNvmeShadow>,
@@ -344,7 +330,6 @@ impl proxy::CreateProxy for PDomain {
             create_membdev,
             create_bdev_shadow,
             create_ixgbe,
-            create_virtio_net,
             create_nvme,
             create_net_shadow,
             create_nvme_shadow,
@@ -425,22 +410,6 @@ pub fn create_domain_ixgbe(
     );
 
     create_domain_net("ixgbe_driver", binary_range, pci)
-}
-
-pub fn create_domain_virtio_net(
-    pci: Box<dyn interface::pci::PCI>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn interface::net::Net>) {
-    extern "C" {
-        fn _binary_domains_build_virtio_net_start();
-        fn _binary_domains_build_virtio_net_end();
-    }
-
-    let binary_range = (
-        _binary_domains_build_virtio_net_start as *const u8,
-        _binary_domains_build_virtio_net_end as *const u8,
-    );
-
-    create_domain_net("virtnet_driver", binary_range, pci)
 }
 
 pub fn create_domain_net_shadow(
@@ -805,7 +774,6 @@ pub fn create_domain_proxy(
     create_membdev: Arc<dyn interface::domain_creation::CreateMemBDev>,
     create_bdev_shadow: Arc<dyn interface::domain_creation::CreateBDevShadow>,
     create_ixgbe: Arc<dyn interface::domain_creation::CreateIxgbe>,
-    create_virtio_net: Arc<dyn interface::domain_creation::CreateVirtioNet>,
     create_nvme: Arc<dyn interface::domain_creation::CreateNvme>,
     create_net_shadow: Arc<dyn interface::domain_creation::CreateNetShadow>,
     create_nvme_shadow: Arc<dyn interface::domain_creation::CreateNvmeShadow>,
@@ -840,7 +808,6 @@ pub fn create_domain_proxy(
         create_membdev,
         create_bdev_shadow,
         create_ixgbe,
-        create_virtio_net,
         create_nvme,
         create_net_shadow,
         create_nvme_shadow,
@@ -1203,7 +1170,6 @@ pub fn build_domain_init(
         Arc<dyn interface::domain_creation::CreateRv6Usr>,
         Arc<dyn interface::domain_creation::CreatePCI>,
         Arc<dyn interface::domain_creation::CreateIxgbe>,
-        Arc<dyn interface::domain_creation::CreateVirtioNet>,
         Arc<dyn interface::domain_creation::CreateNvme>,
         Arc<dyn interface::domain_creation::CreateNetShadow>,
         create_nvme_shadow: Arc<dyn interface::domain_creation::CreateNvmeShadow>,
@@ -1241,7 +1207,6 @@ pub fn build_domain_init(
         Box::new(PHeap::new()),
         Box::new(Interrupt::new()),
         Box::new(PDomain::new(Arc::clone(&dom))),
-        Arc::new(PDomain::new(Arc::clone(&dom))),
         Arc::new(PDomain::new(Arc::clone(&dom))),
         Arc::new(PDomain::new(Arc::clone(&dom))),
         Arc::new(PDomain::new(Arc::clone(&dom))),
@@ -1409,7 +1374,6 @@ pub fn build_domain_proxy(
     create_membdev: Arc<dyn interface::domain_creation::CreateMemBDev>,
     create_bdev_shadow: Arc<dyn interface::domain_creation::CreateBDevShadow>,
     create_ixgbe: Arc<dyn interface::domain_creation::CreateIxgbe>,
-    create_virtio_net: Arc<dyn interface::domain_creation::CreateVirtioNet>,
     create_nvme: Arc<dyn interface::domain_creation::CreateNvme>,
     create_net_shadow: Arc<dyn interface::domain_creation::CreateNetShadow>,
     create_nvme_shadow: Arc<dyn interface::domain_creation::CreateNvmeShadow>,
@@ -1434,7 +1398,6 @@ pub fn build_domain_proxy(
         create_membdev: Arc<dyn interface::domain_creation::CreateMemBDev>,
         create_bdev_shadow: Arc<dyn interface::domain_creation::CreateBDevShadow>,
         create_ixgbe: Arc<dyn interface::domain_creation::CreateIxgbe>,
-        create_virtio_net: Arc<dyn interface::domain_creation::CreateVirtioNet>,
         create_nvme: Arc<dyn interface::domain_creation::CreateNvme>,
         create_net_shadow: Arc<dyn interface::domain_creation::CreateNetShadow>,
         create_nvme_shadow: Arc<dyn interface::domain_creation::CreateNvmeShadow>,
@@ -1478,7 +1441,6 @@ pub fn build_domain_proxy(
         create_membdev,
         create_bdev_shadow,
         create_ixgbe,
-        create_virtio_net,
         create_nvme,
         create_net_shadow,
         create_nvme_shadow,
