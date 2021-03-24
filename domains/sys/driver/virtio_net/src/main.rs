@@ -68,7 +68,7 @@ static mut PACKET_FOR_SENDING: VirtioNetCompletePacket = VirtioNetCompletePacket
     data: [0; 1514],
 };
 
-static tian_packet: [u8; 66] = [
+static TIAN_PACKET: [u8; 66] = [
     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x80, 0x61, 0x5F, 0x08, 0x37, 0x23, 0x08, 0x00, 0x45, 0x00,
     0x00, 0x34, 0x20, 0xF3, 0x40, 0x00, 0x34, 0x06, 0x1C, 0xBF, 0xB8, 0x69, 0x94, 0x72, 0xAC, 0x14,
     0x10, 0x22, 0x01, 0xBB, 0xCA, 0xFC, 0xDA, 0xD3, 0x61, 0x34, 0xD8, 0xBF, 0xCC, 0x09, 0x80, 0x10,
@@ -263,10 +263,11 @@ impl VirtioNetInner {
         Self::print_device_status(&mut mmio);
 
         // *** Stuff For Testing ***
+        // FIXME: shove into #[cfg(test)]? i.e. how can we test legitmately?
 
         // Populate the testing packet with Tian's packet
-        for i in 0..tian_packet.len() {
-            PACKET_FOR_SENDING.data[i] = tian_packet[i];
+        for i in 0..TIAN_PACKET.len() {
+            PACKET_FOR_SENDING.data[i] = TIAN_PACKET[i];
         }
 
         // Populate Recieve Queue
@@ -278,7 +279,6 @@ impl VirtioNetInner {
                 next: 0,
             };
             VIRTUAL_QUEUES.recieve_queue.available.ring[i] = i as u16;
-            Mmio::memory_fence();
             VIRTUAL_QUEUES.recieve_queue.available.idx += 1;
         }
 
@@ -294,7 +294,6 @@ impl VirtioNetInner {
             );
         }
 
-        Mmio::memory_fence();
         // Notify the device that we've changed things in Queue 0, the recieve queue
         mmio.write(Register::Notify, 0u16);
 
@@ -311,9 +310,7 @@ impl VirtioNetInner {
         // println!("{:#?}", PACKET_FOR_SENDING);
 
         VIRTUAL_QUEUES.transmit_queue.available.ring[0] = 0;
-        Mmio::memory_fence();
         VIRTUAL_QUEUES.transmit_queue.available.idx += 1;
-        Mmio::memory_fence();
 
         // 4.1.5.2
         // When VIRTIO_F_NOTIFICATION_DATA has not been negotiated,
@@ -358,8 +355,8 @@ impl VirtioNetInner {
         println!("Device Status Bits: {:b}", device_status);
     }
 
-    /// Recieve Queues must be 2*N and Transmit Queues must be 2*N + 1
-    /// For example, Revieve Queue must be 0 and Transmit Queue must be 1
+    /// Receive Queues must be 2*N and Transmit Queues must be 2*N + 1
+    /// For example, Receive Queue must be 0 and Transmit Queue must be 1
     unsafe fn initialize_virtual_queue(mmio: &mut Mmio, queue_index: u16, virt_queue: &VirtQueue) {
         println!("###CONFIG BEFORE###");
         Self::print_device_config(mmio);
