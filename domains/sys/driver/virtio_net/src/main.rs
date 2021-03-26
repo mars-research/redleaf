@@ -50,7 +50,7 @@ static BUFFERS: [VirtioNetCompletePacket; DESCRIPTOR_COUNT] = [VirtioNetComplete
         gso_size: 0,
         csum_start: 0,
         csum_offset: 0,
-        num_buffers: 0,
+        // num_buffers: 0,
     },
     data: [0; 1514],
 }; DESCRIPTOR_COUNT];
@@ -59,34 +59,39 @@ static mut PACKET_FOR_SENDING: VirtioNetCompletePacket = VirtioNetCompletePacket
     header: VirtioNetworkHeader {
         flags: 0,
         gso_type: 0,
-        header_length: 12 + 22,
-        gso_size: 1514,
+        header_length: 0,
+        gso_size: 0,
         csum_start: 0,
-        csum_offset: 1514,
-        num_buffers: 0,
+        csum_offset: 0,
+        // num_buffers: 0,
     },
     data: [0; 1514],
 };
 
-static TIAN_PACKET: [u8; 66] = [
-    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x80, 0x61, 0x5F, 0x08, 0x37, 0x23, 0x08, 0x00, 0x45, 0x00,
-    0x00, 0x34, 0x20, 0xF3, 0x40, 0x00, 0x34, 0x06, 0x1C, 0xBF, 0xB8, 0x69, 0x94, 0x72, 0xAC, 0x14,
-    0x10, 0x22, 0x01, 0xBB, 0xCA, 0xFC, 0xDA, 0xD3, 0x61, 0x34, 0xD8, 0xBF, 0xCC, 0x09, 0x80, 0x10,
-    0x00, 0x13, 0xF5, 0xAD, 0x00, 0x00, 0x01, 0x01, 0x08, 0x0A, 0x9E, 0xC6, 0xA7, 0xE1, 0x1D, 0x2A,
-    0x66, 0x8E,
+static TIAN_PACKET: [u8; 98] = [
+    // 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x80, 0x61, 0x5F, 0x08, 0x37, 0x23, 0x08, 0x00, 0x45, 0x00,
+    // 0x00, 0x34, 0x20, 0xF3, 0x40, 0x00, 0x34, 0x06, 0x1C, 0xBF, 0xB8, 0x69, 0x94, 0x72, 0xAC, 0x14,
+    // 0x10, 0x22, 0x01, 0xBB, 0xCA, 0xFC, 0xDA, 0xD3, 0x61, 0x34, 0xD8, 0xBF, 0xCC, 0x09, 0x80, 0x10,
+    // 0x00, 0x13, 0xF5, 0xAD, 0x00, 0x00, 0x01, 0x01, 0x08, 0x0A, 0x9E, 0xC6, 0xA7, 0xE1, 0x1D, 0x2A,
+    // 0x66, 0x8E,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x9A, 0xD2, 0x0B, 0x94, 0x88, 0x8B, 0x08, 0x00, 0x45, 0x00,
+    0x00, 0x54, 0x00, 0x00, 0x40, 0x00, 0x40, 0x01, 0x9B, 0x1F, 0x0A, 0x45, 0x45, 0x01, 0x0A, 0x45,
+    0x45, 0xFF, 0x08, 0x00, 0x64, 0x95, 0x00, 0x03, 0x00, 0x01, 0x75, 0xB8, 0x5B, 0x60, 0x00, 0x00,
+    0x00, 0x00, 0xFD, 0x7A, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15,
+    0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25,
+    0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35,
+    0x36, 0x37,
 ];
 
 #[derive(Debug)]
-#[repr(C, packed(16))]
+#[repr(C, align(16))]
 struct VirtualQueues {
-    recieve_queue: VirtQueue,
-    padding: u8,
+    receive_queue: VirtQueue,
     transmit_queue: VirtQueue,
 }
 
 static mut VIRTUAL_QUEUES: VirtualQueues = VirtualQueues {
-    padding: 0,
-    recieve_queue: VirtQueue {
+    receive_queue: VirtQueue {
         descriptors: [VirtqDescriptor {
             addr: 0,
             len: 0,
@@ -135,7 +140,7 @@ static mut VIRTUAL_QUEUES: VirtualQueues = VirtualQueues {
 // Similarly, incoming (device-writable) buffers are added to the receive virtqueue, and processed after they are used.
 
 #[derive(Debug)]
-#[repr(C, packed(16))]
+#[repr(C, align(16))]
 struct VirtQueue {
     descriptors: [VirtqDescriptor; DESCRIPTOR_COUNT],
     available: VirtqAvailable,
@@ -157,7 +162,7 @@ struct VirtqDescriptor {
 }
 
 #[derive(Debug, Copy, Clone)]
-#[repr(C, packed)]
+#[repr(C, packed(2))]
 struct VirtqAvailable {
     flags: u16,
 
@@ -188,7 +193,7 @@ struct VirtqUsedElement {
 }
 
 #[derive(Debug, Copy, Clone)]
-#[repr(C, packed)]
+#[repr(C, packed(4))]
 struct VirtqUsed {
     flags: u16,
 
@@ -234,7 +239,7 @@ impl VirtioNetInner {
         // Perform device-specific setup, including discovery of virtqueues for the device, optional per-bus setup, reading and possibly writing the device’s virtio configuration space, and population of virtqueues.
         // Set the DRIVER_OK status bit. At this point the device is “live”.
 
-        // Acknowlege Device
+        // Acknowledge Device
         mmio.update_device_status(VirtioDeviceStatus::Acknowledge);
         mmio.update_device_status(VirtioDeviceStatus::Driver); // But do we really know how to drive the device?
 
@@ -247,14 +252,8 @@ impl VirtioNetInner {
         // TODO: Actually check the Feature Bit!
         Self::print_device_status(&mut mmio);
 
-        // Setup VirtQueues
-        println!(
-            "Queue select offset {}, address {}, value {}",
-            mmio.accessor.queue_select_offset(),
-            mmio.accessor.queue_select_address(),
-            mmio.accessor.read_queue_select()
-        );
-        Self::initialize_virtual_queue(&mut mmio, 0, &VIRTUAL_QUEUES.recieve_queue);
+        // Setup Virtual Queues
+        Self::initialize_virtual_queue(&mut mmio, 0, &VIRTUAL_QUEUES.receive_queue);
         Self::initialize_virtual_queue(&mut mmio, 1, &VIRTUAL_QUEUES.transmit_queue);
 
         // Tell the Device we're all done, even though we aren't
@@ -262,40 +261,42 @@ impl VirtioNetInner {
 
         Self::print_device_status(&mut mmio);
 
+        println!(
+            "VIRTQ STRUCT ADDR: {:x}",
+            (&VIRTUAL_QUEUES as *const VirtualQueues) as usize
+        );
+
         // *** Stuff For Testing ***
-        // FIXME: shove into #[cfg(test)]? i.e. how can we test legitmately?
+        // FIXME: shove into #[cfg(test)]? i.e. how can we test legitimately?
 
         // Populate the testing packet with Tian's packet
         for i in 0..TIAN_PACKET.len() {
             PACKET_FOR_SENDING.data[i] = TIAN_PACKET[i];
         }
 
-        // Populate Recieve Queue
+        // Populate Receive Queue
         for i in 0..DESCRIPTOR_COUNT {
-            VIRTUAL_QUEUES.recieve_queue.descriptors[i] = VirtqDescriptor {
+            VIRTUAL_QUEUES.receive_queue.descriptors[i] = VirtqDescriptor {
                 addr: (&BUFFERS[i] as *const VirtioNetCompletePacket) as u64,
                 len: 1526,
                 flags: 0 | 2, // Writeable
                 next: 0,
             };
-            VIRTUAL_QUEUES.recieve_queue.available.ring[i] = i as u16;
-            VIRTUAL_QUEUES.recieve_queue.available.idx += 1;
+            VIRTUAL_QUEUES.receive_queue.available.ring[i] = i as u16;
+            VIRTUAL_QUEUES.receive_queue.available.idx += 1;
         }
 
-        println!(
-            "RX AVAIL IDX: {:} aka {:x?}",
-            VIRTUAL_QUEUES.recieve_queue.available.idx, VIRTUAL_QUEUES.recieve_queue.available.idx
-        );
-
-        for i in 0..5 {
+        for i in 30..32 {
             println!(
                 "DESCRIPTOR {:}: {:#x?}",
-                i, VIRTUAL_QUEUES.recieve_queue.descriptors[i]
+                i, VIRTUAL_QUEUES.receive_queue.descriptors[i]
             );
         }
 
-        // Notify the device that we've changed things in Queue 0, the recieve queue
-        mmio.write(Register::Notify, 0u16);
+        // Notify the device that we've changed things in Queue 0, the receive queue
+        mmio.queue_notify(0, 0);
+
+        println!("VirtIO Device Initialized!");
 
         // SENDING PACKET BELOW
 
@@ -307,29 +308,18 @@ impl VirtioNetInner {
         };
 
         println!("{:#?}", VIRTUAL_QUEUES.transmit_queue.descriptors[0]);
-        // println!("{:#?}", PACKET_FOR_SENDING);
 
         VIRTUAL_QUEUES.transmit_queue.available.ring[0] = 0;
         VIRTUAL_QUEUES.transmit_queue.available.idx += 1;
 
-        // 4.1.5.2
-        // When VIRTIO_F_NOTIFICATION_DATA has not been negotiated,
-        // the driver sends an available buffer notification to the device
-        // by writing the 16-bit virtqueue index of this virtqueue to the Queue Notify address.
-
         println!("Notification Sending");
-        mmio.write(Register::Notify, 1u16);
+        mmio.queue_notify(1, 1);
         println!("Notification Sent");
 
-        // Print out some final info
-        // println!("{:#x?}", mmio.read_device_config());
-
-        println!("VirtIO Device Initialized!");
-
-        println!("{:#?}", VIRTUAL_QUEUES.transmit_queue.used.ring[0]);
-        println!("{:#?}", VIRTUAL_QUEUES.transmit_queue.used.idx);
-
-        // Read the config back
+        println!("---------------------");
+        mmio.accessor.write_queue_select(0);
+        Self::print_device_config(&mut mmio);
+        mmio.accessor.write_queue_select(1);
         Self::print_device_config(&mut mmio);
 
         Self { mmio }

@@ -57,7 +57,7 @@ pub struct VirtioNetworkHeader {
     pub gso_size: u16,
     pub csum_start: u16,
     pub csum_offset: u16,
-    pub num_buffers: u16,
+    // pub num_buffers: u16,
 }
 
 #[derive(PartialEq, Debug)]
@@ -148,30 +148,11 @@ impl Mmio {
         core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
     }
 
-    // pub unsafe fn read_device_config(&mut self) -> VirtioNetworkDeviceConfig {
-    //     let cfg_ptr =
-    //         (self.mmio_base + Register::DeviceCfg.offset()) as *const VirtioNetworkDeviceConfig;
-    //     ptr::read_volatile(cfg_ptr)
-    // }
-
     pub unsafe fn read_common_config(&mut self) -> VirtioPciCommonConfig {
         let cfg_ptr =
             (self.mmio_base + Register::CommonCfg.offset()) as *const VirtioPciCommonConfig;
         ptr::read_volatile(cfg_ptr)
     }
-
-    // pub unsafe fn write_common_config(&mut self, common_config: VirtioPciCommonConfig) {
-    //     let cfg_ptr = (self.mmio_base + Register::CommonCfg.offset()) as *mut VirtioPciCommonConfig;
-    //     ptr::write_volatile(cfg_ptr, common_config);
-    // }
-
-    // pub unsafe fn common_config_as_raw_ptr(&mut self) -> *mut VirtioPciCommonConfig {
-    //     (self.mmio_base + Register::CommonCfg.offset()) as *mut VirtioPciCommonConfig
-    // }
-
-    // pub unsafe fn read_device_status(&mut self) -> u8 {
-    //     ptr::read_volatile((self.mmio_base + Register::DeviceStatus.offset()) as *const u8)
-    // }
 
     pub unsafe fn update_device_status(&mut self, status: VirtioDeviceStatus) {
         let mut device_status = self.accessor.read_device_status();
@@ -179,37 +160,17 @@ impl Mmio {
         device_status |= status.value();
 
         self.accessor.write_device_status(device_status);
-
-        // let cfg = self.common_config_as_raw_ptr();
-        // (*cfg).device_status |= status.value();
-
-        // ptr::write_volatile(
-        //     (self.mmio_base + Register::DeviceStatus.offset()) as *mut u8,
-        //     self.read_device_status() | status.value(),
-        // );
     }
-
-    // pub unsafe fn write(&mut self, register: Register, value: u32) {
-    //     ptr::write_volatile(register.as_mut_ptr(self.mmio_base), value)
-    // }
-
-    // pub unsafe fn read(&mut self, register: Register) -> u32 {
-    //     ptr::read_volatile(register.as_ptr(self.mmio_base))
-    // }
-}
-
-impl Mmio {
-    // pub unsafe fn read_queue_config(&mut self) -> VirtioPciQueueConfig {
-    //     ptr::read_volatile(
-    //         (self.mmio_base + Register::QueueConfig.offset()) as *mut VirtioPciQueueConfig,
-    //     )
-    // }
 
     pub unsafe fn write<T>(&mut self, register: Register, value: T) {
         ptr::write_volatile((self.mmio_base + register.offset()) as *mut T, value)
     }
 
-    // pub unsafe fn read_queue_select(&mut self) -> u16 {
-    //     ptr::read_volatile((self.mmio_base + Register::QueueSelect.offset()) as *const u16)
-    // }
+    pub unsafe fn queue_notify(&mut self, queue_notify_offset: u16, queue_index: u16) {
+        ptr::write_volatile(
+            (self.mmio_base + Register::Notify.offset() + ((queue_notify_offset * 4) as usize))
+                as *mut u16,
+            queue_index,
+        )
+    }
 }
