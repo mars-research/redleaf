@@ -7,14 +7,14 @@ unsafe fn to_bytes<T: Sized>(p: &T) -> &[u8] {
 
 pub fn zero(buffer: &mut [u8]) {
     for i in buffer.iter_mut() {
-        *i = 0 
+        *i = 0
     }
 }
 
 pub fn u32_as_u8_mut<'a>(src: &'a mut [u32]) -> &'a mut [u8] {
     unsafe {
         std::slice::from_raw_parts_mut(src.as_mut_ptr() as *mut u8,
-                                        src.len() * 4)
+                                       src.len() * 4)
     }
 
     // let v: Vec<u8> = Vec::new();

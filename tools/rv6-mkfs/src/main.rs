@@ -1,18 +1,22 @@
-mod params;
+#[macro_use]
+extern crate num_derive;
+
+use crate::fs::{DirEntry, FSHandler, SuperBlock};
+use crate::inode::{DINode, INodeFileType};
+
+use std::path::Path;
+use std::{
+    fs::{File, OpenOptions},
+    io::{BufReader, BufWriter, Seek, SeekFrom, Write},
+    mem::size_of,
+    vec::Vec,
+};
+
 mod fs;
-mod utils;
 mod inode;
 mod layer;
-
-use crate::fs::{FSHandler, SuperBlock,  DirEntry};
-use crate::inode::DINode;
-use std::{
-    vec::Vec,
-    fs::{File, OpenOptions},
-    io::{BufReader, BufWriter, Write, Seek, SeekFrom},
-    mem::{size_of},
-};
-use std::path::Path;
+mod params;
+mod utils;
 
 fn main() {
     let mut argv: Vec<String> = std::env::args().collect();
@@ -29,8 +33,8 @@ fn main() {
     let nblocks: usize = params::FSSIZE - nmeta;
 
     print!("nmeta {} (boot, super, log blocks {} inode blocks {}, bitmapblocks {}) blocks {} total {}\n",
-            nmeta, params::LOGSIZE, params::NINODEBLOCKS, params::NBITMAP, nblocks, params::FSSIZE);
-     fshandler.freeblock = nmeta as u32;
+           nmeta, params::LOGSIZE, params::NINODEBLOCKS, params::NBITMAP, nblocks, params::FSSIZE);
+    fshandler.freeblock = nmeta as u32;
 
     for i in 0..params::FSSIZE {
         fshandler.write_file(i as u32, &mut zeroes);
@@ -39,9 +43,14 @@ fn main() {
     utils::fill(&mut buf, &fshandler.superblock_bytes(), 0);
     fshandler.write_file(1, &mut buf);
 
-    let rootino: u32 = fshandler.alloc_inode(params::ROOTINO as i16);
+    let rootino: u32 = fshandler.alloc_inode(INodeFileType::Directory);
+    assert_eq!(rootino, params::ROOTINO as u32);
     let mut dir_entry = DirEntry::new(rootino as u16, ".");
-    fshandler.append_inode(rootino, &mut dir_entry.bytes(), size_of::<DirEntry>() as i32);
+    fshandler.append_inode(
+        rootino,
+        &mut dir_entry.bytes(),
+        size_of::<DirEntry>() as i32,
+    );
 
     let mut dir_entry = DirEntry::new(rootino as u16, "..");
     fshandler.append_inode(rootino, dir_entry.bytes(), size_of::<DirEntry>() as i32);
@@ -50,33 +59,29 @@ fn main() {
         println!("adding {:?}", arg);
         assert!(!arg.contains("/"));
         let p = Path::new(&arg);
-        let mut fd =  OpenOptions::new()
-            .read(true)
-            .open(&p).unwrap();
+        let mut fd = OpenOptions::new().read(true).open(&p).unwrap();
 
         if arg.chars().nth(0).unwrap() == '_' {
             arg.chars().next();
         }
 
-        let inum = fshandler.alloc_inode(2);
+        let inum = fshandler.alloc_inode(INodeFileType::Directory);
         let mut de = DirEntry::new(inum as u16, &arg);
         fshandler.append_inode(rootino, &mut de.bytes(), size_of::<DirEntry>() as i32);
 
         loop {
-           let bytes= utils::read_up_to(&mut fd, &mut buf).unwrap();
+            let bytes = utils::read_up_to(&mut fd, &mut buf).unwrap();
             if bytes > 0 {
                 fshandler.append_inode(inum, &mut buf, bytes as i32);
-            }
-            else {
+            } else {
                 break;
             }
         }
-
     }
 
     let mut din = DINode::new();
     fshandler.read_inode(rootino, &mut din);
-    
+
     let mut off = din.size;
     off = ((off / params::BSIZE as u32) + 1) * params::BSIZE as u32;
     din.size = off;

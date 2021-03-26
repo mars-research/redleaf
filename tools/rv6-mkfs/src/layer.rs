@@ -1,66 +1,55 @@
-use byteorder::ByteOrder;
 use crate::params;
+use byteorder::ByteOrder;
 use std::mem::size_of;
 
-pub enum LayerType {
-    // store size in enum, but ctor says cannot borrow?
-    Indirect, 
-    Direct,
-    Block,
+/*
+   I am using a struct to mimic enum behavior
+   since I have two tags, Indirect and Block,
+   which have the same value.
+
+   Should I stick with this, or use a proper enum
+   and give a generic name for Indirect and Block
+*/
+
+#[non_exhaustive]
+pub struct LayerType;
+
+impl LayerType {
+    pub const Indirect: usize = params::BSIZE;
+    pub const Direct: usize = (params::NDIRECT * size_of::<u32>()) + size_of::<u32>();
+    pub const Block: usize = params::BSIZE;
 }
 
 pub struct Layer {
-    pub buffer: Vec<u8>,
-    layer_type: LayerType,
+    buffer: Vec<u8>,
+    layer_type: usize,
 }
 
 impl Layer {
-    pub fn new(t: LayerType) -> Self {
-        match t {
-            LayerType::Indirect => {
-                return Layer {
-                    // normally, this would be a u32 of szie
-                    // params::NINDIRECT. But we are representing
-                    // as u8, so the size would be params::NINDIRECT * sizeof(u32)
-                    // which is equal to params::BSIZE 
-                    buffer: vec![0; params::BSIZE],
-                    layer_type: t,  
-                };
-            }
-            LayerType::Direct => {
-                let u32_size = size_of::<u32>();
-                return Layer {
-                    buffer: vec![0; u32_size + (params::NDIRECT * u32_size)],
-                    layer_type: t,  
-                };
-            }
-            LayerType::Block => {
-                return Layer {
-                    buffer: vec![0; params::BSIZE],
-                    layer_type: t,  
-                };
-            }
+    pub fn new(size: usize) -> Self {
+        Layer {
+            layer_type: size,
+            buffer: vec![0; size],
         }
     }
 
     pub fn set(&mut self, data: u32, idx: usize) {
         let index = idx * 4;
-        byteorder::LittleEndian::write_u32(&mut self.buffer[index..index+4], data);
+        byteorder::LittleEndian::write_u32(&mut self.buffer[index..index + 4], data);
     }
 
     pub fn get(&self, idx: usize) -> u32 {
         let index = idx * 4;
-        byteorder::LittleEndian::read_u32(&self.buffer[index..index+4])
+        byteorder::LittleEndian::read_u32(&self.buffer[index..index + 4])
     }
 
-    pub fn is_block_empty(&self, idx:usize) -> bool {
+    pub fn is_block_empty(&self, idx: usize) -> bool {
         self.get(idx) == 0
     }
 
     pub fn as_mut_slice(&mut self) -> &mut [u8] {
         self.buffer.as_mut_slice()
     }
-
 
     pub fn as_mut_ptr(&mut self) -> *mut u8 {
         self.buffer.as_mut_ptr()
