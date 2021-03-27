@@ -17,12 +17,9 @@ LDFLAGS += -m $(shell $(LD) -V | grep elf_i386 2>/dev/null | head -n 1)
 arch ?= x86_64
 
 all: build/libfs.a
-	
-build/mkfs: mkfs.c fs.h param.h stat.h types.h
-	mkdir -p build
-	gcc -Werror -Wall -Wno-error=stringop-truncation -g -o $@ mkfs.c
 
-build/mkfs-rs:
+
+build/mkfs:
 	#echo "Rust make" >> oops.txt
 	cargo build
 
@@ -43,16 +40,14 @@ FILES=README large
 
 BINS=$(shell find $(root)/domains/usr/xv6/usr/bin/src/bin -maxdepth 1 -mindepth 1 ! -name htdocs ! -name target -exec basename {} .rs \;)
 
-
 build/fs.img: build/mkfs $(FILES) $(BINS) $(HTDOCS) Makefile
-	mkdir -p build
-	cd build/ && ./mkfs fs.img  $(FILES) $(BINS) $(HTDOCS)
-
-build/fs-rs.img: build/mkfs-rs $(FILES) $(BINS) $(HTDOCS) Makefile
 	mkdir -p build && cd build && ../target/debug/rv6-mkfs fs.img  $(FILES) $(BINS) $(HTDOCS)
 
-build/fs.o: build/fs-rs.img
+build/fs.o: build/fs.img
 	objcopy -I binary -O elf64-x86-64 -B i386 build/fs.img build/fs.o
+
+test/fs.img: build/mkfs $(TEST_FILES) Makefile
+	mkdir -p build && cd build && ../target/debug/rv6-mkfs fs.img  $(TEST_FILES)
 
 build/libfs.a: build/fs.o
 	ar cr --target elf64-x86-64 build/libfs.a build/fs.o
