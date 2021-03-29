@@ -1,11 +1,9 @@
 use std::mem;
 
-use crate::inode;
+use crate::inode; // https://github.com/mit-pdos/xv6-public/blob/master/param.h
 
-// https://github.com/mit-pdos/xv6-public/blob/master/param.h
-
+pub use interface::bdev::BSIZE;
 pub const NINODES: usize = 200;
-pub const BSIZE: usize = 4096;
 pub const NFILE: usize = 100;
 pub const NOFILE: usize = 16;
 // open files per process

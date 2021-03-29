@@ -8,7 +8,7 @@ use num_traits::FromPrimitive;
 #[derive(PartialEq, Copy, Clone, Debug, FromPrimitive)]
 pub enum INodeFileType {
     // This is not a file type; it indicates that the inode is not initialized
-    Unitialized,
+    Uninitialized,
     // Correspond to T_DIR in xv6
     Directory,
     // Correspond to T_FILE in xv6
@@ -39,7 +39,7 @@ pub type DINode = INodeData;
 impl INodeData {
     pub fn new() -> Self {
         Self {
-            file_type: INodeFileType::Unitialized,
+            file_type: INodeFileType::Uninitialized,
             major: 0,
             minor: 0,
             nlink: 0,
