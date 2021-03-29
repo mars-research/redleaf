@@ -17,10 +17,10 @@ LDFLAGS += -m $(shell $(LD) -V | grep elf_i386 2>/dev/null | head -n 1)
 arch ?= x86_64
 
 all: build/libfs.a
-	
-build/mkfs: mkfs.c fs.h param.h stat.h types.h
-	mkdir -p build
-	gcc -Werror -Wall -Wno-error=stringop-truncation -g -o $@ mkfs.c
+
+
+build/mkfs:
+	mkdir -p build && cargo build
 
 # Prevent deletion of intermediate files, e.g. cat.o, after first build, so
 # that disk image changes after first build are persistent until clean.  More
@@ -31,15 +31,14 @@ build/mkfs: mkfs.c fs.h param.h stat.h types.h
 HTDOCS_DIR = $(root)/domains/usr/xv6/usr/bin/src/bin/htdocs/
 HTDOCS=$(shell ls $(HTDOCS_DIR) -1)
 
-FILES=\
-	README\
-	large\
+FILES=README.md large
 
 BINS=$(shell find $(root)/domains/usr/xv6/usr/bin/src/bin -maxdepth 1 -mindepth 1 ! -name htdocs ! -name target -exec basename {} .rs \;)
+TEST_FILES=$(shell find build -mindepth 1 -maxdepth 1 | grep -e ln -e ls -e style.css)
+
 
 build/fs.img: build/mkfs $(FILES) $(BINS) $(HTDOCS) Makefile
-	mkdir -p build
-	cd build/ && ./mkfs fs.img $(FILES) $(BINS) $(HTDOCS)
+	mkdir -p build && cd build && ../target/debug/rv6-mkfs fs.img  $(FILES) $(BINS) $(HTDOCS)
 
 build/fs.o: build/fs.img
 	objcopy -I binary -O elf64-x86-64 -B i386 build/fs.img build/fs.o
@@ -47,9 +46,12 @@ build/fs.o: build/fs.img
 build/libfs.a: build/fs.o
 	ar cr --target elf64-x86-64 build/libfs.a build/fs.o
 
-.PHONY: README
-README:
-	cp README build/
+test/fs.img: build/mkfs $(FILES) $(BINS) $(HTDOCS)  test_files Makefile
+	cd test && ../target/debug/rv6-mkfs fs.img
+
+.PHONY: README.md
+README.md:
+	cp README.md build/
 
 .PHONY: large
 large:
@@ -61,6 +63,9 @@ large:
 bin:
 	cd $(RV6_BIN) && cargo rb --release
 
+test_files:
+	mkdir test -p && cp $(TEST_FILES) test/ -f
+
 .PHONY: $(BINS)
 $(BINS): bin
 	cp $(RV6_BIN)/build/$@ build/ -f
@@ -71,4 +76,8 @@ $(HTDOCS):
 
 .PHONY: clean
 clean: 
-	rm -rf build
+	rm -rf build/
+	cargo clean
+
+clean_test:
+	rm -rf test/

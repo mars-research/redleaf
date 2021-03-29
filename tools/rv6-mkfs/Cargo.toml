@@ -1,0 +1,11 @@
+[package]
+name = "rv6-mkfs"
+version = "0.1.0"
+authors = ["RedLeaf Team"]
+edition = "2018"
+
+[dependencies]
+byteorder = { version = "1.2", default-features = false }
+num-traits = { version = "0.2", default-features = false }
+num-derive = { version = "0.3", default-features = false }
+interface = { path = "../../interface/generated" }
