@@ -16,11 +16,11 @@ use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
-use core::panic::PanicInfo;
+use core::{borrow::BorrowMut, panic::PanicInfo};
 use syscalls::{Heap, Syscall};
 
 use console::println;
-use interface::rpc::RpcResult;
+use interface::{net::Net, rpc::RpcResult};
 use libsyscalls::syscalls::sys_backtrace;
 pub use platform::PciBarAddr;
 use spin::Mutex;
@@ -28,6 +28,8 @@ use spin::Mutex;
 pub use interface::error::{ErrorKind, Result};
 
 use rref::RRefDeque;
+
+use smolnet::{self, SmolPhy};
 
 pub use interface::net::NetworkStats;
 
@@ -395,6 +397,7 @@ impl interface::net::Net for VirtioNet {
         unimplemented!()
     }
 
+    /// If `tx` is true, packets in packets are for transmitting, else they are receive buffers
     fn submit_and_poll_rref(
         &self,
         packets: RRefDeque<[u8; 1514], 32>,
@@ -402,7 +405,14 @@ impl interface::net::Net for VirtioNet {
         tx: bool,
         pkt_len: usize,
     ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 32>, RRefDeque<[u8; 1514], 32>)>> {
-        unimplemented!()
+        println!("SUBMIT AND POLL RREF CALLED!");
+
+        println!("{:#?}", packets.len());
+        println!("{:#?}", collect.len());
+        println!("{:#?}", tx);
+
+        // This 0 here is the number of packets received
+        Ok(Ok((0usize, packets, collect)))
     }
 
     fn poll(&self, mut collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
@@ -443,7 +453,32 @@ pub fn trusted_entry(
         pci_factory.to_device().unwrap()
     };
 
-    Box::new(net)
+    let new_net = net.clone_net();
+
+    // Run SmolNet
+    let mut smol = SmolPhy::new(Box::new(net));
+
+    loop {
+        smol.do_rx();
+        smol.do_tx();
+
+        thread::sleep(1000);
+    }
+
+    // // let mut neighbor_cache_entries = [None; 8];
+    // let neighbor_cache = NeighborCache::new(BTreeMap::new());
+
+    // let ip_addresses = [IpCidr::new(IpAddress::v4(10, 10, 1, 1), 24)];
+    // let mac_address = [0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x10];
+    // let iface = EthernetInterfaceBuilder::new(smol)
+    //     .ethernet_addr(EthernetAddress::from_bytes(&mac_address))
+    //     .neighbor_cache(neighbor_cache)
+    //     .ip_addrs(ip_addresses)
+    //     .finalize();
+
+    // let socketset = SocketSet::new(Vec::with_capacity(512));
+
+    new_net.unwrap()
 }
 
 // This function is called on panic.

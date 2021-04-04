@@ -1078,6 +1078,7 @@ dependencies = [
  "platform",
  "protocol",
  "rref",
+ "smolnet",
  "spin 0.5.3",
  "syscalls",
  "volatile_accessor",
