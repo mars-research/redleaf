@@ -72,7 +72,7 @@ pub enum VirtioDeviceStatus {
 }
 
 impl VirtioDeviceStatus {
-    fn value(&self) -> u8 {
+    pub fn value(&self) -> u8 {
         match self {
             VirtioDeviceStatus::Reset => 0,
             VirtioDeviceStatus::Acknowledge => 1,

@@ -92,45 +92,6 @@ struct VirtualQueues {
     transmit_queue: VirtQueue,
 }
 
-static mut VIRTUAL_QUEUES: VirtualQueues = VirtualQueues {
-    receive_queue: VirtQueue {
-        descriptors: [VirtqDescriptor {
-            addr: 0,
-            len: 0,
-            flags: 0,
-            next: 0,
-        }; DESCRIPTOR_COUNT],
-        available: VirtqAvailable {
-            flags: 0,
-            idx: 0,
-            ring: [0; DESCRIPTOR_COUNT],
-        },
-        used: VirtqUsed {
-            flags: 0,
-            idx: 0,
-            ring: [VirtqUsedElement { id: 0, len: 0 }; DESCRIPTOR_COUNT],
-        },
-    },
-    transmit_queue: VirtQueue {
-        descriptors: [VirtqDescriptor {
-            addr: 0,
-            len: 0,
-            flags: 0,
-            next: 0,
-        }; DESCRIPTOR_COUNT],
-        available: VirtqAvailable {
-            flags: 0,
-            idx: 0,
-            ring: [0; DESCRIPTOR_COUNT],
-        },
-        used: VirtqUsed {
-            flags: 0,
-            idx: 0,
-            ring: [VirtqUsedElement { id: 0, len: 0 }; DESCRIPTOR_COUNT],
-        },
-    },
-};
-
 // First page - first section is descriptors
 // Second portion of 1st page is available
 // Second page is used
@@ -217,7 +178,7 @@ impl VirtqUsed {
 
 struct VirtioNetInner {
     mmio: Mmio,
-    // add your stuff here
+    virtual_queues: VirtualQueues,
 }
 
 impl VirtioNetInner {
@@ -225,8 +186,57 @@ impl VirtioNetInner {
     unsafe fn new(mmio_base: usize) -> Self {
         let mut mmio = Mmio::new(mmio_base);
 
-        // mmio.sanity_check_panic();
+        let mut virtual_queues = VirtualQueues {
+            receive_queue: VirtQueue {
+                descriptors: [VirtqDescriptor {
+                    addr: 0,
+                    len: 0,
+                    flags: 0,
+                    next: 0,
+                }; DESCRIPTOR_COUNT],
+                available: VirtqAvailable {
+                    flags: 0,
+                    idx: 0,
+                    ring: [0; DESCRIPTOR_COUNT],
+                },
+                used: VirtqUsed {
+                    flags: 0,
+                    idx: 0,
+                    ring: [VirtqUsedElement { id: 0, len: 0 }; DESCRIPTOR_COUNT],
+                },
+            },
+            transmit_queue: VirtQueue {
+                descriptors: [VirtqDescriptor {
+                    addr: 0,
+                    len: 0,
+                    flags: 0,
+                    next: 0,
+                }; DESCRIPTOR_COUNT],
+                available: VirtqAvailable {
+                    flags: 0,
+                    idx: 0,
+                    ring: [0; DESCRIPTOR_COUNT],
+                },
+                used: VirtqUsed {
+                    flags: 0,
+                    idx: 0,
+                    ring: [VirtqUsedElement { id: 0, len: 0 }; DESCRIPTOR_COUNT],
+                },
+            },
+        };
 
+        let mut virtio_inner = Self {
+            mmio,
+            virtual_queues,
+        };
+
+        virtio_inner.init();
+        virtio_inner.testing();
+
+        virtio_inner
+    }
+
+    unsafe fn init(&mut self) {
         println!("Initializing Virtio Network Device");
 
         // VIRTIO DEVICE INIT
@@ -242,34 +252,40 @@ impl VirtioNetInner {
         // Set the DRIVER_OK status bit. At this point the device is “live”.
 
         // Acknowledge Device
-        mmio.update_device_status(VirtioDeviceStatus::Acknowledge);
-        mmio.update_device_status(VirtioDeviceStatus::Driver); // But do we really know how to drive the device?
+        self.mmio
+            .update_device_status(VirtioDeviceStatus::Acknowledge);
+        self.mmio.update_device_status(VirtioDeviceStatus::Driver); // But do we really know how to drive the device?
 
-        Self::negotiate_features(&mut mmio);
+        self.negotiate_features();
 
         // Tell the Device that feature Negotiation is complete
-        mmio.update_device_status(VirtioDeviceStatus::FeaturesOk);
+        self.mmio
+            .update_device_status(VirtioDeviceStatus::FeaturesOk);
 
         // Check that Features OK Bit is still set!
         // TODO: Actually check the Feature Bit!
-        Self::print_device_status(&mut mmio);
+        self.print_device_status();
+        if (self.mmio.accessor.read_device_status() & VirtioDeviceStatus::FeaturesOk.value()) == 0 {
+            panic!("Failed to negotiate virtio net features!");
+        }
 
         // Setup Virtual Queues
-        Self::initialize_virtual_queue(&mut mmio, 0, &VIRTUAL_QUEUES.receive_queue);
-        Self::initialize_virtual_queue(&mut mmio, 1, &VIRTUAL_QUEUES.transmit_queue);
+        self.initialize_virtual_queue(0, &(self.virtual_queues.receive_queue));
+        self.initialize_virtual_queue(1, &(self.virtual_queues.transmit_queue));
 
         // Tell the Device we're all done, even though we aren't
-        mmio.update_device_status(VirtioDeviceStatus::DriverOk);
+        self.mmio.update_device_status(VirtioDeviceStatus::DriverOk);
 
-        Self::print_device_status(&mut mmio);
+        self.print_device_status();
+    }
 
+    unsafe fn testing(&mut self) {
         println!(
             "VIRTQ STRUCT ADDR: {:x}",
-            (&VIRTUAL_QUEUES as *const VirtualQueues) as usize
+            (&self.virtual_queues as *const VirtualQueues) as usize
         );
 
         // *** Stuff For Testing ***
-        // FIXME: shove into #[cfg(test)]? i.e. how can we test legitimately?
 
         // Populate the testing packet with Tian's packet
         for i in 0..TIAN_PACKET.len() {
@@ -278,102 +294,94 @@ impl VirtioNetInner {
 
         // Populate Receive Queue
         for i in 0..DESCRIPTOR_COUNT {
-            VIRTUAL_QUEUES.receive_queue.descriptors[i] = VirtqDescriptor {
+            self.virtual_queues.receive_queue.descriptors[i] = VirtqDescriptor {
                 addr: (&BUFFERS[i] as *const VirtioNetCompletePacket) as u64,
                 len: 1526,
                 flags: 0 | 2, // Writeable
                 next: 0,
             };
-            VIRTUAL_QUEUES.receive_queue.available.ring[i] = i as u16;
-            VIRTUAL_QUEUES.receive_queue.available.idx += 1;
+            self.virtual_queues.receive_queue.available.ring[i] = i as u16;
+            self.virtual_queues.receive_queue.available.idx += 1;
         }
 
         for i in 30..32 {
             println!(
                 "DESCRIPTOR {:}: {:#x?}",
-                i, VIRTUAL_QUEUES.receive_queue.descriptors[i]
+                i, self.virtual_queues.receive_queue.descriptors[i]
             );
         }
 
         // Notify the device that we've changed things in Queue 0, the receive queue
-        mmio.queue_notify(0, 0);
+        self.mmio.queue_notify(0, 0);
 
         println!("VirtIO Device Initialized!");
 
         // SENDING PACKET BELOW
 
-        VIRTUAL_QUEUES.transmit_queue.descriptors[0] = VirtqDescriptor {
+        self.virtual_queues.transmit_queue.descriptors[0] = VirtqDescriptor {
             addr: (&PACKET_FOR_SENDING as *const VirtioNetCompletePacket) as u64,
             len: 1526,
             flags: 0,
             next: 0,
         };
 
-        println!("{:#?}", VIRTUAL_QUEUES.transmit_queue.descriptors[0]);
+        println!("{:#?}", self.virtual_queues.transmit_queue.descriptors[0]);
 
-        VIRTUAL_QUEUES.transmit_queue.available.ring[0] = 0;
-        VIRTUAL_QUEUES.transmit_queue.available.idx += 1;
+        self.virtual_queues.transmit_queue.available.ring[0] = 0;
+        self.virtual_queues.transmit_queue.available.idx += 1;
 
         println!("Notification Sending");
-        mmio.queue_notify(1, 1);
+        self.mmio.queue_notify(1, 1);
         println!("Notification Sent");
 
         println!("---------------------");
-        mmio.accessor.write_queue_select(0);
-        Self::print_device_config(&mut mmio);
-        mmio.accessor.write_queue_select(1);
-        Self::print_device_config(&mut mmio);
-
-        Self { mmio }
+        self.mmio.accessor.write_queue_select(0);
+        self.print_device_config();
+        self.mmio.accessor.write_queue_select(1);
+        self.print_device_config();
     }
 
-    unsafe fn negotiate_features(mmio: &mut Mmio) {
+    unsafe fn negotiate_features(&mut self) {
         // Negotiate Features
 
         let mut driver_features: u32 = 0;
         driver_features |= 1 << 5; // Enable Device MAC Address
         driver_features |= 1 << 16; // Enable Device Status
                                     // feature_bits |= 15; // VIRTIO_NET_F_MRG_RXBUF - Driver can merge recieved buffers
-        mmio.accessor.write_driver_feature(driver_features); // Should be &'d with device_features
+        self.mmio.accessor.write_driver_feature(driver_features); // Should be &'d with device_features
     }
 
-    unsafe fn print_device_config(mmio: &mut Mmio) {
-        let mut cfg = mmio.read_common_config();
+    unsafe fn print_device_config(&mut self) {
+        let mut cfg = self.mmio.read_common_config();
         println!("{:#?}", cfg);
     }
 
-    unsafe fn print_device_status(mmio: &mut Mmio) {
-        let device_status = mmio.accessor.read_device_status();
+    unsafe fn print_device_status(&mut self) {
+        let device_status = self.mmio.accessor.read_device_status();
         println!("Device Status Bits: {:b}", device_status);
     }
 
     /// Receive Queues must be 2*N and Transmit Queues must be 2*N + 1
     /// For example, Receive Queue must be 0 and Transmit Queue must be 1
-    unsafe fn initialize_virtual_queue(mmio: &mut Mmio, queue_index: u16, virt_queue: &VirtQueue) {
-        println!("###CONFIG BEFORE###");
-        Self::print_device_config(mmio);
-        println!("###################");
+    unsafe fn initialize_virtual_queue(&self, queue_index: u16, virt_queue: &VirtQueue) {
+        self.mmio.accessor.write_queue_select(queue_index);
 
-        mmio.accessor.write_queue_select(queue_index);
-
-        mmio.accessor.write_queue_desc(
+        self.mmio.accessor.write_queue_desc(
             (&virt_queue.descriptors as *const [VirtqDescriptor; DESCRIPTOR_COUNT]) as u64,
         );
-        mmio.accessor
+        self.mmio
+            .accessor
             .write_queue_driver((&virt_queue.available as *const VirtqAvailable) as u64);
-        mmio.accessor
+        self.mmio
+            .accessor
             .write_queue_device((&virt_queue.used as *const VirtqUsed) as u64);
-        mmio.accessor.write_queue_enable(1);
+        self.mmio.accessor.write_queue_enable(1);
 
         println!(
             "Config for QUEUE {:} should be: {:#?}",
             queue_index,
             (&virt_queue.descriptors as *const [VirtqDescriptor; DESCRIPTOR_COUNT]) as u64
         );
-
-        println!("###CONFIG AFTER###");
-        Self::print_device_config(mmio);
-        println!("##################");
     }
 
     fn to_shared(self) -> VirtioNet {
@@ -462,7 +470,7 @@ pub fn trusted_entry(
         smol.do_rx();
         smol.do_tx();
 
-        thread::sleep(1000);
+        // thread::sleep(1000);
     }
 
     // // let mut neighbor_cache_entries = [None; 8];
