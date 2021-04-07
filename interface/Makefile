@@ -2,7 +2,7 @@ ROOT := ../
 OUTPUT_DIR = generated
 LIB_RS = $(OUTPUT_DIR)/src/lib.rs
 MANIFEST_PATH = $(OUTPUT_DIR)/Cargo.toml
-NGC = RUST_LOG=INFO RUST_BACKTRACE=1 cargo run --manifest-path $(ROOT)/tools/redIDL/codegen/ngc/Cargo.toml
+NGC = RUST_LOG=INFO RUST_BACKTRACE=1 cargo run --manifest-path $(ROOT)/tools/redIDL/codegen/ngc/Cargo.toml --release 
 
 .PHONY: all
 all: $(LIB_RS) $(MANIFEST_PATH)
