@@ -2,7 +2,7 @@ use crate::NetworkStats;
 use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
-use rref::RRefDeque;
+use interface::rref::RRefDeque;
 use interface::error::Result;
 use interface::rpc::RpcResult;
 

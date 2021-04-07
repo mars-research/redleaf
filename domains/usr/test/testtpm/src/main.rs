@@ -19,7 +19,7 @@ pub fn trusted_entry(
 ) {
     libsyscalls::syscalls::init(s);
 
-    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!("Initalizing domain: testtpm");
 

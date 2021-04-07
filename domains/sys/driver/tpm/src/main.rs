@@ -37,7 +37,7 @@ pub fn trusted_entry(
 ) -> Box<dyn interface::tpm::UsrTpm> {
     libsyscalls::syscalls::init(s);
 
-    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!("tpm_init: =>  starting tpm driver domain");
 

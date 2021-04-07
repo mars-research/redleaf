@@ -3,7 +3,7 @@
 /// Some of the syscalls do no return the buffer back to the caller. Feel free
 /// to change it if it's needed.
 use alloc::boxed::Box;
-use rref::RRefVec;
+use crate::rref::RRefVec;
 
 pub use crate::vfs::file::{FileMode, FileStat, INodeFileType};
 pub use crate::vfs::directory::{DirectoryEntry, DirectoryEntryRef};

@@ -1,4 +1,4 @@
-use rref::RRefDeque;
+use interface::rref::RRefDeque;
 use interface::bdev::{BlkReq, NvmeBDev};
 use interface::error::Result;
 use interface::rpc::RpcResult;

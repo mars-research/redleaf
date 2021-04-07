@@ -10,7 +10,6 @@ edition = "2018"
 console = { path = "../../../lib/core/console" }
 libsyscalls = { path = "../../../lib/core/libsyscalls" }
 interface = { path = "../../../interface/generated" }
-rref = { path = "../../../lib/core/rref" }
 
 [dependencies.smoltcp]
 path = "../../../lib/external/smoltcp"

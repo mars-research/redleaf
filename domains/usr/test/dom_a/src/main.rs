@@ -9,7 +9,7 @@ use core::panic::PanicInfo;
 use syscalls::{Heap, Syscall};
 
 use libtime::get_rdtsc as rdtsc;
-use rref::{RRef, RRefDeque};
+use interface::rref::{RRef, RRefDeque};
 use tls::ThreadLocal;
 #[macro_use]
 use lazy_static::lazy_static;
@@ -88,7 +88,7 @@ pub fn trusted_entry(
     heap: Box<dyn Heap + Send + Sync>,
 ) -> Box<dyn interface::dom_a::DomA> {
     libsyscalls::syscalls::init(s);
-    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!(
         "In domain A, id: {}",

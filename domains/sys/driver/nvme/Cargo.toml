@@ -21,7 +21,6 @@ interface = { path = "../../../../interface/generated" }
 protocol = { path = "../../../../lib/core/interfaces/protocol" }
 platform = { path = "../../../../lib/core/interfaces/platform" }
 libdma = { path = "../../../../lib/devices/libdma" }
-rref = { path = "../../../../lib/core/rref" }
 b2histogram = "1.0"
 
 [dependencies.lazy_static]

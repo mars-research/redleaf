@@ -8,5 +8,4 @@ edition = "2018"
 
 [dependencies]
 interface = { path = "../../../interface/generated" }
-rref = { path = "../../core/rref" }
 spin = { path = "../../core/spin-rs" }

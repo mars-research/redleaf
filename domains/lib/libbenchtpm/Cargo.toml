@@ -9,7 +9,6 @@ crate-type = ["lib"]
 [dependencies]
 libsyscalls = { path = "../../../lib/core/libsyscalls" }
 libtime = { path = "../../../lib/core/libtime" }
-rref = { path = "../../../lib/core/rref" }
 interface = { path = "../../../interface/generated" }
 console = { path = "../../../lib/core/console" }
 libtpm = { path= "../libtpm" }

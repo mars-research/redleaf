@@ -1,5 +1,5 @@
 use alloc::boxed::Box;
-use rref::RRefVec;
+use crate::rref::RRefVec;
 
 use crate::rpc::RpcResult;
 use crate::error::Result;

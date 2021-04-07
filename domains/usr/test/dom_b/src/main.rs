@@ -10,7 +10,7 @@ use console::println;
 
 use core::panic::PanicInfo;
 use libtime::get_rdtsc as rdtsc;
-use rref::{RRef, RRefDeque, Owned};
+use interface::rref::{RRef, RRefDeque, Owned};
 use interface::dom_a::{DomA, OwnedTest};
 use core::ops::Deref;
 
@@ -62,20 +62,20 @@ pub fn trusted_entry(
     dom_a: Box<dyn DomA>,
 ) {
     libsyscalls::syscalls::init(s);
-    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!(
         "In domain B, id: {}",
         libsyscalls::syscalls::sys_get_current_domain_id()
     );
 
-    {
-        println!("rref drop test");
-        let rref1 = RRef::new(10usize);
-        let rref2 = RRef::new(rref1); // RRef<RRef<usize>>
-        println!("dropping rref2, should print drop_t::RRef<RRef<usize>> then drop_t::RRef<usize>");
-        drop(rref2);
-    }
+    // {
+    //     println!("rref drop test");
+    //     let rref1 = RRef::new(10usize);
+    //     let rref2 = RRef::new(rref1); // RRef<RRef<usize>>
+    //     println!("dropping rref2, should print drop_t::RRef<RRef<usize>> then drop_t::RRef<usize>");
+    //     drop(rref2);
+    // }
 
     {
         println!("RRef::Owned<T> test");

@@ -20,7 +20,7 @@ pub fn trusted_entry(
     net: Box<dyn Net>,
 ) {
     libsyscalls::syscalls::init(s);
-    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!("Init domain benchnet_inside");
 

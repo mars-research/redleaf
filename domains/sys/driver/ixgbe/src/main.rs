@@ -42,7 +42,7 @@ use crate::device::Intel8259x;
 use core::cell::RefCell;
 pub use interface::error::{ErrorKind, Result};
 
-use rref::RRefDeque;
+use interface::rref::RRefDeque;
 
 pub use interface::net::NetworkStats;
 
@@ -363,7 +363,7 @@ pub fn trusted_entry(
     pci: Box<dyn interface::pci::PCI>,
 ) -> Box<dyn interface::net::Net> {
     libsyscalls::syscalls::init(s);
-    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!("ixgbe_init: =>  starting ixgbe driver domain");
     #[cfg(not(feature = "nullnet"))]

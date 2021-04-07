@@ -16,7 +16,7 @@ use platform::PciBarAddr;
 use ixgbe_regs::{IxgbeDmaRegs, IxgbeNonDmaRegs};
 use libtime::sys_ns_loopsleep;
 use alloc::format;
-use rref::{RRef, RRefDeque};
+use interface::rref::{RRef, RRefDeque};
 pub use ixgbe_regs::{IxgbeRegs, IxgbeNoDmaArrayRegs};
 
 const TX_CLEAN_BATCH: usize = 32;

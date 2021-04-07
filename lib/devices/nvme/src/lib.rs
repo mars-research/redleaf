@@ -25,7 +25,7 @@ pub use nvme_regs::{NvmeRegs32, NvmeRegs64};
 use nvme_regs::NvmeArrayRegs;
 use queue::{NvmeCommandQueue, NvmeCompletionQueue};
 pub use libsyscalls::errors::Result;
-use rref::{RRef, RRefDeque};
+use interface::rref::{RRef, RRefDeque};
 use interface::bdev::BlkReq;
 
 const ONE_MS_IN_NS: u64 = 1_000_000 * 1;

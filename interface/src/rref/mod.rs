@@ -1,19 +1,12 @@
 #![no_std]
-#![allow(incomplete_features)]
-#![feature(const_generics)]
-#![feature(negative_impls)]
-#![feature(auto_traits)]
-#![feature(specialization)]
-#![feature(type_name_of_val)]
 
-extern crate alloc;
 
-mod rref;
-mod rref_deque;
-mod rref_array;
-mod rref_vec;
+pub mod rref;
+pub mod rref_deque;
+pub mod rref_array;
+pub mod rref_vec;
 pub mod traits;
-mod owned;
+pub mod owned;
 
 pub use self::rref::init as init;
 pub use self::rref::RRef as RRef;

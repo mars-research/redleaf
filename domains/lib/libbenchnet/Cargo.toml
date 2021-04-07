@@ -11,7 +11,6 @@ b2histogram = "1.0"
 byteorder = { version = "1.2", default-features = false }
 libsyscalls = { path = "../../../lib/core/libsyscalls" }
 libtime = { path = "../../../lib/core/libtime" }
-rref = { path = "../../../lib/core/rref" }
 interface = { path = "../../../interface/generated" }
 console = { path = "../../../lib/core/console" }
 hashbrown = "0.7.2"

@@ -12,7 +12,7 @@ use console::println;
 
 use core::panic::PanicInfo;
 
-use rref::RRef;
+use interface::rref::RRef;
 
 use interface::domain_creation::CreateMemBDev;
 use spin::Mutex;
@@ -137,7 +137,7 @@ pub fn trusted_entry(
     create_bdev: Arc<dyn CreateMemBDev>,
 ) -> Box<dyn BDev> {
     libsyscalls::syscalls::init(s);
-    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!("Init bdev shadow domain");
 

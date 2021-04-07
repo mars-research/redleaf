@@ -1,6 +1,6 @@
-use crate::rref_array::RRefArray;
-use crate::rref::RRef;
-use crate::traits::{RRefable, CustomCleanup, TypeIdentifiable};
+use super::rref_array::RRefArray;
+use super::rref::RRef;
+use super::traits::{RRefable, CustomCleanup, TypeIdentifiable};
 
 pub struct RRefDeque<T: RRefable, const N: usize> where T: 'static {
     arr: RRefArray<T, N>,

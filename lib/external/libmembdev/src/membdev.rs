@@ -1,6 +1,6 @@
 use spin::Mutex;
 
-use rref::RRef;
+use interface::rref::RRef;
 use interface::bdev::{BDev, BSIZE};
 use interface::rpc::RpcResult;
 

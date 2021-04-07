@@ -23,7 +23,7 @@ pub fn trusted_entry(
     mut memdisk: &'static mut [u8],
 ) -> Box<dyn BDev> {
     libsyscalls::syscalls::init(s);
-    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     #[cfg(feature = "default-memdisk")]
     if memdisk.is_empty() {

@@ -17,7 +17,7 @@ use console::println;
 use core::panic::PanicInfo;
 use interface::domain_creation;
 use libsyscalls;
-use rref;
+use interface::rref;
 use syscalls;
 
 #[no_mangle]
@@ -46,7 +46,7 @@ pub fn trusted_entry(
     create_shadow: Arc<dyn interface::domain_creation::CreateShadow>,
 ) -> Arc<dyn interface::proxy::Proxy> {
     libsyscalls::syscalls::init(s);
-    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     Arc::new(gen::Proxy::new(
         create_pci,

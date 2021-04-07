@@ -19,7 +19,6 @@ console = { path = "../../../../../lib/core/console" }
 malloc = { path = "../../../../../lib/core/malloc" }
 tls = { path = "../../../../../lib/core/tls" }
 utils = { path = "../../lib/utils" }
-rref = { path = "../../../../../lib/core/rref" }
 smolnet = { path = "../../../../lib/smolnet" }
 redhttpd = { path = "../../../../lib/redhttpd" }
 

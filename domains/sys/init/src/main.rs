@@ -18,7 +18,7 @@ use interface::domain_creation::*;
 use libsyscalls::syscalls::{
     sys_backtrace, sys_create_thread, sys_readch_kbd, sys_recv_int, sys_yield,
 };
-use rref::RRefVec;
+use interface::rref::RRefVec;
 
 #[cfg(feature = "test_guard_page")]
 fn test_stack_exhaustion() -> u64 {
@@ -125,7 +125,7 @@ pub fn trusted_entry(
     create_shadow: Arc<dyn interface::domain_creation::CreateShadow>,
 ) {
     libsyscalls::syscalls::init(s);
-    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     let ints_clone = ints.int_clone();
     libsyscalls::syscalls::init_interrupts(ints);

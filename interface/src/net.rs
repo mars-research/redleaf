@@ -1,6 +1,6 @@
 /// RedLeaf network interface
 use alloc::boxed::Box;
-use rref::{RRef, RRefDeque};
+use crate::rref::{RRef, RRefDeque};
 // TODO: remove once Ixgbe transitions to RRefDeque
 use alloc::{vec::Vec, collections::VecDeque};
 use crate::error::Result;

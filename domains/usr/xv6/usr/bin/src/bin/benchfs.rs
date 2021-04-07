@@ -10,7 +10,7 @@ use alloc::boxed::Box;
 
 use core::panic::PanicInfo;
 
-use rref::RRefVec;
+use interface::rref::RRefVec;
 use syscalls::{Heap, Syscall};
 use interface::rv6::Rv6;
 use interface::vfs::{DirectoryEntry, DirectoryEntryRef, FileMode, INodeFileType};
@@ -29,7 +29,7 @@ pub fn trusted_entry(
     args: &str,
 ) {
     libsyscalls::syscalls::init(s);
-    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
     usrlib::init(rv6.clone_rv6().unwrap());
     println!("Starting rv6 benchfs with args: {}", args);
 

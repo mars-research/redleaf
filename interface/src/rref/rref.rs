@@ -1,13 +1,13 @@
 // although unsafe function's don't need unsafe blocks, it helps readability
 #![allow(unused_unsafe)]
-use crate::traits::{RRefable, TypeIdentifiable, CustomCleanup};
+use super::traits::{RRefable, TypeIdentifiable, CustomCleanup};
 
 use alloc::boxed::Box;
 use core::ops::{Deref, DerefMut, Drop};
 use core::alloc::Layout;
 use spin::Once;
 
-// #[cfg(features = "rref_dbg")]
+#[cfg(features = "rref_dbg")]
 use console::println;
 
 static HEAP: Once<Box<dyn syscalls::Heap + Send + Sync>> = Once::new();

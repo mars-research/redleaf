@@ -13,5 +13,5 @@ console = { path = "../../core/console" }
 libdma = { path = "../libdma" }
 platform = { path = "../../core/interfaces/platform" }
 malloc = { path = "../../core/malloc" }
-rref = { path = "../../core/rref" }
+interface = { path = "../../../interface/generated" }
 array-init = "0.1.1"

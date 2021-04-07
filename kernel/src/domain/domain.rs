@@ -89,7 +89,7 @@ pub fn init_domains() {
     libsyscalls::syscalls::init(Box::new(PDomain::new(Arc::clone(&kernel))));
     KERNEL_DOMAIN.call_once(|| kernel);
     // init global references to syscalls (mostly for RRef deallocation)
-    rref::init(Box::new(PHeap::new()), 0);
+    interface::rref::init(Box::new(PHeap::new()), 0);
 }
 
 impl elfloader::ElfLoader for Domain {

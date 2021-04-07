@@ -1,4 +1,4 @@
-use rref::RRef;
+use crate::rref::RRef;
 
 use crate::rpc::RpcResult;
 

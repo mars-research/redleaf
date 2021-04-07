@@ -3,7 +3,7 @@
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use alloc::collections::VecDeque;
-use rref::{RRefVec, RRefDeque};
+use crate::rref::{RRefVec, RRefDeque};
 
 use crate::vfs::{UsrVFS, NFILE};
 use crate::net::{Net, NetworkStats};

@@ -11,7 +11,7 @@ use console::println;
 use core::ops::{Deref, DerefMut};
 use spin::{Mutex, Once};
 
-use rref::RRef;
+use interface::rref::RRef;
 use interface::bdev::BDev;
 
 pub static BCACHE: Once<BufferCache> = Once::new();

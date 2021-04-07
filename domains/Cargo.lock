@@ -61,7 +61,6 @@ dependencies = [
  "libtime",
  "malloc",
  "num-traits",
- "rref",
  "spin 0.5.3",
  "syscalls",
 ]
@@ -79,7 +78,6 @@ dependencies = [
  "libtime",
  "malloc",
  "num-traits",
- "rref",
  "sashstore-redleaf",
  "syscalls",
  "twox-hash",
@@ -97,7 +95,6 @@ dependencies = [
  "libtime",
  "malloc",
  "num-traits",
- "rref",
  "syscalls",
 ]
 
@@ -113,7 +110,6 @@ dependencies = [
  "libtime",
  "malloc",
  "num-traits",
- "rref",
  "syscalls",
 ]
 
@@ -131,7 +127,6 @@ dependencies = [
  "libtime",
  "malloc",
  "redhttpd",
- "rref",
  "syscalls",
  "utils",
 ]
@@ -242,7 +237,6 @@ dependencies = [
  "libtime",
  "malloc",
  "num-traits",
- "rref",
  "spin 0.5.3",
  "syscalls",
  "tls",
@@ -259,7 +253,6 @@ dependencies = [
  "libtime",
  "malloc",
  "num-traits",
- "rref",
  "spin 0.5.3",
  "syscalls",
 ]
@@ -275,7 +268,6 @@ dependencies = [
  "libtime",
  "malloc",
  "num-traits",
- "rref",
  "spin 0.5.3",
  "syscalls",
 ]
@@ -291,7 +283,6 @@ dependencies = [
  "libtime",
  "malloc",
  "num-traits",
- "rref",
  "spin 0.5.3",
  "syscalls",
 ]
@@ -308,7 +299,6 @@ dependencies = [
  "libtime",
  "malloc",
  "num-traits",
- "rref",
  "spin 0.5.3",
  "syscalls",
  "unwind",
@@ -366,11 +356,13 @@ version = "0.1.0"
 dependencies = [
  "bitflags",
  "byteorder",
+ "console",
+ "hashbrown 0.7.2",
  "libsyscalls",
  "num-derive",
  "num-traits",
  "pci_driver",
- "rref",
+ "spin 0.5.3",
  "syscalls",
  "unwind",
 ]
@@ -396,7 +388,6 @@ dependencies = [
  "platform",
  "protocol",
  "redhttpd",
- "rref",
  "sashstore-redleaf",
  "smolnet",
  "smoltcp",
@@ -410,12 +401,12 @@ version = "0.1.0"
 dependencies = [
  "array-init",
  "console",
+ "interface",
  "libdma",
  "libsyscalls",
  "libtime",
  "malloc",
  "platform",
- "rref",
 ]
 
 [[package]]
@@ -433,7 +424,6 @@ version = "0.1.0"
 dependencies = [
  "array-init",
  "interface",
- "rref",
  "spin 0.5.2",
 ]
 
@@ -449,7 +439,6 @@ dependencies = [
  "interface",
  "libsyscalls",
  "libtime",
- "rref",
  "sashstore-redleaf",
  "twox-hash",
 ]
@@ -464,7 +453,6 @@ dependencies = [
  "interface",
  "libsyscalls",
  "libtime",
- "rref",
 ]
 
 [[package]]
@@ -476,7 +464,6 @@ dependencies = [
  "libsyscalls",
  "libtime",
  "libtpm",
- "rref",
 ]
 
 [[package]]
@@ -500,7 +487,6 @@ dependencies = [
  "console",
  "interface",
  "libtime",
- "rref",
  "spin 0.5.3",
 ]
 
@@ -541,7 +527,6 @@ name = "libusr"
 version = "0.1.0"
 dependencies = [
  "interface",
- "rref",
  "spin 0.5.3",
 ]
 
@@ -582,7 +567,6 @@ dependencies = [
  "libtime",
  "malloc",
  "num-traits",
- "rref",
  "spin 0.5.3",
  "syscalls",
 ]
@@ -598,7 +582,6 @@ dependencies = [
  "libtime",
  "malloc",
  "num-traits",
- "rref",
  "spin 0.5.3",
  "syscalls",
 ]
@@ -643,7 +626,6 @@ dependencies = [
  "pci_driver",
  "platform",
  "protocol",
- "rref",
  "serde_derive",
  "spin 0.5.2",
  "syscalls",
@@ -660,7 +642,6 @@ dependencies = [
  "libtime",
  "malloc",
  "platform",
- "rref",
 ]
 
 [[package]]
@@ -674,7 +655,6 @@ dependencies = [
  "libtime",
  "malloc",
  "num-traits",
- "rref",
  "spin 0.5.3",
  "syscalls",
 ]
@@ -709,7 +689,6 @@ dependencies = [
  "num-traits",
  "pci_driver",
  "pcidevice",
- "rref",
  "spin 0.5.3",
  "syscalls",
  "x86",
@@ -789,7 +768,6 @@ dependencies = [
  "console",
  "interface",
  "libsyscalls",
- "rref",
  "smoltcp",
 ]
 
@@ -806,17 +784,6 @@ dependencies = [
  "malloc",
  "num-traits",
  "pc-keyboard",
- "rref",
- "spin 0.5.3",
- "syscalls",
-]
-
-[[package]]
-name = "rref"
-version = "0.1.0"
-dependencies = [
- "console",
- "libsyscalls",
  "spin 0.5.3",
  "syscalls",
 ]
@@ -892,7 +859,6 @@ dependencies = [
  "libtime",
  "malloc",
  "num-traits",
- "rref",
  "spin 0.5.3",
  "syscalls",
 ]
@@ -912,7 +878,6 @@ dependencies = [
  "console",
  "interface",
  "libsyscalls",
- "rref",
  "smoltcp",
  "spin 0.5.3",
 ]
@@ -976,7 +941,6 @@ dependencies = [
  "libtime",
  "libtpm",
  "malloc",
- "rref",
  "syscalls",
 ]
 
@@ -1008,7 +972,6 @@ dependencies = [
  "num-traits",
  "platform",
  "protocol",
- "rref",
  "spin 0.5.3",
  "syscalls",
  "tpm_device",
@@ -1098,7 +1061,6 @@ dependencies = [
  "malloc",
  "num-traits",
  "pc-keyboard",
- "rref",
  "spin 0.5.3",
  "sync",
  "syscalls",
@@ -1118,7 +1080,6 @@ dependencies = [
  "libtime",
  "malloc",
  "num-traits",
- "rref",
  "spin 0.5.3",
  "sync",
  "syscalls",
@@ -1140,7 +1101,6 @@ dependencies = [
  "malloc",
  "num-traits",
  "redhttpd",
- "rref",
  "smolnet",
  "smoltcp",
  "spin 0.5.3",
@@ -1161,7 +1121,6 @@ dependencies = [
  "libtime",
  "malloc",
  "num-traits",
- "rref",
  "spin 0.5.3",
  "syscalls",
 ]

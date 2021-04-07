@@ -1,5 +1,5 @@
 /// RedLeaf block device interface
-use rref::{RRef, RRefDeque, traits::TypeIdentifiable};
+use crate::rref::{RRef, RRefDeque, traits::TypeIdentifiable};
 
 use crate::error::Result;
 use crate::rpc::RpcResult;
@@ -28,10 +28,6 @@ pub struct BlkReq {
    pub data: [u8; 4096],
    pub data_len: usize,
    pub block: u64,
-}
-
-impl TypeIdentifiable for BlkReq {
-    fn type_id() -> u64 { 1 }
 }
 
 impl BlkReq {

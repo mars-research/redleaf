@@ -18,7 +18,6 @@ rv6_sync = { package = "sync", path = "../../lib/sync", version = "0.1.0" }
 syscalls = { path = "../../../../../lib/core/interfaces/syscalls" }
 interface = { path = "../../../../../interface/generated" }
 libsyscalls = { path = "../../../../../lib/core/libsyscalls" }
-rref = { path = "../../../../../lib/core/rref" }
 console = { path = "../../../../../lib/core/console" }
 malloc = { path = "../../../../../lib/core/malloc" }
 spin = { path = "../../../../../lib/core/spin-rs" }

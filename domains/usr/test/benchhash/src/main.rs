@@ -290,7 +290,7 @@ fn run_bench(_capacity: usize, _keys: usize) {
 #[no_mangle]
 pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>) {
     libsyscalls::syscalls::init(s);
-    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!("Initalizing domain: {}", DOMAIN_NAME);
 

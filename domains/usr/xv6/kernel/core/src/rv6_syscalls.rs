@@ -8,7 +8,7 @@ use spin::Mutex;
 
 use console::println;
 use interface::domain_creation::CreateRv6Usr;
-use rref::{RRefDeque, RRefVec};
+use interface::rref::{RRefDeque, RRefVec};
 use interface::bdev::{BlkReq, NvmeBDev};
 use interface::net::{Net, NetworkStats};
 use interface::rpc::RpcResult;

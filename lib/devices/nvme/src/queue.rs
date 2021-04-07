@@ -12,7 +12,7 @@ use libdma::nvme::{NvmeCommand, NvmeCompletion};
 use crate::{Result, BlockReq};
 use crate::array_init;
 use console::{println, print};
-use rref::{RRef, RRefDeque};
+use interface::rref::{RRef, RRefDeque};
 use alloc::vec::Vec;
 use interface::bdev::BlkReq;
 

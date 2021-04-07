@@ -16,7 +16,7 @@ use core::panic::PanicInfo;
 
 use alloc::vec::Vec;
 use interface::domain_creation::CreateIxgbe;
-use rref::RRefDeque;
+use interface::rref::RRefDeque;
 use spin::Mutex;
 use interface::error::Result;
 use interface::net::{Net, NetworkStats};
@@ -112,7 +112,7 @@ pub fn trusted_entry(
     pci: Box<dyn PCI>,
 ) -> Box<dyn Net> {
     libsyscalls::syscalls::init(s);
-    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!("Init net shadow domain");
 

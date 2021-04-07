@@ -11,7 +11,6 @@ libsyscalls = { path = "../../../../lib/core/libsyscalls" }
 libtime = { path = "../../../../lib/core/libtime" }
 console = { path = "../../../../lib/core/console" }
 malloc = { path = "../../../../lib/core/malloc" }
-rref = { path = "../../../../lib/core/rref" }
 sashstore-redleaf = { path = "../../../../lib/external/sashstore" }
 hashbrown = "0.7.2"
 

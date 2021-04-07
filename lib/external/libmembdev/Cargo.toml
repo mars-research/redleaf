@@ -8,7 +8,6 @@ crate-type = ["lib"]
 
 [dependencies]
 interface = { path = "../../../interface/generated" }
-rref = { path = "../../core/rref" }
 console = { path = "../../core/console" }
 spin = { path = "../../core/spin-rs" }
 libtime = { path = "../../core/libtime" }

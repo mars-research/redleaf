@@ -11,7 +11,7 @@ use console::println;
 
 use core::panic::PanicInfo;
 
-use rref::RRef;
+use interface::rref::RRef;
 
 use interface::rpc::RpcResult;
 
@@ -49,7 +49,7 @@ pub fn trusted_entry(
     heap: Box<dyn Heap + Send + Sync>,
 ) -> Box<dyn interface::dom_c::DomC> {
     libsyscalls::syscalls::init(s);
-    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!("Init domain C");
 

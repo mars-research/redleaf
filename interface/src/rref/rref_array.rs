@@ -1,5 +1,5 @@
-use crate::rref::RRef;
-use crate::traits::{RRefable, CustomCleanup, TypeIdentifiable};
+use super::rref::RRef;
+use super::traits::{RRefable, CustomCleanup, TypeIdentifiable};
 
 pub struct RRefArray<T, const N: usize> where T: 'static + RRefable {
     arr: RRef<[Option<RRef<T>>; N]>

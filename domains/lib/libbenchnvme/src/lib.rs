@@ -8,7 +8,7 @@ use alloc::collections::VecDeque;
 use b2histogram::Base2Histogram;
 use console::{print, println};
 use libtime::get_rdtsc as rdtsc;
-use rref::{RRef, RRefDeque};
+use interface::rref::{RRef, RRefDeque};
 use interface::bdev::{BlkReq, NvmeBDev};
 use interface::error::Result;
 

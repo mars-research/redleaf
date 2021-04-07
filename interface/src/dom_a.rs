@@ -1,15 +1,9 @@
 /// RedLeaf block device interface
 use alloc::boxed::Box;
-use rref::{traits::TypeIdentifiable, RRef, RRefDeque, Owned};
+use crate::rref::{RRef, RRefDeque, Owned};
 
 pub struct OwnedTest {
     pub owned: Owned<u8>,
-}
-
-impl TypeIdentifiable for OwnedTest {
-    fn type_id() -> u64 {
-        792830234
-    }
 }
 
 pub trait DomA {

@@ -35,7 +35,7 @@ pub fn trusted_entry(
 ) {
     libsyscalls::syscalls::init(s);
     usrlib::init(rv6.clone_rv6().unwrap());
-    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
     println!("Starting rv6 shell with args: {}", args);
 
     // Shell commands that get run automatically after shell is launched

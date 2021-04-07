@@ -22,7 +22,7 @@ use alloc::boxed::Box;
 use console::println;
 use core::panic::PanicInfo;
 
-use rref::RRefVec;
+use interface::rref::RRefVec;
 use syscalls::{Heap, Syscall};
 use sysfile::{FileMode, FileStat};
 use interface::bdev::BDev;
@@ -148,7 +148,7 @@ pub fn trusted_entry(
     bdev: Box<dyn BDev>,
 ) -> Box<dyn VFS> {
     libsyscalls::syscalls::init(s);
-    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
     // libinterface::sysbdev::init(bdev);
 
     println!("init xv6 filesystem");

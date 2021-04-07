@@ -1,6 +1,6 @@
 /// RedLeaf PCI bus driver interface
 use alloc::boxed::Box;
-use rref::{RRef, RRefDeque};
+use crate::rref::{RRef, RRefDeque};
 use pci_driver::{PciDriver, PciClass, BarRegions, PciDrivers};
 
 pub trait PCI: Send {

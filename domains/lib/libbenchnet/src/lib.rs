@@ -20,7 +20,7 @@ use core::ptr;
 use libtime::get_rdtsc as rdtsc;
 use libtime::sys_ns_loopsleep;
 use packettool::{ETH_HEADER_LEN, IPV4_PROTO_OFFSET};
-use rref::{RRef, RRefDeque};
+use interface::rref::{RRef, RRefDeque};
 use sashstore_redleaf::SashStore;
 use interface::error::Result;
 use interface::net::{Net, NetworkStats};

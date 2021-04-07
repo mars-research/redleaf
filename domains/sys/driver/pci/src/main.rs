@@ -78,7 +78,7 @@ pub fn trusted_entry(
 
     libsyscalls::syscalls::init_mmap(m);
 
-    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     sys_println("init: starting PCI domain");
 

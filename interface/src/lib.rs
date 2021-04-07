@@ -1,5 +1,12 @@
 #![no_std]
 #![feature(trait_alias)]
+#![allow(incomplete_features)]
+#![feature(const_generics)]
+#![feature(negative_impls)]
+#![feature(auto_traits)]
+#![feature(specialization)]
+#![feature(type_name_of_val)]
+#![feature(core_panic)]
 
 // Features needed for proxy
 #![feature(global_asm, type_ascription)]
@@ -24,6 +31,8 @@ pub mod usrnet;
 pub mod vfs;
 pub mod rv6;
 pub mod tpm;
+pub mod rref;
+pub mod typeid;
 
 pub mod proxy;
 

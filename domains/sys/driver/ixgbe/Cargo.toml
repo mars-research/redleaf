@@ -18,7 +18,6 @@ libsyscalls = { path = "../../../../lib/core/libsyscalls" }
 libtime = { path = "../../../../lib/core/libtime" }
 console = { path = "../../../../lib/core/console" }
 malloc = { path = "../../../../lib/core/malloc" }
-rref = { path = "../../../../lib/core/rref" }
 spin = { path = "../../../../lib/core/spin-rs" }
 sashstore-redleaf = { path = "../../../../lib/external/sashstore" }
 libbenchnet = { path = "../../../lib/libbenchnet" }

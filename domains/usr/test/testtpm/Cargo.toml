@@ -12,4 +12,3 @@ libtime = { path = "../../../../lib/core/libtime" }
 libtpm = { path = "../../../lib/libtpm" }
 console = { path = "../../../../lib/core/console" }
 malloc = { path = "../../../../lib/core/malloc" }
-rref = { path = "../../../../lib/core/rref" }

@@ -19,7 +19,7 @@ use core::fmt::Write;
 
 use arrayvec::{ArrayString, ArrayVec};
 
-use rref::RRefVec;
+use interface::rref::RRefVec;
 use interface::usrnet::UsrNet;
 
 #[macro_use]

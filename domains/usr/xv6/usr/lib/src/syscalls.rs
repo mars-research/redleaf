@@ -5,7 +5,7 @@
 /// but they are easier to use and good for prototyping.
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-use rref::RRefVec;
+use interface::rref::RRefVec;
 use spin::Once;
 use interface::rv6::{FileMode, FileStat, Result, Rv6, Thread};
 use interface::vfs::{UsrVFS, NFILE};

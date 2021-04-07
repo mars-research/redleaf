@@ -33,7 +33,7 @@ use crate::device::NvmeDev;
 use libtime::get_rdtsc as rdtsc;
 use libtime::sys_ns_loopsleep;
 pub use nvme_device::BlockReq;
-use rref::RRefDeque;
+use interface::rref::RRefDeque;
 use interface::bdev::BlkReq;
 
 #[macro_use]
@@ -583,7 +583,7 @@ pub fn trusted_entry(
     pci: Box<dyn interface::pci::PCI>,
 ) -> Box<dyn interface::bdev::NvmeBDev> {
     libsyscalls::syscalls::init(s);
-    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!("nvme_init: starting nvme driver domain");
     #[cfg(not(feature = "nullnvme"))]

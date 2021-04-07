@@ -14,7 +14,7 @@ use console::println;
 
 use core::panic::PanicInfo;
 
-use rref::RRefDeque;
+use interface::rref::RRefDeque;
 
 use interface::domain_creation::CreateNvme;
 use spin::Mutex;
@@ -83,7 +83,7 @@ pub fn trusted_entry(
     pci: Box<dyn PCI>,
 ) -> Box<dyn NvmeBDev> {
     libsyscalls::syscalls::init(s);
-    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!("Init nvme shadow domain");
 

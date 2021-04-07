@@ -13,7 +13,7 @@ use console::println;
 
 use core::panic::PanicInfo;
 
-use rref::RRefVec;
+use interface::rref::RRefVec;
 
 use interface::domain_creation::CreateRv6Net;
 use spin::Mutex;
@@ -101,7 +101,7 @@ pub fn trusted_entry(
     net: Box<dyn Net>,
 ) -> Box<dyn UsrNet> {
     libsyscalls::syscalls::init(s);
-    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!("Init usrnet shadow domain");
 

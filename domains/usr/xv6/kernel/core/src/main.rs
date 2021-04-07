@@ -38,7 +38,7 @@ pub fn trusted_entry(
 ) -> Box<dyn Rv6> {
     libsyscalls::syscalls::init(s);
     libsyscalls::syscalls::init_interrupts(ints);
-    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!("init xv6/core");
 
