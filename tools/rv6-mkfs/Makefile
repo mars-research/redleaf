@@ -38,7 +38,7 @@ TEST_FILES=$(shell find build -mindepth 1 -maxdepth 1 | grep -e ln -e ls -e styl
 
 
 build/fs.img: build/mkfs $(FILES) $(BINS) $(HTDOCS) Makefile
-	mkdir -p build && cd build && ../target/debug/rv6-mkfs fs.img  $(FILES) $(BINS) $(HTDOCS)
+	mkdir -p build && cd build && cargo run --release -- fs.img  $(FILES) $(BINS) $(HTDOCS)
 
 build/fs.o: build/fs.img
 	objcopy -I binary -O elf64-x86-64 -B i386 build/fs.img build/fs.o
@@ -47,7 +47,7 @@ build/libfs.a: build/fs.o
 	ar cr --target elf64-x86-64 build/libfs.a build/fs.o
 
 test/fs.img: build/mkfs $(FILES) $(BINS) $(HTDOCS)  test_files Makefile
-	cd test && ../target/debug/rv6-mkfs fs.img
+	cd test && cargo run -- fs.img
 
 .PHONY: README.md
 README.md:
