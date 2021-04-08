@@ -44,6 +44,7 @@ pub fn trusted_entry(
     create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
     create_dom_d: Arc<dyn interface::domain_creation::CreateDomD>,
     create_shadow: Arc<dyn interface::domain_creation::CreateShadow>,
+    create_keyboard: Arc<dyn interface::domain_creation::CreateKeyboard>,
 ) -> Arc<dyn interface::proxy::Proxy> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
@@ -69,6 +70,7 @@ pub fn trusted_entry(
         create_dom_c,
         create_dom_d,
         create_shadow,
+        create_keyboard,
     ))
 }
 

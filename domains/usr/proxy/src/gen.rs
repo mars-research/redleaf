@@ -50,6 +50,7 @@ pub struct Proxy {
     create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
     create_dom_d: Arc<dyn interface::domain_creation::CreateDomD>,
     create_shadow: Arc<dyn interface::domain_creation::CreateShadow>,
+    create_keyboard: Arc<dyn interface::domain_creation::CreateKeyboard>,
 }
 
 unsafe impl Send for Proxy {}
@@ -77,6 +78,7 @@ impl Proxy {
         create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
         create_dom_d: Arc<dyn interface::domain_creation::CreateDomD>,
         create_shadow: Arc<dyn interface::domain_creation::CreateShadow>,
+        create_keyboard: Arc<dyn interface::domain_creation::CreateKeyboard>,
     ) -> Proxy {
         Proxy {
             create_pci,
@@ -99,6 +101,7 @@ impl Proxy {
             create_dom_c,
             create_dom_d,
             create_shadow,
+            create_keyboard,
         }
     }
 }
@@ -163,6 +166,9 @@ impl proxy::Proxy for Proxy {
         Arc::new(self.clone())
     }
     fn as_create_shadow(&self) -> Arc<dyn interface::domain_creation::CreateShadow> {
+        Arc::new(self.clone())
+    }
+    fn as_create_keyboard(&self) -> Arc<dyn interface::domain_creation::CreateKeyboard> {
         Arc::new(self.clone())
     }
 }
@@ -382,6 +388,12 @@ impl interface::domain_creation::CreateBenchnet for Proxy {
 impl interface::domain_creation::CreateBenchnvme for Proxy {
     fn create_domain_benchnvme(&self, nvme: Box<dyn interface::bdev::NvmeBDev>) -> (Box<dyn Domain>) {
         self.create_benchnvme.create_domain_benchnvme(nvme)
+    }
+}
+
+impl interface::domain_creation::CreateKeyboard for Proxy {
+    fn create_domain_keyboard(&self) -> (Box<dyn interface::input::Input>) {
+        self.create_keyboard.create_domain_keyboard()
     }
 }
 

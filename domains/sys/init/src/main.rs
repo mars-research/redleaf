@@ -123,6 +123,7 @@ pub fn trusted_entry(
     _create_hashstore: Arc<dyn interface::domain_creation::CreateHashStore>,
     create_tpm: Arc<dyn interface::domain_creation::CreateTpm>,
     create_shadow: Arc<dyn interface::domain_creation::CreateShadow>,
+    create_keyboard: Arc<dyn interface::domain_creation::CreateKeyboard>,
 ) {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
@@ -207,6 +208,7 @@ pub fn trusted_entry(
         create_dom_c,
         create_dom_d,
         create_shadow,
+        create_keyboard,
     );
     println!("created proxy");
 

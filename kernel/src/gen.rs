@@ -299,6 +299,15 @@ impl domain_creation::CreateTpm for PDomain {
     }
 }
 
+impl domain_creation::CreateKeyboard for PDomain {
+    fn create_domain_keyboard(&self) -> (Box<dyn syscalls::Domain>, Box<dyn interface::input::Input>) {
+        disable_irq();
+        let r = create_domain_keyboard();
+        enable_irq();
+        r
+    }
+}
+
 impl proxy::CreateProxy for PDomain {
     fn create_domain_proxy(
         &self,
@@ -322,6 +331,7 @@ impl proxy::CreateProxy for PDomain {
         create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
         create_dom_d: Arc<dyn interface::domain_creation::CreateDomD>,
         create_shadow: Arc<dyn interface::domain_creation::CreateShadow>,
+        create_keyboard: Arc<dyn interface::domain_creation::CreateKeyboard>,
     ) -> (Box<dyn syscalls::Domain>, Arc<dyn interface::proxy::Proxy>) {
         disable_irq();
         let r = create_domain_proxy(
@@ -345,6 +355,7 @@ impl proxy::CreateProxy for PDomain {
             create_dom_c,
             create_dom_d,
             create_shadow,
+            create_keyboard,
         );
         enable_irq();
         r
@@ -696,6 +707,54 @@ pub fn create_domain_dom_d(dom_c: Box<dyn interface::dom_c::DomC>) -> Box<dyn sy
     build_domain_dom_d("dom_d", binary_range, dom_c)
 }
 
+pub fn create_domain_keyboard() -> (Box<dyn syscalls::Domain>, Box<dyn interface::input::Input>) {
+    extern "C" {
+        fn _binary_domains_build_keyboard_start();
+        fn _binary_domains_build_keyboard_end();
+    }
+
+    let binary_range = (
+        _binary_domains_build_keyboard_start as *const u8,
+        _binary_domains_build_keyboard_end as *const u8,
+    );
+
+    type UserInit = fn(
+        Box<dyn syscalls::Syscall>,
+        Box<dyn syscalls::Mmap>,
+        Box<dyn syscalls::Heap>,
+    ) -> Box<dyn interface::input::Input>;
+
+    let (dom, entry) = unsafe { load_domain("keyboard", binary_range) };
+
+    let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
+
+    let pdom = Box::new(PDomain::new(Arc::clone(&dom)));
+    let mmap = Box::new(Mmap::new());
+    let pheap = Box::new(PHeap::new());
+
+    // update current domain id
+    let thread = thread::get_current_ref();
+    let old_id = {
+        let mut thread = thread.lock();
+        let old_id = thread.current_domain_id;
+        thread.current_domain_id = dom.lock().id;
+        old_id
+    };
+
+    // Enable interrupts on exit to user so it can be preempted
+    enable_irq();
+    let input = user_ep(pdom, mmap, pheap);
+    disable_irq();
+
+    // change domain id back
+    {
+        thread.lock().current_domain_id = old_id;
+    }
+
+    println!("domain/keyboard: returned from entry point");
+    (Box::new(PDomain::new(Arc::clone(&dom))), input)
+}
+
 pub fn create_domain_shadow(
     create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
 ) -> (Box<dyn syscalls::Domain>, Box<dyn interface::dom_c::DomC>) {
@@ -789,6 +848,7 @@ pub fn create_domain_proxy(
     create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
     create_dom_d: Arc<dyn interface::domain_creation::CreateDomD>,
     create_shadow: Arc<dyn interface::domain_creation::CreateShadow>,
+    create_keyboard: Arc<dyn interface::domain_creation::CreateKeyboard>,
 ) -> (Box<dyn syscalls::Domain>, Arc<dyn interface::proxy::Proxy>) {
     extern "C" {
         fn _binary_domains_build_dom_proxy_start();
@@ -823,6 +883,7 @@ pub fn create_domain_proxy(
         create_dom_c,
         create_dom_d,
         create_shadow,
+        create_keyboard,
     )
 }
 
@@ -1185,6 +1246,7 @@ pub fn build_domain_init(
         Arc<dyn interface::domain_creation::CreateHashStore>,
         Arc<dyn interface::domain_creation::CreateTpm>,
         Arc<dyn interface::domain_creation::CreateShadow>,
+        Arc<dyn interface::domain_creation::CreateKeyboard>,
     );
 
     let (dom, entry) = unsafe { load_domain(name, binary_range) };
@@ -1207,6 +1269,7 @@ pub fn build_domain_init(
         Box::new(PHeap::new()),
         Box::new(Interrupt::new()),
         Box::new(PDomain::new(Arc::clone(&dom))),
+        Arc::new(PDomain::new(Arc::clone(&dom))),
         Arc::new(PDomain::new(Arc::clone(&dom))),
         Arc::new(PDomain::new(Arc::clone(&dom))),
         Arc::new(PDomain::new(Arc::clone(&dom))),
@@ -1389,6 +1452,7 @@ pub fn build_domain_proxy(
     create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
     create_dom_d: Arc<dyn interface::domain_creation::CreateDomD>,
     create_shadow: Arc<dyn interface::domain_creation::CreateShadow>,
+    create_keyboard: Arc<dyn interface::domain_creation::CreateKeyboard>,
 ) -> (Box<dyn syscalls::Domain>, Arc<dyn interface::proxy::Proxy>) {
     type UserInit = fn(
         Box<dyn syscalls::Syscall>,
@@ -1413,6 +1477,7 @@ pub fn build_domain_proxy(
         create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
         create_dom_d: Arc<dyn interface::domain_creation::CreateDomD>,
         create_shadow: Arc<dyn interface::domain_creation::CreateShadow>,
+        create_keyboard: Arc<dyn interface::domain_creation::CreateKeyboard>,
     ) -> Arc<dyn interface::proxy::Proxy>;
 
     let (dom, entry) = unsafe { load_domain(name, binary_range) };
@@ -1456,6 +1521,7 @@ pub fn build_domain_proxy(
         create_dom_c,
         create_dom_d,
         create_shadow,
+        create_keyboard,
     );
     disable_irq();
 

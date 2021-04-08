@@ -21,7 +21,8 @@ use crate::domain_creation::{CreatePCI,
              CreateDomB, 
              CreateDomC, 
              CreateDomD, 
-             CreateShadow
+             CreateShadow,
+             CreateKeyboard,
 };
 
 pub trait CreateProxy {
@@ -46,7 +47,9 @@ pub trait CreateProxy {
         create_dom_b: Arc<dyn CreateDomB>,
         create_dom_c: Arc<dyn CreateDomC>,
         create_dom_d: Arc<dyn CreateDomD>,
-        create_shadow: Arc<dyn CreateShadow>) -> (Box<dyn Domain>, Arc<dyn Proxy>);
+        create_shadow: Arc<dyn CreateShadow>,
+        create_keyboard: Arc<dyn CreateKeyboard>,
+        ) -> (Box<dyn Domain>, Arc<dyn Proxy>);
 }
 
 pub trait Proxy: CreatePCI +
@@ -65,7 +68,8 @@ pub trait Proxy: CreatePCI +
                  CreateDomB + 
                  CreateDomC + 
                  CreateDomD + 
-                 CreateShadow {
+                 CreateShadow +
+                 CreateKeyboard {
     // necessary because rust doesn't support trait object upcasting
     fn as_create_pci(&self) -> Arc<dyn CreatePCI>;
     fn as_create_ahci(&self) -> Arc<dyn CreateAHCI>;
@@ -87,4 +91,5 @@ pub trait Proxy: CreatePCI +
     fn as_create_dom_c(&self) -> Arc<dyn CreateDomC>;
     fn as_create_dom_d(&self) -> Arc<dyn CreateDomD>;
     fn as_create_shadow(&self) -> Arc<dyn CreateShadow>;
+    fn as_create_keyboard(&self) -> Arc<dyn CreateKeyboard>;
 }
