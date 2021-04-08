@@ -5,8 +5,8 @@ mod pci_class;
 pub use pci_class::PciClass;
 
 extern crate alloc;
+use ahci_regs::AhciBarRegion;
 use alloc::boxed::Box;
-use ahci::AhciBarRegion;
 use platform::PciBarAddr;
 
 pub trait PciDriver {
@@ -17,15 +17,17 @@ pub trait PciDriver {
 }
 
 pub enum BarRegions {
-    Ahci(Box <dyn AhciBarRegion>),
-    None
+    Ahci(Box<dyn AhciBarRegion>),
+    // Ahci(PciBarAddr),
+    None,
 }
 
 pub enum DeviceBarRegions {
+    // Ahci(Box<dyn AhciBarRegion>),
     Ahci(PciBarAddr),
     Ixgbe(PciBarAddr),
     Nvme(PciBarAddr),
-    None
+    None,
 }
 
 #[derive(Copy, Clone, Debug)]

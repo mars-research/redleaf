@@ -23,7 +23,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ahci"
+name = "ahci_regs"
 version = "0.1.0"
 
 [[package]]
@@ -379,7 +379,7 @@ checksum = "fff50ab09ba31bcebc0669f4e64c0952fae1acdca9e6e0587e68e4e8443808ac"
 name = "pci_driver"
 version = "0.1.0"
 dependencies = [
- "ahci",
+ "ahci_regs",
  "platform",
 ]
 
@@ -501,7 +501,7 @@ name = "redleaf-kernel"
 version = "0.1.0"
 dependencies = [
  "addr2line",
- "ahci",
+ "ahci_regs",
  "backtracer",
  "bit_field 0.9.0",
  "bitflags",

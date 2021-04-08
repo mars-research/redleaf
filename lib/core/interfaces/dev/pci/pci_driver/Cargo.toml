@@ -7,5 +7,6 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ahci = { path = "../../ahci", version = "0.1.0" }
+ahci_regs = { path = "../../ahci", version = "0.1.0" }
+# ahci_device = { path = "../../../../../devices/ahci", version = "0.1.0" }
 platform = { path = "../../../platform", version = "0.1.0" }

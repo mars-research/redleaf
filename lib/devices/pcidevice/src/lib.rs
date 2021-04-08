@@ -1,25 +1,22 @@
 #![no_std]
-#![feature(
-    llvm_asm,
-    allocator_api,
-)]
+#![feature(llvm_asm, allocator_api)]
 
 #[macro_use]
 extern crate bitflags;
-extern crate byteorder;
 extern crate alloc;
+extern crate byteorder;
 
 mod header;
 
-use pci_driver::{PciClass, DeviceBarRegions, PciDrivers};
 use alloc::vec::Vec;
+use byteorder::{ByteOrder, LittleEndian};
+use console::println;
+use header::{read_config_space, PciDeviceHeader, PciHeaderType};
 use libsyscalls::errors::Result;
 use libsyscalls::errors::{Error, EINVAL, ENODEV};
-use libsyscalls::syscalls::{sys_mmap, init_mmap};
+use libsyscalls::syscalls::{init_mmap, sys_mmap};
+use pci_driver::{DeviceBarRegions, PciClass, PciDrivers};
 use platform::PciBarAddr;
-use header::{PciHeaderType, read_config_space, PciDeviceHeader};
-use console::println;
-use byteorder::{LittleEndian, ByteOrder};
 
 const PCI_ADDR_PORT: u16 = 0xCF8;
 const PCI_DATA_PORT: u16 = 0xCFC;
@@ -42,17 +39,13 @@ macro_rules! is_page_aligned {
 pub struct PciAddress {
     bus: u16,
     dev: u8,
-    func: u8, 
+    func: u8,
 }
 
 impl PciAddress {
     fn new(bus: u16, dev: u8, func: u8) -> Result<PciAddress> {
         if bus < 256 && dev < 32 && func < 8 {
-            Ok(PciAddress {
-                bus,
-                dev,
-                func,
-            })
+            Ok(PciAddress { bus, dev, func })
         } else {
             Err(Error::new(EINVAL))
         }
@@ -67,24 +60,33 @@ pub struct PciDevice {
 
 impl PciDevice {
     pub unsafe fn new(pci_addr: PciAddress, pci_hdr: PciDeviceHeader) -> PciDevice {
-        PciDevice {
-            pci_addr,
-            pci_hdr,
-        }
+        PciDevice { pci_addr, pci_hdr }
     }
 
     pub fn get_bar(&self, idx: usize, dev_type: PciDrivers) -> DeviceBarRegions {
         if let Some(bar_addr) = self.pci_hdr.get_bar(idx) {
             unsafe {
-              println!("Mapping bar region {:x} {:x}", bar_addr.get_base(), bar_addr.get_size());
+                println!(
+                    "Mapping bar region {:x} {:x}",
+                    bar_addr.get_base(),
+                    bar_addr.get_size()
+                );
             }
             map_bar_region(bar_addr);
 
             match dev_type {
-                PciDrivers::IxgbeDriver => { return DeviceBarRegions::Ixgbe(*bar_addr); },
-                PciDrivers::NvmeDriver => { return DeviceBarRegions::Nvme(*bar_addr); },
-                PciDrivers::AhciDriver => { return DeviceBarRegions::Ahci(*bar_addr); },
-                _ => { return DeviceBarRegions::None; },
+                PciDrivers::IxgbeDriver => {
+                    return DeviceBarRegions::Ixgbe(*bar_addr);
+                }
+                PciDrivers::NvmeDriver => {
+                    return DeviceBarRegions::Nvme(*bar_addr);
+                }
+                PciDrivers::AhciDriver => {
+                    return DeviceBarRegions::Ahci(*bar_addr);
+                }
+                _ => {
+                    return DeviceBarRegions::None;
+                }
             }
         } else {
             return DeviceBarRegions::None;
@@ -108,9 +110,7 @@ impl PciDevice {
     }
 }
 
-
 pub fn get_config(bus: u16, dev: u8, func: u8) -> Result<PciDevice> {
-    
     // Check if the pci address is valid
     let pci_addr = match PciAddress::new(bus, dev, func) {
         Err(e) => return Err(e),
@@ -154,7 +154,9 @@ fn pci_read_bars(pci: &PciAddress, hdr_type: PciHeaderType) -> Vec<Option<PciBar
             let size = round_up!((!pci_read(pci, off)) + 1, BASE_PAGE_SIZE);
             // Restore the original bar address
             pci_write(pci, off, addr);
-            unsafe { bar_vec.push(Some(PciBarAddr::new(addr & 0xFFFF_FFF0, size as usize))); }
+            unsafe {
+                bar_vec.push(Some(PciBarAddr::new(addr & 0xFFFF_FFF0, size as usize)));
+            }
             println!("BarAddr {:x} size {:x}", addr, size);
         } else {
             // Write all 1's to the pci config space
@@ -163,7 +165,9 @@ fn pci_read_bars(pci: &PciAddress, hdr_type: PciHeaderType) -> Vec<Option<PciBar
             let size = (!pci_read(pci, off)) + 1;
             // Restore the original bar address
             pci_write(pci, off, addr);
-            unsafe { bar_vec.push(Some(PciBarAddr::new(addr & 0xFFFC, size as usize))); }
+            unsafe {
+                bar_vec.push(Some(PciBarAddr::new(addr & 0xFFFC, size as usize)));
+            }
             println!("Bar I/O Addr {:x} size {:x}", addr, size);
         }
     }
@@ -173,11 +177,13 @@ fn pci_read_bars(pci: &PciAddress, hdr_type: PciHeaderType) -> Vec<Option<PciBar
 fn pci_read_range(pci: &PciAddress, offset: u8, len: u8) -> Vec<u8> {
     assert!(len > 3 && len % 4 == 0);
     let mut ret = Vec::with_capacity(len as usize);
-    let results = (offset..offset + len).step_by(4).fold(Vec::new(), |mut acc, offset| {
-        let val = pci_read(pci, offset);
-        acc.push(val);
-        acc
-    });
+    let results = (offset..offset + len)
+        .step_by(4)
+        .fold(Vec::new(), |mut acc, offset| {
+            let val = pci_read(pci, offset);
+            acc.push(val);
+            acc
+        });
     unsafe {
         ret.set_len(len as usize);
     }
@@ -186,7 +192,11 @@ fn pci_read_range(pci: &PciAddress, offset: u8, len: u8) -> Vec<u8> {
 }
 
 fn pci_read(pci: &PciAddress, offset: u8) -> u32 {
-    let address = 0x80000000 | ((pci.bus as u32) << 16) | ((pci.dev as u32) << 11) | ((pci.func as u32) << 8) | ((offset as u32) & 0xFC);
+    let address = 0x80000000
+        | ((pci.bus as u32) << 16)
+        | ((pci.dev as u32) << 11)
+        | ((pci.func as u32) << 8)
+        | ((offset as u32) & 0xFC);
     let value: u32;
     unsafe {
         llvm_asm!("mov dx, $2
@@ -199,7 +209,11 @@ fn pci_read(pci: &PciAddress, offset: u8) -> u32 {
 }
 
 fn pci_write(pci: &PciAddress, offset: u8, value: u32) {
-    let address = 0x80000000 | ((pci.bus as u32) << 16) | ((pci.dev as u32) << 11) | ((pci.func as u32) << 8) | ((offset as u32) & 0xFC);
+    let address = 0x80000000
+        | ((pci.bus as u32) << 16)
+        | ((pci.dev as u32) << 11)
+        | ((pci.func as u32) << 8)
+        | ((offset as u32) & 0xFC);
 
     unsafe {
         llvm_asm!("mov dx, $1

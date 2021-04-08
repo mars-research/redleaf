@@ -18,6 +18,51 @@ checksum = "e8fd72866655d1904d6b0997d0b07ba561047d070fbe29de039031c641b61217"
 [[package]]
 name = "ahci"
 version = "0.1.0"
+dependencies = [
+ "ahci_device",
+ "ahci_regs",
+ "array-init",
+ "b2histogram",
+ "bitflags",
+ "byteorder",
+ "console",
+ "interface",
+ "libbenchnvme",
+ "libdma",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "pci_driver",
+ "platform",
+ "protocol",
+ "rref",
+ "serde_derive",
+ "spin 0.5.2",
+ "syscalls",
+]
+
+[[package]]
+name = "ahci_device"
+version = "0.1.0"
+dependencies = [
+ "ahci_regs",
+ "array-init",
+ "byteorder",
+ "console",
+ "interface",
+ "libdma",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "platform",
+ "rref",
+ "spin 0.5.3",
+ "syscalls",
+]
+
+[[package]]
+name = "ahci_regs"
+version = "0.1.0"
 
 [[package]]
 name = "array-init"
@@ -719,7 +764,7 @@ dependencies = [
 name = "pci_driver"
 version = "0.1.0"
 dependencies = [
- "ahci",
+ "ahci_regs",
  "platform",
 ]
 

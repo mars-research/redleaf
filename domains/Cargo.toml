@@ -8,6 +8,7 @@ members = [
 	"sys/driver/nvme",
 	"sys/driver/pci",
 	"sys/driver/tpm",
+	"sys/driver/ahci",
 	"sys/init",
 	"usr/proxy",
 	"usr/shadow/bdev",

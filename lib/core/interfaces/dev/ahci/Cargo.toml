@@ -1,5 +1,5 @@
 [package]
-name = "ahci"
+name = "ahci_regs"
 version = "0.1.0"
 authors = ["Vikram Narayanan <vikram186@gmail.com>"]
 edition = "2018"

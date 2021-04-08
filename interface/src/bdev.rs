@@ -1,10 +1,10 @@
 /// RedLeaf block device interface
-use rref::{RRef, RRefDeque, traits::TypeIdentifiable};
+use rref::{traits::TypeIdentifiable, RRef, RRefDeque};
 
 use crate::error::Result;
 use crate::rpc::RpcResult;
 
-pub const BSIZE: usize =        4096;   // block size
+pub const BSIZE: usize = 4096; // block size
 
 #[interface]
 pub trait BDev: Send + Sync {
@@ -12,10 +12,10 @@ pub trait BDev: Send + Sync {
     fn write(&self, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()>;
 }
 
-// pub trait SyncBDev {
-//     fn read(&self, block: u32, data: &mut [u8]);
-//     fn write(&self, block: u32, data: &[u8]);
-// }
+pub trait SyncBDev {
+    fn read(&self, block: u32, data: &mut [u8]);
+    fn write(&self, block: u32, data: &[u8]);
+}
 
 // pub trait AsyncBDev {
 //     fn submit(&self, block: u64, write: bool, buf: Box<[u8]>) -> Result<u32>;
@@ -25,13 +25,15 @@ pub trait BDev: Send + Sync {
 // pub trait BDev: SyncBDev + AsyncBDev {}
 
 pub struct BlkReq {
-   pub data: [u8; 4096],
-   pub data_len: usize,
-   pub block: u64,
+    pub data: [u8; 4096],
+    pub data_len: usize,
+    pub block: u64,
 }
 
 impl TypeIdentifiable for BlkReq {
-    fn type_id() -> u64 { 1 }
+    fn type_id() -> u64 {
+        1
+    }
 }
 
 impl BlkReq {
@@ -50,24 +52,21 @@ impl BlkReq {
             block: 0,
         }
     }
-
 }
 
 #[interface]
-pub trait NvmeBDev : Send {
+pub trait NvmeBDev: Send {
     fn submit_and_poll_rref(
         &self,
         submit: RRefDeque<BlkReq, 128>,
         collect: RRefDeque<BlkReq, 128>,
         write: bool,
-        ) -> RpcResult<Result<(
-            usize,
-            RRefDeque<BlkReq, 128>,
-            RRefDeque<BlkReq, 128>,
-        )>>;
+    ) -> RpcResult<Result<(usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>)>>;
 
-    fn poll_rref(&self, collect: RRefDeque<BlkReq, 1024>) ->
-            RpcResult<Result<(usize, RRefDeque<BlkReq, 1024>)>>;
+    fn poll_rref(
+        &self,
+        collect: RRefDeque<BlkReq, 1024>,
+    ) -> RpcResult<Result<(usize, RRefDeque<BlkReq, 1024>)>>;
 
     fn get_stats(&self) -> RpcResult<Result<(u64, u64)>>;
 }

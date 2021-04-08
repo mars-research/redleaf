@@ -5,7 +5,7 @@
 ################
 
 DEBUG            ?= false
-LARGE_MEM        ?= true
+LARGE_MEM        ?= false
 IXGBE		 ?= true
 
 ifndef NO_DEFAULT_FLAGS

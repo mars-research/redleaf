@@ -10,9 +10,9 @@
 extern crate std;
 
 pub use mutex::*;
-pub use rw_lock::*;
 pub use once::*;
+pub use rw_lock::*;
 
 mod mutex;
-mod rw_lock;
 mod once;
+mod rw_lock;
