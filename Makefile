@@ -259,7 +259,7 @@ just-run-qemu:
 create-virtio-tap:
 	sudo ip tuntap add mode tap user ${USER} name virtio
 	# Courtesy of Vincent
-	# ip address add 10.69.69.1/24 dev virtio
+	sudo ip address add 10.69.69.1/24 dev virtio
 
 .PHONY: delete-virtio-tap
 delete-virtio-tap:

@@ -418,7 +418,7 @@ impl VirtioNetInner {
     }
 
     fn get_addr<T>(obj: &T) -> u64 {
-        (&obj as *const T) as u64
+        (obj as *const T) as u64
     }
 
     fn add_rx_buffer(&mut self, buffer: &[u8; 1514]) {
@@ -436,17 +436,17 @@ impl VirtioNetInner {
         //         self.virtual_queues.receive_queue.available.idx += 1;
         //     }
 
-        let header_idx = Self::get_next_free_buffer(self.rx_free_descriptors)?;
-        let buffer_idx = Self::get_next_free_buffer(self.rx_free_descriptors)?;
+        let header_idx = Self::get_next_free_buffer(&mut self.rx_free_descriptors).unwrap();
+        let buffer_idx = Self::get_next_free_buffer(&mut self.rx_free_descriptors).unwrap();
 
         // Add the buffer for the header
         rx_q.descriptors[header_idx] = VirtqDescriptor {
-            addr: Self::get_addr(self.virtio_network_headers[free_idx]),
+            addr: Self::get_addr(&self.virtio_network_headers[header_idx]),
             len: 14,
             // 1 is NEXT FLAG
             // 2 is WRITABLE FLAG
             flags: 1 | 2,
-            next: buffer_idx,
+            next: buffer_idx as u16,
         };
 
         // Add the buffer
@@ -458,8 +458,19 @@ impl VirtioNetInner {
         };
 
         // Mark the buffer as usable
-        rx_q.available.ring[rx_q.available.idx] = header_idx;
+        rx_q.available.ring[rx_q.available.idx as usize] = header_idx as u16;
         rx_q.available.idx += 2;
+
+        // Notify the device (could be moved to later, when there're more buffers)
+        unsafe {
+            self.mmio.queue_notify(0, 0);
+        }
+    }
+
+    fn add_rx_buffers(&mut self, packets: &mut RRefDeque<[u8; 1514], 32>) {
+        while let Some(buffer) = packets.pop_front() {
+            self.add_rx_buffer(&buffer);
+        }
     }
 
     fn to_shared(self) -> VirtioNet {
@@ -486,8 +497,8 @@ impl interface::net::Net for VirtioNet {
     /// If `tx` is true, packets in packets are for transmitting, else they are receive buffers
     fn submit_and_poll_rref(
         &self,
-        packets: RRefDeque<[u8; 1514], 32>,
-        collect: RRefDeque<[u8; 1514], 32>,
+        mut packets: RRefDeque<[u8; 1514], 32>,
+        mut collect: RRefDeque<[u8; 1514], 32>,
         tx: bool,
         pkt_len: usize,
     ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 32>, RRefDeque<[u8; 1514], 32>)>> {
@@ -497,12 +508,13 @@ impl interface::net::Net for VirtioNet {
         println!("{:#?}", collect.len());
         println!("{:#?}", tx);
 
-        let device = self.0.lock();
+        let mut device = self.0.lock();
 
         if tx {
             println!("HANDLE TX");
         } else {
-            println!("HANDLE RX")
+            println!("HANDLE RX");
+            device.add_rx_buffers(packets.borrow_mut());
         }
 
         // This 0 here is the number of packets received
