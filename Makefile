@@ -257,7 +257,7 @@ just-run-qemu:
 
 .PHONY: create-virtio-tap
 create-virtio-tap:
-	ip tuntap add mode tap user ${USER} name virtio
+	sudo ip tuntap add mode tap user ${USER} name virtio
 	# Courtesy of Vincent
 	# ip address add 10.69.69.1/24 dev virtio
 

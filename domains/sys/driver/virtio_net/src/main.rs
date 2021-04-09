@@ -44,46 +44,46 @@ use pci::PciFactory;
 /// The number of Descriptors (must be a multiple of 2), called "Queue Size" in documentation
 pub const DESCRIPTOR_COUNT: usize = 256; // Maybe change this to 256, was 8 before
 
-static BUFFERS: [VirtioNetCompletePacket; DESCRIPTOR_COUNT] = [VirtioNetCompletePacket {
-    header: VirtioNetworkHeader {
-        flags: 0,
-        gso_type: 0,
-        header_length: 0, // This Header: 12, Ethernet: 22
-        gso_size: 0,
-        csum_start: 0,
-        csum_offset: 0,
-        // num_buffers: 0,
-    },
-    data: [0; 1514],
-}; DESCRIPTOR_COUNT];
+// static BUFFERS: [VirtioNetCompletePacket; DESCRIPTOR_COUNT] = [VirtioNetCompletePacket {
+//     header: VirtioNetworkHeader {
+//         flags: 0,
+//         gso_type: 0,
+//         header_length: 0, // This Header: 12, Ethernet: 22
+//         gso_size: 0,
+//         csum_start: 0,
+//         csum_offset: 0,
+//         // num_buffers: 0,
+//     },
+//     data: [0; 1514],
+// }; DESCRIPTOR_COUNT];
 
-static mut PACKET_FOR_SENDING: VirtioNetCompletePacket = VirtioNetCompletePacket {
-    header: VirtioNetworkHeader {
-        flags: 0,
-        gso_type: 0,
-        header_length: 0,
-        gso_size: 0,
-        csum_start: 0,
-        csum_offset: 0,
-        // num_buffers: 0,
-    },
-    data: [0; 1514],
-};
+// static mut PACKET_FOR_SENDING: VirtioNetCompletePacket = VirtioNetCompletePacket {
+//     header: VirtioNetworkHeader {
+//         flags: 0,
+//         gso_type: 0,
+//         header_length: 0,
+//         gso_size: 0,
+//         csum_start: 0,
+//         csum_offset: 0,
+//         // num_buffers: 0,
+//     },
+//     data: [0; 1514],
+// };
 
-static TIAN_PACKET: [u8; 98] = [
-    // 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x80, 0x61, 0x5F, 0x08, 0x37, 0x23, 0x08, 0x00, 0x45, 0x00,
-    // 0x00, 0x34, 0x20, 0xF3, 0x40, 0x00, 0x34, 0x06, 0x1C, 0xBF, 0xB8, 0x69, 0x94, 0x72, 0xAC, 0x14,
-    // 0x10, 0x22, 0x01, 0xBB, 0xCA, 0xFC, 0xDA, 0xD3, 0x61, 0x34, 0xD8, 0xBF, 0xCC, 0x09, 0x80, 0x10,
-    // 0x00, 0x13, 0xF5, 0xAD, 0x00, 0x00, 0x01, 0x01, 0x08, 0x0A, 0x9E, 0xC6, 0xA7, 0xE1, 0x1D, 0x2A,
-    // 0x66, 0x8E,
-    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x9A, 0xD2, 0x0B, 0x94, 0x88, 0x8B, 0x08, 0x00, 0x45, 0x00,
-    0x00, 0x54, 0x00, 0x00, 0x40, 0x00, 0x40, 0x01, 0x9B, 0x1F, 0x0A, 0x45, 0x45, 0x01, 0x0A, 0x45,
-    0x45, 0xFF, 0x08, 0x00, 0x64, 0x95, 0x00, 0x03, 0x00, 0x01, 0x75, 0xB8, 0x5B, 0x60, 0x00, 0x00,
-    0x00, 0x00, 0xFD, 0x7A, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15,
-    0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25,
-    0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35,
-    0x36, 0x37,
-];
+// static TIAN_PACKET: [u8; 98] = [
+//     // 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x80, 0x61, 0x5F, 0x08, 0x37, 0x23, 0x08, 0x00, 0x45, 0x00,
+//     // 0x00, 0x34, 0x20, 0xF3, 0x40, 0x00, 0x34, 0x06, 0x1C, 0xBF, 0xB8, 0x69, 0x94, 0x72, 0xAC, 0x14,
+//     // 0x10, 0x22, 0x01, 0xBB, 0xCA, 0xFC, 0xDA, 0xD3, 0x61, 0x34, 0xD8, 0xBF, 0xCC, 0x09, 0x80, 0x10,
+//     // 0x00, 0x13, 0xF5, 0xAD, 0x00, 0x00, 0x01, 0x01, 0x08, 0x0A, 0x9E, 0xC6, 0xA7, 0xE1, 0x1D, 0x2A,
+//     // 0x66, 0x8E,
+//     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x9A, 0xD2, 0x0B, 0x94, 0x88, 0x8B, 0x08, 0x00, 0x45, 0x00,
+//     0x00, 0x54, 0x00, 0x00, 0x40, 0x00, 0x40, 0x01, 0x9B, 0x1F, 0x0A, 0x45, 0x45, 0x01, 0x0A, 0x45,
+//     0x45, 0xFF, 0x08, 0x00, 0x64, 0x95, 0x00, 0x03, 0x00, 0x01, 0x75, 0xB8, 0x5B, 0x60, 0x00, 0x00,
+//     0x00, 0x00, 0xFD, 0x7A, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15,
+//     0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25,
+//     0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35,
+//     0x36, 0x37,
+// ];
 
 #[derive(Debug)]
 #[repr(C, align(16))]
@@ -179,6 +179,15 @@ impl VirtqUsed {
 struct VirtioNetInner {
     mmio: Mmio,
     virtual_queues: VirtualQueues,
+
+    /// Dummy VirtioNetHeaders
+    virtio_network_headers: [VirtioNetworkHeader; DESCRIPTOR_COUNT],
+
+    /// Tracks which descriptors on the queue are free
+    rx_free_descriptors: [bool; DESCRIPTOR_COUNT],
+
+    /// Tracks which descriptors on the queue are free
+    tx_free_descriptors: [bool; DESCRIPTOR_COUNT],
 }
 
 impl VirtioNetInner {
@@ -225,13 +234,29 @@ impl VirtioNetInner {
             },
         };
 
+        let mut virtio_network_headers = [VirtioNetworkHeader {
+            flags: 0,
+            gso_type: 0,
+            header_length: 0,
+            gso_size: 0,
+            csum_start: 0,
+            csum_offset: 0,
+        }; DESCRIPTOR_COUNT];
+
+        let mut rx_free_descriptors = [true; DESCRIPTOR_COUNT];
+        let mut tx_free_descriptors = [true; DESCRIPTOR_COUNT];
+
         let mut virtio_inner = Self {
             mmio,
             virtual_queues,
+            virtio_network_headers,
+
+            rx_free_descriptors,
+            tx_free_descriptors,
         };
 
         virtio_inner.init();
-        virtio_inner.testing();
+        // virtio_inner.testing();
 
         virtio_inner
     }
@@ -279,75 +304,74 @@ impl VirtioNetInner {
         self.print_device_status();
     }
 
-    unsafe fn testing(&mut self) {
-        println!(
-            "VIRTQ STRUCT ADDR: {:x}",
-            (&self.virtual_queues as *const VirtualQueues) as usize
-        );
+    // unsafe fn testing(&mut self) {
+    //     println!(
+    //         "VIRTQ STRUCT ADDR: {:x}",
+    //         (&self.virtual_queues as *const VirtualQueues) as usize
+    //     );
 
-        // *** Stuff For Testing ***
+    //     // *** Stuff For Testing ***
 
-        // Populate the testing packet with Tian's packet
-        for i in 0..TIAN_PACKET.len() {
-            PACKET_FOR_SENDING.data[i] = TIAN_PACKET[i];
-        }
+    //     // Populate the testing packet with Tian's packet
+    //     for i in 0..TIAN_PACKET.len() {
+    //         PACKET_FOR_SENDING.data[i] = TIAN_PACKET[i];
+    //     }
 
-        // Populate Receive Queue
-        for i in 0..DESCRIPTOR_COUNT {
-            self.virtual_queues.receive_queue.descriptors[i] = VirtqDescriptor {
-                addr: (&BUFFERS[i] as *const VirtioNetCompletePacket) as u64,
-                len: 1526,
-                flags: 0 | 2, // Writeable
-                next: 0,
-            };
-            self.virtual_queues.receive_queue.available.ring[i] = i as u16;
-            self.virtual_queues.receive_queue.available.idx += 1;
-        }
+    //     // Populate Receive Queue
+    //     for i in 0..DESCRIPTOR_COUNT {
+    //         self.virtual_queues.receive_queue.descriptors[i] = VirtqDescriptor {
+    //             addr: (&BUFFERS[i] as *const VirtioNetCompletePacket) as u64,
+    //             len: 1526,
+    //             flags: 0 | 2, // Writeable
+    //             next: 0,
+    //         };
+    //         self.virtual_queues.receive_queue.available.ring[i] = i as u16;
+    //         self.virtual_queues.receive_queue.available.idx += 1;
+    //     }
 
-        for i in 30..32 {
-            println!(
-                "DESCRIPTOR {:}: {:#x?}",
-                i, self.virtual_queues.receive_queue.descriptors[i]
-            );
-        }
+    //     for i in 30..32 {
+    //         println!(
+    //             "DESCRIPTOR {:}: {:#x?}",
+    //             i, self.virtual_queues.receive_queue.descriptors[i]
+    //         );
+    //     }
 
-        // Notify the device that we've changed things in Queue 0, the receive queue
-        self.mmio.queue_notify(0, 0);
+    //     // Notify the device that we've changed things in Queue 0, the receive queue
+    //     self.mmio.queue_notify(0, 0);
 
-        println!("VirtIO Device Initialized!");
+    //     println!("VirtIO Device Initialized!");
 
-        // SENDING PACKET BELOW
+    //     // SENDING PACKET BELOW
 
-        self.virtual_queues.transmit_queue.descriptors[0] = VirtqDescriptor {
-            addr: (&PACKET_FOR_SENDING as *const VirtioNetCompletePacket) as u64,
-            len: 1526,
-            flags: 0,
-            next: 0,
-        };
+    //     self.virtual_queues.transmit_queue.descriptors[0] = VirtqDescriptor {
+    //         addr: (&PACKET_FOR_SENDING as *const VirtioNetCompletePacket) as u64,
+    //         len: 1526,
+    //         flags: 0,
+    //         next: 0,
+    //     };
 
-        println!("{:#?}", self.virtual_queues.transmit_queue.descriptors[0]);
+    //     println!("{:#?}", self.virtual_queues.transmit_queue.descriptors[0]);
 
-        self.virtual_queues.transmit_queue.available.ring[0] = 0;
-        self.virtual_queues.transmit_queue.available.idx += 1;
+    //     self.virtual_queues.transmit_queue.available.ring[0] = 0;
+    //     self.virtual_queues.transmit_queue.available.idx += 1;
 
-        println!("Notification Sending");
-        self.mmio.queue_notify(1, 1);
-        println!("Notification Sent");
+    //     println!("Notification Sending");
+    //     self.mmio.queue_notify(1, 1);
+    //     println!("Notification Sent");
 
-        println!("---------------------");
-        self.mmio.accessor.write_queue_select(0);
-        self.print_device_config();
-        self.mmio.accessor.write_queue_select(1);
-        self.print_device_config();
-    }
+    //     println!("---------------------");
+    //     self.mmio.accessor.write_queue_select(0);
+    //     self.print_device_config();
+    //     self.mmio.accessor.write_queue_select(1);
+    //     self.print_device_config();
+    // }
 
+    /// Negotiates Virtio Driver Features
     unsafe fn negotiate_features(&mut self) {
-        // Negotiate Features
-
         let mut driver_features: u32 = 0;
         driver_features |= 1 << 5; // Enable Device MAC Address
         driver_features |= 1 << 16; // Enable Device Status
-                                    // feature_bits |= 15; // VIRTIO_NET_F_MRG_RXBUF - Driver can merge recieved buffers
+
         self.mmio.accessor.write_driver_feature(driver_features); // Should be &'d with device_features
     }
 
@@ -384,6 +408,60 @@ impl VirtioNetInner {
         );
     }
 
+    fn get_next_free_buffer(free_buffers: &mut [bool; DESCRIPTOR_COUNT]) -> Result<usize> {
+        for i in 0..DESCRIPTOR_COUNT {
+            if free_buffers[i] {
+                return Ok(i);
+            }
+        }
+        Err(ErrorKind::Other)
+    }
+
+    fn get_addr<T>(obj: &T) -> u64 {
+        (&obj as *const T) as u64
+    }
+
+    fn add_rx_buffer(&mut self, buffer: &[u8; 1514]) {
+        // One descriptor points at the network header, chain this with a descriptor to the buffer
+        let rx_q = &mut self.virtual_queues.receive_queue;
+
+        //     for i in 0..DESCRIPTOR_COUNT {
+        //         self.virtual_queues.receive_queue.descriptors[i] = VirtqDescriptor {
+        //             addr: (&BUFFERS[i] as *const VirtioNetCompletePacket) as u64,
+        //             len: 1526,
+        //             flags: 0 | 2, // Writeable
+        //             next: 0,
+        //         };
+        //         self.virtual_queues.receive_queue.available.ring[i] = i as u16;
+        //         self.virtual_queues.receive_queue.available.idx += 1;
+        //     }
+
+        let header_idx = Self::get_next_free_buffer(self.rx_free_descriptors)?;
+        let buffer_idx = Self::get_next_free_buffer(self.rx_free_descriptors)?;
+
+        // Add the buffer for the header
+        rx_q.descriptors[header_idx] = VirtqDescriptor {
+            addr: Self::get_addr(self.virtio_network_headers[free_idx]),
+            len: 14,
+            // 1 is NEXT FLAG
+            // 2 is WRITABLE FLAG
+            flags: 1 | 2,
+            next: buffer_idx,
+        };
+
+        // Add the buffer
+        rx_q.descriptors[buffer_idx] = VirtqDescriptor {
+            addr: Self::get_addr(buffer),
+            len: 1514,
+            flags: 2,
+            next: 0,
+        };
+
+        // Mark the buffer as usable
+        rx_q.available.ring[rx_q.available.idx] = header_idx;
+        rx_q.available.idx += 2;
+    }
+
     fn to_shared(self) -> VirtioNet {
         VirtioNet(Arc::new(Mutex::new(self)))
     }
@@ -418,6 +496,14 @@ impl interface::net::Net for VirtioNet {
         println!("{:#?}", packets.len());
         println!("{:#?}", collect.len());
         println!("{:#?}", tx);
+
+        let device = self.0.lock();
+
+        if tx {
+            println!("HANDLE TX");
+        } else {
+            println!("HANDLE RX")
+        }
 
         // This 0 here is the number of packets received
         Ok(Ok((0usize, packets, collect)))
@@ -470,7 +556,7 @@ pub fn trusted_entry(
         smol.do_rx();
         smol.do_tx();
 
-        // thread::sleep(1000);
+        libtime::sys_ns_sleep(10_000_000_000);
     }
 
     // // let mut neighbor_cache_entries = [None; 8];
