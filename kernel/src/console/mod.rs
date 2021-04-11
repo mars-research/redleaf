@@ -1,8 +1,9 @@
 #[macro_use]
 mod serial;
 mod vga;
+mod ns16550a;
 
-use crate::console::serial::{EMERGENCY_SERIAL1, EMERGENCY_SERIAL2, SERIAL1, SERIAL2};
+use crate::console::serial::{SERIALS};
 use crate::console::vga::WRITER;
 use core::fmt::Write;
 use x86::cpuid::CpuId;
@@ -44,8 +45,10 @@ pub fn _print(args: core::fmt::Arguments) {
     unsafe {
         if IN_A_CRASH {
             WRITER.lock().write_fmt(args).unwrap();
-            EMERGENCY_SERIAL1.write_fmt(args).unwrap();
-            EMERGENCY_SERIAL2.write_fmt(args).unwrap();
+            for serial in &SERIALS {
+                serial.force_unlock();
+                serial.lock().write_fmt(args).unwrap();
+            }
             return;
         }
     }
@@ -62,8 +65,9 @@ pub fn _print(args: core::fmt::Arguments) {
     // We don't need interrupts off any more, inside the
     // kernel interrupts are off all the time
     WRITER.lock().write_fmt(args).unwrap();
-    SERIAL1.lock().write_fmt(args).unwrap();
-    SERIAL2.lock().write_fmt(args).unwrap();
+    for serial in &SERIALS {
+        serial.lock().write_fmt(args).unwrap();
+    }
 }
 
 // The debug version

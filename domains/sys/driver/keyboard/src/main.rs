@@ -39,15 +39,7 @@ pub fn trusted_entry(
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
-    let net = {
-        let mut pci_factory = PciFactory::new();
-        if pci.pci_register_driver(&mut pci_factory, 0, None).is_err() {
-            panic!("Failed to probe VirtioNet PCI");
-        }
-        pci_factory.to_device().unwrap()
-    };
-
-    Box::new(net)
+    unimplemented!()
 }
 
 // This function is called on panic.

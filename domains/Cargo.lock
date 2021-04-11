@@ -419,6 +419,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "keyboard"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "interface",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "pci_driver",
+ "platform",
+ "protocol",
+ "rref",
+ "spin 0.5.3",
+ "syscalls",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

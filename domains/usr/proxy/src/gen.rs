@@ -392,7 +392,7 @@ impl interface::domain_creation::CreateBenchnvme for Proxy {
 }
 
 impl interface::domain_creation::CreateKeyboard for Proxy {
-    fn create_domain_keyboard(&self) -> (Box<dyn interface::input::Input>) {
+    fn create_domain_keyboard(&self) -> (Box<dyn Domain>, Box<dyn interface::input::Input>) {
         self.create_keyboard.create_domain_keyboard()
     }
 }
