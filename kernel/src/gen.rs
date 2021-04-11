@@ -300,7 +300,7 @@ impl domain_creation::CreateTpm for PDomain {
 }
 
 impl domain_creation::CreateKeyboard for PDomain {
-    fn create_domain_keyboard(&self) -> (Box<dyn syscalls::Domain>, Box<dyn interface::input::Input>) {
+    fn create_domain_keyboard(&self) -> (Box<dyn syscalls::Domain>, Box<dyn interface::serial::Serial>) {
         disable_irq();
         let r = create_domain_keyboard();
         enable_irq();
@@ -707,24 +707,24 @@ pub fn create_domain_dom_d(dom_c: Box<dyn interface::dom_c::DomC>) -> Box<dyn sy
     build_domain_dom_d("dom_d", binary_range, dom_c)
 }
 
-pub fn create_domain_keyboard() -> (Box<dyn syscalls::Domain>, Box<dyn interface::input::Input>) {
+pub fn create_domain_keyboard() -> (Box<dyn syscalls::Domain>, Box<dyn interface::serial::Serial>) {
     extern "C" {
-        fn _binary_domains_build_keyboard_start();
-        fn _binary_domains_build_keyboard_end();
+        fn _binary_domains_build_serial_start();
+        fn _binary_domains_build_serial_end();
     }
 
     let binary_range = (
-        _binary_domains_build_keyboard_start as *const u8,
-        _binary_domains_build_keyboard_end as *const u8,
+        _binary_domains_build_serial_start as *const u8,
+        _binary_domains_build_serial_end as *const u8,
     );
 
     type UserInit = fn(
         Box<dyn syscalls::Syscall>,
         Box<dyn syscalls::Mmap>,
         Box<dyn syscalls::Heap>,
-    ) -> Box<dyn interface::input::Input>;
+    ) -> Box<dyn interface::serial::Serial>;
 
-    let (dom, entry) = unsafe { load_domain("keyboard", binary_range) };
+    let (dom, entry) = unsafe { load_domain("serial", binary_range) };
 
     let user_ep: UserInit = unsafe { core::mem::transmute::<*const (), UserInit>(entry) };
 

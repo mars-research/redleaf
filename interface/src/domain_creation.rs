@@ -107,5 +107,5 @@ pub trait CreateTpm: Send + Sync {
 }
 
 pub trait CreateKeyboard: Send + Sync {
-    fn create_domain_keyboard(&self) -> (Box<dyn Domain>, Box<dyn crate::input::Input>);
+    fn create_domain_keyboard(&self) -> (Box<dyn Domain>, Box<dyn crate::serial::Serial>);
 }

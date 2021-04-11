@@ -18,6 +18,7 @@ use crate::rpc::RpcResult;
 pub enum InputEvent {
     /// A raw keyboard event.
     RawKeyboardEvent(KeyCode),
+    Character(u8),
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -30,7 +31,3 @@ impl TypeIdentifiable for InputEvent {
     fn type_id() -> u64 { 1 }
 }
 
-#[interface]
-pub trait Input: Send + Sync {
-    fn poll(&self, buffer: RRefVec<InputEvent>) -> RpcResult<Result<usize>>;
-}

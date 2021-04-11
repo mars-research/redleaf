@@ -25,6 +25,7 @@ pub mod vfs;
 pub mod rv6;
 pub mod tpm;
 pub mod input;
+pub mod serial;
 
 pub mod proxy;
 
