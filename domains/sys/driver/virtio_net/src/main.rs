@@ -474,6 +474,8 @@ impl VirtioNetInner {
             rx_q.descriptors[header_idx], rx_q.descriptors[buffer_idx]
         );
 
+        println!("AVAIL IDX: {:}", rx_q.available.idx);
+
         // Mark the buffer as usable
         rx_q.available.ring[(rx_q.available.idx as usize) % DESCRIPTOR_COUNT] = header_idx as u16;
         rx_q.available.idx += 1; // We only added one "chain head"

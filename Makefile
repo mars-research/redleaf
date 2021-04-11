@@ -260,10 +260,11 @@ create-virtio-tap:
 	sudo ip tuntap add mode tap user ${USER} name virtio
 	# Courtesy of Vincent
 	sudo ip address add 10.69.69.1/24 dev virtio
+	sudo ip link set up virtio
 
 .PHONY: delete-virtio-tap
 delete-virtio-tap:
-	ip link del virtio
+	sudo ip link del virtio
 
 
 include $(root)/checkstack.mk
