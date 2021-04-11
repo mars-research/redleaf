@@ -460,16 +460,15 @@ impl VirtioNetInner {
         // Mark the buffer as usable
         rx_q.available.ring[rx_q.available.idx as usize] = header_idx as u16;
         rx_q.available.idx += 2;
-
-        // Notify the device (could be moved to later, when there're more buffers)
-        unsafe {
-            self.mmio.queue_notify(0, 0);
-        }
     }
 
     fn add_rx_buffers(&mut self, packets: &mut RRefDeque<[u8; 1514], 32>) {
         while let Some(buffer) = packets.pop_front() {
             self.add_rx_buffer(&buffer);
+        }
+        // Notify the device (could be moved to later, when there're more buffers)
+        unsafe {
+            self.mmio.queue_notify(0, 0);
         }
     }
 
