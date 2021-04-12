@@ -44,47 +44,6 @@ use pci::PciFactory;
 /// The number of Descriptors (must be a multiple of 2), called "Queue Size" in documentation
 pub const DESCRIPTOR_COUNT: usize = 256; // Maybe change this to 256, was 8 before
 
-// static BUFFERS: [VirtioNetCompletePacket; DESCRIPTOR_COUNT] = [VirtioNetCompletePacket {
-//     header: VirtioNetworkHeader {
-//         flags: 0,
-//         gso_type: 0,
-//         header_length: 0, // This Header: 12, Ethernet: 22
-//         gso_size: 0,
-//         csum_start: 0,
-//         csum_offset: 0,
-//         // num_buffers: 0,
-//     },
-//     data: [0; 1514],
-// }; DESCRIPTOR_COUNT];
-
-// static mut PACKET_FOR_SENDING: VirtioNetCompletePacket = VirtioNetCompletePacket {
-//     header: VirtioNetworkHeader {
-//         flags: 0,
-//         gso_type: 0,
-//         header_length: 0,
-//         gso_size: 0,
-//         csum_start: 0,
-//         csum_offset: 0,
-//         // num_buffers: 0,
-//     },
-//     data: [0; 1514],
-// };
-
-// static TIAN_PACKET: [u8; 98] = [
-//     // 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x80, 0x61, 0x5F, 0x08, 0x37, 0x23, 0x08, 0x00, 0x45, 0x00,
-//     // 0x00, 0x34, 0x20, 0xF3, 0x40, 0x00, 0x34, 0x06, 0x1C, 0xBF, 0xB8, 0x69, 0x94, 0x72, 0xAC, 0x14,
-//     // 0x10, 0x22, 0x01, 0xBB, 0xCA, 0xFC, 0xDA, 0xD3, 0x61, 0x34, 0xD8, 0xBF, 0xCC, 0x09, 0x80, 0x10,
-//     // 0x00, 0x13, 0xF5, 0xAD, 0x00, 0x00, 0x01, 0x01, 0x08, 0x0A, 0x9E, 0xC6, 0xA7, 0xE1, 0x1D, 0x2A,
-//     // 0x66, 0x8E,
-//     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x9A, 0xD2, 0x0B, 0x94, 0x88, 0x8B, 0x08, 0x00, 0x45, 0x00,
-//     0x00, 0x54, 0x00, 0x00, 0x40, 0x00, 0x40, 0x01, 0x9B, 0x1F, 0x0A, 0x45, 0x45, 0x01, 0x0A, 0x45,
-//     0x45, 0xFF, 0x08, 0x00, 0x64, 0x95, 0x00, 0x03, 0x00, 0x01, 0x75, 0xB8, 0x5B, 0x60, 0x00, 0x00,
-//     0x00, 0x00, 0xFD, 0x7A, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15,
-//     0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25,
-//     0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35,
-//     0x36, 0x37,
-// ];
-
 #[derive(Debug)]
 #[repr(C, align(16))]
 struct VirtualQueues {
@@ -469,10 +428,10 @@ impl VirtioNetInner {
             next: 0,
         };
 
-        println!(
-            "ADDED BUFFERS: {:#?} {:#?}",
-            rx_q.descriptors[header_idx], rx_q.descriptors[buffer_idx]
-        );
+        // println!(
+        //     "ADDED BUFFERS: {:#?} {:#?}",
+        //     rx_q.descriptors[header_idx], rx_q.descriptors[buffer_idx]
+        // );
 
         println!("AVAIL IDX: {:}", rx_q.available.idx);
 
@@ -549,6 +508,19 @@ impl VirtioNetInner {
 
     fn get_received_packets(&mut self, packets: &mut RRefDeque<[u8; 1514], 32>) {
         println!(
+            "Location of VirtQueues: RX: {:}, TX: {:}",
+            Self::get_addr(&self.virtual_queues.receive_queue.descriptors),
+            Self::get_addr(&self.virtual_queues.transmit_queue.descriptors)
+        );
+        println!(
+            "Location of VirtQueues: RX: {:}, TX: {:}",
+            (&self.virtual_queues.receive_queue.descriptors
+                as *const [VirtqDescriptor; DESCRIPTOR_COUNT]) as u64,
+            (&self.virtual_queues.transmit_queue.descriptors
+                as *const [VirtqDescriptor; DESCRIPTOR_COUNT]) as u64
+        );
+
+        println!(
             "Looking for new packets. RX_LAST: {:}, USED_IDX: {:}",
             self.rx_last_idx, self.virtual_queues.receive_queue.used.idx
         );
@@ -605,8 +577,8 @@ impl interface::net::Net for VirtioNet {
         let mut device = self.0.lock();
 
         if tx {
-            println!("HANDLE TX");
-            device.add_tx_packets(&mut packets);
+            // println!("HANDLE TX");
+            // device.add_tx_packets(&mut packets);
         } else {
             println!("HANDLE RX");
             device.add_rx_buffers(&mut packets, &mut collect);
@@ -656,7 +628,7 @@ pub fn trusted_entry(
         pci_factory.to_device().unwrap()
     };
 
-    let new_net = net.clone_net();
+    // let new_net = net.clone_net();
 
     // Run SmolNet
     let mut smol = SmolPhy::new(Box::new(net));
@@ -681,7 +653,7 @@ pub fn trusted_entry(
 
     // let socketset = SocketSet::new(Vec::with_capacity(512));
 
-    new_net.unwrap()
+    // new_net.unwrap()
 }
 
 // This function is called on panic.
