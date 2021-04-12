@@ -221,7 +221,7 @@ impl VirtioNetInner {
             tx_last_idx: 0,
         };
 
-        virtio_inner.init();
+        // virtio_inner.init();
         // virtio_inner.testing();
 
         virtio_inner
@@ -507,18 +507,11 @@ impl VirtioNetInner {
     }
 
     fn get_received_packets(&mut self, packets: &mut RRefDeque<[u8; 1514], 32>) {
-        println!(
-            "Location of VirtQueues: RX: {:}, TX: {:}",
-            Self::get_addr(&self.virtual_queues.receive_queue.descriptors),
-            Self::get_addr(&self.virtual_queues.transmit_queue.descriptors)
-        );
-        println!(
-            "Location of VirtQueues: RX: {:}, TX: {:}",
-            (&self.virtual_queues.receive_queue.descriptors
-                as *const [VirtqDescriptor; DESCRIPTOR_COUNT]) as u64,
-            (&self.virtual_queues.transmit_queue.descriptors
-                as *const [VirtqDescriptor; DESCRIPTOR_COUNT]) as u64
-        );
+        // println!(
+        //     "Location of VirtQueues: RX: {:}, TX: {:}",
+        //     Self::get_addr(&self.virtual_queues.receive_queue.descriptors),
+        //     Self::get_addr(&self.virtual_queues.transmit_queue.descriptors)
+        // );
 
         println!(
             "Looking for new packets. RX_LAST: {:}, USED_IDX: {:}",
@@ -530,7 +523,7 @@ impl VirtioNetInner {
 
             let buffer = self.virtual_queues.receive_queue.used.ring
                 [(self.rx_last_idx as usize) % DESCRIPTOR_COUNT];
-            println!("Received buffer: id: {:}, len: {:}", buffer.id, buffer.len);
+            println!("Received buffer: {:#?}", buffer);
 
             println!(
                 "{:#?}",
@@ -577,8 +570,8 @@ impl interface::net::Net for VirtioNet {
         let mut device = self.0.lock();
 
         if tx {
-            // println!("HANDLE TX");
-            // device.add_tx_packets(&mut packets);
+            println!("HANDLE TX");
+            device.add_tx_packets(&mut packets);
         } else {
             println!("HANDLE RX");
             device.add_rx_buffers(&mut packets, &mut collect);
@@ -629,6 +622,10 @@ pub fn trusted_entry(
     };
 
     // let new_net = net.clone_net();
+
+    unsafe {
+        net.0.lock().init();
+    }
 
     // Run SmolNet
     let mut smol = SmolPhy::new(Box::new(net));
