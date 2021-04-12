@@ -175,9 +175,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "custom_error"
-version = "1.6.0"
-source = "git+https://github.com/gz/custom_error.git#c882da124e7d909e4006d9e3d8022c3aa81526df"
+name = "custom_error_core"
+version = "1.8.0"
+source = "git+https://github.com/gz/custom_error.git?rev=be6af8aa1ad227b2686c3fdfd94a0a249767bf6f#be6af8aa1ad227b2686c3fdfd94a0a249767bf6f"
 
 [[package]]
 name = "digest"
@@ -524,7 +524,7 @@ dependencies = [
  "bit_field 0.9.0",
  "bitflags",
  "curve25519-dalek",
- "custom_error",
+ "custom_error_core",
  "ed25519-dalek",
  "elfloader",
  "hashbrown 0.6.3",
