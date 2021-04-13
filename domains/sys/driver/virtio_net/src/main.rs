@@ -20,7 +20,7 @@ use alloc::vec::Vec;
 use core::{borrow::BorrowMut, panic::PanicInfo, pin::Pin};
 use syscalls::{Heap, Syscall};
 
-use console::println;
+use console::{print, println};
 use interface::{net::Net, rpc::RpcResult};
 use libsyscalls::syscalls::sys_backtrace;
 pub use platform::PciBarAddr;
@@ -159,7 +159,7 @@ struct VirtioNetInner {
     tx_last_idx: u16,
 
     /// Holds the rx_packets (to prevent dropping) while they are in the rx_queue. The key is their address.
-    rx_buffers: BTreeMap<u64, Pin<RRef<NetworkPacketBuffer>>>,
+    rx_buffers: BTreeMap<u64, RRef<NetworkPacketBuffer>>,
 }
 
 impl VirtioNetInner {
@@ -424,8 +424,7 @@ impl VirtioNetInner {
 
         // Pin our buffer
         let buffer_addr = buffer.as_ptr() as u64;
-        let pinned_buffer = Pin::new(buffer);
-        self.rx_buffers.insert(buffer_addr, pinned_buffer);
+        self.rx_buffers.insert(buffer_addr, buffer);
 
         // Add the buffer for the header
         rx_q.descriptors[header_idx] = VirtqDescriptor {
@@ -523,28 +522,36 @@ impl VirtioNetInner {
     }
 
     fn get_received_packets(&mut self, packets: &mut RRefDeque<NetworkPacketBuffer, 32>) {
-        // println!(
-        //     "Location of VirtQueues: RX: {:}, TX: {:}",
-        //     Self::get_addr(&self.virtual_queues.receive_queue.descriptors),
-        //     Self::get_addr(&self.virtual_queues.transmit_queue.descriptors)
-        // );
-
         println!(
             "Looking for new packets. RX_LAST: {:}, USED_IDX: {:}",
             self.rx_last_idx, self.virtual_queues.receive_queue.used.idx
         );
 
         while self.rx_last_idx < self.virtual_queues.receive_queue.used.idx {
-            self.rx_last_idx += 1;
-
-            let buffer = self.virtual_queues.receive_queue.used.ring
+            let used_element = self.virtual_queues.receive_queue.used.ring
                 [(self.rx_last_idx as usize) % DESCRIPTOR_COUNT];
-            println!("Received buffer: {:#?}", buffer);
+            println!("Received buffer: {:#?}", used_element);
 
-            println!(
-                "{:#?}",
-                self.virtual_queues.receive_queue.descriptors[buffer.id as usize]
-            )
+            let used_element_descriptor =
+                self.virtual_queues.receive_queue.descriptors[used_element.id as usize];
+            let buffer_descriptor = self.virtual_queues.receive_queue.descriptors
+                [used_element_descriptor.next as usize];
+
+            println!("USED ELEMENT DESCRIPTOR {:#?}", used_element_descriptor);
+            println!("BUFFER DESCRIPTOR {:#?}", buffer_descriptor);
+
+            println!("KEYS IN RX_BUFFERS {:#?}", self.rx_buffers.keys());
+
+            if let Some(buffer) = self.rx_buffers.remove(&buffer_descriptor.addr) {
+                for i in 1..100 {
+                    print!("{:x} ", buffer[i]);
+                }
+                packets.push_back(buffer);
+            } else {
+                println!("ERROR: VIRTIO NET: RX BUFFER MISSING OR BUFFER ADDRESS CHANGED!");
+            }
+
+            self.rx_last_idx += 1;
         }
     }
 
