@@ -13,10 +13,11 @@ extern crate alloc;
 extern crate malloc;
 
 use alloc::boxed::Box;
+use alloc::collections::btree_map::BTreeMap;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
-use core::{borrow::BorrowMut, panic::PanicInfo};
+use core::{borrow::BorrowMut, panic::PanicInfo, pin::Pin};
 use syscalls::{Heap, Syscall};
 
 use console::println;
@@ -27,7 +28,7 @@ use spin::Mutex;
 
 pub use interface::error::{ErrorKind, Result};
 
-use rref::RRefDeque;
+use rref::{RRef, RRefDeque};
 
 use smolnet::{self, SmolPhy};
 
@@ -43,6 +44,8 @@ use pci::PciFactory;
 
 /// The number of Descriptors (must be a multiple of 2), called "Queue Size" in documentation
 pub const DESCRIPTOR_COUNT: usize = 256; // Maybe change this to 256, was 8 before
+
+type NetworkPacketBuffer = [u8; 1514];
 
 #[derive(Debug)]
 #[repr(C, align(16))]
@@ -142,6 +145,9 @@ struct VirtioNetInner {
     /// Dummy VirtioNetHeaders
     virtio_network_headers: [VirtioNetworkHeader; DESCRIPTOR_COUNT],
 
+    // Tracks the number of free descriptors spaces remaining
+    rx_free_descriptor_count: usize,
+
     /// Tracks which descriptors on the queue are free
     rx_free_descriptors: [bool; DESCRIPTOR_COUNT],
 
@@ -151,6 +157,9 @@ struct VirtioNetInner {
     // The last index (of the used ring) that was checked by the driver
     rx_last_idx: u16,
     tx_last_idx: u16,
+
+    /// Holds the rx_packets (to prevent dropping) while they are in the rx_queue. The key is their address.
+    rx_buffers: BTreeMap<u64, Pin<RRef<NetworkPacketBuffer>>>,
 }
 
 impl VirtioNetInner {
@@ -214,11 +223,15 @@ impl VirtioNetInner {
             virtual_queues,
             virtio_network_headers,
 
+            rx_free_descriptor_count: DESCRIPTOR_COUNT,
+
             rx_free_descriptors,
             tx_free_descriptors,
 
             rx_last_idx: 0,
             tx_last_idx: 0,
+
+            rx_buffers: BTreeMap::new(),
         };
 
         // virtio_inner.init();
@@ -393,22 +406,26 @@ impl VirtioNetInner {
         (obj as *const T) as u64
     }
 
-    fn add_rx_buffer(&mut self, buffer: &[u8; 1514]) -> Result<()> {
+    fn add_rx_buffer(&mut self, buffer: RRef<NetworkPacketBuffer>) {
         // One descriptor points at the network header, chain this with a descriptor to the buffer
-        let rx_q = &mut self.virtual_queues.receive_queue;
 
-        let header_idx = Self::get_next_free_buffer(&mut self.rx_free_descriptors);
-        let buffer_idx = Self::get_next_free_buffer(&mut self.rx_free_descriptors);
-
-        if header_idx.is_err() || buffer_idx.is_err() {
-            // println!(
-            //     "No space in RX Queue available for new buffers. Need to receive packets first!"
-            // );
-            return Err(ErrorKind::Other);
+        if self.rx_free_descriptor_count < 2 {
+            // Send the buffer back
+            // Err(buffer)
+            return;
         }
 
-        let header_idx = header_idx.unwrap();
-        let buffer_idx = buffer_idx.unwrap();
+        let rx_q = &mut self.virtual_queues.receive_queue;
+
+        let header_idx = Self::get_next_free_buffer(&mut self.rx_free_descriptors).unwrap();
+        let buffer_idx = Self::get_next_free_buffer(&mut self.rx_free_descriptors).unwrap();
+
+        self.rx_free_descriptor_count -= 2;
+
+        // Pin our buffer
+        let buffer_addr = buffer.as_ptr() as u64;
+        let pinned_buffer = Pin::new(buffer);
+        self.rx_buffers.insert(buffer_addr, pinned_buffer);
 
         // Add the buffer for the header
         rx_q.descriptors[header_idx] = VirtqDescriptor {
@@ -422,7 +439,7 @@ impl VirtioNetInner {
 
         // Add the buffer
         rx_q.descriptors[buffer_idx] = VirtqDescriptor {
-            addr: Self::get_addr(buffer),
+            addr: buffer_addr,
             len: 1514,
             flags: 2,
             next: 0,
@@ -439,19 +456,18 @@ impl VirtioNetInner {
         rx_q.available.ring[(rx_q.available.idx as usize) % DESCRIPTOR_COUNT] = header_idx as u16;
         rx_q.available.idx += 1; // We only added one "chain head"
 
-        Ok(())
+        // Ok(())
     }
 
     fn add_rx_buffers(
         &mut self,
-        packets: &mut RRefDeque<[u8; 1514], 32>,
-        collect: &mut RRefDeque<[u8; 1514], 32>,
+        packets: &mut RRefDeque<NetworkPacketBuffer, 32>,
+        collect: &mut RRefDeque<NetworkPacketBuffer, 32>,
     ) {
         while let Some(buffer) = packets.pop_front() {
-            let res = self.add_rx_buffer(&buffer);
-
-            if res.is_err() {
-                // Put the buffer on the collect queue
+            if (self.rx_free_descriptor_count >= 2) {
+                let res = self.add_rx_buffer(buffer);
+            } else {
                 collect.push_back(buffer);
             }
         }
@@ -461,7 +477,7 @@ impl VirtioNetInner {
         }
     }
 
-    fn add_tx_packet(&mut self, buffer: &[u8; 1514]) -> Result<()> {
+    fn add_tx_packet(&mut self, buffer: &NetworkPacketBuffer) -> Result<()> {
         let header_idx = Self::get_next_free_buffer(&mut self.tx_free_descriptors);
         let buffer_idx = Self::get_next_free_buffer(&mut self.tx_free_descriptors);
 
@@ -496,7 +512,7 @@ impl VirtioNetInner {
         Ok(())
     }
 
-    fn add_tx_packets(&mut self, packets: &mut RRefDeque<[u8; 1514], 32>) {
+    fn add_tx_packets(&mut self, packets: &mut RRefDeque<NetworkPacketBuffer, 32>) {
         while let Some(packet) = packets.pop_front() {
             self.add_tx_packet(&packet);
         }
@@ -506,7 +522,7 @@ impl VirtioNetInner {
         }
     }
 
-    fn get_received_packets(&mut self, packets: &mut RRefDeque<[u8; 1514], 32>) {
+    fn get_received_packets(&mut self, packets: &mut RRefDeque<NetworkPacketBuffer, 32>) {
         // println!(
         //     "Location of VirtQueues: RX: {:}, TX: {:}",
         //     Self::get_addr(&self.virtual_queues.receive_queue.descriptors),
