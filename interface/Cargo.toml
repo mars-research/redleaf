@@ -14,4 +14,4 @@ num-derive = { version = "0.3", default-features = false }
 syscalls = { path = "../lib/core/interfaces/syscalls/", version = "0.1.0" }
 rref = { path = "../lib/core/rref/", version = "0.1.0" }
 pci_driver = { path = "../lib/core/interfaces/dev/pci/pci_driver/", version = "0.1.0" }
-
+hashbrown = "0.6"

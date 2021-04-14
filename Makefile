@@ -5,7 +5,7 @@
 ################
 
 DEBUG            ?= false
-LARGE_MEM        ?= false
+LARGE_MEM        ?= true
 IXGBE		 ?= true
 
 ifndef NO_DEFAULT_FLAGS
@@ -100,7 +100,7 @@ qemu_common     += -net nic,model=virtio
 #qemu_common	+= -mem-path /dev/hugepages
 
 ifeq ($(LARGE_MEM),true)
-qemu_common     += -m 20G
+qemu_common     += -m 6G
 else
 qemu_common     += -m 2048M
 endif

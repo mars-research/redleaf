@@ -28,7 +28,7 @@ default-features = false
 default = [
     # "test_ab",
     # "test_cd",
-    "membdev",
+    # "membdev",
     "shadow",
     #"benchnet",
     # "benchnvme",

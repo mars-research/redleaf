@@ -411,6 +411,7 @@ version = "0.1.0"
 dependencies = [
  "bitflags",
  "byteorder",
+ "hashbrown 0.6.3",
  "libsyscalls",
  "num-derive",
  "num-traits",
