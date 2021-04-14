@@ -424,7 +424,18 @@ impl VirtioNetInner {
 
         // Pin our buffer
         let buffer_addr = buffer.as_ptr() as u64;
+
+        if self.rx_buffers.contains_key(&buffer_addr) {
+            println!("BUFFER ADDR KEY CONFLICT!!! {:}", buffer_addr);
+        }
+
         self.rx_buffers.insert(buffer_addr, buffer);
+
+        println!(
+            "ADDED KEY: {:?}, is in map: {:?}",
+            buffer_addr,
+            self.rx_buffers.contains_key(&buffer_addr)
+        );
 
         // Add the buffer for the header
         rx_q.descriptors[header_idx] = VirtqDescriptor {
@@ -443,6 +454,8 @@ impl VirtioNetInner {
             flags: 2,
             next: 0,
         };
+
+        println!("ADDED BUFFER: ID: {:}, ADDR: {:}", buffer_idx, buffer_addr);
 
         // println!(
         //     "ADDED BUFFERS: {:#?} {:#?}",
@@ -537,15 +550,29 @@ impl VirtioNetInner {
             let buffer_descriptor = self.virtual_queues.receive_queue.descriptors
                 [used_element_descriptor.next as usize];
 
+            println!(
+                "RETRIEVTING BUFFER: ID: {:}, ADDR: {:}",
+                used_element_descriptor.next, buffer_descriptor.addr
+            );
+
+            // for (k, v) in self.rx_buffers.iter() {
+            //     println!("KEY: {:}, ADDR: {:?}", k, v.as_ptr() as u64);
+            // }
+            println!("{:?}", self.rx_buffers.len());
+
             println!("USED ELEMENT DESCRIPTOR {:#?}", used_element_descriptor);
             println!("BUFFER DESCRIPTOR {:#?}", buffer_descriptor);
 
-            println!("KEYS IN RX_BUFFERS {:#?}", self.rx_buffers.keys());
+            println!(
+                "KEY IN RX_BUFFERS? {:#?}",
+                self.rx_buffers.contains_key(&buffer_descriptor.addr)
+            );
 
             if let Some(buffer) = self.rx_buffers.remove(&buffer_descriptor.addr) {
-                for i in 1..100 {
+                for i in 1..used_element.len as usize {
                     print!("{:x} ", buffer[i]);
                 }
+                println!("");
                 packets.push_back(buffer);
             } else {
                 println!("ERROR: VIRTIO NET: RX BUFFER MISSING OR BUFFER ADDRESS CHANGED!");
