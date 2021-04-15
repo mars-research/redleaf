@@ -182,6 +182,7 @@ impl BDev for Ahci {
         let mut value: [u8; BSIZE] = [0; BSIZE];
         self.with_disk(0, |d| d.read(block as u64, &mut value));
         // data.copy_from_slice();
+        data.copy_from_slice(&value);
         Ok(data)
     }
     fn write(&self, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()> {
@@ -192,7 +193,7 @@ impl BDev for Ahci {
 }
 
 #[no_mangle]
-pub fn init(
+pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
     heap: Box<dyn syscalls::Heap + Send + Sync>,
     pci: Box<dyn interface::pci::PCI>,
