@@ -13,6 +13,7 @@ rref = { path = "../../../../lib/core/rref" }
 spin = { path = "../../../../lib/core/spin-rs" }
 volatile_accessor = { path = "../../../../lib/external/volatile_accessor" }
 smolnet = { path = "../../../../domains/lib/smolnet" }
+hashbrown = "0.7.2"
 
 
 # Interfaces

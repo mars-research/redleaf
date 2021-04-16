@@ -13,7 +13,8 @@ extern crate alloc;
 extern crate malloc;
 
 use alloc::boxed::Box;
-use alloc::collections::btree_map::BTreeMap;
+// use alloc::collections::btree_map::BTreeMap; // Faulty implementation!
+use hashbrown::HashMap;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
@@ -159,7 +160,7 @@ struct VirtioNetInner {
     tx_last_idx: u16,
 
     /// Holds the rx_packets (to prevent dropping) while they are in the rx_queue. The key is their address.
-    rx_buffers: BTreeMap<u64, RRef<NetworkPacketBuffer>>,
+    rx_buffers: HashMap<u64, RRef<NetworkPacketBuffer>>,
 }
 
 impl VirtioNetInner {
@@ -231,7 +232,7 @@ impl VirtioNetInner {
             rx_last_idx: 0,
             tx_last_idx: 0,
 
-            rx_buffers: BTreeMap::new(),
+            rx_buffers: HashMap::new(),
         };
 
         // virtio_inner.init();
@@ -611,7 +612,7 @@ impl interface::net::Net for VirtioNet {
         tx: bool,
         pkt_len: usize,
     ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 32>, RRefDeque<[u8; 1514], 32>)>> {
-        println!("SUBMIT AND POLL RREF CALLED!");
+        //println!("SUBMIT AND POLL RREF CALLED!");
 
         // println!("{:#?}", packets.len());
         // println!("{:#?}", collect.len());
@@ -620,10 +621,10 @@ impl interface::net::Net for VirtioNet {
         let mut device = self.0.lock();
 
         if tx {
-            println!("HANDLE TX");
+            //println!("HANDLE TX");
             device.add_tx_packets(&mut packets);
         } else {
-            println!("HANDLE RX");
+            //println!("HANDLE RX");
             device.add_rx_buffers(&mut packets, &mut collect);
         }
 

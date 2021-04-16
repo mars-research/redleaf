@@ -1070,6 +1070,7 @@ name = "virtio_net"
 version = "0.1.0"
 dependencies = [
  "console",
+ "hashbrown 0.7.2",
  "interface",
  "libsyscalls",
  "libtime",
