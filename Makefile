@@ -91,7 +91,6 @@ qemu_common     += -cdrom $(iso)
 #qemu_common    += -no-reboot -no-shutdown -d int,cpu_reset
 qemu_common     += -drive id=satadisk,file=$(xv6fs_img),format=raw,if=none
 qemu_common     += -device ahci,id=ahci
-# qemu_common     += -device ide-hd,drive=satadisk,bus=ahci.0
 qemu_common     += -device ide-drive,drive=satadisk,bus=ahci.0
 #qemu_common    += -smp 4
 qemu_common     += -monitor telnet:127.0.0.1:55555,server,nowait
