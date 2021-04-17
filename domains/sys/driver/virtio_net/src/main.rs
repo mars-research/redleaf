@@ -12,11 +12,10 @@
 extern crate alloc;
 extern crate malloc;
 
-use alloc::boxed::Box;
-// use alloc::collections::btree_map::BTreeMap; // Faulty implementation!
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use alloc::{boxed::Box, collections::BTreeMap};
 use core::{borrow::BorrowMut, panic::PanicInfo, pin::Pin, usize};
 use hashbrown::HashMap;
 use syscalls::{Heap, Syscall};
@@ -442,7 +441,7 @@ impl VirtioNetInner {
         // Add the buffer for the header
         rx_q.descriptors[header_idx] = VirtqDescriptor {
             addr: Self::get_addr(&self.virtio_network_headers[header_idx]),
-            len: 14,
+            len: 10,
             // 1 is NEXT FLAG
             // 2 is WRITABLE FLAG
             flags: 1 | 2,
@@ -509,7 +508,7 @@ impl VirtioNetInner {
 
         self.virtual_queues.transmit_queue.descriptors[header_idx] = VirtqDescriptor {
             addr: Self::get_addr(&self.virtio_network_headers[header_idx]),
-            len: 14,
+            len: 10,
             flags: 1, // 1 is next flag
             next: (buffer_idx as u16),
         };
@@ -525,11 +524,20 @@ impl VirtioNetInner {
             (header_idx as u16);
         self.virtual_queues.transmit_queue.available.idx += 1;
 
+        println!("SENDING TX BUFFER {:}", buffer_idx);
+
         Ok(())
     }
 
     fn add_tx_packets(&mut self, packets: &mut RRefDeque<NetworkPacketBuffer, 32>) {
         while let Some(packet) = packets.pop_front() {
+            println!("ADDING TX PACKET");
+
+            for i in 0..1514 {
+                print!("{:#02x}", packet[i]);
+            }
+            println!("");
+
             self.add_tx_packet(packet);
         }
 
@@ -540,39 +548,52 @@ impl VirtioNetInner {
 
     /// Adds new packets to `packets`. Returns the number of added packets
     fn get_received_packets(&mut self, packets: &mut RRefDeque<NetworkPacketBuffer, 32>) -> usize {
-        println!(
-            "Looking for new packets. RX_LAST: {:}, USED_IDX: {:}",
-            self.rx_last_idx, self.virtual_queues.receive_queue.used.idx
-        );
+        // println!(
+        //     "Looking for new packets. RX_LAST: {:}, USED_IDX: {:}",
+        //     self.rx_last_idx, self.virtual_queues.receive_queue.used.idx
+        // );
 
         let mut new_packets_count = 0;
 
         while self.rx_last_idx < self.virtual_queues.receive_queue.used.idx {
             let used_element = self.virtual_queues.receive_queue.used.ring
                 [(self.rx_last_idx as usize) % DESCRIPTOR_COUNT];
-            println!("Received buffer: {:#?}", used_element);
+            // println!("Received buffer: {:#?}", used_element);
 
             let used_element_descriptor =
                 self.virtual_queues.receive_queue.descriptors[used_element.id as usize];
             let buffer_descriptor = self.virtual_queues.receive_queue.descriptors
                 [used_element_descriptor.next as usize];
 
-            println!(
-                "RETRIEVTING BUFFER: ID: {:}, ADDR: {:}",
-                used_element_descriptor.next, buffer_descriptor.addr
-            );
+            // println!(
+            //     "RETRIEVTING BUFFER: ID: {:}, ADDR: {:}",
+            //     used_element_descriptor.next, buffer_descriptor.addr
+            // );
 
-            println!("USED ELEMENT DESCRIPTOR {:#?}", used_element_descriptor);
-            println!("BUFFER DESCRIPTOR {:#?}", buffer_descriptor);
+            // println!("USED ELEMENT DESCRIPTOR {:#?}", used_element_descriptor);
+            // println!("BUFFER DESCRIPTOR {:#?}", buffer_descriptor);
 
-            println!(
-                "KEY IN RX_BUFFERS? {:#?}",
-                self.rx_buffers.contains_key(&buffer_descriptor.addr)
-            );
+            // println!(
+            //     "KEY IN RX_BUFFERS? {:#?}",
+            //     self.rx_buffers.contains_key(&buffer_descriptor.addr)
+            // );
 
             if let Some(buffer) = self.rx_buffers.remove(&buffer_descriptor.addr) {
-                for i in 1..used_element.len as usize {
-                    print!("{:x} ", buffer[i]);
+                // println!("HEADER:");
+
+                // println!(
+                //     "{:} == {:}",
+                //     used_element_descriptor.addr,
+                //     (&self.virtio_network_headers[used_element.id as usize]
+                //         as *const VirtioNetworkHeader) as u64
+                // );
+                // println!(
+                //     "{:#x?}",
+                //     self.virtio_network_headers[used_element.id as usize]
+                // );
+
+                for i in 0..1514 {
+                    print!("{:#02x} ", buffer[i]);
                 }
                 println!("");
                 packets.push_back(buffer);
@@ -604,6 +625,8 @@ impl VirtioNetInner {
 
             if let Some(buffer) = self.tx_buffers.remove(&buffer_descriptor.addr) {
                 collect.push_back(buffer);
+
+                println!("TX BUFFER SENT! {:}", used_element_descriptor.next);
 
                 // Free the descriptor
                 self.tx_free_descriptors[used_element.id as usize] = true;
@@ -661,8 +684,8 @@ impl interface::net::Net for VirtioNet {
             device.add_rx_buffers(&mut packets, &mut collect);
         }
 
-        let new_packet_count = device.get_received_packets(&mut packets);
-        device.free_processed_tx_packets(&mut collect);
+        let new_packet_count = device.get_received_packets(&mut collect);
+        device.free_processed_tx_packets(&mut packets);
 
         // This 0 here is the number of packets received
         Ok(Ok((new_packet_count, packets, collect)))
@@ -715,28 +738,36 @@ pub fn trusted_entry(
     // Run SmolNet
     let mut smol = SmolPhy::new(Box::new(net));
 
-    // use smoltcp::iface::{EthernetInterfaceBuilder, NeighborCache};
-    // use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
+    use smoltcp::iface::{EthernetInterfaceBuilder, NeighborCache};
+    use smoltcp::socket::SocketSet;
+    use smoltcp::time::Instant;
+    use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
 
-    // let mut neighbor_cache_entries = [None; 8];
-    // let neighbor_cache = NeighborCache::new(HashMap::new());
+    let neighbor_cache = NeighborCache::new(BTreeMap::new());
 
-    // let ip_addresses = [IpCidr::new(IpAddress::v4(10, 10, 1, 1), 24)];
-    // let mac_address = [0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x10];
-    // let iface = EthernetInterfaceBuilder::new(smol)
-    //     .ethernet_addr(EthernetAddress::from_bytes(&mac_address))
-    //     // .neighbor_cache(neighbor_cache)
-    //     .ip_addrs(ip_addresses)
-    //     .finalize();
+    let ip_addresses = [IpCidr::new(IpAddress::v4(10, 69, 69, 10), 24)];
+    let mac_address = [0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x10];
+    let mut iface = EthernetInterfaceBuilder::new(smol)
+        .ethernet_addr(EthernetAddress::from_bytes(&mac_address))
+        .neighbor_cache(neighbor_cache)
+        .ip_addrs(ip_addresses)
+        .finalize();
 
-    // let socketset = SocketSet::new(Vec::with_capacity(512));
+    let mut sockets = SocketSet::new(Vec::with_capacity(512));
+
+    let mut httpd = redhttpd::Httpd::new();
 
     loop {
-        smol.do_rx();
-        smol.do_tx();
-        // iface.poll(sockets, timestamp)
+        iface.device_mut().do_rx();
 
-        libtime::sys_ns_sleep(10_000_000_000);
+        let current = libtime::get_ns_time() / 1000000;
+        let timestamp = Instant::from_millis(current as i64);
+
+        iface.poll(&mut sockets, timestamp);
+        httpd.handle(&mut sockets);
+        iface.device_mut().do_tx();
+
+        libtime::sys_ns_sleep(500000);
     }
 
     // // let mut neighbor_cache_entries = [None; 8];

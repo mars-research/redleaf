@@ -100,7 +100,7 @@ qemu_common     += -cpu 'Haswell,pdpe1gb' -machine q35
 qemu_common 	+= -device virtio-net-pci,netdev=net0
 # qemu_common 	+= -netdev user,id=net0
 qemu_common		+= -netdev tap,id=net0,ifname=virtio,script=no,downscript=no
-qemu_common		+= --trace virtio* --trace virtqueue*
+# qemu_common		+= --trace virtio* --trace virtqueue*
 # qemu_common		+= -D qemu-trace.log
 # qemu_common		+= -d trace:virtio*,trace:virtqueue* -D serial.log
 # qemu_common		+= -nic user,model=virtio-net-pci

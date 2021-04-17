@@ -14,6 +14,7 @@ spin = { path = "../../../../lib/core/spin-rs" }
 volatile_accessor = { path = "../../../../lib/external/volatile_accessor" }
 smolnet = { path = "../../../../domains/lib/smolnet" }
 hashbrown = "0.7.2"
+redhttpd = { path = "../../../lib/redhttpd" }
 
 
 # Interfaces
@@ -24,7 +25,7 @@ platform = { path = "../../../../lib/core/interfaces/platform" }
 interface = { path = "../../../../interface/generated" }
 
 
-# [dependencies.smoltcp]
-# path = "../../../../lib/external/smoltcp"
-# default-features = false
-# features = ["alloc", "proto-ipv4", "socket-tcp", "socket-icmp", "ethernet"]
+[dependencies.smoltcp]
+path = "../../../../lib/external/smoltcp"
+default-features = false
+features = ["alloc", "proto-ipv4", "socket-tcp", "socket-icmp", "ethernet"]
