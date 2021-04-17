@@ -22,3 +22,9 @@ pci_driver = { path = "../../../../lib/core/interfaces/dev/pci/pci_driver" }
 protocol = { path = "../../../../lib/core/interfaces/protocol" }
 platform = { path = "../../../../lib/core/interfaces/platform" }
 interface = { path = "../../../../interface/generated" }
+
+
+# [dependencies.smoltcp]
+# path = "../../../../lib/external/smoltcp"
+# default-features = false
+# features = ["alloc", "proto-ipv4", "socket-tcp", "socket-icmp", "ethernet"]

@@ -14,11 +14,11 @@ extern crate malloc;
 
 use alloc::boxed::Box;
 // use alloc::collections::btree_map::BTreeMap; // Faulty implementation!
-use hashbrown::HashMap;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
-use core::{borrow::BorrowMut, panic::PanicInfo, pin::Pin};
+use core::{borrow::BorrowMut, panic::PanicInfo, pin::Pin, usize};
+use hashbrown::HashMap;
 use syscalls::{Heap, Syscall};
 
 use console::{print, println};
@@ -161,6 +161,7 @@ struct VirtioNetInner {
 
     /// Holds the rx_packets (to prevent dropping) while they are in the rx_queue. The key is their address.
     rx_buffers: HashMap<u64, RRef<NetworkPacketBuffer>>,
+    tx_buffers: HashMap<u64, RRef<NetworkPacketBuffer>>,
 }
 
 impl VirtioNetInner {
@@ -233,6 +234,7 @@ impl VirtioNetInner {
             tx_last_idx: 0,
 
             rx_buffers: HashMap::new(),
+            tx_buffers: HashMap::new(),
         };
 
         // virtio_inner.init();
@@ -423,12 +425,11 @@ impl VirtioNetInner {
 
         self.rx_free_descriptor_count -= 2;
 
-        // Pin our buffer
         let buffer_addr = buffer.as_ptr() as u64;
 
-        if self.rx_buffers.contains_key(&buffer_addr) {
-            println!("BUFFER ADDR KEY CONFLICT!!! {:}", buffer_addr);
-        }
+        // if self.rx_buffers.contains_key(&buffer_addr) {
+        //     println!("BUFFER ADDR KEY CONFLICT!!! {:}", buffer_addr);
+        // }
 
         self.rx_buffers.insert(buffer_addr, buffer);
 
@@ -463,7 +464,7 @@ impl VirtioNetInner {
         //     rx_q.descriptors[header_idx], rx_q.descriptors[buffer_idx]
         // );
 
-        println!("AVAIL IDX: {:}", rx_q.available.idx);
+        // println!("AVAIL IDX: {:}", rx_q.available.idx);
 
         // Mark the buffer as usable
         rx_q.available.ring[(rx_q.available.idx as usize) % DESCRIPTOR_COUNT] = header_idx as u16;
@@ -490,19 +491,21 @@ impl VirtioNetInner {
         }
     }
 
-    fn add_tx_packet(&mut self, buffer: &NetworkPacketBuffer) -> Result<()> {
+    fn add_tx_packet(&mut self, buffer: RRef<NetworkPacketBuffer>) -> Result<()> {
         let header_idx = Self::get_next_free_buffer(&mut self.tx_free_descriptors);
         let buffer_idx = Self::get_next_free_buffer(&mut self.tx_free_descriptors);
 
         if header_idx.is_err() || buffer_idx.is_err() {
-            // println!(
-            //     "No space in RX Queue available for new buffers. Need to receive packets first!"
-            // );
             return Err(ErrorKind::Other);
         }
 
         let header_idx = header_idx.unwrap();
         let buffer_idx = buffer_idx.unwrap();
+
+        let buffer_addr = buffer.as_ptr() as u64;
+
+        // Add the buffer to our HashMap
+        self.tx_buffers.insert(buffer_addr, buffer);
 
         self.virtual_queues.transmit_queue.descriptors[header_idx] = VirtqDescriptor {
             addr: Self::get_addr(&self.virtio_network_headers[header_idx]),
@@ -511,7 +514,7 @@ impl VirtioNetInner {
             next: (buffer_idx as u16),
         };
         self.virtual_queues.transmit_queue.descriptors[buffer_idx] = VirtqDescriptor {
-            addr: Self::get_addr(buffer),
+            addr: buffer_addr,
             len: 1514,
             flags: 0,
             next: 0,
@@ -527,7 +530,7 @@ impl VirtioNetInner {
 
     fn add_tx_packets(&mut self, packets: &mut RRefDeque<NetworkPacketBuffer, 32>) {
         while let Some(packet) = packets.pop_front() {
-            self.add_tx_packet(&packet);
+            self.add_tx_packet(packet);
         }
 
         unsafe {
@@ -535,11 +538,14 @@ impl VirtioNetInner {
         }
     }
 
-    fn get_received_packets(&mut self, packets: &mut RRefDeque<NetworkPacketBuffer, 32>) {
+    /// Adds new packets to `packets`. Returns the number of added packets
+    fn get_received_packets(&mut self, packets: &mut RRefDeque<NetworkPacketBuffer, 32>) -> usize {
         println!(
             "Looking for new packets. RX_LAST: {:}, USED_IDX: {:}",
             self.rx_last_idx, self.virtual_queues.receive_queue.used.idx
         );
+
+        let mut new_packets_count = 0;
 
         while self.rx_last_idx < self.virtual_queues.receive_queue.used.idx {
             let used_element = self.virtual_queues.receive_queue.used.ring
@@ -556,11 +562,6 @@ impl VirtioNetInner {
                 used_element_descriptor.next, buffer_descriptor.addr
             );
 
-            // for (k, v) in self.rx_buffers.iter() {
-            //     println!("KEY: {:}, ADDR: {:?}", k, v.as_ptr() as u64);
-            // }
-            println!("{:?}", self.rx_buffers.len());
-
             println!("USED ELEMENT DESCRIPTOR {:#?}", used_element_descriptor);
             println!("BUFFER DESCRIPTOR {:#?}", buffer_descriptor);
 
@@ -575,11 +576,43 @@ impl VirtioNetInner {
                 }
                 println!("");
                 packets.push_back(buffer);
+
+                // Free the descriptor
+                self.rx_free_descriptor_count += 2;
+                self.rx_free_descriptors[used_element.id as usize] = true;
+                self.rx_free_descriptors[used_element_descriptor.next as usize] = true;
             } else {
                 println!("ERROR: VIRTIO NET: RX BUFFER MISSING OR BUFFER ADDRESS CHANGED!");
             }
 
+            new_packets_count += 1;
             self.rx_last_idx += 1;
+        }
+
+        new_packets_count
+    }
+
+    fn free_processed_tx_packets(&mut self, collect: &mut RRefDeque<NetworkPacketBuffer, 32>) {
+        while self.tx_last_idx < self.virtual_queues.transmit_queue.used.idx {
+            let used_element = self.virtual_queues.transmit_queue.used.ring
+                [(self.tx_last_idx as usize) % DESCRIPTOR_COUNT];
+
+            let used_element_descriptor =
+                self.virtual_queues.transmit_queue.descriptors[used_element.id as usize];
+            let buffer_descriptor = self.virtual_queues.transmit_queue.descriptors
+                [used_element_descriptor.next as usize];
+
+            if let Some(buffer) = self.tx_buffers.remove(&buffer_descriptor.addr) {
+                collect.push_back(buffer);
+
+                // Free the descriptor
+                self.tx_free_descriptors[used_element.id as usize] = true;
+                self.tx_free_descriptors[used_element_descriptor.next as usize] = true;
+            } else {
+                println!("ERROR: VIRTIO NET: TX BUFFER MISSING OR BUFFER ADDRESS CHANGED!");
+            }
+
+            self.tx_last_idx += 1;
         }
     }
 
@@ -628,10 +661,11 @@ impl interface::net::Net for VirtioNet {
             device.add_rx_buffers(&mut packets, &mut collect);
         }
 
-        device.get_received_packets(&mut packets);
+        let new_packet_count = device.get_received_packets(&mut packets);
+        device.free_processed_tx_packets(&mut collect);
 
         // This 0 here is the number of packets received
-        Ok(Ok((0usize, packets, collect)))
+        Ok(Ok((new_packet_count, packets, collect)))
     }
 
     fn poll(&self, mut collect: &mut VecDeque<Vec<u8>>, tx: bool) -> RpcResult<Result<usize>> {
@@ -681,9 +715,26 @@ pub fn trusted_entry(
     // Run SmolNet
     let mut smol = SmolPhy::new(Box::new(net));
 
+    // use smoltcp::iface::{EthernetInterfaceBuilder, NeighborCache};
+    // use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
+
+    // let mut neighbor_cache_entries = [None; 8];
+    // let neighbor_cache = NeighborCache::new(HashMap::new());
+
+    // let ip_addresses = [IpCidr::new(IpAddress::v4(10, 10, 1, 1), 24)];
+    // let mac_address = [0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x10];
+    // let iface = EthernetInterfaceBuilder::new(smol)
+    //     .ethernet_addr(EthernetAddress::from_bytes(&mac_address))
+    //     // .neighbor_cache(neighbor_cache)
+    //     .ip_addrs(ip_addresses)
+    //     .finalize();
+
+    // let socketset = SocketSet::new(Vec::with_capacity(512));
+
     loop {
         smol.do_rx();
         smol.do_tx();
+        // iface.poll(sockets, timestamp)
 
         libtime::sys_ns_sleep(10_000_000_000);
     }
