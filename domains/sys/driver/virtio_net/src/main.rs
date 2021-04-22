@@ -288,69 +288,9 @@ impl VirtioNetInner {
         self.print_device_config();
         self.mmio.accessor.write_queue_select(1);
         self.print_device_config();
+
+        println!("VIRTIO NET READY!");
     }
-
-    // unsafe fn testing(&mut self) {
-    //     println!(
-    //         "VIRTQ STRUCT ADDR: {:x}",
-    //         (&self.virtual_queues as *const VirtualQueues) as usize
-    //     );
-
-    //     // *** Stuff For Testing ***
-
-    //     // Populate the testing packet with Tian's packet
-    //     for i in 0..TIAN_PACKET.len() {
-    //         PACKET_FOR_SENDING.data[i] = TIAN_PACKET[i];
-    //     }
-
-    //     // Populate Receive Queue
-    //     for i in 0..DESCRIPTOR_COUNT {
-    //         self.virtual_queues.receive_queue.descriptors[i] = VirtqDescriptor {
-    //             addr: (&BUFFERS[i] as *const VirtioNetCompletePacket) as u64,
-    //             len: 1526,
-    //             flags: 0 | 2, // Writeable
-    //             next: 0,
-    //         };
-    //         self.virtual_queues.receive_queue.available.ring[i] = i as u16;
-    //         self.virtual_queues.receive_queue.available.idx += 1;
-    //     }
-
-    //     for i in 30..32 {
-    //         println!(
-    //             "DESCRIPTOR {:}: {:#x?}",
-    //             i, self.virtual_queues.receive_queue.descriptors[i]
-    //         );
-    //     }
-
-    //     // Notify the device that we've changed things in Queue 0, the receive queue
-    //     self.mmio.queue_notify(0, 0);
-
-    //     println!("VirtIO Device Initialized!");
-
-    //     // SENDING PACKET BELOW
-
-    //     self.virtual_queues.transmit_queue.descriptors[0] = VirtqDescriptor {
-    //         addr: (&PACKET_FOR_SENDING as *const VirtioNetCompletePacket) as u64,
-    //         len: 1526,
-    //         flags: 0,
-    //         next: 0,
-    //     };
-
-    //     println!("{:#?}", self.virtual_queues.transmit_queue.descriptors[0]);
-
-    //     self.virtual_queues.transmit_queue.available.ring[0] = 0;
-    //     self.virtual_queues.transmit_queue.available.idx += 1;
-
-    //     println!("Notification Sending");
-    //     self.mmio.queue_notify(1, 1);
-    //     println!("Notification Sent");
-
-    //     println!("---------------------");
-    //     self.mmio.accessor.write_queue_select(0);
-    //     self.print_device_config();
-    //     self.mmio.accessor.write_queue_select(1);
-    //     self.print_device_config();
-    // }
 
     /// Negotiates Virtio Driver Features
     unsafe fn negotiate_features(&mut self) {
@@ -386,12 +326,6 @@ impl VirtioNetInner {
             .accessor
             .write_queue_device((&virt_queue.used as *const VirtqUsed) as u64);
         self.mmio.accessor.write_queue_enable(1);
-
-        println!(
-            "Config for QUEUE {:} should be: {:#?}",
-            queue_index,
-            (&virt_queue.descriptors as *const [VirtqDescriptor; DESCRIPTOR_COUNT]) as u64
-        );
     }
 
     fn get_next_free_buffer(free_buffers: &mut [bool; DESCRIPTOR_COUNT]) -> Result<usize> {
@@ -421,24 +355,13 @@ impl VirtioNetInner {
 
         let header_idx = Self::get_next_free_buffer(&mut self.rx_free_descriptors).unwrap();
         let buffer_idx = Self::get_next_free_buffer(&mut self.rx_free_descriptors).unwrap();
-
         self.rx_free_descriptor_count -= 2;
 
         let buffer_addr = buffer.as_ptr() as u64;
 
-        // if self.rx_buffers.contains_key(&buffer_addr) {
-        //     println!("BUFFER ADDR KEY CONFLICT!!! {:}", buffer_addr);
-        // }
-
         self.rx_buffers.insert(buffer_addr, buffer);
 
-        println!(
-            "ADDED KEY: {:?}, is in map: {:?}",
-            buffer_addr,
-            self.rx_buffers.contains_key(&buffer_addr)
-        );
-
-        // Add the buffer for the header
+        // Header
         rx_q.descriptors[header_idx] = VirtqDescriptor {
             addr: Self::get_addr(&self.virtio_network_headers[header_idx]),
             len: 10,
@@ -447,8 +370,7 @@ impl VirtioNetInner {
             flags: 1 | 2,
             next: buffer_idx as u16,
         };
-
-        // Add the buffer
+        // Actual Buffer
         rx_q.descriptors[buffer_idx] = VirtqDescriptor {
             addr: buffer_addr,
             len: 1514,
@@ -456,20 +378,9 @@ impl VirtioNetInner {
             next: 0,
         };
 
-        println!("ADDED BUFFER: ID: {:}, ADDR: {:}", buffer_idx, buffer_addr);
-
-        // println!(
-        //     "ADDED BUFFERS: {:#?} {:#?}",
-        //     rx_q.descriptors[header_idx], rx_q.descriptors[buffer_idx]
-        // );
-
-        // println!("AVAIL IDX: {:}", rx_q.available.idx);
-
         // Mark the buffer as usable
         rx_q.available.ring[(rx_q.available.idx as usize) % DESCRIPTOR_COUNT] = header_idx as u16;
         rx_q.available.idx += 1; // We only added one "chain head"
-
-        // Ok(())
     }
 
     fn add_rx_buffers(
@@ -477,16 +388,23 @@ impl VirtioNetInner {
         packets: &mut RRefDeque<NetworkPacketBuffer, 32>,
         collect: &mut RRefDeque<NetworkPacketBuffer, 32>,
     ) {
+        let mut added_buffers = false;
+
         while let Some(buffer) = packets.pop_front() {
             if (self.rx_free_descriptor_count >= 2) {
-                let res = self.add_rx_buffer(buffer);
+                added_buffers = true;
+                self.add_rx_buffer(buffer);
             } else {
-                collect.push_back(buffer);
+                // println!("RX QUEUE Full");
+                packets.push_back(buffer);
+                break;
             }
         }
-        // Notify the device (could be moved to later, when there're more buffers)
+
         unsafe {
-            self.mmio.queue_notify(0, 0);
+            if added_buffers {
+                self.mmio.queue_notify(0, 0);
+            }
         }
     }
 
@@ -495,6 +413,7 @@ impl VirtioNetInner {
         let buffer_idx = Self::get_next_free_buffer(&mut self.tx_free_descriptors);
 
         if header_idx.is_err() || buffer_idx.is_err() {
+            println!("TX: NO ROOM!");
             return Err(ErrorKind::Other);
         }
 
@@ -524,20 +443,17 @@ impl VirtioNetInner {
             (header_idx as u16);
         self.virtual_queues.transmit_queue.available.idx += 1;
 
-        println!("SENDING TX BUFFER {:}", buffer_idx);
+        // println!("ADDED TX BUFFER {:} {:}", header_idx, buffer_idx);
 
         Ok(())
     }
 
-    fn add_tx_packets(&mut self, packets: &mut RRefDeque<NetworkPacketBuffer, 32>) {
+    fn add_tx_buffers(&mut self, packets: &mut RRefDeque<NetworkPacketBuffer, 32>) {
+        if packets.len() == 0 {
+            return;
+        }
+
         while let Some(packet) = packets.pop_front() {
-            println!("ADDING TX PACKET");
-
-            for i in 0..1514 {
-                print!("{:#02x}", packet[i]);
-            }
-            println!("");
-
             self.add_tx_packet(packet);
         }
 
@@ -547,56 +463,24 @@ impl VirtioNetInner {
     }
 
     /// Adds new packets to `packets`. Returns the number of added packets
-    fn get_received_packets(&mut self, packets: &mut RRefDeque<NetworkPacketBuffer, 32>) -> usize {
-        // println!(
-        //     "Looking for new packets. RX_LAST: {:}, USED_IDX: {:}",
-        //     self.rx_last_idx, self.virtual_queues.receive_queue.used.idx
-        // );
-
+    fn get_received_packets(&mut self, collect: &mut RRefDeque<NetworkPacketBuffer, 32>) -> usize {
+        /// We have to return the number of packets received
         let mut new_packets_count = 0;
 
         while self.rx_last_idx < self.virtual_queues.receive_queue.used.idx {
+            println!("NEW PACKET: RX IDX: {:}", self.rx_last_idx);
+
             let used_element = self.virtual_queues.receive_queue.used.ring
                 [(self.rx_last_idx as usize) % DESCRIPTOR_COUNT];
-            // println!("Received buffer: {:#?}", used_element);
-
             let used_element_descriptor =
                 self.virtual_queues.receive_queue.descriptors[used_element.id as usize];
             let buffer_descriptor = self.virtual_queues.receive_queue.descriptors
                 [used_element_descriptor.next as usize];
 
-            // println!(
-            //     "RETRIEVTING BUFFER: ID: {:}, ADDR: {:}",
-            //     used_element_descriptor.next, buffer_descriptor.addr
-            // );
-
-            // println!("USED ELEMENT DESCRIPTOR {:#?}", used_element_descriptor);
-            // println!("BUFFER DESCRIPTOR {:#?}", buffer_descriptor);
-
-            // println!(
-            //     "KEY IN RX_BUFFERS? {:#?}",
-            //     self.rx_buffers.contains_key(&buffer_descriptor.addr)
-            // );
-
             if let Some(buffer) = self.rx_buffers.remove(&buffer_descriptor.addr) {
-                // println!("HEADER:");
-
-                // println!(
-                //     "{:} == {:}",
-                //     used_element_descriptor.addr,
-                //     (&self.virtio_network_headers[used_element.id as usize]
-                //         as *const VirtioNetworkHeader) as u64
-                // );
-                // println!(
-                //     "{:#x?}",
-                //     self.virtio_network_headers[used_element.id as usize]
-                // );
-
-                for i in 0..1514 {
-                    print!("{:#02x} ", buffer[i]);
-                }
-                println!("");
-                packets.push_back(buffer);
+                // Processed packets are "collected"
+                collect.push_back(buffer);
+                new_packets_count += 1;
 
                 // Free the descriptor
                 self.rx_free_descriptor_count += 2;
@@ -606,27 +490,34 @@ impl VirtioNetInner {
                 println!("ERROR: VIRTIO NET: RX BUFFER MISSING OR BUFFER ADDRESS CHANGED!");
             }
 
-            new_packets_count += 1;
             self.rx_last_idx += 1;
         }
 
         new_packets_count
     }
 
-    fn free_processed_tx_packets(&mut self, collect: &mut RRefDeque<NetworkPacketBuffer, 32>) {
+    fn free_processed_tx_packets(
+        &mut self,
+        packets: &mut RRefDeque<NetworkPacketBuffer, 32>,
+    ) -> usize {
+        let mut freed_count = 0;
+
         while self.tx_last_idx < self.virtual_queues.transmit_queue.used.idx {
             let used_element = self.virtual_queues.transmit_queue.used.ring
                 [(self.tx_last_idx as usize) % DESCRIPTOR_COUNT];
-
             let used_element_descriptor =
                 self.virtual_queues.transmit_queue.descriptors[used_element.id as usize];
             let buffer_descriptor = self.virtual_queues.transmit_queue.descriptors
                 [used_element_descriptor.next as usize];
 
             if let Some(buffer) = self.tx_buffers.remove(&buffer_descriptor.addr) {
-                collect.push_back(buffer);
+                packets.push_back(buffer);
 
-                println!("TX BUFFER SENT! {:}", used_element_descriptor.next);
+                // println!("TX BUFFER SENT! {:}", self.tx_last_idx);
+                // println!(
+                //     "FREEING TX IDX {:} {:}",
+                //     used_element.id, used_element_descriptor.next
+                // );
 
                 // Free the descriptor
                 self.tx_free_descriptors[used_element.id as usize] = true;
@@ -635,8 +526,11 @@ impl VirtioNetInner {
                 println!("ERROR: VIRTIO NET: TX BUFFER MISSING OR BUFFER ADDRESS CHANGED!");
             }
 
+            freed_count += 1;
             self.tx_last_idx += 1;
         }
+
+        freed_count
     }
 
     fn to_shared(self) -> VirtioNet {
@@ -668,26 +562,18 @@ impl interface::net::Net for VirtioNet {
         tx: bool,
         pkt_len: usize,
     ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 32>, RRefDeque<[u8; 1514], 32>)>> {
-        //println!("SUBMIT AND POLL RREF CALLED!");
-
-        // println!("{:#?}", packets.len());
-        // println!("{:#?}", collect.len());
-        // println!("{:#?}", tx);
-
         let mut device = self.0.lock();
 
+        let mut new_packet_count = 0;
+
         if tx {
-            //println!("HANDLE TX");
-            device.add_tx_packets(&mut packets);
+            new_packet_count = device.free_processed_tx_packets(&mut collect);
+            device.add_tx_buffers(&mut packets);
         } else {
-            //println!("HANDLE RX");
+            new_packet_count = device.get_received_packets(&mut collect);
             device.add_rx_buffers(&mut packets, &mut collect);
         }
 
-        let new_packet_count = device.get_received_packets(&mut collect);
-        device.free_processed_tx_packets(&mut packets);
-
-        // This 0 here is the number of packets received
         Ok(Ok((new_packet_count, packets, collect)))
     }
 
@@ -767,7 +653,8 @@ pub fn trusted_entry(
         httpd.handle(&mut sockets);
         iface.device_mut().do_tx();
 
-        libtime::sys_ns_sleep(500000);
+        // libtime::sys_ns_sleep(500000);
+        // libtime::sys_ns_sleep(500);
     }
 
     // // let mut neighbor_cache_entries = [None; 8];
