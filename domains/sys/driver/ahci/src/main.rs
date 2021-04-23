@@ -38,8 +38,10 @@ use rref::RRef;
 use spin::Once;
 use syscalls::Syscall;
 
+mod benchmark;
 use ahci_device::disk;
 use ahci_regs::AhciBarRegion;
+use benchmark::benchmark_sync_ahci;
 
 struct Ahci {
     vendor_id: u16,
@@ -215,6 +217,11 @@ pub fn trusted_entry(
 
     // verify_write(&ahci);
 
+    benchmark_sync_ahci(&ahci, 1, 1);
+    benchmark_sync_ahci(&ahci, 512, 512);
+    benchmark_sync_ahci(&ahci, 512 * 8, 512);
+    // benchmark_sync_ahci(&ahci, 0xFFFF * 128, 0xFFFF);
+
     // benchmark_ahci(&ahci, 1, 1);
     // benchmark_ahci_async(&ahci, 256, 1);
     // benchmark_ahci(&ahci, 8192, 8192);
@@ -254,18 +261,23 @@ pub fn trusted_entry(
 // }
 
 // TODO: impl with RRefs
-//fn benchmark_ahci(bdev: &Box<dyn usr::bdev::BDev>, blocks_to_read: u32, blocks_per_patch: u32) {
-//    assert!(blocks_to_read % blocks_per_patch == 0);
-//    assert!(blocks_per_patch <= 0xFFFF);
-//    let mut buf = alloc::vec![0 as u8; 512 * blocks_per_patch as usize];
-//
-//    let start = libtime::get_rdtsc();
-//    for i in (0..blocks_to_read).step_by(blocks_per_patch as usize) {
-//        bdev.read_contig(i, &mut buf);
-//    }
-//    let end = libtime::get_rdtsc();
-//    println!("AHCI benchmark: reading {} blocks, {} blocks at a time, takes {} cycles", blocks_to_read, blocks_per_patch, end - start);
-//}
+// fn benchmark_ahci(bdev: &Box<dyn usr::bdev::BDev>, blocks_to_read: u32, blocks_per_patch: u32) {
+//     assert!(blocks_to_read % blocks_per_patch == 0);
+//     assert!(blocks_per_patch <= 0xFFFF);
+//     let mut buf = alloc::vec![0 as u8; 512 * blocks_per_patch as usize];
+
+//     let start = libtime::get_rdtsc();
+//     for i in (0..blocks_to_read).step_by(blocks_per_patch as usize) {
+//         bdev.read_contig(i, &mut buf);
+//     }
+//     let end = libtime::get_rdtsc();
+//     println!(
+//         "AHCI benchmark: reading {} blocks, {} blocks at a time, takes {} cycles",
+//         blocks_to_read,
+//         blocks_per_patch,
+//         end - start
+//     );
+// }
 
 // TODO: impl with RRefs
 //fn benchmark_ahci_async(bdev: &Box<dyn usr::bdev::BDev>, blocks_to_read: u32, blocks_per_patch: u32) {
