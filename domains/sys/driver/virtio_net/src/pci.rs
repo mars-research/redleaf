@@ -1,7 +1,7 @@
 use console::println;
 use pci_driver::DeviceBarRegions;
 
-use crate::{VirtioNet, VirtioNetInner};
+use virtio_network_device::{VirtioNet, VirtioNetInner};
 
 const VIRTIO_PCI_VID: u16 = 0x1af4;
 const VIRTIO_PCI_DID: u16 = 0x1000;

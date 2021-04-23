@@ -11,10 +11,13 @@ console = { path = "../../../../lib/core/console" }
 malloc = { path = "../../../../lib/core/malloc" }
 rref = { path = "../../../../lib/core/rref" }
 spin = { path = "../../../../lib/core/spin-rs" }
-volatile_accessor = { path = "../../../../lib/external/volatile_accessor" }
+
 smolnet = { path = "../../../../domains/lib/smolnet" }
 hashbrown = "0.7.2"
 redhttpd = { path = "../../../lib/redhttpd" }
+
+virtio_device = { path = "../../../../lib/devices/virtio" }
+virtio_network_device = { path = "../../../../lib/devices/virtio_net" }
 
 
 # Interfaces
