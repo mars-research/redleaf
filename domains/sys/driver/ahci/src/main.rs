@@ -114,8 +114,10 @@ impl pci_driver::PciDriver for Ahci {
         let mut disks: Vec<Box<dyn disk::Disk + Send + Sync>> = disk::create_disks(bar);
         // Filter out all disk that already has an OS on it
         let have_magic_number: Vec<bool> = disks
+
             .iter_mut()
             .map(|d| {
+                println!("{}",LittleEndian::read_u16(&buf[510..]));
                 let mut buf = [0u8; 512];
                 const MBR_MAGIC: u16 = 0xAA55;
                 d.read(0, &mut buf);
