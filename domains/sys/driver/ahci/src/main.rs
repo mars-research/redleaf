@@ -119,10 +119,10 @@ impl pci_driver::PciDriver for Ahci {
 
             .iter_mut()
             .map(|d| {
-                println!("{}",LittleEndian::read_u16(&buf[510..]));
                 let mut buf = [0u8; 512];
                 const MBR_MAGIC: u16 = 0xAA55;
                 d.read(0, &mut buf);
+                println!("{}",LittleEndian::read_u16(&buf[510..]));
                 LittleEndian::read_u16(&buf[510..]) == MBR_MAGIC
             })
             .collect();

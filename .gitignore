@@ -19,3 +19,5 @@ sata.img
 **/*.sw*
 **/*.log
 **/_gen.rs
+lib/external/memops/musl
+lib/external/memops/musl
