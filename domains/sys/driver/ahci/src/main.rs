@@ -38,8 +38,10 @@ use rref::RRef;
 use spin::Once;
 use syscalls::Syscall;
 
+mod benchmark;
 use ahci_device::disk;
 use ahci_regs::AhciBarRegion;
+use benchmark::benchmark_sync_ahci;
 
 struct Ahci {
     vendor_id: u16,
@@ -184,6 +186,7 @@ impl BDev for Ahci {
         let mut value: [u8; BSIZE] = [0; BSIZE];
         self.with_disk(0, |d| d.read(block as u64, &mut value));
         // data.copy_from_slice();
+        data.copy_from_slice(&value);
         Ok(data)
     }
     fn write(&self, block: u32, data: &RRef<[u8; BSIZE]>) -> RpcResult<()> {
@@ -194,7 +197,7 @@ impl BDev for Ahci {
 }
 
 #[no_mangle]
-pub fn init(
+pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
     heap: Box<dyn syscalls::Heap + Send + Sync>,
     pci: Box<dyn interface::pci::PCI>,
@@ -215,6 +218,11 @@ pub fn init(
     let ahci: Box<dyn BDev + Send + Sync> = Box::new(ahci);
 
     // verify_write(&ahci);
+
+    benchmark_sync_ahci(&ahci, 1, 1);
+    benchmark_sync_ahci(&ahci, 512, 512);
+    benchmark_sync_ahci(&ahci, 512 * 8, 512);
+    // benchmark_sync_ahci(&ahci, 0xFFFF * 128, 0xFFFF);
 
     // benchmark_ahci(&ahci, 1, 1);
     // benchmark_ahci_async(&ahci, 256, 1);
@@ -255,18 +263,23 @@ pub fn init(
 // }
 
 // TODO: impl with RRefs
-//fn benchmark_ahci(bdev: &Box<dyn usr::bdev::BDev>, blocks_to_read: u32, blocks_per_patch: u32) {
-//    assert!(blocks_to_read % blocks_per_patch == 0);
-//    assert!(blocks_per_patch <= 0xFFFF);
-//    let mut buf = alloc::vec![0 as u8; 512 * blocks_per_patch as usize];
-//
-//    let start = libtime::get_rdtsc();
-//    for i in (0..blocks_to_read).step_by(blocks_per_patch as usize) {
-//        bdev.read_contig(i, &mut buf);
-//    }
-//    let end = libtime::get_rdtsc();
-//    println!("AHCI benchmark: reading {} blocks, {} blocks at a time, takes {} cycles", blocks_to_read, blocks_per_patch, end - start);
-//}
+// fn benchmark_ahci(bdev: &Box<dyn usr::bdev::BDev>, blocks_to_read: u32, blocks_per_patch: u32) {
+//     assert!(blocks_to_read % blocks_per_patch == 0);
+//     assert!(blocks_per_patch <= 0xFFFF);
+//     let mut buf = alloc::vec![0 as u8; 512 * blocks_per_patch as usize];
+
+//     let start = libtime::get_rdtsc();
+//     for i in (0..blocks_to_read).step_by(blocks_per_patch as usize) {
+//         bdev.read_contig(i, &mut buf);
+//     }
+//     let end = libtime::get_rdtsc();
+//     println!(
+//         "AHCI benchmark: reading {} blocks, {} blocks at a time, takes {} cycles",
+//         blocks_to_read,
+//         blocks_per_patch,
+//         end - start
+//     );
+// }
 
 // TODO: impl with RRefs
 //fn benchmark_ahci_async(bdev: &Box<dyn usr::bdev::BDev>, blocks_to_read: u32, blocks_per_patch: u32) {

@@ -5,7 +5,7 @@
 ################
 
 DEBUG            ?= false
-LARGE_MEM        ?= false
+LARGE_MEM        ?= true
 IXGBE		 ?= true
 
 ifndef NO_DEFAULT_FLAGS
@@ -72,6 +72,7 @@ domain_list := $(addprefix domains/build/, \
 	pci \
 	ixgbe \
 	nvme \
+	ahci \
 	tpm \
 	bdev_shadow \
 	net_shadow \
@@ -90,7 +91,7 @@ qemu_common     += -cdrom $(iso)
 #qemu_common    += -no-reboot -no-shutdown -d int,cpu_reset
 qemu_common     += -drive id=satadisk,file=$(xv6fs_img),format=raw,if=none
 qemu_common     += -device ahci,id=ahci
-qemu_common     += -device ide-hd,drive=satadisk,bus=ahci.0
+qemu_common     += -device ide-drive,drive=satadisk,bus=ahci.0
 #qemu_common    += -smp 4
 qemu_common     += -monitor telnet:127.0.0.1:55555,server,nowait
 qemu_common     += -cpu 'Haswell,pdpe1gb' -machine q35
@@ -100,7 +101,7 @@ qemu_common     += -net nic,model=virtio
 #qemu_common	+= -mem-path /dev/hugepages
 
 ifeq ($(LARGE_MEM),true)
-qemu_common     += -m 20G
+qemu_common     += -m 6G
 else
 qemu_common     += -m 2048M
 endif
