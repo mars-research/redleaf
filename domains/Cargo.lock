@@ -1106,9 +1106,11 @@ version = "0.1.0"
 dependencies = [
  "console",
  "hashbrown 0.7.2",
+ "interface",
  "libsyscalls",
  "libtime",
  "malloc",
+ "pci_driver",
  "rref",
  "spin 0.5.3",
  "virtio_device",

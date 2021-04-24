@@ -1,12 +1,15 @@
 use console::println;
 use pci_driver::DeviceBarRegions;
 
-use virtio_network_device::{VirtioNet, VirtioNetInner};
+use crate::VirtioNetInner;
+
+use alloc::boxed::Box;
+use interface::net::Net;
 
 const VIRTIO_PCI_VID: u16 = 0x1af4;
 const VIRTIO_PCI_DID: u16 = 0x1000;
 
-pub(crate) struct PciFactory {
+pub struct PciFactory {
     mmio_base: Option<usize>,
 }
 
@@ -40,14 +43,14 @@ impl pci_driver::PciDriver for PciFactory {
 }
 
 impl PciFactory {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self { mmio_base: None }
     }
 
-    pub(crate) fn to_device(self) -> Option<VirtioNet> {
+    pub fn to_device(self) -> Option<VirtioNetInner> {
         self.mmio_base.map(|base| {
             let dev = unsafe { VirtioNetInner::new(base) };
-            dev.to_shared()
+            dev
         })
     }
 }

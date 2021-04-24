@@ -15,6 +15,9 @@ rref = { path = "../../../lib/core/rref" }
 spin = { path = "../../../lib/core/spin-rs" }
 volatile_accessor = { path = "../../../lib/external/volatile_accessor" }
 
+pci_driver = { path = "../../../lib/core/interfaces/dev/pci/pci_driver" }
+interface = { path = "../../../interface/generated" }
+
 
 virtio_device = { path = "../virtio" }
 

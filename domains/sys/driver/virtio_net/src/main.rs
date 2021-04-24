@@ -27,8 +27,8 @@ pub use platform::PciBarAddr;
 use spin::Mutex;
 
 pub use interface::error::{ErrorKind, Result};
-
-use virtio_network_device::VirtioNet;
+use virtio_network_device::pci::PciFactory;
+use virtio_network_device::VirtioNetInner;
 
 use rref::{RRef, RRefDeque};
 
@@ -36,8 +36,7 @@ use smolnet::{self, SmolPhy};
 
 pub use interface::net::NetworkStats;
 
-mod pci;
-use pci::PciFactory;
+pub struct VirtioNet(Arc<Mutex<VirtioNetInner>>);
 
 impl interface::net::Net for VirtioNet {
     fn clone_net(&self) -> RpcResult<Box<dyn interface::net::Net>> {
@@ -111,7 +110,8 @@ pub fn trusted_entry(
         if pci.pci_register_driver(&mut pci_factory, 4, None).is_err() {
             panic!("Failed to probe VirtioNet PCI");
         }
-        pci_factory.to_device().unwrap()
+        let dev = pci_factory.to_device().unwrap();
+        VirtioNet(Arc::new(Mutex::new(dev)))
     };
 
     // let new_net = net.clone_net();

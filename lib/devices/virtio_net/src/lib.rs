@@ -9,6 +9,7 @@
     maybe_uninit_extra
 )]
 
+pub mod pci;
 extern crate alloc;
 
 use alloc::sync::Arc;
@@ -46,9 +47,7 @@ pub struct VirtioNetworkHeader {
 
 type NetworkPacketBuffer = [u8; 1514];
 
-pub struct VirtioNet(Arc<Mutex<VirtioNetInner>>);
-
-struct VirtioNetInner {
+pub struct VirtioNetInner {
     mmio: Mmio,
     virtual_queues: VirtualQueues,
 
@@ -152,7 +151,7 @@ impl VirtioNetInner {
         virtio_inner
     }
 
-    unsafe fn init(&mut self) {
+    pub fn init(&mut self) {
         println!("Initializing Virtio Network Device");
 
         // VIRTIO DEVICE INIT
@@ -168,15 +167,19 @@ impl VirtioNetInner {
         // Set the DRIVER_OK status bit. At this point the device is “live”.
 
         // Acknowledge Device
-        self.mmio
-            .update_device_status(VirtioDeviceStatus::Acknowledge);
-        self.mmio.update_device_status(VirtioDeviceStatus::Driver); // But do we really know how to drive the device?
+        unsafe {
+            self.mmio
+                .update_device_status(VirtioDeviceStatus::Acknowledge);
+            self.mmio.update_device_status(VirtioDeviceStatus::Driver); // But do we really know how to drive the device?
+        }
 
         self.negotiate_features();
 
         // Tell the Device that feature Negotiation is complete
-        self.mmio
-            .update_device_status(VirtioDeviceStatus::FeaturesOk);
+        unsafe {
+            self.mmio
+                .update_device_status(VirtioDeviceStatus::FeaturesOk);
+        }
 
         // Check that Features OK Bit is still set!
         // TODO: Actually check the Feature Bit!
@@ -190,7 +193,7 @@ impl VirtioNetInner {
         self.initialize_virtual_queue(1, &(self.virtual_queues.transmit_queue));
 
         // Tell the Device we're all done, even though we aren't
-        self.mmio.update_device_status(VirtioDeviceStatus::DriverOk);
+        unsafe { self.mmio.update_device_status(VirtioDeviceStatus::DriverOk) };
 
         self.print_device_status();
 
@@ -203,7 +206,7 @@ impl VirtioNetInner {
     }
 
     /// Negotiates Virtio Driver Features
-    unsafe fn negotiate_features(&mut self) {
+    fn negotiate_features(&mut self) {
         let mut driver_features: u32 = 0;
         driver_features |= 1 << 5; // Enable Device MAC Address
         driver_features |= 1 << 16; // Enable Device Status
@@ -211,19 +214,19 @@ impl VirtioNetInner {
         self.mmio.accessor.write_driver_feature(driver_features); // Should be &'d with device_features
     }
 
-    unsafe fn print_device_config(&mut self) {
-        let mut cfg = self.mmio.read_common_config();
+    pub fn print_device_config(&mut self) {
+        let mut cfg = unsafe { self.mmio.read_common_config() };
         println!("{:#?}", cfg);
     }
 
-    unsafe fn print_device_status(&mut self) {
+    pub fn print_device_status(&mut self) {
         let device_status = self.mmio.accessor.read_device_status();
         println!("Device Status Bits: {:b}", device_status);
     }
 
     /// Receive Queues must be 2*N and Transmit Queues must be 2*N + 1
     /// For example, Receive Queue must be 0 and Transmit Queue must be 1
-    unsafe fn initialize_virtual_queue(&self, queue_index: u16, virt_queue: &VirtQueue) {
+    pub fn initialize_virtual_queue(&self, queue_index: u16, virt_queue: &VirtQueue) {
         self.mmio.accessor.write_queue_select(queue_index);
 
         self.mmio.accessor.write_queue_desc(
@@ -252,7 +255,7 @@ impl VirtioNetInner {
         (obj as *const T) as u64
     }
 
-    fn add_rx_buffer(&mut self, buffer: RRef<NetworkPacketBuffer>) {
+    pub fn add_rx_buffer(&mut self, buffer: RRef<NetworkPacketBuffer>) {
         // One descriptor points at the network header, chain this with a descriptor to the buffer
 
         if self.rx_free_descriptor_count < 2 {
@@ -293,7 +296,7 @@ impl VirtioNetInner {
         rx_q.available.idx += 1; // We only added one "chain head"
     }
 
-    fn add_rx_buffers(
+    pub fn add_rx_buffers(
         &mut self,
         packets: &mut RRefDeque<NetworkPacketBuffer, 32>,
         collect: &mut RRefDeque<NetworkPacketBuffer, 32>,
@@ -318,7 +321,7 @@ impl VirtioNetInner {
         }
     }
 
-    fn add_tx_packet(&mut self, buffer: RRef<NetworkPacketBuffer>) -> Result<(), ()> {
+    pub fn add_tx_packet(&mut self, buffer: RRef<NetworkPacketBuffer>) -> Result<(), ()> {
         let header_idx = Self::get_next_free_buffer(&mut self.tx_free_descriptors);
         let buffer_idx = Self::get_next_free_buffer(&mut self.tx_free_descriptors);
 
@@ -358,7 +361,7 @@ impl VirtioNetInner {
         Ok(())
     }
 
-    fn add_tx_buffers(&mut self, packets: &mut RRefDeque<NetworkPacketBuffer, 32>) {
+    pub fn add_tx_buffers(&mut self, packets: &mut RRefDeque<NetworkPacketBuffer, 32>) {
         if packets.len() == 0 {
             return;
         }
@@ -373,7 +376,10 @@ impl VirtioNetInner {
     }
 
     /// Adds new packets to `packets`. Returns the number of added packets
-    fn get_received_packets(&mut self, collect: &mut RRefDeque<NetworkPacketBuffer, 32>) -> usize {
+    pub fn get_received_packets(
+        &mut self,
+        collect: &mut RRefDeque<NetworkPacketBuffer, 32>,
+    ) -> usize {
         /// We have to return the number of packets received
         let mut new_packets_count = 0;
 
@@ -406,7 +412,7 @@ impl VirtioNetInner {
         new_packets_count
     }
 
-    fn free_processed_tx_packets(
+    pub fn free_processed_tx_packets(
         &mut self,
         packets: &mut RRefDeque<NetworkPacketBuffer, 32>,
     ) -> usize {
@@ -441,9 +447,5 @@ impl VirtioNetInner {
         }
 
         freed_count
-    }
-
-    fn to_shared(self) -> VirtioNet {
-        VirtioNet(Arc::new(Mutex::new(self)))
     }
 }
