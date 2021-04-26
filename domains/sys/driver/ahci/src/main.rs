@@ -116,13 +116,12 @@ impl pci_driver::PciDriver for Ahci {
         let mut disks: Vec<Box<dyn disk::Disk + Send + Sync>> = disk::create_disks(bar);
         // Filter out all disk that already has an OS on it
         let have_magic_number: Vec<bool> = disks
-
             .iter_mut()
             .map(|d| {
                 let mut buf = [0u8; 512];
                 const MBR_MAGIC: u16 = 0xAA55;
                 d.read(0, &mut buf);
-                println!("{}",LittleEndian::read_u16(&buf[510..]));
+                println!("{}", LittleEndian::read_u16(&buf[510..]));
                 LittleEndian::read_u16(&buf[510..]) == MBR_MAGIC
             })
             .collect();
@@ -219,9 +218,11 @@ pub fn trusted_entry(
 
     // verify_write(&ahci);
 
-    benchmark_sync_ahci(&ahci, 1, 1);
-    benchmark_sync_ahci(&ahci, 512, 512);
-    benchmark_sync_ahci(&ahci, 512 * 8, 512);
+    benchmark_sync_ahci(&ahci, 512, 1);
+    benchmark_sync_ahci(&ahci, 8192, 1);
+    benchmark_sync_ahci(&ahci, 8192 * 8, 1);
+
+    // timed_sync_ahci(&ahci, 3);
     // benchmark_sync_ahci(&ahci, 0xFFFF * 128, 0xFFFF);
 
     // benchmark_ahci(&ahci, 1, 1);

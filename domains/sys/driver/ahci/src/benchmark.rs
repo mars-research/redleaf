@@ -4,6 +4,7 @@ extern crate malloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use byteorder::{ByteOrder, LittleEndian};
+
 use core::panic::PanicInfo;
 use interface::bdev::{BDev, BSIZE};
 use interface::rpc::RpcResult;
@@ -31,11 +32,11 @@ pub fn benchmark_sync_ahci(
 
     let start = libtime::get_rdtsc();
 
+    let mut data = RRef::<[u8; 4096]>::new([0; 4096]);
     for i in (0..blocks_to_read).step_by(blocks_per_patch as usize) {
-        let mut data = RRef::<[u8; 4096]>::new([0; 4096]);
-        // bdev.read()
-        bdev.read(i, data);
+        data = bdev.read(i, data).unwrap();
     }
+
     let end = libtime::get_rdtsc();
     println!(
         "AHCI benchmark: reading {} blocks, {} blocks at a time, takes {} cycles",
@@ -44,3 +45,27 @@ pub fn benchmark_sync_ahci(
         end - start
     );
 }
+
+// pub fn timed_sync_ahci(bdev: &Box<dyn BDev + Send + Sync>, time: u32) {
+//     let now = Local::now();
+//     let mut block_count: u32 = 0;
+//     let mut data = RRef::<[u8; 4096]>::new([0; 4096]);
+
+//     // loop {
+//     //     match now.elapsed() {
+//     //         OK(elapsed) => {
+//     //             // TODO: use more accurate measure than sec
+//     //             if elapsed.as_secs() >= time {
+//     //                 break;
+//     //             }
+//     //         }
+//     //         Err(e) => {
+//     //             println!("AHCI Benchmark Error: {}", e);
+//     //         }
+//     //     }
+//     //     data = bdev.read(block_count, data).unwrap();
+//     //     block_count += 1;
+//     // }
+
+//     // println!("");
+// }
