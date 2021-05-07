@@ -129,9 +129,7 @@ impl Disk for DiskATA {
 
     fn read(&mut self, block: u64, buffer: &mut [u8]) {
         // Synchronous read
-        let slot = self
-            .submit(block, false, unsafe { Box::from_raw(buffer as *mut [u8]) })
-            .unwrap();
+        let slot = self.submit(block, false, buffer).unwrap();
         while let None = self.poll(slot).unwrap() {
             // Spin
         }
@@ -139,11 +137,7 @@ impl Disk for DiskATA {
 
     fn write(&mut self, block: u64, buffer: &[u8]) {
         // Synchronous read
-        let slot = self
-            .submit(block, true, unsafe {
-                Box::from_raw(buffer as *const [u8] as *mut [u8])
-            })
-            .unwrap();
+        let slot = self.submit(block, true, buffer).unwrap();
         while let None = self.poll(slot).unwrap() {
             // Spin
         }
@@ -153,7 +147,11 @@ impl Disk for DiskATA {
         Ok(512)
     }
 
-    fn submit(&mut self, block: u64, write: bool, buffer: Box<[u8]>) -> Result<u32> {
+    fn submit(&mut self, block: u64, write: bool, buffer: &mut [u8]) -> Result<u32> {
+        unsafe {
+            let buffer = Box::from_raw(buffer as *mut [u8]);
+        }
+
         assert!(
             buffer.len() % 512 == 0,
             "Must read a multiple of block size number of bytes"
