@@ -4,6 +4,7 @@ extern crate malloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use byteorder::{ByteOrder, LittleEndian};
+// use embedded_time::{clock, duration, Timer};
 
 use core::panic::PanicInfo;
 use interface::bdev::{BDev, BSIZE};
@@ -46,10 +47,14 @@ pub fn benchmark_sync_ahci(
     );
 }
 
-// pub fn timed_sync_ahci(bdev: &Box<dyn BDev + Send + Sync>, time: u32) {
-//     let now = Local::now();
+// pub fn timed_sync_ahci(bdev: &Box<dyn BDev + Send + Sync>, time_in_sec: u32) {
+//     let duration = duration::Seconds::new(time_in_sec);
+
+//     let timer = Clock::new_timer(&self, duration);
 //     let mut block_count: u32 = 0;
 //     let mut data = RRef::<[u8; 4096]>::new([0; 4096]);
+
+//     loop {}
 
 //     // loop {
 //     //     match now.elapsed() {

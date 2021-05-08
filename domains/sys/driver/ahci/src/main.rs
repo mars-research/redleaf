@@ -26,7 +26,7 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use byteorder::{ByteOrder, LittleEndian};
 use core::panic::PanicInfo;
-use interface::bdev::{BDev, BSIZE};
+use interface::bdev::{BDev, BlkReq, NvmeBDev, BSIZE};
 use interface::rpc::RpcResult;
 use spin::Mutex;
 
@@ -34,7 +34,7 @@ use console::println;
 use libsyscalls::errors::Result;
 use libsyscalls::syscalls::{sys_backtrace, sys_yield};
 use pci_driver::{BarRegions, DeviceBarRegions, PciClass};
-use rref::RRef;
+use rref::{RRef, RRefDeque};
 use spin::Once;
 use syscalls::Syscall;
 
@@ -48,6 +48,8 @@ struct Ahci {
     device_id: u16,
     driver: pci_driver::PciDrivers,
     disks: Mutex<Vec<Option<Box<dyn disk::Disk + Send + Sync>>>>,
+    // submitted blkreq + slot
+    // completed blkreq + slot
 }
 
 impl Ahci {
@@ -113,7 +115,7 @@ impl pci_driver::PciDriver for Ahci {
 
         // println!("Initializing with base = {:x}", bar.get_base());
 
-        let mut disks: Vec<Box<dyn disk::Disk + Send + Sync>> = disk::create_disks(bar);
+        let mut disks = disk::create_disks(bar);
         // Filter out all disk that already has an OS on it
         let have_magic_number: Vec<bool> = disks
             .iter_mut()
@@ -195,6 +197,32 @@ impl BDev for Ahci {
     }
 }
 
+impl NvmeBDev for Ahci {
+    fn submit_and_poll_rref(
+        &self,
+        submit: RRefDeque<BlkReq, 128>,
+        collect: RRefDeque<BlkReq, 128>,
+        write: bool,
+    ) -> RpcResult<Result<(usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>)>> {
+        // let mut submit = Some(submit);
+        // let mut collect = Some(collect);
+        let (submit_num, submit_, collect_) =
+            self.with_disk(0, |d| d.submit_and_poll_rref(submit, collect, write));
+        Ok(Ok((submit_num, submit_, collect_)))
+    }
+
+    fn poll_rref(
+        &self,
+        mut collect: RRefDeque<BlkReq, 1024>,
+    ) -> RpcResult<Result<(usize, RRefDeque<BlkReq, 1024>)>> {
+        todo!()
+    }
+
+    fn get_stats(&self) -> RpcResult<Result<(u64, u64)>> {
+        todo!()
+    }
+}
+
 #[no_mangle]
 pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
@@ -214,13 +242,14 @@ pub fn trusted_entry(
     }
 
     // let ahci: Box<dyn interface::bdev::BDev> = Box::new(ahci);
-    let ahci: Box<dyn BDev + Send + Sync> = Box::new(ahci);
+    // let ahci: Box<dyn BDev + Send + Sync> = Box::new(ahci);
+    let ahci: Box<dyn BDev + Send> = Box::new(ahci);
 
     // verify_write(&ahci);
 
-    benchmark_sync_ahci(&ahci, 512, 1);
-    benchmark_sync_ahci(&ahci, 8192, 1);
-    benchmark_sync_ahci(&ahci, 8192 * 8, 1);
+    // benchmark_sync_ahci(&ahci, 512, 1);
+    // benchmark_sync_ahci(&ahci, 8192, 1);
+    // benchmark_sync_ahci(&ahci, 8192 * 8, 1);
 
     // timed_sync_ahci(&ahci, 3);
     // benchmark_sync_ahci(&ahci, 0xFFFF * 128, 0xFFFF);

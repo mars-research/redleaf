@@ -27,3 +27,4 @@ libdma = { path = "../../../../lib/devices/libdma" }
 rref = { path = "../../../../lib/core/rref" }
 b2histogram = "1.0"
 array-init = "0.1.1"
+embedded-time = "0.10.1"
