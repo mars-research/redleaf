@@ -27,11 +27,12 @@ use alloc::vec::Vec;
 use byteorder::{ByteOrder, LittleEndian};
 use core::panic::PanicInfo;
 use interface::bdev::{BDev, BlkReq, NvmeBDev, BSIZE};
+use interface::error::{ErrorKind, Result};
 use interface::rpc::RpcResult;
 use spin::Mutex;
 
 use console::println;
-use libsyscalls::errors::Result;
+// use libsyscalls::errors::Result;
 use libsyscalls::syscalls::{sys_backtrace, sys_yield};
 use pci_driver::{BarRegions, DeviceBarRegions, PciClass};
 use rref::{RRef, RRefDeque};
