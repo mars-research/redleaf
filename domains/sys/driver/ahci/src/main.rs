@@ -48,7 +48,7 @@ struct Ahci {
     vendor_id: u16,
     device_id: u16,
     driver: pci_driver::PciDrivers,
-    disks: Mutex<Vec<Option<Box<dyn disk::Disk + Send + Sync>>>>,
+    disks: Mutex<Vec<Option<Box<dyn disk::Disk + Send>>>>,
     // submitted blkreq + slot
     // completed blkreq + slot
 }
