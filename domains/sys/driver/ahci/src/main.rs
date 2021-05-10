@@ -216,11 +216,13 @@ impl NvmeBDev for Ahci {
         &self,
         mut collect: RRefDeque<BlkReq, 1024>,
     ) -> RpcResult<Result<(usize, RRefDeque<BlkReq, 1024>)>> {
-        todo!()
+        let (num, collect_) = self.with_disk(0, |d| d.poll_rref(collect));
+        Ok(Ok((num, collect_)))
     }
 
     fn get_stats(&self) -> RpcResult<Result<(u64, u64)>> {
-        todo!()
+        let (submitted, collected) = self.with_disk(0, |d| d.get_stats());
+        Ok(Ok((submitted, collected)))
     }
 }
 
@@ -229,7 +231,7 @@ pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
     heap: Box<dyn syscalls::Heap + Send + Sync>,
     pci: Box<dyn interface::pci::PCI>,
-) -> Box<dyn BDev> {
+) -> Box<dyn NvmeBDev> {
     libsyscalls::syscalls::init(s);
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
@@ -244,7 +246,7 @@ pub fn trusted_entry(
 
     // let ahci: Box<dyn interface::bdev::BDev> = Box::new(ahci);
     // let ahci: Box<dyn BDev + Send + Sync> = Box::new(ahci);
-    let ahci: Box<dyn BDev + Send> = Box::new(ahci);
+    let ahci: Box<dyn NvmeBDev + Send> = Box::new(ahci);
 
     // verify_write(&ahci);
 
