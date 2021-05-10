@@ -54,6 +54,21 @@ struct Request {
     start_time: u64,
 }
 
+pub struct AhciStats {
+    completed: u64,
+    submitted: u64,
+}
+
+impl AhciStats {
+    pub fn get_stats(&self) -> (u64, u64) {
+        (self.submitted, self.completed)
+    }
+    pub fn reset_stats(&mut self) {
+        self.submitted = 0;
+        self.completed = 0;
+    }
+}
+
 pub struct DiskATA {
     id: usize,
     port: HbaPort,
@@ -65,6 +80,7 @@ pub struct DiskATA {
     clb: Dma<[HbaCmdHeader; 32]>,
     ctbas: [Dma<HbaCmdTable>; 32],
     _fb: Dma<[u8; 256]>,
+    pub stats: AhciStats,
 }
 
 impl DiskATA {
@@ -120,6 +136,7 @@ impl DiskATA {
             clb,
             ctbas,
             _fb: fb,
+            stats: AhciStats { submitted: 0, completed: 0 },
         })
     }
 }
@@ -184,7 +201,10 @@ impl Disk for DiskATA {
                 total_sectors,
                 buffer,
                 start_time: libtime::get_rdtsc(),
+
+         
             });
+            self.stats.submitted += 1;
             Ok(slot)
         } else {
             // Error
@@ -205,6 +225,7 @@ impl Disk for DiskATA {
             let req = self.requests_opt[slot as usize].take().unwrap();
             self.port.set_slot_ready(slot, true);
             self.port.ata_stop(slot)?;
+            self.stats.completed += 1;
             // println!("Request to {}-{} sectors takes {} cycles", req.start_sector, req.start_sector + req.total_sectors, libtime::get_rdtsc() - req.start_time);
             Ok(Some(req.buffer))
         }
@@ -249,6 +270,7 @@ impl Disk for DiskATA {
                 self.port.set_slot_ready(slot, false);
                 self.blkreqs_opt[slot as usize] = Some(block_req);
                 submit_count += 1;
+                self.stats.submitted += 1;
             } else {
                 // No slots available, push back the block_req
                 // TODO: possibly submit has no space?
@@ -267,6 +289,8 @@ impl Disk for DiskATA {
                 self.port.set_slot_ready(slot, true);
                 self.port.ata_stop(slot);
                 collect.push_back(block_req);
+                self.stats.completed += 1;
+
             }
         }
 
@@ -298,6 +322,7 @@ impl Disk for DiskATA {
                 self.port.set_slot_ready(slot, true);
                 self.port.ata_stop(slot);
                 collect.push_back(block_req);
+                self.stats.completed += 1;
             }
         }
 
@@ -308,6 +333,6 @@ impl Disk for DiskATA {
     }
      
     fn get_stats(&mut self) -> (u64, u64) {
-       (self.submitted, self.completed);
+       (self.stats.submitted, self.stats.completed)
     }
 }
