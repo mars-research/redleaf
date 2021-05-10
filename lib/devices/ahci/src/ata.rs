@@ -277,10 +277,37 @@ impl Disk for DiskATA {
         &mut self,
         mut collect: RRefDeque<BlkReq, 1024>,
     ) -> (usize, RRefDeque<BlkReq, 1024>) {
-        todo!()
-    }
+      
+        let qid = 1;
+        let mut count: usize=0;
+        let mut reap_count = 0;
+        let mut cur_head =0;
+        let reap_all = false;
 
+
+
+        for slot in 0..self.requests_opt.len() {
+            let slot = slot as u32;
+            if let None = self.blkreqs_opt[slot as usize] {
+                continue;
+            }
+            if !self.port.ata_running(slot) {
+                reap_count += 1;
+                // Make sure there's space in collect then do the following
+                let block_req = self.blkreqs_opt[slot as usize].take().unwrap();
+                self.port.set_slot_ready(slot, true);
+                self.port.ata_stop(slot);
+                collect.push_back(block_req);
+            }
+        }
+
+        (reap_count, collect)
+        //push it to the collect queue
+        //and return the queue
+    
+    }
+     
     fn get_stats(&mut self) -> (u64, u64) {
-        todo!()
+       (self.submitted, self.completed);
     }
 }
