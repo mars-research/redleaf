@@ -114,9 +114,7 @@ pub fn trusted_entry(
         VirtioNet(Arc::new(Mutex::new(dev)))
     };
 
-    unsafe {
-        net.0.lock().init();
-    }
+    net.0.lock().init();
 
     /*
     // VIRTIO DEMO LOOP

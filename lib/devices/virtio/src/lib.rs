@@ -1,5 +1,4 @@
 #![no_std]
-#![no_main]
 #![feature(
     box_syntax,
     const_fn,
@@ -14,8 +13,6 @@ extern crate alloc;
 pub mod defs;
 
 use core::ptr;
-
-use console::println;
 
 #[volatile_accessor::volatile_accessor]
 #[derive(Debug)]
@@ -102,16 +99,6 @@ impl Register {
             Register::Notify => 0x3000,
         }
     }
-
-    /// Returns a raw pointer to the register.
-    fn as_ptr(&self, mmio_base: usize) -> *const u32 {
-        (mmio_base + self.offset()) as *const u32
-    }
-
-    /// Returns a raw pointer to the register.
-    fn as_mut_ptr(&self, mmio_base: usize) -> *mut u32 {
-        (mmio_base + self.offset()) as *mut u32
-    }
 }
 
 /// A VirtIO Network Device MMIO region.
@@ -122,7 +109,7 @@ pub struct Mmio {
 
 impl Mmio {
     pub fn new(mmio_base: usize) -> Self {
-        /// mmio_base is passed to us from PCI init. This function should only be accessible to PCI Init Code (?)
+        // mmio_base is passed to us from PCI init. This function should only be accessible to PCI Init Code (?)
         unsafe {
             Self {
                 mmio_base,

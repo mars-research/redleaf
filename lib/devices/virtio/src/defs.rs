@@ -49,7 +49,7 @@ pub struct VirtqAvailable {
 }
 
 impl VirtqAvailable {
-    fn default() -> VirtqAvailable {
+    pub fn default() -> VirtqAvailable {
         VirtqAvailable {
             flags: 0,
             idx: 0,
@@ -79,7 +79,7 @@ pub struct VirtqUsed {
 }
 
 impl VirtqUsed {
-    fn default() -> VirtqUsed {
+    pub fn default() -> VirtqUsed {
         VirtqUsed {
             flags: 0,
             idx: 0,

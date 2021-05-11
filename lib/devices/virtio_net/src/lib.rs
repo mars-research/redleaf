@@ -75,9 +75,9 @@ pub struct VirtioNetInner {
 impl VirtioNetInner {
     /// Returns an initialized VirtioNet from a base address.
     unsafe fn new(mmio_base: usize) -> Self {
-        let mut mmio = Mmio::new(mmio_base);
+        let mmio = Mmio::new(mmio_base);
 
-        let mut virtual_queues = VirtualQueues {
+        let virtual_queues = VirtualQueues {
             receive_queue: VirtQueue {
                 descriptors: [VirtqDescriptor {
                     addr: 0,
@@ -116,7 +116,7 @@ impl VirtioNetInner {
             },
         };
 
-        let mut virtio_network_headers = [VirtioNetworkHeader {
+        let virtio_network_headers = [VirtioNetworkHeader {
             flags: 0,
             gso_type: 0,
             header_length: 0,
@@ -125,10 +125,10 @@ impl VirtioNetInner {
             csum_offset: 0,
         }; DESCRIPTOR_COUNT];
 
-        let mut rx_free_descriptors = [true; DESCRIPTOR_COUNT];
-        let mut tx_free_descriptors = [true; DESCRIPTOR_COUNT];
+        let rx_free_descriptors = [true; DESCRIPTOR_COUNT];
+        let tx_free_descriptors = [true; DESCRIPTOR_COUNT];
 
-        let mut virtio_inner = Self {
+        let virtio_inner = Self {
             mmio,
             virtual_queues,
             virtio_network_headers,
