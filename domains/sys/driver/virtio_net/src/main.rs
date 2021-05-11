@@ -114,12 +114,12 @@ pub fn trusted_entry(
         VirtioNet(Arc::new(Mutex::new(dev)))
     };
 
-    // let new_net = net.clone_net();
-
     unsafe {
         net.0.lock().init();
     }
 
+    /*
+    // VIRTIO DEMO LOOP
     // Run SmolNet
     let mut smol = SmolPhy::new(Box::new(net));
 
@@ -130,7 +130,7 @@ pub fn trusted_entry(
 
     let neighbor_cache = NeighborCache::new(BTreeMap::new());
 
-    let ip_addresses = [IpCidr::new(IpAddress::v4(10, 69, 69, 10), 24)];
+    let ip_addresses = [IpCidr::new(IpAddress::v4(10, 10, 10, 10), 24)];
     let mac_address = [0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x10];
     let mut iface = EthernetInterfaceBuilder::new(smol)
         .ethernet_addr(EthernetAddress::from_bytes(&mac_address))
@@ -151,25 +151,10 @@ pub fn trusted_entry(
         iface.poll(&mut sockets, timestamp);
         httpd.handle(&mut sockets);
         iface.device_mut().do_tx();
-
-        // libtime::sys_ns_sleep(500000);
-        // libtime::sys_ns_sleep(500);
     }
+    */
 
-    // // let mut neighbor_cache_entries = [None; 8];
-    // let neighbor_cache = NeighborCache::new(BTreeMap::new());
-
-    // let ip_addresses = [IpCidr::new(IpAddress::v4(10, 10, 1, 1), 24)];
-    // let mac_address = [0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x10];
-    // let iface = EthernetInterfaceBuilder::new(smol)
-    //     .ethernet_addr(EthernetAddress::from_bytes(&mac_address))
-    //     .neighbor_cache(neighbor_cache)
-    //     .ip_addrs(ip_addresses)
-    //     .finalize();
-
-    // let socketset = SocketSet::new(Vec::with_capacity(512));
-
-    // new_net.unwrap()
+    Box::new(net)
 }
 
 // This function is called on panic.

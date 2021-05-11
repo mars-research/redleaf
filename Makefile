@@ -7,6 +7,7 @@
 DEBUG            ?= false
 LARGE_MEM        ?= true
 IXGBE		 ?= true
+VIRTIO_NET 		 ?= true
 
 ifndef NO_DEFAULT_FLAGS
 CARGO_FLAGS      ?=
@@ -25,7 +26,6 @@ KERNEL_FEATURES  += --features "page_fault_on_ist"
 #KERNEL_FEATURES += --features "trace_sched"
 
 endif # NO_DEFAULT_FLAGS
-
 
 ifdef IXGBE
 $(warning IXGBE is always enabled now.)
@@ -96,14 +96,6 @@ qemu_common     += -device ide-hd,drive=satadisk,bus=ahci.0
 #qemu_common    += -smp 4
 # qemu_common     += -monitor telnet:127.0.0.1:55555,server,nowait
 qemu_common     += -cpu 'Haswell,pdpe1gb' -machine q35
-# qemu_common     += -net nic,model=virtio
-qemu_common 	+= -device virtio-net-pci,netdev=net0
-# qemu_common 	+= -netdev user,id=net0
-qemu_common		+= -netdev tap,id=net0,ifname=virtio,script=no,downscript=no
-# qemu_common		+= --trace virtio* --trace virtqueue*
-# qemu_common		+= -D qemu-trace.log
-# qemu_common		+= -d trace:virtio*,trace:virtqueue* -D serial.log
-# qemu_common		+= -nic user,model=virtio-net-pci
 #qemu_common    += -device vfio-pci,romfile=,host=06:00.1
 #qemu_common    += -vnc 127.0.0.1:0
 #qemu_common	+= -mem-path /dev/hugepages
@@ -122,6 +114,11 @@ endif
 
 ifeq ($(GDB),true)
 qemu_common     += -S
+endif
+
+ifeq ($(VIRTIO_NET),true)
+qemu_common 	+= -device virtio-net-pci,netdev=net0
+qemu_common		+= -netdev tap,id=net0,ifname=virtio,script=no,downscript=no
 endif
 
 QEMU            ?= $(shell which qemu-system-x86_64)
@@ -255,11 +252,15 @@ memops:
 just-run-qemu:
 	$(QEMU) $(qemu_common) $(qemu_nox)
 
+.PHONY: just-run-qemu-kvm
+just-run-qemu-kvm:
+	${KVM} $(qemu_common) $(qemu_kvm_args) $(qemu_nox)
+
 .PHONY: create-virtio-tap
 create-virtio-tap:
 	sudo ip tuntap add mode tap user ${USER} name virtio
-	# Courtesy of Vincent
-	sudo ip address add 10.69.69.1/24 dev virtio
+	# IP Address for Redleaf Virtio Demo is 10.10.10.10
+	sudo ip address add 10.10.10.1/24 dev virtio
 	sudo ip link set up virtio
 
 .PHONY: delete-virtio-tap

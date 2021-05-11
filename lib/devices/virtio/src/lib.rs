@@ -87,7 +87,7 @@ pub enum Register {
     // Capabilities: [40] Vendor Specific Information: VirtIO: CommonCfg
     //     BAR=4 offset=00000000 size=00001000
     CommonCfg,
-    ISR,
+    ISR, // Unused for Async Implementation
     DeviceCfg,
     Notify,
 }
@@ -122,6 +122,7 @@ pub struct Mmio {
 
 impl Mmio {
     pub fn new(mmio_base: usize) -> Self {
+        /// mmio_base is passed to us from PCI init. This function should only be accessible to PCI Init Code (?)
         unsafe {
             Self {
                 mmio_base,

@@ -41,10 +41,10 @@ pub struct VirtqDescriptor {
 pub struct VirtqAvailable {
     pub flags: u16,
 
-    /// Index into VirtqDescriptor Array (Count of Descriptor Chain Heads???)
+    /// Index into VirtqDescriptor Array. Count of Descriptor Chain Heads
     pub idx: u16,
 
-    /// The number is the index of the head of the descriptor chain in the descriptor table
+    /// The index of the head of the descriptor chain in the descriptor table
     pub ring: [u16; DESCRIPTOR_COUNT],
 }
 
