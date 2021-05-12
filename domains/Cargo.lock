@@ -1029,6 +1029,68 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5a972e5669d67ba988ce3dc826706fb0a8b01471c088cb0b6110b805cc36aed"
 
 [[package]]
+name = "virtio_device"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "rref",
+ "volatile_accessor",
+]
+
+[[package]]
+name = "virtio_net"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "hashbrown 0.7.2",
+ "interface",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "pci_driver",
+ "platform",
+ "protocol",
+ "redhttpd",
+ "rref",
+ "smolnet",
+ "smoltcp",
+ "spin 0.5.3",
+ "syscalls",
+ "virtio_device",
+ "virtio_network_device",
+]
+
+[[package]]
+name = "virtio_network_device"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "hashbrown 0.7.2",
+ "interface",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "pci_driver",
+ "rref",
+ "spin 0.5.3",
+ "virtio_device",
+ "volatile_accessor",
+]
+
+[[package]]
+name = "volatile_accessor"
+version = "0.1.0"
+dependencies = [
+ "lazy_static",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "wasi"
 version = "0.9.0+wasi-snapshot-preview1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

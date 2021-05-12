@@ -108,6 +108,7 @@ pub fn trusted_entry(
     create_xv6usr: Arc<dyn interface::domain_creation::CreateRv6Usr + Send + Sync>,
     create_pci: Arc<dyn interface::domain_creation::CreatePCI>,
     create_ixgbe: Arc<dyn interface::domain_creation::CreateIxgbe>,
+    create_virtio_net: Arc<dyn interface::domain_creation::CreateVirtioNet>,
     create_nvme: Arc<dyn interface::domain_creation::CreateNvme>,
     create_net_shadow: Arc<dyn interface::domain_creation::CreateNetShadow>,
     create_nvme_shadow: Arc<dyn interface::domain_creation::CreateNvmeShadow>,
@@ -192,6 +193,7 @@ pub fn trusted_entry(
         create_membdev,
         create_bdev_shadow,
         create_ixgbe,
+        create_virtio_net,
         create_nvme,
         create_net_shadow,
         create_nvme_shadow,
@@ -236,6 +238,17 @@ pub fn trusted_entry(
     println!("Creating pci");
     let (_dom_pci, pci) = proxy.as_create_pci().create_domain_pci();
 
+    #[cfg(feature = "virtnet")]
+    let (_, net) = proxy
+        .as_create_virtio_net()
+        .create_domain_virtio_net(pci.pci_clone());
+    #[cfg(all(not(feature = "shadow"), not(feature = "virtnet")))]
+    let (_, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci.pci_clone());
+    #[cfg(all(feature = "shadow", not(feature = "virtnet")))]
+    let (_, net) = proxy
+        .as_create_net_shadow()
+        .create_domain_net_shadow(proxy.as_create_ixgbe(), pci.pci_clone());
+
     #[cfg(not(feature = "membdev"))]
     let (dom_ahci, bdev) = proxy.as_create_ahci().create_domain_ahci(pci.pci_clone());
 
@@ -258,12 +271,6 @@ pub fn trusted_entry(
         .create_domain_nvme_shadow(proxy.as_create_nvme(), pci.pci_clone());
 
     println!("Creating ixgbe");
-    #[cfg(not(feature = "shadow"))]
-    let (dom_ixgbe, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci.pci_clone());
-    #[cfg(feature = "shadow")]
-    let (_dom_ixgbe, net) = proxy
-        .as_create_net_shadow()
-        .create_domain_net_shadow(proxy.as_create_ixgbe(), pci.pci_clone());
 
     #[cfg(feature = "benchnet")]
     let _ = proxy.as_create_benchnet().create_domain_benchnet(net);

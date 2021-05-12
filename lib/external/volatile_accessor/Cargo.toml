@@ -1,0 +1,17 @@
+[package]
+name = "volatile_accessor"
+version = "0.1.0"
+authors = [
+    "Tianjiao Huang <tianjih1@uci.edu>",
+    "Mars Research Group <aburtsev@uci.edu>",
+]
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "1.0.48", features = ["full", "extra-traits"]}
+quote = "1.0.7"
+proc-macro2 = { version = "1.0.24", features = ["nightly"] }
+lazy_static = "1.4.0"

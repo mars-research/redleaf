@@ -21,10 +21,12 @@ pub enum BarRegions {
     None
 }
 
+#[derive(Copy, Clone, Debug)]
 pub enum DeviceBarRegions {
     Ahci(PciBarAddr),
     Ixgbe(PciBarAddr),
     Nvme(PciBarAddr),
+    Virtio(PciBarAddr),
     None
 }
 
@@ -33,6 +35,7 @@ pub enum PciDrivers {
     IxgbeDriver,
     AhciDriver,
     NvmeDriver,
+    VirtioDriver,
 }
 
 #[derive(Copy, Clone, Debug)]

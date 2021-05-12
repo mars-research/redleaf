@@ -169,6 +169,7 @@ impl<'a> Device<'a> for SmolPhy {
         cap.checksum = ChecksumCapabilities::ignored();
         cap.checksum.ipv4 = Checksum::Tx;
         cap.checksum.tcp = Checksum::Tx;
+        cap.checksum.icmpv4 = Checksum::Tx;
 
         cap
     }
