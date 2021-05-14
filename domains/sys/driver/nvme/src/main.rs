@@ -71,23 +71,18 @@ impl interface::bdev::NvmeBDev for Nvme {
         write: bool,
     ) -> RpcResult<Result<(usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>)>> {
         Ok((|| {
-            let mut submit = Some(submit);
-            let mut collect = Some(collect);
             let mut ret = 0;
 
             let device = &mut self.device.borrow_mut();
             let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
-            let (num, _, _, _, submit_, collect_) = device.device.submit_and_poll_rref(
-                submit.take().unwrap(),
-                collect.take().unwrap(),
+            let (num, _, _, _, submit, collect) = device.device.submit_and_poll_rref(
+                submit,
+                collect,
                 write,
             );
             ret = num;
 
-            submit.replace(submit_);
-            collect.replace(collect_);
-
-            Ok((ret, submit.unwrap(), collect.unwrap()))
+            Ok((ret, submit, collect))
         })())
     }
 
