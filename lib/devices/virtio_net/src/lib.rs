@@ -15,7 +15,7 @@ extern crate alloc;
 use alloc::sync::Arc;
 use console::println;
 use hashbrown::HashMap;
-use rref::{RRef, RRefDeque};
+use interface::rref::{RRef, RRefDeque};
 use spin::Mutex;
 use virtio_device::defs::{
     VirtQueue, VirtqAvailable, VirtqDescriptor, VirtqUsed, VirtqUsedElement, VirtualQueues,

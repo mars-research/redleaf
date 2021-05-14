@@ -11,5 +11,4 @@ libsyscalls = { path = "../../../lib/core/libsyscalls" }
 libtime = { path = "../../../lib/core/libtime" }
 console = { path = "../../../lib/core/console" }
 malloc = { path = "../../../lib/core/malloc" }
-rref = { path = "../../../lib/core/rref" }
 volatile_accessor = { path = "../../../lib/external/volatile_accessor" }

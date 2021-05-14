@@ -30,7 +30,7 @@ pub use interface::error::{ErrorKind, Result};
 use virtio_network_device::pci::PciFactory;
 use virtio_network_device::VirtioNetInner;
 
-use rref::{RRef, RRefDeque};
+use interface::rref::{RRef, RRefDeque};
 
 use smolnet::{self, SmolPhy};
 
@@ -103,7 +103,7 @@ pub fn trusted_entry(
     pci: Box<dyn interface::pci::PCI>,
 ) -> Box<dyn interface::net::Net> {
     libsyscalls::syscalls::init(s);
-    rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     let net = {
         let mut pci_factory = PciFactory::new();
