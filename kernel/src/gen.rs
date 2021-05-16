@@ -27,7 +27,10 @@ impl domain_creation::CreateAHCI for PDomain {
     fn create_domain_ahci(
         &self,
         pci: Box<dyn interface::pci::PCI>,
-    ) -> (Box<dyn syscalls::Domain>, Box<dyn interface::bdev::BDev>) {
+    ) -> (
+        Box<dyn syscalls::Domain>,
+        Box<dyn interface::bdev::NvmeBDev>,
+    ) {
         disable_irq();
         let r = create_domain_ahci(pci);
         enable_irq();
@@ -134,7 +137,7 @@ impl domain_creation::CreateRv6 for PDomain {
         create_xv6net: Arc<dyn interface::domain_creation::CreateRv6Net>,
         create_xv6net_shadow: Arc<dyn interface::domain_creation::CreateRv6NetShadow>,
         create_xv6usr: Arc<dyn interface::domain_creation::CreateRv6Usr + Send + Sync>,
-        bdev: Box<dyn interface::bdev::BDev>,
+        ahci: Box<dyn interface::bdev::NvmeBDev>,
         net: Box<dyn interface::net::Net>,
         nvme: Box<dyn interface::bdev::NvmeBDev>,
         usr_tpm: Box<dyn interface::tpm::UsrTpm>,
@@ -146,7 +149,7 @@ impl domain_creation::CreateRv6 for PDomain {
             create_xv6net,
             create_xv6net_shadow,
             create_xv6usr,
-            bdev,
+            ahci,
             net,
             nvme,
             usr_tpm,
@@ -402,7 +405,10 @@ pub fn create_domain_pci() -> (Box<dyn syscalls::Domain>, Box<dyn interface::pci
 
 pub fn create_domain_ahci(
     pci: Box<dyn interface::pci::PCI>,
-) -> (Box<dyn syscalls::Domain>, Box<dyn interface::bdev::BDev>) {
+) -> (
+    Box<dyn syscalls::Domain>,
+    Box<dyn interface::bdev::NvmeBDev>,
+) {
     extern "C" {
         fn _binary_domains_build_ahci_start();
         fn _binary_domains_build_ahci_end();
@@ -413,7 +419,8 @@ pub fn create_domain_ahci(
         _binary_domains_build_ahci_end as *const u8,
     );
 
-    create_domain_bdev("ahci", binary_range, pci)
+    // create_domain_bdev("ahci", binary_range, pci)
+    create_domain_nvmedev("ahci", binary_range, pci)
     // unimplemented!()
 }
 
@@ -557,7 +564,7 @@ pub fn create_domain_xv6kernel(
     create_xv6net: Arc<dyn interface::domain_creation::CreateRv6Net>,
     create_xv6net_shadow: Arc<dyn interface::domain_creation::CreateRv6NetShadow>,
     create_xv6usr: Arc<dyn interface::domain_creation::CreateRv6Usr + Send + Sync>,
-    bdev: Box<dyn interface::bdev::BDev>,
+    ahci: Box<dyn interface::bdev::NvmeBDev>,
     net: Box<dyn interface::net::Net>,
     nvme: Box<dyn interface::bdev::NvmeBDev>,
     usr_tpm: Box<dyn interface::tpm::UsrTpm>,
@@ -580,7 +587,7 @@ pub fn create_domain_xv6kernel(
         create_xv6net,
         create_xv6net_shadow,
         create_xv6usr,
-        bdev,
+        ahci,
         net,
         nvme,
         usr_tpm,
@@ -1523,7 +1530,7 @@ pub fn build_domain_xv6kernel(
     create_xv6net: Arc<dyn interface::domain_creation::CreateRv6Net>,
     create_xv6net_shadow: Arc<dyn interface::domain_creation::CreateRv6NetShadow>,
     create_xv6usr: Arc<dyn interface::domain_creation::CreateRv6Usr + Send + Sync>,
-    bdev: Box<dyn interface::bdev::BDev>,
+    ahci: Box<dyn interface::bdev::NvmeBDev>,
     net: Box<dyn interface::net::Net>,
     nvme: Box<dyn interface::bdev::NvmeBDev>,
     usr_tpm: Box<dyn interface::tpm::UsrTpm>,
@@ -1536,7 +1543,7 @@ pub fn build_domain_xv6kernel(
         create_xv6net: Arc<dyn interface::domain_creation::CreateRv6Net>,
         create_xv6net_shadow: Arc<dyn interface::domain_creation::CreateRv6NetShadow>,
         create_xv6kernel: Arc<dyn interface::domain_creation::CreateRv6Usr>,
-        bdev: Box<dyn interface::bdev::BDev>,
+        ahci: Box<dyn interface::bdev::NvmeBDev>,
         net: Box<dyn interface::net::Net>,
         nvme: Box<dyn interface::bdev::NvmeBDev>,
         usr_tpm: Box<dyn interface::tpm::UsrTpm>,
@@ -1568,7 +1575,7 @@ pub fn build_domain_xv6kernel(
         create_xv6net,
         create_xv6net_shadow,
         create_xv6usr,
-        bdev,
+        ahci,
         net,
         nvme,
         usr_tpm,

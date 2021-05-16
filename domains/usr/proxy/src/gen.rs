@@ -2,16 +2,10 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use console::{print, println};
 use core::mem::transmute;
-use interface::domain_creation;
-use libsyscalls::syscalls::{
-    sys_discard_cont, sys_get_current_domain_id, sys_update_current_domain_id,
-};
-use interface::proxy;
-use rref::{traits::CustomCleanup, RRef, RRefDeque, RRefVec};
-use syscalls::{Domain, Heap, Interrupt};
-use unwind::trampoline;
 use interface;
+use interface::domain_creation;
 use interface::error::Result;
+use interface::proxy;
 use interface::rpc::{RpcError, RpcResult};
 use interface::{
     bdev::{BDev, BlkReq, NvmeBDev, BSIZE},
@@ -24,6 +18,12 @@ use interface::{
     usrnet::UsrNet,
     vfs::{UsrVFS, VFS},
 };
+use libsyscalls::syscalls::{
+    sys_discard_cont, sys_get_current_domain_id, sys_update_current_domain_id,
+};
+use rref::{traits::CustomCleanup, RRef, RRefDeque, RRefVec};
+use syscalls::{Domain, Heap, Interrupt};
+use unwind::trampoline;
 
 // TODO: remove once ixgbe on rrefdeque
 use alloc::{collections::VecDeque, vec::Vec};
@@ -174,10 +174,10 @@ impl interface::domain_creation::CreatePCI for Proxy {
 }
 
 impl interface::domain_creation::CreateAHCI for Proxy {
-    fn create_domain_ahci(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn BDev>) {
+    fn create_domain_ahci(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn NvmeBDev>) {
         let (domain, ahci) = self.create_ahci.create_domain_ahci(pci);
         let domain_id = domain.get_domain_id();
-        return (domain, Box::new(BDevProxy::new(domain_id, ahci)));
+        return (domain, Box::new(NvmeBDevProxy::new(domain_id, ahci)));
     }
 }
 
@@ -248,7 +248,10 @@ impl interface::domain_creation::CreateNvmeShadow for Proxy {
 }
 
 impl interface::domain_creation::CreateNvme for Proxy {
-    fn create_domain_nvme(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn interface::bdev::NvmeBDev>) {
+    fn create_domain_nvme(
+        &self,
+        pci: Box<dyn PCI>,
+    ) -> (Box<dyn Domain>, Box<dyn interface::bdev::NvmeBDev>) {
         // TODO: write NvmeBDevProxy
         let (domain, nvme) = self.create_nvme.create_domain_nvme(pci);
         let domain_id = domain.get_domain_id();
@@ -307,7 +310,7 @@ impl interface::domain_creation::CreateRv6 for Proxy {
         create_xv6net: Arc<dyn interface::domain_creation::CreateRv6Net>,
         create_xv6net_shadow: Arc<dyn interface::domain_creation::CreateRv6NetShadow>,
         create_xv6usr: Arc<dyn interface::domain_creation::CreateRv6Usr + Send + Sync>,
-        bdev: Box<dyn BDev>,
+        ahci: Box<dyn interface::bdev::NvmeBDev>,
         net: Box<dyn interface::net::Net>,
         nvme: Box<dyn interface::bdev::NvmeBDev>,
         usr_tpm: Box<dyn interface::tpm::UsrTpm>,
@@ -318,7 +321,7 @@ impl interface::domain_creation::CreateRv6 for Proxy {
             create_xv6net,
             create_xv6net_shadow,
             create_xv6usr,
-            bdev,
+            ahci,
             net,
             nvme,
             usr_tpm,
@@ -380,7 +383,10 @@ impl interface::domain_creation::CreateBenchnet for Proxy {
 }
 
 impl interface::domain_creation::CreateBenchnvme for Proxy {
-    fn create_domain_benchnvme(&self, nvme: Box<dyn interface::bdev::NvmeBDev>) -> (Box<dyn Domain>) {
+    fn create_domain_benchnvme(
+        &self,
+        nvme: Box<dyn interface::bdev::NvmeBDev>,
+    ) -> (Box<dyn Domain>) {
         self.create_benchnvme.create_domain_benchnvme(nvme)
     }
 }
@@ -785,7 +791,6 @@ use interface::bdev::BDevProxy;
 
 use interface::bdev::NvmeBDevProxy;
 use interface::dom_a::OwnedTest;
-
 
 /*
  * Code to unwind usrnet_read_socket
