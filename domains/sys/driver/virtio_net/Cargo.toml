@@ -18,7 +18,6 @@ redhttpd = { path = "../../../lib/redhttpd" }
 virtio_device = { path = "../../../../lib/devices/virtio" }
 virtio_network_device = { path = "../../../../lib/devices/virtio_net" }
 
-
 # Interfaces
 syscalls = { path = "../../../../lib/core/interfaces/syscalls" }
 pci_driver = { path = "../../../../lib/core/interfaces/dev/pci/pci_driver" }
@@ -31,3 +30,9 @@ interface = { path = "../../../../interface/generated" }
 path = "../../../../lib/external/smoltcp"
 default-features = false
 features = ["alloc", "proto-ipv4", "socket-tcp", "socket-icmp", "ethernet"]
+
+[features]
+default = [
+]
+
+virtio_net = []

@@ -30,6 +30,8 @@ pub use interface::error::{ErrorKind, Result};
 use virtio_network_device::pci::PciFactory;
 use virtio_network_device::VirtioNetInner;
 
+mod nullnet;
+
 use interface::rref::{RRef, RRefDeque};
 
 use smolnet::{self, SmolPhy};
@@ -105,16 +107,22 @@ pub fn trusted_entry(
     libsyscalls::syscalls::init(s);
     interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
+    #[cfg(feature = "virtio_net")]
     let net = {
-        let mut pci_factory = PciFactory::new();
-        if pci.pci_register_driver(&mut pci_factory, 4, None).is_err() {
-            panic!("Failed to probe VirtioNet PCI");
-        }
-        let dev = pci_factory.to_device().unwrap();
-        VirtioNet(Arc::new(Mutex::new(dev)))
+        let net = {
+            let mut pci_factory = PciFactory::new();
+            if pci.pci_register_driver(&mut pci_factory, 4, None).is_err() {
+                panic!("Failed to probe VirtioNet PCI");
+            }
+            let dev = pci_factory.to_device().unwrap();
+            VirtioNet(Arc::new(Mutex::new(dev)))
+        };
+        net.0.lock().init();
+        net
     };
 
-    net.0.lock().init();
+    #[cfg(not(feature = "virtio_net"))]
+    let net = { nullnet::NullNet::new() };
 
     /*
     // VIRTIO DEMO LOOP

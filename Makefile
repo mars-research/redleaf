@@ -119,6 +119,7 @@ endif
 ifeq ($(VIRTIO_NET),true)
 qemu_common 	+= -device virtio-net-pci,netdev=net0
 qemu_common		+= -netdev tap,id=net0,ifname=virtio,script=no,downscript=no
+DOMAIN_FEATURES += --features "virtio_net"
 endif
 
 QEMU            ?= $(shell which qemu-system-x86_64)
