@@ -16,7 +16,7 @@ use core::panic::PanicInfo;
 
 use interface::rref::RRefDeque;
 
-use interface::domain_creation::CreateNvme;
+use interface::domain_create::CreateNvme;
 use spin::Mutex;
 use interface::bdev::{BlkReq, NvmeBDev};
 use interface::error::Result;

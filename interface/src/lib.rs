@@ -36,4 +36,4 @@ pub mod typeid;
 
 pub mod proxy;
 
-pub mod domain_creation;
+pub mod domain_create;

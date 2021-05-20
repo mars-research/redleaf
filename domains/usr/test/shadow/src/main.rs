@@ -19,13 +19,13 @@ use interface::rpc::RpcResult;
 struct ShadowDomain {
     dom: Option<Box<dyn syscalls::Domain>>,
     dom_c: Box<dyn interface::dom_c::DomC>,
-    create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
+    create_dom_c: Arc<dyn interface::domain_create::CreateDomC>,
 }
 
 impl ShadowDomain {
     fn new(
         dom: Box<dyn syscalls::Domain>,
-        create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
+        create_dom_c: Arc<dyn interface::domain_create::CreateDomC>,
         dom_c: Box<dyn interface::dom_c::DomC>,
     ) -> Self {
         Self {
@@ -43,7 +43,7 @@ struct Shadow {
 impl Shadow {
     fn new(
         dom: Box<dyn syscalls::Domain>,
-        create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
+        create_dom_c: Arc<dyn interface::domain_create::CreateDomC>,
         dom_c: Box<dyn interface::dom_c::DomC>,
     ) -> Self {
         Self {
@@ -85,7 +85,7 @@ impl interface::dom_c::DomC for Shadow {
 pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
     heap: Box<dyn Heap + Send + Sync>,
-    create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
+    create_dom_c: Arc<dyn interface::domain_create::CreateDomC>,
 ) -> Box<dyn interface::dom_c::DomC> {
     libsyscalls::syscalls::init(s);
     interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());

@@ -2,7 +2,7 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use syscalls::{Domain};
 use crate::{bdev};
-use crate::domain_creation::{CreatePCI,
+use crate::domain_create::{CreatePCI,
              CreateAHCI,
              CreateMemBDev, 
              CreateBDevShadow,
@@ -23,31 +23,6 @@ use crate::domain_creation::{CreatePCI,
              CreateDomD, 
              CreateShadow
 };
-
-pub trait CreateProxy {
-    fn create_domain_proxy(
-        &self,
-        create_pci: Arc<dyn CreatePCI>,
-        create_ahci: Arc<dyn CreateAHCI>,
-        create_membdev: Arc<dyn CreateMemBDev>,
-        create_bdev_shadow: Arc<dyn CreateBDevShadow>,
-        create_ixgbe: Arc<dyn CreateIxgbe>,
-        create_nvme: Arc<dyn CreateNvme>,
-        create_net_shadow: Arc<dyn crate::domain_creation::CreateNetShadow>,
-        create_nvme_shadow: Arc<dyn crate::domain_creation::CreateNvmeShadow>,
-        create_benchnet: Arc<dyn CreateBenchnet>,
-        create_benchnvme: Arc<dyn crate::domain_creation::CreateBenchnvme>,
-        create_xv6fs: Arc<dyn CreateRv6FS>,
-        create_xv6net: Arc<dyn crate::domain_creation::CreateRv6Net>,
-        create_xv6net_shadow: Arc<dyn crate::domain_creation::CreateRv6NetShadow>,
-        create_xv6usr: Arc<dyn CreateRv6Usr>,
-        create_xv6: Arc<dyn CreateRv6>,
-        create_dom_a: Arc<dyn CreateDomA>,
-        create_dom_b: Arc<dyn CreateDomB>,
-        create_dom_c: Arc<dyn CreateDomC>,
-        create_dom_d: Arc<dyn CreateDomD>,
-        create_shadow: Arc<dyn CreateShadow>) -> (Box<dyn Domain>, Arc<dyn Proxy>);
-}
 
 pub trait Proxy: CreatePCI +
                  CreateAHCI +

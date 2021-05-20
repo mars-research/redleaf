@@ -7,7 +7,7 @@ use alloc::vec::Vec;
 use spin::Mutex;
 
 use console::println;
-use interface::domain_creation::CreateRv6Usr;
+use interface::domain_create::CreateRv6Usr;
 use interface::rref::{RRefDeque, RRefVec};
 use interface::bdev::{BlkReq, NvmeBDev};
 use interface::net::{Net, NetworkStats};
