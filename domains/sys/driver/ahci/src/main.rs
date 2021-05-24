@@ -35,7 +35,7 @@ use console::println;
 // use libsyscalls::errors::Result;
 use libsyscalls::syscalls::{sys_backtrace, sys_yield};
 use pci_driver::{BarRegions, DeviceBarRegions, PciClass};
-use rref::{RRef, RRefDeque};
+use rref::{traits::CustomCleanup, RRef, RRefDeque};
 use spin::Once;
 use syscalls::Syscall;
 
@@ -226,6 +226,83 @@ impl NvmeBDev for Ahci {
     }
 }
 
+fn run_blocktest_rref(device: &Ahci, from_block: u64, block_num: u64) {
+    assert!(block_num <= 32, "block num must be at most 32");
+
+    // Submit write requests
+    let mut submit = RRefDeque::<BlkReq, 128>::default();
+    let mut collect = RRefDeque::<BlkReq, 128>::default();
+    let mut poll = RRefDeque::<BlkReq, 1024>::default();
+
+    for i in 0..block_num {
+        let mut block_req = BlkReq::from_data([((from_block + i) % 255) as u8; 4096]);
+        block_req.block = i;
+        submit.push_back(RRef::<BlkReq>::new(block_req));
+    }
+
+    let (submit_num, submit_, collect_) = device
+        .submit_and_poll_rref(submit, collect, true)
+        .unwrap()
+        .unwrap();
+
+    submit = submit_;
+    collect = collect_;
+
+    // Wait for write to finish
+    loop {
+        let (submit_num, submit_, collect_) = device
+            .submit_and_poll_rref(submit, collect, false)
+            .unwrap()
+            .unwrap();
+        submit = submit_;
+        collect = collect_;
+        if collect.len() == block_num as usize {
+            collect.cleanup();
+            break;
+        }
+    }
+    assert!(submit.len() == 0, "submit is not finished");
+
+    // Submit read requests
+    for i in 0..block_num {
+        let mut block_req = BlkReq::new();
+        block_req.block = i;
+        submit.push_back(RRef::<BlkReq>::new(block_req));
+    }
+
+    let (submit_num, submit_, collect_) = device
+        .submit_and_poll_rref(submit, collect, false)
+        .unwrap()
+        .unwrap();
+
+    submit = submit_;
+    collect = collect_;
+
+    loop {
+        let (submit_num, submit_, collect_) = device
+            .submit_and_poll_rref(submit, collect, false)
+            .unwrap()
+            .unwrap();
+
+        submit = submit_;
+        collect = collect_;
+
+        if collect.len() == block_num as usize {
+            while let Some(block_req) = collect.pop_front() {
+                let value = [((from_block + block_req.block) % 255) as u8; 4096];
+                assert_eq!(
+                    &value[..],
+                    &block_req.data[..],
+                    "\nexpected{:?}\ngot{:?}\n",
+                    &value[..],
+                    &block_req.data[..],
+                );
+            }
+            break;
+        }
+    }
+}
+
 #[no_mangle]
 pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
@@ -246,6 +323,8 @@ pub fn trusted_entry(
 
     // let ahci: Box<dyn interface::bdev::BDev> = Box::new(ahci);
     // let ahci: Box<dyn BDev + Send + Sync> = Box::new(ahci);
+    run_blocktest_rref(&ahci, 0, 8);
+
     let ahci: Box<dyn NvmeBDev + Send> = Box::new(ahci);
 
     // verify_write(&ahci);
