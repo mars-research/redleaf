@@ -9,6 +9,7 @@ members = [
 	"sys/driver/pci",
 	"sys/driver/tpm",
 	"sys/driver/virtio_net",
+	"sys/driver/virtio_block",
 	"sys/init",
 	"usr/proxy",
 	"usr/shadow/bdev",
