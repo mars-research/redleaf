@@ -1,28 +1,13 @@
+use crate::bdev;
+use crate::domain_creation::{
+    CreateAHCI, CreateBDevShadow, CreateBenchnet, CreateBenchnvme, CreateDomA, CreateDomB,
+    CreateDomC, CreateDomD, CreateIxgbe, CreateMemBDev, CreateNetShadow, CreateNvme,
+    CreateNvmeShadow, CreatePCI, CreateRv6, CreateRv6FS, CreateRv6Net, CreateRv6NetShadow,
+    CreateRv6Usr, CreateShadow, CreateVirtioBlock, CreateVirtioNet,
+};
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-use syscalls::{Domain};
-use crate::{bdev, domain_creation::CreateVirtioNet};
-use crate::domain_creation::{CreatePCI,
-             CreateAHCI,
-             CreateMemBDev, 
-             CreateBDevShadow,
-             CreateIxgbe, 
-             CreateNvme,
-             CreateNetShadow,
-             CreateNvmeShadow,
-             CreateBenchnet,
-             CreateBenchnvme,
-             CreateRv6FS,
-             CreateRv6Net,
-             CreateRv6NetShadow, 
-             CreateRv6Usr, 
-             CreateRv6, 
-             CreateDomA, 
-             CreateDomB, 
-             CreateDomC, 
-             CreateDomD, 
-             CreateShadow
-};
+use syscalls::Domain;
 
 pub trait CreateProxy {
     fn create_domain_proxy(
@@ -33,6 +18,7 @@ pub trait CreateProxy {
         create_bdev_shadow: Arc<dyn CreateBDevShadow>,
         create_ixgbe: Arc<dyn CreateIxgbe>,
         create_virtio_net: Arc<dyn CreateVirtioNet>,
+        create_virtio_block: Arc<dyn CreateVirtioBlock>,
         create_nvme: Arc<dyn CreateNvme>,
         create_net_shadow: Arc<dyn crate::domain_creation::CreateNetShadow>,
         create_nvme_shadow: Arc<dyn crate::domain_creation::CreateNvmeShadow>,
@@ -47,26 +33,29 @@ pub trait CreateProxy {
         create_dom_b: Arc<dyn CreateDomB>,
         create_dom_c: Arc<dyn CreateDomC>,
         create_dom_d: Arc<dyn CreateDomD>,
-        create_shadow: Arc<dyn CreateShadow>) -> (Box<dyn Domain>, Arc<dyn Proxy>);
+        create_shadow: Arc<dyn CreateShadow>,
+    ) -> (Box<dyn Domain>, Arc<dyn Proxy>);
 }
 
-pub trait Proxy: CreatePCI +
-                 CreateAHCI +
-                 CreateMemBDev +
-                 CreateBDevShadow +
-                 CreateIxgbe +
-                 CreateNetShadow +
-                 CreateNvmeShadow +
-                 CreateBenchnet +
-                 CreateBenchnvme +
-                 CreateRv6FS + 
-                 CreateRv6Usr + 
-                 CreateRv6 + 
-                 CreateDomA + 
-                 CreateDomB + 
-                 CreateDomC + 
-                 CreateDomD + 
-                 CreateShadow {
+pub trait Proxy:
+    CreatePCI
+    + CreateAHCI
+    + CreateMemBDev
+    + CreateBDevShadow
+    + CreateIxgbe
+    + CreateNetShadow
+    + CreateNvmeShadow
+    + CreateBenchnet
+    + CreateBenchnvme
+    + CreateRv6FS
+    + CreateRv6Usr
+    + CreateRv6
+    + CreateDomA
+    + CreateDomB
+    + CreateDomC
+    + CreateDomD
+    + CreateShadow
+{
     // necessary because rust doesn't support trait object upcasting
     fn as_create_pci(&self) -> Arc<dyn CreatePCI>;
     fn as_create_ahci(&self) -> Arc<dyn CreateAHCI>;
@@ -74,6 +63,7 @@ pub trait Proxy: CreatePCI +
     fn as_create_bdev_shadow(&self) -> Arc<dyn CreateBDevShadow>;
     fn as_create_ixgbe(&self) -> Arc<dyn CreateIxgbe>;
     fn as_create_virtio_net(&self) -> Arc<dyn CreateVirtioNet>;
+    fn as_create_virtio_block(&self) -> Arc<dyn CreateVirtioBlock>;
     fn as_create_nvme(&self) -> Arc<dyn CreateNvme>;
     fn as_create_net_shadow(&self) -> Arc<dyn CreateNetShadow>;
     fn as_create_nvme_shadow(&self) -> Arc<dyn CreateNvmeShadow>;

@@ -1,10 +1,6 @@
 #![no_std]
 #![no_main]
-#![feature(
-    global_asm,
-    box_syntax,
-    type_ascription,
-)]
+#![feature(global_asm, box_syntax, type_ascription)]
 mod gen;
 
 use interface::proxy;
@@ -16,8 +12,8 @@ use alloc::sync::Arc;
 use console::println;
 use core::panic::PanicInfo;
 use interface::domain_creation;
-use libsyscalls;
 use interface::rref;
+use libsyscalls;
 use syscalls;
 
 #[no_mangle]
@@ -30,6 +26,7 @@ pub fn trusted_entry(
     create_bdev_shadow: Arc<dyn interface::domain_creation::CreateBDevShadow>,
     create_ixgbe: Arc<dyn interface::domain_creation::CreateIxgbe>,
     create_virtio_net: Arc<dyn interface::domain_creation::CreateVirtioNet>,
+    create_virtio_block: Arc<dyn interface::domain_creation::CreateVirtioBlock>,
     create_nvme: Arc<dyn interface::domain_creation::CreateNvme>,
     create_net_shadow: Arc<dyn interface::domain_creation::CreateNetShadow>,
     create_nvme_shadow: Arc<dyn interface::domain_creation::CreateNvmeShadow>,
@@ -56,6 +53,7 @@ pub fn trusted_entry(
         create_bdev_shadow,
         create_ixgbe,
         create_virtio_net,
+        create_virtio_block,
         create_nvme,
         create_net_shadow,
         create_nvme_shadow,

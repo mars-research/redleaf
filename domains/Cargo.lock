@@ -1036,7 +1036,6 @@ dependencies = [
  "libsyscalls",
  "libtime",
  "malloc",
- "rref",
  "volatile_accessor",
 ]
 
@@ -1054,7 +1053,6 @@ dependencies = [
  "platform",
  "protocol",
  "redhttpd",
- "rref",
  "smolnet",
  "smoltcp",
  "spin 0.5.3",
@@ -1074,7 +1072,6 @@ dependencies = [
  "libtime",
  "malloc",
  "pci_driver",
- "rref",
  "spin 0.5.3",
  "virtio_device",
  "volatile_accessor",

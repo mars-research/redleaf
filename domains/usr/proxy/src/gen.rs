@@ -2,17 +2,12 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use console::{print, println};
 use core::mem::transmute;
-use interface::domain_creation;
-use libsyscalls::syscalls::{
-    sys_discard_cont, sys_get_current_domain_id, sys_update_current_domain_id,
-};
-use interface::proxy;
-use interface::rref::{traits::CustomCleanup, RRef, RRefDeque, RRefVec};
-use syscalls::{Domain, Heap, Interrupt};
-use unwind::trampoline;
 use interface;
+use interface::domain_creation;
 use interface::error::Result;
+use interface::proxy;
 use interface::rpc::{RpcError, RpcResult};
+use interface::rref::{traits::CustomCleanup, RRef, RRefDeque, RRefVec};
 use interface::{
     bdev::{BDev, BlkReq, NvmeBDev, BSIZE},
     dom_a::DomA,
@@ -24,6 +19,11 @@ use interface::{
     usrnet::UsrNet,
     vfs::{UsrVFS, VFS},
 };
+use libsyscalls::syscalls::{
+    sys_discard_cont, sys_get_current_domain_id, sys_update_current_domain_id,
+};
+use syscalls::{Domain, Heap, Interrupt};
+use unwind::trampoline;
 
 // TODO: remove once ixgbe on rrefdeque
 use alloc::{collections::VecDeque, vec::Vec};
@@ -36,6 +36,7 @@ pub struct Proxy {
     create_bdev_shadow: Arc<dyn interface::domain_creation::CreateBDevShadow>,
     create_ixgbe: Arc<dyn interface::domain_creation::CreateIxgbe>,
     create_virtio_net: Arc<dyn interface::domain_creation::CreateVirtioNet>,
+    create_virtio_block: Arc<dyn interface::domain_creation::CreateVirtioBlock>,
     create_nvme: Arc<dyn interface::domain_creation::CreateNvme>,
     create_net_shadow: Arc<dyn interface::domain_creation::CreateNetShadow>,
     create_nvme_shadow: Arc<dyn interface::domain_creation::CreateNvmeShadow>,
@@ -64,6 +65,7 @@ impl Proxy {
         create_bdev_shadow: Arc<dyn interface::domain_creation::CreateBDevShadow>,
         create_ixgbe: Arc<dyn interface::domain_creation::CreateIxgbe>,
         create_virtio_net: Arc<dyn interface::domain_creation::CreateVirtioNet>,
+        create_virtio_block: Arc<dyn interface::domain_creation::CreateVirtioBlock>,
         create_nvme: Arc<dyn interface::domain_creation::CreateNvme>,
         create_net_shadow: Arc<dyn interface::domain_creation::CreateNetShadow>,
         create_nvme_shadow: Arc<dyn interface::domain_creation::CreateNvmeShadow>,
@@ -87,6 +89,7 @@ impl Proxy {
             create_bdev_shadow,
             create_ixgbe,
             create_virtio_net,
+            create_virtio_block,
             create_nvme,
             create_net_shadow,
             create_nvme_shadow,
@@ -124,6 +127,9 @@ impl proxy::Proxy for Proxy {
         Arc::new(self.clone())
     }
     fn as_create_virtio_net(&self) -> Arc<dyn interface::domain_creation::CreateVirtioNet> {
+        Arc::new(self.clone())
+    }
+    fn as_create_virtio_block(&self) -> Arc<dyn interface::domain_creation::CreateVirtioBlock> {
         Arc::new(self.clone())
     }
     fn as_create_net_shadow(&self) -> Arc<dyn interface::domain_creation::CreateNetShadow> {
@@ -235,6 +241,14 @@ impl interface::domain_creation::CreateVirtioNet for Proxy {
     }
 }
 
+impl interface::domain_creation::CreateVirtioBlock for Proxy {
+    fn create_domain_virtio_block(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn BDev>) {
+        let (domain, virtio_block) = self.create_virtio_block.create_domain_virtio_block(pci);
+        let domain_id = domain.get_domain_id();
+        (domain, Box::new(BDevProxy::new(domain_id, virtio_block)))
+    }
+}
+
 impl interface::domain_creation::CreateNetShadow for Proxy {
     fn create_domain_net_shadow(
         &self,
@@ -262,7 +276,10 @@ impl interface::domain_creation::CreateNvmeShadow for Proxy {
 }
 
 impl interface::domain_creation::CreateNvme for Proxy {
-    fn create_domain_nvme(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn interface::bdev::NvmeBDev>) {
+    fn create_domain_nvme(
+        &self,
+        pci: Box<dyn PCI>,
+    ) -> (Box<dyn Domain>, Box<dyn interface::bdev::NvmeBDev>) {
         // TODO: write NvmeBDevProxy
         let (domain, nvme) = self.create_nvme.create_domain_nvme(pci);
         let domain_id = domain.get_domain_id();
@@ -394,7 +411,10 @@ impl interface::domain_creation::CreateBenchnet for Proxy {
 }
 
 impl interface::domain_creation::CreateBenchnvme for Proxy {
-    fn create_domain_benchnvme(&self, nvme: Box<dyn interface::bdev::NvmeBDev>) -> (Box<dyn Domain>) {
+    fn create_domain_benchnvme(
+        &self,
+        nvme: Box<dyn interface::bdev::NvmeBDev>,
+    ) -> (Box<dyn Domain>) {
         self.create_benchnvme.create_domain_benchnvme(nvme)
     }
 }
@@ -799,7 +819,6 @@ use interface::bdev::BDevProxy;
 
 use interface::bdev::NvmeBDevProxy;
 use interface::dom_a::OwnedTest;
-
 
 /*
  * Code to unwind usrnet_read_socket

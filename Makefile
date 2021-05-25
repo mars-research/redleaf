@@ -72,6 +72,7 @@ domain_list := $(addprefix domains/build/, \
 	pci \
 	ixgbe \
 	virtio_net \
+	virtio_block \
 	nvme \
 	tpm \
 	bdev_shadow \

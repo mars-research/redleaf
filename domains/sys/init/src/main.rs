@@ -15,10 +15,10 @@ use alloc::vec::Vec;
 use console::println;
 use core::panic::PanicInfo;
 use interface::domain_creation::*;
+use interface::rref::RRefVec;
 use libsyscalls::syscalls::{
     sys_backtrace, sys_create_thread, sys_readch_kbd, sys_recv_int, sys_yield,
 };
-use interface::rref::RRefVec;
 
 #[cfg(feature = "test_guard_page")]
 fn test_stack_exhaustion() -> u64 {
@@ -109,6 +109,7 @@ pub fn trusted_entry(
     create_pci: Arc<dyn interface::domain_creation::CreatePCI>,
     create_ixgbe: Arc<dyn interface::domain_creation::CreateIxgbe>,
     create_virtio_net: Arc<dyn interface::domain_creation::CreateVirtioNet>,
+    create_virtio_block: Arc<dyn interface::domain_creation::CreateVirtioBlock>,
     create_nvme: Arc<dyn interface::domain_creation::CreateNvme>,
     create_net_shadow: Arc<dyn interface::domain_creation::CreateNetShadow>,
     create_nvme_shadow: Arc<dyn interface::domain_creation::CreateNvmeShadow>,
@@ -194,6 +195,7 @@ pub fn trusted_entry(
         create_bdev_shadow,
         create_ixgbe,
         create_virtio_net,
+        create_virtio_block,
         create_nvme,
         create_net_shadow,
         create_nvme_shadow,
@@ -238,13 +240,13 @@ pub fn trusted_entry(
     println!("Creating pci");
     let (_dom_pci, pci) = proxy.as_create_pci().create_domain_pci();
 
-    #[cfg(feature = "virtnet")]
+    #[cfg(feature = "virtio_net")]
     let (_, net) = proxy
         .as_create_virtio_net()
         .create_domain_virtio_net(pci.pci_clone());
-    #[cfg(all(not(feature = "shadow"), not(feature = "virtnet")))]
+    #[cfg(all(not(feature = "shadow"), not(feature = "virtio_net")))]
     let (_, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci.pci_clone());
-    #[cfg(all(feature = "shadow", not(feature = "virtnet")))]
+    #[cfg(all(feature = "shadow", not(feature = "virtio_net")))]
     let (_, net) = proxy
         .as_create_net_shadow()
         .create_domain_net_shadow(proxy.as_create_ixgbe(), pci.pci_clone());
