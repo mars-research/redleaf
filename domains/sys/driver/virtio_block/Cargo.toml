@@ -18,14 +18,9 @@ protocol = { path = "../../../../lib/core/interfaces/protocol" }
 platform = { path = "../../../../lib/core/interfaces/platform" }
 interface = { path = "../../../../interface/generated" }
 
-
-[dependencies.smoltcp]
-path = "../../../../lib/external/smoltcp"
-default-features = false
-features = ["alloc", "proto-ipv4", "socket-tcp", "socket-icmp", "ethernet"]
+virtio_block_device = { path = "../../../../lib/devices/virtio_block" }
 
 [features]
 default = [
 ]
 
-virtio_net = []

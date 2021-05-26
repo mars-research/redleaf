@@ -1,0 +1,429 @@
+#![no_std]
+#![no_main]
+#![feature(
+    box_syntax,
+    const_fn,
+    const_raw_ptr_to_usize_cast,
+    const_in_array_repeat_expressions,
+    untagged_unions,
+    maybe_uninit_extra
+)]
+
+pub mod pci;
+extern crate alloc;
+
+use alloc::sync::Arc;
+use console::println;
+use hashbrown::HashMap;
+use interface::rref::{RRef, RRefDeque};
+use spin::Mutex;
+use virtio_device::defs::{
+    VirtQueue, VirtqAvailable, VirtqDescriptor, VirtqUsed, VirtqUsedElement, VirtualQueues,
+    DESCRIPTOR_COUNT,
+};
+use virtio_device::{Mmio, VirtioDeviceStatus};
+
+struct BlockBuffer {
+    /// IN: 0, OUT: 1, FLUSH: 4, DISCARD: 11, WRITE_ZEROES: 13
+    pub request_type: u32,
+    pub reserved: u32,
+    pub sector: u64,
+    pub data: [u8; 512],
+
+    /// OK: 0, IOERR: 1, UNSUPP: 2
+    pub status: u8,
+}
+
+pub struct VirtioBlockInner {
+    mmio: Mmio,
+    virtual_queues: VirtualQueues,
+
+    // Tracks the number of free descriptors spaces remaining
+    rx_free_descriptor_count: usize,
+
+    /// Tracks which descriptors on the queue are free
+    rx_free_descriptors: [bool; DESCRIPTOR_COUNT],
+
+    /// Tracks which descriptors on the queue are free
+    tx_free_descriptors: [bool; DESCRIPTOR_COUNT],
+
+    // The last index (of the used ring) that was checked by the driver
+    rx_last_idx: u16,
+    tx_last_idx: u16,
+    // /// Holds the rx_packets (to prevent dropping) while they are in the rx_queue. The key is their address.
+    // rx_buffers: HashMap<u64, RRef<NetworkPacketBuffer>>,
+    // tx_buffers: HashMap<u64, RRef<NetworkPacketBuffer>>,
+}
+
+impl VirtioBlockInner {
+    /// Returns an initialized VirtioBlock from a base address.
+    unsafe fn new(mmio_base: usize) -> Self {
+        let mmio = Mmio::new(mmio_base);
+
+        let virtual_queues = VirtualQueues {
+            receive_queue: VirtQueue {
+                descriptors: [VirtqDescriptor {
+                    addr: 0,
+                    len: 0,
+                    flags: 0,
+                    next: 0,
+                }; DESCRIPTOR_COUNT],
+                available: VirtqAvailable {
+                    flags: 0,
+                    idx: 0,
+                    ring: [0; DESCRIPTOR_COUNT],
+                },
+                used: VirtqUsed {
+                    flags: 0,
+                    idx: 0,
+                    ring: [VirtqUsedElement { id: 0, len: 0 }; DESCRIPTOR_COUNT],
+                },
+            },
+            transmit_queue: VirtQueue {
+                descriptors: [VirtqDescriptor {
+                    addr: 0,
+                    len: 0,
+                    flags: 0,
+                    next: 0,
+                }; DESCRIPTOR_COUNT],
+                available: VirtqAvailable {
+                    flags: 0,
+                    idx: 0,
+                    ring: [0; DESCRIPTOR_COUNT],
+                },
+                used: VirtqUsed {
+                    flags: 0,
+                    idx: 0,
+                    ring: [VirtqUsedElement { id: 0, len: 0 }; DESCRIPTOR_COUNT],
+                },
+            },
+        };
+
+        let rx_free_descriptors = [true; DESCRIPTOR_COUNT];
+        let tx_free_descriptors = [true; DESCRIPTOR_COUNT];
+
+        let virtio_inner = Self {
+            mmio,
+            virtual_queues,
+
+            rx_free_descriptor_count: DESCRIPTOR_COUNT,
+
+            rx_free_descriptors,
+            tx_free_descriptors,
+
+            rx_last_idx: 0,
+            tx_last_idx: 0,
+            // rx_buffers: HashMap::new(),
+            // tx_buffers: HashMap::new(),
+        };
+
+        virtio_inner
+    }
+
+    pub fn init(&mut self) {
+        println!("Initializing Virtio Block Device");
+
+        // VIRTIO DEVICE INIT
+        // https://docs.oasis-open.org/virtio/virtio/v1.1/cs01/virtio-v1.1-cs01.html#x1-920001
+        //
+        // Reset the device.
+        // Set the ACKNOWLEDGE status bit: the guest OS has noticed the device.
+        // Set the DRIVER status bit: the guest OS knows how to drive the device.
+        // Read device feature bits, and write the subset of feature bits understood by the OS and driver to the device. During this step the driver MAY read (but MUST NOT write) the device-specific configuration fields to check that it can support the device before accepting it.
+        // Set the FEATURES_OK status bit. The driver MUST NOT accept new feature bits after this step.
+        // Re-read device status to ensure the FEATURES_OK bit is still set: otherwise, the device does not support our subset of features and the device is unusable.
+        // Perform device-specific setup, including discovery of virtqueues for the device, optional per-bus setup, reading and possibly writing the device’s virtio configuration space, and population of virtqueues.
+        // Set the DRIVER_OK status bit. At this point the device is “live”.
+
+        // Acknowledge Device
+        unsafe {
+            self.mmio
+                .update_device_status(VirtioDeviceStatus::Acknowledge);
+            self.mmio.update_device_status(VirtioDeviceStatus::Driver); // But do we really know how to drive the device?
+        }
+
+        // self.negotiate_features();
+
+        // Tell the Device that feature Negotiation is complete
+        unsafe {
+            self.mmio
+                .update_device_status(VirtioDeviceStatus::FeaturesOk);
+        }
+
+        // Check that Features OK Bit is still set!
+        // self.print_device_status();
+        if (self.mmio.accessor.read_device_status() & VirtioDeviceStatus::FeaturesOk.value()) == 0 {
+            panic!("Failed to negotiate virtio net features!");
+        }
+
+        // Setup Virtual Queues
+        self.initialize_virtual_queue(0, &(self.virtual_queues.receive_queue));
+        self.initialize_virtual_queue(1, &(self.virtual_queues.transmit_queue));
+
+        // Tell the Device we're all done, even though we aren't
+        unsafe { self.mmio.update_device_status(VirtioDeviceStatus::DriverOk) };
+
+        self.mmio.accessor.write_queue_select(0);
+        self.mmio.accessor.write_queue_select(1);
+
+        println!("VIRTIO BLOCK READY!");
+
+        self.print_device_config();
+    }
+
+    // /// Negotiates Virtio Driver Features
+    // fn negotiate_features(&mut self) {
+    //     let mut driver_features: u32 = 0;
+    //     driver_features |= 1 << 5; // Enable Device MAC Address
+    //     driver_features |= 1 << 16; // Enable Device Status
+
+    //     self.mmio.accessor.write_driver_feature(driver_features); // Should be &'d with device_features
+    // }
+
+    pub fn print_device_config(&mut self) {
+        let mut cfg = unsafe { self.mmio.read_common_config() };
+        println!("{:#?}", cfg);
+    }
+
+    // pub fn print_device_status(&mut self) {
+    //     let device_status = self.mmio.accessor.read_device_status();
+    //     println!("Device Status Bits: {:b}", device_status);
+    // }
+
+    /// Receive Queues must be 2*N and Transmit Queues must be 2*N + 1
+    /// For example, Receive Queue must be 0 and Transmit Queue must be 1
+    pub fn initialize_virtual_queue(&self, queue_index: u16, virt_queue: &VirtQueue) {
+        self.mmio.accessor.write_queue_select(queue_index);
+
+        self.mmio.accessor.write_queue_desc(
+            (&virt_queue.descriptors as *const [VirtqDescriptor; DESCRIPTOR_COUNT]) as u64,
+        );
+        self.mmio
+            .accessor
+            .write_queue_driver((&virt_queue.available as *const VirtqAvailable) as u64);
+        self.mmio
+            .accessor
+            .write_queue_device((&virt_queue.used as *const VirtqUsed) as u64);
+        self.mmio.accessor.write_queue_enable(1);
+    }
+
+    // fn get_two_free_buffers(
+    //     free_buffers: &mut [bool; DESCRIPTOR_COUNT],
+    // ) -> Result<(usize, usize), ()> {
+    //     let mut d1 = None;
+
+    //     for i in 0..DESCRIPTOR_COUNT {
+    //         if free_buffers[i] {
+    //             if let Some(first_i) = d1 {
+    //                 free_buffers[first_i] = false;
+    //                 free_buffers[i] = false;
+
+    //                 return Ok((first_i, i));
+    //             } else {
+    //                 d1 = Some(i);
+    //             }
+    //         }
+    //     }
+    //     Err(())
+    // }
+
+    // // fn get_next_free_buffer(free_buffers: &mut [bool; DESCRIPTOR_COUNT]) -> Result<usize, ()> {
+    // //     for i in 0..DESCRIPTOR_COUNT {
+    // //         if free_buffers[i] {
+    // //             free_buffers[i] = false;
+    // //             return Ok(i);
+    // //         }
+    // //     }
+    // //     Err(())
+    // // }
+
+    // fn get_addr<T>(obj: &T) -> u64 {
+    //     (obj as *const T) as u64
+    // }
+
+    // pub fn add_rx_buffer(&mut self, buffer: RRef<BlockBuffer>) {
+    //     if self.rx_free_descriptor_count < 2 {
+    //         return;
+    //     }
+
+    //     let rx_q = &mut self.virtual_queues.receive_queue;
+
+    //     if let Ok((header_idx, buffer_idx)) =
+    //         Self::get_two_free_buffers(&mut self.rx_free_descriptors)
+    //     {
+    //         self.rx_free_descriptor_count -= 2;
+
+    //         let buffer_addr = buffer.as_ptr() as u64;
+
+    //         self.rx_buffers.insert(buffer_addr, buffer);
+
+    //         // One descriptor points at the network header, chain this with a descriptor to the buffer
+    //         // Header
+    //         rx_q.descriptors[header_idx] = VirtqDescriptor {
+    //             addr: Self::get_addr(&self.virtio_network_headers[header_idx]),
+    //             len: 10,
+    //             // 1 is NEXT FLAG
+    //             // 2 is WRITABLE FLAG
+    //             flags: 1 | 2,
+    //             next: buffer_idx as u16,
+    //         };
+    //         // Actual Buffer
+    //         rx_q.descriptors[buffer_idx] = VirtqDescriptor {
+    //             addr: buffer_addr,
+    //             len: 1514,
+    //             flags: 2,
+    //             next: 0,
+    //         };
+
+    //         // Mark the buffer as usable
+    //         rx_q.available.ring[(rx_q.available.idx as usize) % DESCRIPTOR_COUNT] =
+    //             header_idx as u16;
+    //         rx_q.available.idx += 1; // We only added one "chain head"
+    //     } else {
+    //         println!("ERR: Virtio Block RX: Invariant failed, free descriptor count does not match number of free descriptors!");
+    //     }
+    // }
+
+    // pub fn add_rx_buffers(
+    //     &mut self,
+    //     packets: &mut RRefDeque<NetworkPacketBuffer, 32>,
+    //     collect: &mut RRefDeque<NetworkPacketBuffer, 32>,
+    // ) {
+    //     let mut added_buffers = false;
+
+    //     while let Some(buffer) = packets.pop_front() {
+    //         if (self.rx_free_descriptor_count >= 2) {
+    //             added_buffers = true;
+    //             self.add_rx_buffer(buffer);
+    //         } else {
+    //             packets.push_back(buffer);
+    //             break;
+    //         }
+    //     }
+
+    //     unsafe {
+    //         if added_buffers {
+    //             self.mmio.queue_notify(0, 0);
+    //         }
+    //     }
+    // }
+
+    // /// Returns an error if there's no free space in the TX queue, Ok otherwise
+    // pub fn add_tx_packet(&mut self, buffer: RRef<NetworkPacketBuffer>) -> Result<(), ()> {
+    //     let descriptors = Self::get_two_free_buffers(&mut self.tx_free_descriptors);
+
+    //     if let Ok((header_idx, buffer_idx)) = descriptors {
+    //         let buffer_addr = buffer.as_ptr() as u64;
+
+    //         // Add the buffer to our HashMap
+    //         self.tx_buffers.insert(buffer_addr, buffer);
+
+    //         self.virtual_queues.transmit_queue.descriptors[header_idx] = VirtqDescriptor {
+    //             addr: Self::get_addr(&self.virtio_network_headers[header_idx]),
+    //             len: 10,
+    //             flags: 1, // 1 is next flag
+    //             next: buffer_idx as u16,
+    //         };
+    //         self.virtual_queues.transmit_queue.descriptors[buffer_idx] = VirtqDescriptor {
+    //             addr: buffer_addr,
+    //             len: 1514,
+    //             flags: 0,
+    //             next: 0,
+    //         };
+
+    //         self.virtual_queues.transmit_queue.available.ring
+    //             [(self.virtual_queues.transmit_queue.available.idx as usize) % DESCRIPTOR_COUNT] =
+    //             header_idx as u16;
+    //         self.virtual_queues.transmit_queue.available.idx += 1;
+    //     } else {
+    //         println!("ERR: Virtio Net TX: No Free Buffers!");
+    //         return Err(());
+    //     }
+
+    //     Ok(())
+    // }
+
+    // pub fn add_tx_buffers(&mut self, packets: &mut RRefDeque<NetworkPacketBuffer, 32>) {
+    //     if packets.len() == 0 {
+    //         return;
+    //     }
+
+    //     while let Some(packet) = packets.pop_front() {
+    //         let res = self.add_tx_packet(packet);
+
+    //         if res.is_err() {
+    //             break;
+    //         }
+    //     }
+
+    //     unsafe {
+    //         self.mmio.queue_notify(1, 1);
+    //     }
+    // }
+
+    // /// Adds new packets to `packets`. Returns the number of received packets
+    // pub fn get_received_packets(
+    //     &mut self,
+    //     collect: &mut RRefDeque<NetworkPacketBuffer, 32>,
+    // ) -> usize {
+    //     /// We have to return the number of packets received
+    //     let mut new_packets_count = 0;
+
+    //     while self.rx_last_idx < self.virtual_queues.receive_queue.used.idx {
+    //         let used_element = self.virtual_queues.receive_queue.used.ring
+    //             [(self.rx_last_idx as usize) % DESCRIPTOR_COUNT];
+    //         let used_element_descriptor =
+    //             self.virtual_queues.receive_queue.descriptors[used_element.id as usize];
+    //         let buffer_descriptor = self.virtual_queues.receive_queue.descriptors
+    //             [used_element_descriptor.next as usize];
+
+    //         if let Some(buffer) = self.rx_buffers.remove(&buffer_descriptor.addr) {
+    //             // Processed packets are "collected"
+    //             collect.push_back(buffer);
+    //             new_packets_count += 1;
+
+    //             // Free the descriptor
+    //             self.rx_free_descriptor_count += 2;
+    //             self.rx_free_descriptors[used_element.id as usize] = true;
+    //             self.rx_free_descriptors[used_element_descriptor.next as usize] = true;
+    //         } else {
+    //             println!("ERROR: VIRTIO NET: RX BUFFER MISSING OR BUFFER ADDRESS CHANGED!");
+    //         }
+
+    //         self.rx_last_idx += 1;
+    //     }
+
+    //     new_packets_count
+    // }
+
+    // pub fn free_processed_tx_packets(
+    //     &mut self,
+    //     packets: &mut RRefDeque<NetworkPacketBuffer, 32>,
+    // ) -> usize {
+    //     let mut freed_count = 0;
+
+    //     while self.tx_last_idx < self.virtual_queues.transmit_queue.used.idx {
+    //         let used_element = self.virtual_queues.transmit_queue.used.ring
+    //             [(self.tx_last_idx as usize) % DESCRIPTOR_COUNT];
+    //         let used_element_descriptor =
+    //             self.virtual_queues.transmit_queue.descriptors[used_element.id as usize];
+    //         let buffer_descriptor = self.virtual_queues.transmit_queue.descriptors
+    //             [used_element_descriptor.next as usize];
+
+    //         if let Some(buffer) = self.tx_buffers.remove(&buffer_descriptor.addr) {
+    //             packets.push_back(buffer);
+
+    //             // Free the descriptor
+    //             self.tx_free_descriptors[used_element.id as usize] = true;
+    //             self.tx_free_descriptors[used_element_descriptor.next as usize] = true;
+    //         } else {
+    //             println!("ERROR: VIRTIO NET: TX BUFFER MISSING OR BUFFER ADDRESS CHANGED!");
+    //         }
+
+    //         freed_count += 1;
+    //         self.tx_last_idx += 1;
+    //     }
+
+    //     freed_count
+    // }
+}

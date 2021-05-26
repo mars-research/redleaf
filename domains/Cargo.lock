@@ -1040,9 +1040,25 @@ dependencies = [
  "pci_driver",
  "platform",
  "protocol",
- "smoltcp",
  "spin 0.5.3",
  "syscalls",
+ "virtio_block_device",
+]
+
+[[package]]
+name = "virtio_block_device"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "hashbrown 0.7.2",
+ "interface",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "pci_driver",
+ "spin 0.5.3",
+ "virtio_device",
+ "volatile_accessor",
 ]
 
 [[package]]

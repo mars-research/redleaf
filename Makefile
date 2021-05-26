@@ -6,8 +6,9 @@
 
 DEBUG            ?= false
 LARGE_MEM        ?= true
-IXGBE		 ?= true
+IXGBE		 	 ?= true
 VIRTIO_NET 		 ?= false
+VIRTIO_BLOCK 	 ?= true
 
 ifndef NO_DEFAULT_FLAGS
 CARGO_FLAGS      ?=
@@ -115,6 +116,11 @@ endif
 
 ifeq ($(GDB),true)
 qemu_common     += -S
+endif
+
+ifeq ($(VIRTIO_BLOCK),true)
+qemu_common 	+= -blockdev driver=file,node-name=disk,filename=disk.img
+# DOMAIN_FEATURES += --features "virtio_block"
 endif
 
 ifeq ($(VIRTIO_NET),true)
@@ -245,7 +251,7 @@ $(mb2): kernel domains memops $(linker_script)
 		lib/external/memops/libmemops.a \
 		-b binary \
 		kernel/build/entryother.bin \
-		$(domain_list) 
+		$(domain_list)
 
 .PHONY: memops
 memops:
