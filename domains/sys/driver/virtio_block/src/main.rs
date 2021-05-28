@@ -26,6 +26,7 @@ use libsyscalls::syscalls::sys_backtrace;
 pub use platform::PciBarAddr;
 use spin::Mutex;
 use virtio_block_device::pci::PciFactory;
+use virtio_block_device::VirtioBlockInner;
 
 pub use interface::error::{ErrorKind, Result};
 
@@ -51,8 +52,8 @@ pub fn trusted_entry(
     libsyscalls::syscalls::init(s);
     interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
-    #[cfg(feature = "virtio_block")]
-    println!("Virtio Block starting");
+    // #[cfg(feature = "virtio_block")]
+    // println!("Virtio Block starting");
 
     let blk = {
         let blk = {
@@ -66,6 +67,10 @@ pub fn trusted_entry(
         blk.0.lock().init();
         blk
     };
+
+    // Testing Code
+    blk.0.lock().submit_read_request(0);
+    loop {}
 
     Box::new(blk)
 }

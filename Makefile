@@ -101,6 +101,7 @@ qemu_common     += -cpu 'Haswell,pdpe1gb' -machine q35
 #qemu_common    += -device vfio-pci,romfile=,host=06:00.1
 #qemu_common    += -vnc 127.0.0.1:0
 #qemu_common	+= -mem-path /dev/hugepages
+qemu_common		+= --trace virtio_*
 
 ifeq ($(LARGE_MEM),true)
 qemu_common     += -m 8G
@@ -119,7 +120,7 @@ qemu_common     += -S
 endif
 
 ifeq ($(VIRTIO_BLOCK),true)
-qemu_common 	+= -blockdev driver=file,node-name=disk,filename=disk.img
+qemu_common 	+= -drive file=disk.img,if=virtio,media=disk
 # DOMAIN_FEATURES += --features "virtio_block"
 endif
 
