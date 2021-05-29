@@ -121,7 +121,7 @@ endif
 
 ifeq ($(VIRTIO_BLOCK),true)
 qemu_common 	+= -drive file=disk.img,if=virtio,media=disk
-# DOMAIN_FEATURES += --features "virtio_block"
+DOMAIN_FEATURES += --features "virtio_block"
 endif
 
 ifeq ($(VIRTIO_NET),true)

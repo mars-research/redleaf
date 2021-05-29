@@ -24,8 +24,7 @@ use virtio_device::defs::{
 };
 use virtio_device::{Mmio, VirtioDeviceStatus};
 
-static mut TEMP_BUFFER: [u8; 529] = [0x11; 529];
-
+#[derive(Debug)]
 #[repr(C, packed)]
 struct BlockBuffer {
     /// IN: 0, OUT: 1, FLUSH: 4, DISCARD: 11, WRITE_ZEROES: 13
@@ -37,6 +36,14 @@ struct BlockBuffer {
     /// OK: 0, IOERR: 1, UNSUPP: 2
     pub status: u8,
 }
+
+static mut TEMP_BUFFER: BlockBuffer = BlockBuffer {
+    request_type: 0,
+    reserved: 0,
+    sector: 0,
+    data: [0x11; 512],
+    status: 0,
+};
 
 pub struct VirtioBlockInner {
     mmio: Mmio,
@@ -184,27 +191,20 @@ impl VirtioBlockInner {
         }
 
         if let Ok(free_descriptor) = Self::get_free_descriptor(&mut self.free_descriptors) {
+            let addr: u64 = 0;
+
             unsafe {
-                self.request_queue.descriptors[free_descriptor as usize] = VirtqDescriptor {
-                    addr: Self::get_addr(&TEMP_BUFFER),
-                    len: 529,
-                    flags: 0,
-                    next: 0,
-                };
+                addr = Self::get_addr(&TEMP_BUFFER);
             }
 
-            unsafe {
-                core::ptr::write_volatile(
-                    (&mut TEMP_BUFFER as *mut [u8; 529]) as *mut BlockBuffer,
-                    BlockBuffer {
-                        request_type: 0,
-                        reserved: 0,
-                        sector: sector_number,
-                        data: [0x33; 512],
-                        status: 0,
-                    },
-                );
+            self.request_queue.descriptors[free_descriptor as usize] = VirtqDescriptor {
+                addr: Self::get_addr(&TEMP_BUFFER),
+                len: 529,
+                flags: 2,
+                next: 0,
+            };
 
+            unsafe {
                 println!("TEMP_BUFFER ADDR: {:}", Self::get_addr(&TEMP_BUFFER));
             }
 

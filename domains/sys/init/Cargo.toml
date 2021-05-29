@@ -47,6 +47,7 @@ membdev = []
 benchnvme = []
 tpm = []
 virtio_net = []
+virtio_block = []
 # for testing hashtable
 hashbench = []
 # Bring up shadow domains for restart.
