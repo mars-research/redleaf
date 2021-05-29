@@ -24,9 +24,9 @@ use virtio_device::defs::{
 };
 use virtio_device::{Mmio, VirtioDeviceStatus};
 
-static TEMP_BUFFER: [u8; 4096] = [0x69; 4096];
+static mut TEMP_BUFFER: [u8; 529] = [0x11; 529];
 
-#[repr(C)]
+#[repr(C, packed)]
 struct BlockBuffer {
     /// IN: 0, OUT: 1, FLUSH: 4, DISCARD: 11, WRITE_ZEROES: 13
     pub request_type: u32,
@@ -163,7 +163,7 @@ impl VirtioBlockInner {
     }
 
     /// Errors if there are no free descriptors
-    fn get_free_descriptor(free_descriptors: &[bool; DESCRIPTOR_COUNT]) -> Result<u16, ()> {
+    fn get_free_descriptor(free_descriptors: &mut [bool; DESCRIPTOR_COUNT]) -> Result<u16, ()> {
         for i in 0..free_descriptors.len() {
             if free_descriptors[i] {
                 free_descriptors[i] = false;
@@ -179,28 +179,34 @@ impl VirtioBlockInner {
     }
 
     pub fn submit_read_request(&mut self, sector_number: u64) {
-        if let free_descriptor = self::get_free_descriptor(&self.request_queue) {
-            self.request_queue.descriptors[free_descriptor] = VirtqDescriptor {
-                addr: self::get_addr(TEMP_BUFFER),
-                len: 4096,
-                flags: 0,
-                next: 0,
-            };
+        unsafe {
+            println!("{:x?}", TEMP_BUFFER);
+        }
+
+        if let Ok(free_descriptor) = Self::get_free_descriptor(&mut self.free_descriptors) {
+            unsafe {
+                self.request_queue.descriptors[free_descriptor as usize] = VirtqDescriptor {
+                    addr: Self::get_addr(&TEMP_BUFFER),
+                    len: 529,
+                    flags: 0,
+                    next: 0,
+                };
+            }
 
             unsafe {
                 core::ptr::write_volatile(
-                    (&TEMP_BUFFER as *const BlockBuffer) as u64 as *mut BlockBuffer,
+                    (&mut TEMP_BUFFER as *mut [u8; 529]) as *mut BlockBuffer,
                     BlockBuffer {
                         request_type: 0,
                         reserved: 0,
                         sector: sector_number,
-                        data: [0xDB; 512],
+                        data: [0x33; 512],
                         status: 0,
                     },
                 );
-            }
 
-            println!("TEMP_BUFFER ADDR: {:}", self::get_addr(TEMP_BUFFER));
+                println!("TEMP_BUFFER ADDR: {:}", Self::get_addr(&TEMP_BUFFER));
+            }
 
             self.request_queue.available.ring[self.request_queue.available.idx as usize] =
                 free_descriptor;
@@ -213,10 +219,14 @@ impl VirtioBlockInner {
             println!("Virtio Block: No free descriptors, request dropped");
         }
 
-        for i in 0..10 {
+        for i in 0..5 {
             println!("Sleep {:}", i);
-            libtime::sys_ns_loopsleep(999999999999);
+            libtime::sys_ns_loopsleep(1_000_000_000);
         }
-        println!("{:#?}", TEMP_BUFFER);
+
+        println!("{:#?}", self.request_queue.used.idx);
+        unsafe {
+            println!("{:x?}", TEMP_BUFFER);
+        }
     }
 }
