@@ -25,13 +25,10 @@ use crate::domain_create::{CreatePCI,
 };
 
 pub trait Proxy: CreatePCI +
-                 CreateAHCI +
                  CreateMemBDev +
-                 CreateBDevShadow +
                  CreateIxgbe +
                  CreateNetShadow +
                  CreateNvmeShadow +
-                 CreateBenchnet +
                  CreateBenchnvme +
                  CreateRv6FS + 
                  CreateRv6Usr + 
@@ -42,24 +39,30 @@ pub trait Proxy: CreatePCI +
                  CreateDomD + 
                  CreateShadow {
     // necessary because rust doesn't support trait object upcasting
-    fn as_create_pci(&self) -> Arc<dyn CreatePCI>;
-    fn as_create_ahci(&self) -> Arc<dyn CreateAHCI>;
-    fn as_create_membdev(&self) -> Arc<dyn CreateMemBDev>;
-    fn as_create_bdev_shadow(&self) -> Arc<dyn CreateBDevShadow>;
-    fn as_create_ixgbe(&self) -> Arc<dyn CreateIxgbe>;
-    fn as_create_nvme(&self) -> Arc<dyn CreateNvme>;
-    fn as_create_net_shadow(&self) -> Arc<dyn CreateNetShadow>;
-    fn as_create_nvme_shadow(&self) -> Arc<dyn CreateNvmeShadow>;
-    fn as_create_benchnet(&self) -> Arc<dyn CreateBenchnet>;
-    fn as_create_benchnvme(&self) -> Arc<dyn CreateBenchnvme>;
-    fn as_create_xv6fs(&self) -> Arc<dyn CreateRv6FS>;
-    fn as_create_xv6net(&self) -> Arc<dyn CreateRv6Net>;
-    fn as_create_xv6net_shadow(&self) -> Arc<dyn CreateRv6NetShadow>;
-    fn as_create_xv6usr(&self) -> Arc<dyn CreateRv6Usr + Send + Sync>;
-    fn as_create_xv6(&self) -> Arc<dyn CreateRv6>;
-    fn as_create_dom_a(&self) -> Arc<dyn CreateDomA>;
-    fn as_create_dom_b(&self) -> Arc<dyn CreateDomB>;
-    fn as_create_dom_c(&self) -> Arc<dyn CreateDomC>;
-    fn as_create_dom_d(&self) -> Arc<dyn CreateDomD>;
-    fn as_create_shadow(&self) -> Arc<dyn CreateShadow>;
+    fn as_domain_create_CreateIxgbe(&self) -> Arc<dyn crate::domain_create::CreateIxgbe>;
+    fn as_domain_create_CreateDomD(&self) -> Arc<dyn crate::domain_create::CreateDomD>;
+    fn as_domain_create_CreateMemBDev(&self) -> Arc<dyn crate::domain_create::CreateMemBDev>;
+    fn as_domain_create_CreateRv6(&self) -> Arc<dyn crate::domain_create::CreateRv6>;
+    fn as_domain_create_CreatePCI(&self) -> Arc<dyn crate::domain_create::CreatePCI>;
+    fn as_domain_create_CreateRv6Net(&self) -> Arc<dyn crate::domain_create::CreateRv6Net>;
+    fn as_domain_create_CreateDomC(&self) -> Arc<dyn crate::domain_create::CreateDomC>;
+    fn as_domain_create_CreateTpm(&self) -> Arc<dyn crate::domain_create::CreateTpm>;
+    fn as_domain_create_CreateBenchnvme(
+        &self,
+    ) -> Arc<dyn crate::domain_create::CreateBenchnvme>;
+    fn as_domain_create_CreateRv6NetShadow(
+        &self,
+    ) -> Arc<dyn crate::domain_create::CreateRv6NetShadow>;
+    fn as_domain_create_CreateDomA(&self) -> Arc<dyn crate::domain_create::CreateDomA>;
+    fn as_domain_create_CreateNvmeShadow(
+        &self,
+    ) -> Arc<dyn crate::domain_create::CreateNvmeShadow>;
+    fn as_domain_create_CreateDomB(&self) -> Arc<dyn crate::domain_create::CreateDomB>;
+    fn as_domain_create_CreateShadow(&self) -> Arc<dyn crate::domain_create::CreateShadow>;
+    fn as_domain_create_CreateNetShadow(
+        &self,
+    ) -> Arc<dyn crate::domain_create::CreateNetShadow>;
+    fn as_domain_create_CreateRv6Usr(&self) -> Arc<dyn crate::domain_create::CreateRv6Usr>;
+    fn as_domain_create_CreateNvme(&self) -> Arc<dyn crate::domain_create::CreateNvme>;
+    fn as_domain_create_CreateRv6FS(&self) -> Arc<dyn crate::domain_create::CreateRv6FS>;
 }

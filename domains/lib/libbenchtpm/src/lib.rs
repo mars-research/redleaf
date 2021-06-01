@@ -18,24 +18,24 @@ pub fn test_tpm(tpm: &dyn UsrTpm) {
 
     // Changing locality
     let locality = 0;
-    println!("burst_count {}", tpm.tpm_get_burst(locality));
+    println!("burst_count {}", tpm.tpm_get_burst(locality).unwrap());
     // Initially we have locality 0
-    println!("request locality {}", tpm.tpm_request_locality(locality));
-    println!("validate locality {}", tpm.tpm_validate_locality(locality));
+    println!("request locality {}", tpm.tpm_request_locality(locality).unwrap());
+    println!("validate locality {}", tpm.tpm_validate_locality(locality).unwrap());
     // Deactivate all localities
     tpm.tpm_deactivate_all_localities();
     let locality = 2;
     // Then request target localities
-    println!("request locality {}", tpm.tpm_request_locality(locality));
-    println!("validate locality {}", tpm.tpm_validate_locality(locality));
+    println!("request locality {}", tpm.tpm_request_locality(locality).unwrap());
+    println!("validate locality {}", tpm.tpm_validate_locality(locality).unwrap());
 
     // Get 1 byte of random value
-    println!("random {}", tpm.tpm_get_random(locality, 1));
+    println!("random {}", tpm.tpm_get_random(locality, 1).unwrap());
 
     // PCR extend
     // First we obtain "banks" that are allocated in the TPM.
     // In TPM2, there can be multiple banks, each implementing different hash algorithms.
-    let tpm_info = tpm.tpm_get_pcr_allocation(locality);
+    let tpm_info = tpm.tpm_get_pcr_allocation(locality).unwrap();
     let mut digests: Vec<TpmTHa> = Vec::new();
     for i in 0..(tpm_info.nr_allocated_banks as usize) {
         let mut digest: Vec<u8> = Vec::new();
@@ -53,7 +53,7 @@ pub fn test_tpm(tpm: &dyn UsrTpm) {
         TpmAlgorithms::TPM_ALG_SHA256 as u16,
         &mut pcr_size,
         &mut pcr,
-    );
+    ).unwrap();
     println!("pre-extend pcr {:x?}", pcr);
     println!("pcr_size {}", pcr_size);
     // Then extend the PCR
@@ -67,7 +67,7 @@ pub fn test_tpm(tpm: &dyn UsrTpm) {
         TpmAlgorithms::TPM_ALG_SHA256 as u16,
         &mut pcr_size,
         &mut pcr,
-    );
+    ).unwrap();
     println!("post-extend pcr {:x?}", pcr);
     println!("pcr_size {}", pcr_size);
 
@@ -87,17 +87,17 @@ pub fn test_tpm(tpm: &dyn UsrTpm) {
         &mut parent_handle,
         &mut primary_pubkey_size,
         &mut primary_pubkey,
-    );
+    ).unwrap();
     println!("parent_handle {:x?}", parent_handle);
     // Start authenticated session
     let mut session_handle: u32 = 0 as u32;
     let nonce = alloc::vec![0; 32];
-    tpm.tpm_start_auth_session(locality, TpmSE::TPM_SE_TRIAL, nonce, &mut session_handle);
+    tpm.tpm_start_auth_session(locality, TpmSE::TPM_SE_TRIAL, nonce, &mut session_handle).unwrap();
     // Tie session to PCR 17
-    tpm.tpm_policy_pcr(locality, session_handle, b"".to_vec(), pcr_idx);
+    tpm.tpm_policy_pcr(locality, session_handle, b"".to_vec(), pcr_idx).unwrap();
     // Get digest of authenticated session
     let mut policy_digest: Vec<u8> = Vec::new();
-    tpm.tpm_policy_get_digest(locality, session_handle, &mut policy_digest);
+    tpm.tpm_policy_get_digest(locality, session_handle, &mut policy_digest).unwrap();
     // Create Child key wrapped with SRK
     // Load Child key to TPM
     // Seal data under PCR 17 using Child key
@@ -115,7 +115,7 @@ pub fn test_tpm(tpm: &dyn UsrTpm) {
         /*sign=*/ false,
         &mut create_out_private,
         &mut create_out_public,
-    );
+    ).unwrap();
     let mut item_handle: u32 = 0 as u32;
     tpm.tpm_load(
         locality,
@@ -123,7 +123,7 @@ pub fn test_tpm(tpm: &dyn UsrTpm) {
         create_out_private,
         create_out_public,
         &mut item_handle,
-    );
+    ).unwrap();
 
     // Unsealing Data
     // Start authenticated session
@@ -134,18 +134,18 @@ pub fn test_tpm(tpm: &dyn UsrTpm) {
         TpmSE::TPM_SE_POLICY,
         nonce,
         &mut unseal_session_handle,
-    );
+    ).unwrap();
     // Tie session to PCR 17
-    tpm.tpm_policy_pcr(locality, unseal_session_handle, b"".to_vec(), pcr_idx);
+    tpm.tpm_policy_pcr(locality, unseal_session_handle, b"".to_vec(), pcr_idx).unwrap();
     // Unseal data under PCR 17 using Child key (should succeed)
     let mut out_data: Vec<u8> = Vec::new();
-    tpm.tpm_unseal(locality, unseal_session_handle, item_handle, &mut out_data);
+    tpm.tpm_unseal(locality, unseal_session_handle, item_handle, &mut out_data).unwrap();
 
     // Unload all objects from TPM memory
-    tpm.tpm_flush_context(locality, parent_handle);
-    tpm.tpm_flush_context(locality, session_handle);
-    tpm.tpm_flush_context(locality, item_handle);
-    tpm.tpm_flush_context(locality, unseal_session_handle);
+    tpm.tpm_flush_context(locality, parent_handle).unwrap();
+    tpm.tpm_flush_context(locality, session_handle).unwrap();
+    tpm.tpm_flush_context(locality, item_handle).unwrap();
+    tpm.tpm_flush_context(locality, unseal_session_handle).unwrap();
 
     // Create Attestation Identity Key
     let aik_unique = b"remote_attestation";
@@ -162,7 +162,7 @@ pub fn test_tpm(tpm: &dyn UsrTpm) {
         &mut aik_handle,
         &mut aik_pubkey_size,
         &mut aik_pubkey,
-    );
+    ).unwrap();
     println!("aik_handle {:x?}", aik_handle);
     // Generate random nonce. This should be generated by remote verifier.
     let nonce = b"random_nonce";
@@ -180,7 +180,7 @@ pub fn test_tpm(tpm: &dyn UsrTpm) {
         pcr_idxs,
         &mut out_pcr_digest,
         &mut out_sig,
-    );
+    ).unwrap();
     println!("out_pcr_digest {:x?}", out_pcr_digest);
     println!("out_sig {:x?}", out_sig);
 }

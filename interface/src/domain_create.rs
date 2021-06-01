@@ -91,9 +91,9 @@ pub trait CreateRv6NetShadow: Send + Sync {
     fn create_domain_xv6net_shadow(&self, create: Arc<dyn CreateRv6Net>, net: Box<dyn Net>) ->(Box<dyn Domain>, Box<dyn UsrNet>);
 }
 
-// #[domain_create_blob(type = "xv6_user")]
+#[domain_create_blob(path = "xv6_user")]
 pub trait CreateRv6Usr: Send + Sync {
-    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn crate::rv6::Rv6>, blob: &[u8], args: &str) -> Result<Box<dyn syscalls::Domain>>;
+    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn crate::rv6::Rv6>, blob: &[u8], args: &str) -> (Box<dyn syscalls::Domain>, ());
 }
 pub type CreateRv6UsrPtr = Box<dyn CreateRv6Usr + Send + Sync>;
 
