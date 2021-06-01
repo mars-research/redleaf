@@ -257,6 +257,8 @@ impl HbaPort {
             self.hba.bar.read_port_reg(self.port, AhciPortRegs::Cmd)
         );
         self.dump_port_regs(&self.hba.bar);
+
+        self.start(&self.hba);
     }
 
     // 10.4.2: COMRESET
@@ -469,10 +471,10 @@ impl HbaPort {
         ),
     {
         //TODO: Should probably remove
-        self.hba
-            .bar
-            .write_port_reg(self.port, AhciPortRegs::Is, u32::MAX);
-
+        // self.hba
+        //     .bar
+        //     .write_port_reg(self.port, AhciPortRegs::Is, u32::MAX);
+        self.stop(&self.hba);
         if let Some(slot) = self.slot(&self.hba) {
             {
                 let cmdheader = &mut clb[slot as usize];
