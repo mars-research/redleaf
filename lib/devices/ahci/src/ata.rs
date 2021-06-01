@@ -136,7 +136,10 @@ impl DiskATA {
             clb,
             ctbas,
             _fb: fb,
-            stats: AhciStats { submitted: 0, completed: 0 },
+            stats: AhciStats {
+                submitted: 0,
+                completed: 0,
+            },
         })
     }
 }
@@ -201,8 +204,6 @@ impl Disk for DiskATA {
                 total_sectors,
                 buffer,
                 start_time: libtime::get_rdtsc(),
-
-         
             });
             self.stats.submitted += 1;
             Ok(slot)
@@ -250,6 +251,9 @@ impl Disk for DiskATA {
                 buffer = unsafe { Box::from_raw(&mut data as *mut [u8]) };
             }
 
+            // let buffer = &(*block_req).data as *const [u8; 4096] as *const u64 as u64;
+            // let buffer = &(*block_req).data as *mut [u8];
+
             assert!(
                 buffer.len() % 512 == 0,
                 "Must read a multiple of block size number of bytes"
@@ -268,32 +272,39 @@ impl Disk for DiskATA {
             ) {
                 // Submitted, create the corresponding BlkReq in self.blkreqs_opt
                 self.port.set_slot_ready(slot, false);
+                // self.requests_opt[slot as usize] = Some(Request {
+                //     address,
+                //     start_sector: block,
+                //     total_sectors,
+                //     buffer,
+                //     start_time: libtime::get_rdtsc(),
+                // });
                 self.blkreqs_opt[slot as usize] = Some(block_req);
                 submit_count += 1;
                 self.stats.submitted += 1;
-            } else {
-                // No slots available, push back the block_req
-                // TODO: possibly submit has no space?
-                submit.push_back(block_req);
             }
+            // else {
+            //     // No slots available, push back the block_req
+            //     // TODO: possibly submit has no space?
+            //     submit.push_back(block_req);
+            // }
         }
 
-        for slot in 0..self.requests_opt.len() {
+        for slot in 0..self.blkreqs_opt.len() {
             let slot = slot as u32;
             if let None = self.blkreqs_opt[slot as usize] {
                 continue;
             }
             if !self.port.ata_running(slot) {
                 // Make sure there's space in collect then do the following
+                // let req = self.requests_opt[slot as usize].take().unwrap();
                 let block_req = self.blkreqs_opt[slot as usize].take().unwrap();
                 self.port.set_slot_ready(slot, true);
                 self.port.ata_stop(slot);
                 collect.push_back(block_req);
                 self.stats.completed += 1;
-
             }
         }
-
         (submit_count, submit, collect)
     }
 
@@ -301,16 +312,13 @@ impl Disk for DiskATA {
         &mut self,
         mut collect: RRefDeque<BlkReq, 1024>,
     ) -> (usize, RRefDeque<BlkReq, 1024>) {
-      
         let qid = 1;
-        let mut count: usize=0;
+        let mut count: usize = 0;
         let mut reap_count = 0;
-        let mut cur_head =0;
+        let mut cur_head = 0;
         let reap_all = false;
 
-
-
-        for slot in 0..self.requests_opt.len() {
+        for slot in 0..self.blkreqs_opt.len() {
             let slot = slot as u32;
             if let None = self.blkreqs_opt[slot as usize] {
                 continue;
@@ -318,7 +326,9 @@ impl Disk for DiskATA {
             if !self.port.ata_running(slot) {
                 reap_count += 1;
                 // Make sure there's space in collect then do the following
+                // let req = self.requests_opt[slot as usize].take().unwrap();
                 let block_req = self.blkreqs_opt[slot as usize].take().unwrap();
+                // block_req.data = req.buffer;
                 self.port.set_slot_ready(slot, true);
                 self.port.ata_stop(slot);
                 collect.push_back(block_req);
@@ -329,10 +339,9 @@ impl Disk for DiskATA {
         (reap_count, collect)
         //push it to the collect queue
         //and return the queue
-    
     }
-     
+
     fn get_stats(&mut self) -> (u64, u64) {
-       (self.stats.submitted, self.stats.completed)
+        (self.stats.submitted, self.stats.completed)
     }
 }
