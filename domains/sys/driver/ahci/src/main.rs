@@ -227,6 +227,7 @@ impl NvmeBDev for Ahci {
 }
 
 fn run_blocktest_rref(device: &Ahci, from_block: u64, block_num: u64) {
+    println!("Running Async Block Test for AHCI");
     assert!(block_num <= 32, "block num must be at most 32");
 
     // Submit write requests
@@ -236,19 +237,24 @@ fn run_blocktest_rref(device: &Ahci, from_block: u64, block_num: u64) {
 
     for i in 0..block_num {
         let mut block_req = BlkReq::from_data([((from_block + i) % 255) as u8; 4096]);
-        block_req.block = i;
+        block_req.block = from_block + i;
         submit.push_back(RRef::<BlkReq>::new(block_req));
     }
+
+    println!("Created write requests");
 
     let (submit_num, submit_, collect_) = device
         .submit_and_poll_rref(submit, collect, true)
         .unwrap()
         .unwrap();
 
+    println!("Write requests submitted");
+
     submit = submit_;
     collect = collect_;
 
     // Wait for write to finish
+    println!("Waiting for the write requests to finish");
     loop {
         let (submit_num, submit_, collect_) = device
             .submit_and_poll_rref(submit, collect, false)
@@ -256,20 +262,28 @@ fn run_blocktest_rref(device: &Ahci, from_block: u64, block_num: u64) {
             .unwrap();
         submit = submit_;
         collect = collect_;
+        println!("{:?}, {:?}", collect.len(), block_num);
         if collect.len() == block_num as usize {
-            collect.cleanup();
+            while let Some(_) = collect.pop_front() {
+                println!("collect size = {}", collect.len());
+            }
+        }
+        if collect.len() == 0 {
             break;
         }
     }
     assert!(submit.len() == 0, "submit is not finished");
 
     // Submit read requests
+    println!("Write requests are completed, now tring to read...");
+    println!("Creating read requests");
     for i in 0..block_num {
         let mut block_req = BlkReq::new();
-        block_req.block = i;
+        block_req.block = from_block + i;
         submit.push_back(RRef::<BlkReq>::new(block_req));
     }
 
+    println!("Submitting read requests");
     let (submit_num, submit_, collect_) = device
         .submit_and_poll_rref(submit, collect, false)
         .unwrap()
@@ -278,6 +292,7 @@ fn run_blocktest_rref(device: &Ahci, from_block: u64, block_num: u64) {
     submit = submit_;
     collect = collect_;
 
+    println!("Waiting for the read requests to complete");
     loop {
         let (submit_num, submit_, collect_) = device
             .submit_and_poll_rref(submit, collect, false)
@@ -288,6 +303,7 @@ fn run_blocktest_rref(device: &Ahci, from_block: u64, block_num: u64) {
         collect = collect_;
 
         if collect.len() == block_num as usize {
+            println!("Checking the read and write values...");
             while let Some(block_req) = collect.pop_front() {
                 let value = [((from_block + block_req.block) % 255) as u8; 4096];
                 assert_eq!(
@@ -301,6 +317,8 @@ fn run_blocktest_rref(device: &Ahci, from_block: u64, block_num: u64) {
             break;
         }
     }
+
+    println!("Async Block Test Finished!");
 }
 
 #[no_mangle]
@@ -323,7 +341,9 @@ pub fn trusted_entry(
 
     // let ahci: Box<dyn interface::bdev::BDev> = Box::new(ahci);
     // let ahci: Box<dyn BDev + Send + Sync> = Box::new(ahci);
-    run_blocktest_rref(&ahci, 0, 8);
+    run_blocktest_rref(&ahci, 0, 4);
+    // run_blocktest_rref(&ahci, 128, 1);
+    // run_blocktest_rref(&ahci, 512, 1);
 
     let ahci: Box<dyn NvmeBDev + Send> = Box::new(ahci);
 
