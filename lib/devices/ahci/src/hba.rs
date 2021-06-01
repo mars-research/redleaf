@@ -335,7 +335,6 @@ impl HbaPort {
             cmdfis.countl.write(1);
             cmdfis.counth.write(0);
         })?;
-        // self.start(&self.hba);
 
         self.ata_stop(slot).ok()?;
         let mut serial = String::new();
@@ -470,10 +469,9 @@ impl HbaPort {
         ),
     {
         //TODO: Should probably remove
-        // self.hba
-        //     .bar
-        //     .write_port_reg(self.port, AhciPortRegs::Is, u32::MAX);
-        self.stop(&self.hba);
+        self.hba
+            .bar
+            .write_port_reg(self.port, AhciPortRegs::Is, u32::MAX);
 
         if let Some(slot) = self.slot(&self.hba) {
             {
