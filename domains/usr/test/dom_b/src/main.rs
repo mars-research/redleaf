@@ -15,44 +15,44 @@ use interface::dom_a::{DomA, OwnedTest};
 use core::ops::Deref;
 
 fn test_submit_and_poll(dom_a: &mut Box<dyn DomA>) {
-    let mut packets = RRefDeque::<[u8; 100], 32>::default();
-    let reap_queue = RRefDeque::<[u8; 100], 32>::default();
-    for i in 0..32 {
-        packets.push_back(RRef::<[u8; 100]>::new([i; 100]));
-    }
+    // let mut packets = RRefDeque::<[u8; 100], 32>::default();
+    // let reap_queue = RRefDeque::<[u8; 100], 32>::default();
+    // // for i in 0..32 {
+    // //     packets.push_back(RRef::<[u8; 100]>::new([i; 100]));
+    // // }
 
-    let ops = 10_000_000;
+    // let ops = 10_000_000;
 
-    let start = rdtsc();
-    let mut packets = Some(packets);
-    let mut reap_queue = Some(reap_queue);
-    for _i in 0..ops {
-        // need options as a workaround to destructured assignment
-        // https://github.com/rust-lang/rfcs/issues/372
-        let (_num, packets_, reap_queue_) =
-            dom_a.tx_submit_and_poll(packets.take().unwrap(), reap_queue.take().unwrap());
+    // // let start = rdtsc();
+    // // let mut packets = Some(packets);
+    // // let mut reap_queue = Some(reap_queue);
+    // // for _i in 0..ops {
+    // //     // need options as a workaround to destructured assignment
+    // //     // https://github.com/rust-lang/rfcs/issues/372
+    // //     let (_num, packets_, reap_queue_) =
+    // //         dom_a.tx_submit_and_poll(packets.take().unwrap(), reap_queue.take().unwrap());
 
-        packets.replace(reap_queue_);
-        reap_queue.replace(packets_);
-    }
-    let end = rdtsc();
-    println!(
-        "ops: {}, delta: {}, delta/ops: {}",
-        ops,
-        end - start,
-        (end - start) / ops
-    );
+    // //     packets.replace(reap_queue_);
+    // //     reap_queue.replace(packets_);
+    // // }
+    // // let end = rdtsc();
+    // // println!(
+    // //     "ops: {}, delta: {}, delta/ops: {}",
+    // //     ops,
+    // //     end - start,
+    // //     (end - start) / ops
+    // // );
 
-    //    let mut packets = packets.take().unwrap();
-    //    let mut reap_queue = reap_queue.take().unwrap();
-    //    for i in 0..32 {
-    //        if let Some(rref) = packets.pop_front() {
-    //            drop(rref);
-    //        }
-    //        if let Some(rref) = reap_queue.pop_front() {
-    //            drop(rref);
-    //        }
-    //    }
+    // //    let mut packets = packets.take().unwrap();
+    // //    let mut reap_queue = reap_queue.take().unwrap();
+    // //    for i in 0..32 {
+    // //        if let Some(rref) = packets.pop_front() {
+    // //            drop(rref);
+    // //        }
+    // //        if let Some(rref) = reap_queue.pop_front() {
+    // //            drop(rref);
+    // //        }
+    // //    }
 }
 
 #[no_mangle]
@@ -82,7 +82,7 @@ pub fn trusted_entry(
         let mut outer = RRef::new(OwnedTest {
             owned: Owned::new(RRef::new(0))
         });
-        outer = dom_a.test_owned(outer);
+        outer = dom_a.test_owned(outer).unwrap();
         assert_eq!(outer.owned.take().as_deref().unwrap(), &1);
     }
 

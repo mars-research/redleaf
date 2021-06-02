@@ -5,7 +5,6 @@
     box_syntax,
     type_ascription,
 )]
-mod gen;
 
 use interface::proxy;
 
@@ -44,21 +43,19 @@ pub fn trusted_entry(
     create_dom_c: Arc<dyn interface::domain_create::CreateDomC>,
     create_dom_d: Arc<dyn interface::domain_create::CreateDomD>,
     create_shadow: Arc<dyn interface::domain_create::CreateShadow>,
+    create_tpm: Arc<dyn interface::domain_create::CreateTpm>,
 ) -> Arc<dyn interface::proxy::Proxy> {
     libsyscalls::syscalls::init(s);
     interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
-    Arc::new(gen::Proxy::new(
+    Arc::new(interface::proxy::ProxyObject::new(
         create_pci,
-        create_ahci,
         create_membdev,
         create_bdev_shadow,
         create_ixgbe,
-        create_nvme,
         create_net_shadow,
         create_nvme_shadow,
-        create_benchnet,
-        create_benchnvme,
+        create_nvme,
         create_xv6fs,
         create_xv6net,
         create_xv6net_shadow,
@@ -69,6 +66,8 @@ pub fn trusted_entry(
         create_dom_c,
         create_dom_d,
         create_shadow,
+        create_benchnvme,
+        create_tpm,
     ))
 }
 

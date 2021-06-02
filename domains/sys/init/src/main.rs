@@ -207,6 +207,7 @@ pub fn trusted_entry(
         create_dom_c,
         create_dom_d,
         create_shadow,
+        create_tpm,
     );
     println!("created proxy");
 
@@ -228,13 +229,13 @@ pub fn trusted_entry(
     }
 
     #[cfg(feature = "tpm")]
-    let (_dom_tpm, usr_tpm) = create_tpm.create_domain_tpm();
+    let (_dom_tpm, usr_tpm) = proxy.as_domain_create_CreateTpm().create_domain_tpm();
 
     #[cfg(feature = "hashbench")]
-    let dom_hashstore = create_hashstore.create_domain_hashstore();
+    let dom_hashstore = proxy.as_domain_create_CreateSashstore().create_domain_hashstore();
 
     println!("Creating pci");
-    let (_dom_pci, pci) = proxy.as_create_pci().create_domain_pci();
+    let (_dom_pci, pci) = proxy.as_domain_create_CreatePCI().create_domain_pci();
 
     #[cfg(not(feature = "membdev"))]
     let (dom_ahci, bdev) = proxy.as_create_ahci().create_domain_ahci(pci.pci_clone());
@@ -242,28 +243,28 @@ pub fn trusted_entry(
     #[cfg(feature = "membdev")]
     #[cfg(not(feature = "shadow"))]
     // Memfs is linked with the shadow domain so membdev doesn't work without shadow currently.
-    let (dom_ahci, bdev) = proxy.as_create_membdev().create_domain_membdev(&mut []);
+    let (dom_ahci, bdev) = proxy.as_domain_create_CreateMemBDev().create_domain_membdev(&mut []);
     #[cfg(feature = "membdev")]
     #[cfg(feature = "shadow")]
     let (_dom_ahci, bdev) = proxy
-        .as_create_bdev_shadow()
-        .create_domain_bdev_shadow(proxy.as_create_membdev());
+        .as_domain_create_CreateBDevShadow()
+        .create_domain_bdev_shadow(proxy.as_domain_create_CreateMemBDev());
 
     println!("Creating nvme domain!");
     #[cfg(not(feature = "shadow"))]
-    let (dom_nvme, nvme) = proxy.as_create_nvme().create_domain_nvme(pci.pci_clone());
+    let (dom_nvme, nvme) = proxy.as_domain_create_CreateNvme().create_domain_nvme(pci.pci_clone());
     #[cfg(feature = "shadow")]
     let (_dom_nvme, nvme) = proxy
-        .as_create_nvme_shadow()
-        .create_domain_nvme_shadow(proxy.as_create_nvme(), pci.pci_clone());
+        .as_domain_create_CreateNvmeShadow()
+        .create_domain_nvme_shadow(proxy.as_domain_create_CreateNvme(), pci.pci_clone().unwrap());
 
     println!("Creating ixgbe");
     #[cfg(not(feature = "shadow"))]
-    let (dom_ixgbe, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci.pci_clone());
+    let (dom_ixgbe, net) = proxy.as_domain_create_CreateRv6Net().create_domain_ixgbe(pci.pci_clone());
     #[cfg(feature = "shadow")]
     let (_dom_ixgbe, net) = proxy
-        .as_create_net_shadow()
-        .create_domain_net_shadow(proxy.as_create_ixgbe(), pci.pci_clone());
+        .as_domain_create_CreateNetShadow()
+        .create_domain_net_shadow(proxy.as_domain_create_CreateIxgbe(), pci.pci_clone().unwrap());
 
     #[cfg(feature = "benchnet")]
     let _ = proxy.as_create_benchnet().create_domain_benchnet(net);
@@ -274,12 +275,12 @@ pub fn trusted_entry(
     #[cfg(not(any(feature = "benchnet", feature = "benchnvme")))]
     {
         println!("Starting xv6 kernel");
-        let (_dom_xv6, rv6) = proxy.as_create_xv6().create_domain_xv6kernel(
+        let (_dom_xv6, rv6) = proxy.as_domain_create_CreateRv6().create_domain_xv6kernel(
             ints_clone,
-            proxy.as_create_xv6fs(),
-            proxy.as_create_xv6net(),
-            proxy.as_create_xv6net_shadow(),
-            proxy.as_create_xv6usr(),
+            proxy.as_domain_create_CreateRv6FS(),
+            proxy.as_domain_create_CreateRv6Net(),
+            proxy.as_domain_create_CreateRv6NetShadow(),
+            proxy.as_domain_create_CreateRv6Usr(),
             bdev,
             net,
             nvme,

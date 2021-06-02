@@ -13,7 +13,7 @@ use interface::rref::{RRef, RRefDeque};
 use tls::ThreadLocal;
 #[macro_use]
 use lazy_static::lazy_static;
-
+use interface::rpc::RpcResult;
 struct DomA {}
 
 impl DomA {
@@ -25,38 +25,23 @@ impl DomA {
 use interface::dom_a::OwnedTest;
 
 impl interface::dom_a::DomA for DomA {
-    fn ping_pong(&self, mut buffer: RRef<[u8; 1024]>) -> RRef<[u8; 1024]> {
+    fn ping_pong(&self, mut buffer: RRef<[u8; 1024]>) -> RpcResult<RRef<[u8; 1024]>> {
         println!("[dom_a]: ping pong");
         for i in 0..buffer.len() {
             buffer[i] *= 2_u8;
         }
-        buffer
+        Ok(buffer)
     }
 
-    fn tx_submit_and_poll(
-        &mut self,
-        mut packets: RRefDeque<[u8; 100], 32>,
-        mut reap_queue: RRefDeque<[u8; 100], 32>,
-    ) -> (usize, RRefDeque<[u8; 100], 32>, RRefDeque<[u8; 100], 32>) {
-        let mut read = 0;
-
-        while let Some(buf) = packets.pop_front() {
-            reap_queue.push_back(buf);
-            read += 1;
-        }
-
-        (read, packets, reap_queue)
-    }
-
-    fn test_owned(&self, mut rref: RRef<OwnedTest>) -> RRef<OwnedTest> {
-        match rref.owned.take() {
+    fn test_owned(&self, mut rref: RRef<OwnedTest>) -> RpcResult<RRef<OwnedTest>> {
+        Ok(match rref.owned.take() {
             None => rref,
             Some(mut inner) => {
                 *inner += 1;
                 rref.owned.replace(inner);
                 rref
             }
-        }
+        })
     }
 }
 

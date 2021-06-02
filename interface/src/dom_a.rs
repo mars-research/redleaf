@@ -10,12 +10,5 @@ pub struct OwnedTest {
 #[interface]
 pub trait DomA {
     fn ping_pong(&self, buffer: RRef<[u8; 1024]>) -> RpcResult<RRef<[u8; 1024]>>;
-    fn tx_submit_and_poll(&mut self,
-        packets: RRefDeque<[u8; 100], 32>,
-        reap_queue: RRefDeque<[u8; 100], 32>) -> RpcResult<(
-            usize,
-            RRefDeque<[u8; 100], 32>,
-            RRefDeque<[u8; 100], 32>
-        )>;
     fn test_owned(&self, rref: RRef<OwnedTest>) -> RpcResult<RRef<OwnedTest>>;
 }

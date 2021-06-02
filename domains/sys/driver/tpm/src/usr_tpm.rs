@@ -1,5 +1,6 @@
 use alloc::vec::Vec;
 use interface::tpm::*;
+use interface::rpc::RpcResult;
 
 macro_rules! generate_tpm {
     ($($(#[$attr:meta])* fn $func:ident(&self $(,)? $($arg:ident : $ty:ty),* $(,)? ) $(-> $ret:ty)? );* $(;)?) => {

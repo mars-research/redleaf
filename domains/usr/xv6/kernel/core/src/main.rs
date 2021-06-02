@@ -51,7 +51,7 @@ pub fn trusted_entry(
     #[cfg(not(feature = "shadow"))]
     let (_dom_xv6net, usrnet) = create_xv6net.create_domain_xv6net(net.clone_net().unwrap());
     // Init kernel
-    box rv6_syscalls::Rv6Syscalls::new(create_xv6usr, fs.clone(), usrnet, net, nvme, usr_tpm)
+    box rv6_syscalls::Rv6Syscalls::new(create_xv6usr, fs, usrnet, net, nvme, usr_tpm)
 }
 
 // This function is called on panic.

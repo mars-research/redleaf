@@ -31,7 +31,8 @@ pub trait CreateProxy {
         create_dom_b: Arc<dyn CreateDomB>,
         create_dom_c: Arc<dyn CreateDomC>,
         create_dom_d: Arc<dyn CreateDomD>,
-        create_shadow: Arc<dyn CreateShadow>) -> (Box<dyn Domain>, Arc<dyn crate::proxy::Proxy>);
+        create_shadow: Arc<dyn CreateShadow>,
+        create_tpm: Arc<dyn CreateTpm>) -> (Box<dyn Domain>, Arc<dyn crate::proxy::Proxy>);
 }
 
 /* AB: XXX: first thing: change all names to create_domain -- it's absurd */
@@ -51,7 +52,7 @@ pub trait CreateMemBDev: Send + Sync {
     fn recreate_domain_membdev(&self, dom: Box<dyn syscalls::Domain>, memdisk: &'static mut [u8]) -> (Box<dyn Domain>, Box<dyn BDev>);
 }
 
-// #[domain_create(path = "bdev_shdow")]
+#[domain_create(path = "bdev_shadow")]
 pub trait CreateBDevShadow: Send + Sync {
     fn create_domain_bdev_shadow(&self, create: Arc<dyn CreateMemBDev>) -> (Box<dyn Domain>, Box<dyn BDev>);
 }
@@ -104,7 +105,7 @@ pub trait CreateRv6: Send + Sync {
                                create_xv6fs: Arc<dyn CreateRv6FS>,
                                create_xv6net: Arc<dyn CreateRv6Net>,
                                create_xv6net_shadow: Arc<dyn CreateRv6NetShadow>,
-                               create_xv6usr: Arc<dyn CreateRv6Usr + Send + Sync>,
+                               create_xv6usr: Arc<dyn CreateRv6Usr>,
                                bdev: Box<dyn BDev>,
                                net: Box<dyn Net>,
                                nvme: Box<dyn NvmeBDev>,
