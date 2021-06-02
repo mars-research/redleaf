@@ -4,7 +4,7 @@
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use syscalls::{Heap, Domain, Interrupt};
-use crate::{bdev::{BDev, NvmeBDev}, vfs::VFS, usrnet::UsrNet, rv6::Rv6, dom_a::DomA, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}};
+use crate::{bdev::{BDev, NvmeBDev}, vfs::VFS, usrnet::UsrNet, rv6::Rv6, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}};
 use crate::error::Result;
 use crate::tpm::UsrTpm;
 
@@ -13,22 +13,20 @@ pub trait CreateProxy {
     fn create_domain_proxy(
         &self,
         create_pci: Arc<dyn CreatePCI>,
-        create_ahci: Arc<dyn CreateAHCI>,
+        // create_ahci: Arc<dyn CreateAHCI>,
         create_membdev: Arc<dyn CreateMemBDev>,
         create_bdev_shadow: Arc<dyn CreateBDevShadow>,
         create_ixgbe: Arc<dyn CreateIxgbe>,
         create_nvme: Arc<dyn CreateNvme>,
         create_net_shadow: Arc<dyn crate::domain_create::CreateNetShadow>,
         create_nvme_shadow: Arc<dyn crate::domain_create::CreateNvmeShadow>,
-        create_benchnet: Arc<dyn CreateBenchnet>,
+        // create_benchnet: Arc<dyn CreateBenchnet>,
         create_benchnvme: Arc<dyn crate::domain_create::CreateBenchnvme>,
         create_xv6fs: Arc<dyn CreateRv6FS>,
         create_xv6net: Arc<dyn crate::domain_create::CreateRv6Net>,
         create_xv6net_shadow: Arc<dyn crate::domain_create::CreateRv6NetShadow>,
         create_xv6usr: Arc<dyn CreateRv6Usr>,
         create_xv6: Arc<dyn CreateRv6>,
-        create_dom_a: Arc<dyn CreateDomA>,
-        create_dom_b: Arc<dyn CreateDomB>,
         create_dom_c: Arc<dyn CreateDomC>,
         create_dom_d: Arc<dyn CreateDomD>,
         create_shadow: Arc<dyn CreateShadow>,
@@ -111,16 +109,6 @@ pub trait CreateRv6: Send + Sync {
                                nvme: Box<dyn NvmeBDev>,
                                usr_tpm: Box<dyn UsrTpm>,
                             ) -> (Box<dyn Domain>, Box<dyn Rv6>);
-}
-
-#[domain_create(path = "dom_a")]
-pub trait CreateDomA: Send + Sync {
-    fn create_domain_dom_a(&self) -> (Box<dyn Domain>, Box<dyn DomA>);
-}
-
-#[domain_create(path = "dom_b")]
-pub trait CreateDomB: Send + Sync {
-    fn create_domain_dom_b(&self, dom_a: Box<dyn DomA>) -> (Box<dyn Domain>, ());
 }
 
 #[domain_create(path = "dom_c")]

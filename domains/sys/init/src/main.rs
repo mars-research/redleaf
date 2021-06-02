@@ -95,34 +95,30 @@ fn test_dummy_syscall() {
 //   rustc --explain E0225
 //
 // We have to re-write in an ugly way
+// This entry point must match with the signature in kernel/src/generated_domain_create.rs:create_domain_init
 #[no_mangle]
 pub fn trusted_entry(
     s: Box<dyn syscalls::Syscall + Send + Sync>,
     heap: Box<dyn syscalls::Heap + Send + Sync>,
     ints: Box<dyn syscalls::Interrupt + Send + Sync>,
     create_proxy: Arc<dyn interface::domain_create::CreateProxy>,
-    create_xv6: Arc<dyn interface::domain_create::CreateRv6>,
+    create_pci: Arc<dyn interface::domain_create::CreatePCI>,
+    create_membdev: Arc<dyn interface::domain_create::CreateMemBDev>,
+    create_bdev_shadow: Arc<dyn interface::domain_create::CreateBDevShadow>,
+    create_ixgbe: Arc<dyn interface::domain_create::CreateIxgbe>,
+    create_net_shadow: Arc<dyn interface::domain_create::CreateNetShadow>,
+    create_nvme_shadow: Arc<dyn interface::domain_create::CreateNvmeShadow>,
+    create_nvme: Arc<dyn interface::domain_create::CreateNvme>,
     create_xv6fs: Arc<dyn interface::domain_create::CreateRv6FS>,
     create_xv6net: Arc<dyn interface::domain_create::CreateRv6Net>,
     create_xv6net_shadow: Arc<dyn interface::domain_create::CreateRv6NetShadow>,
-    create_xv6usr: Arc<dyn interface::domain_create::CreateRv6Usr + Send + Sync>,
-    create_pci: Arc<dyn interface::domain_create::CreatePCI>,
-    create_ixgbe: Arc<dyn interface::domain_create::CreateIxgbe>,
-    create_nvme: Arc<dyn interface::domain_create::CreateNvme>,
-    create_net_shadow: Arc<dyn interface::domain_create::CreateNetShadow>,
-    create_nvme_shadow: Arc<dyn interface::domain_create::CreateNvmeShadow>,
-    create_benchnet: Arc<dyn interface::domain_create::CreateBenchnet>,
-    create_benchnvme: Arc<dyn interface::domain_create::CreateBenchnvme>,
-    create_ahci: Arc<dyn interface::domain_create::CreateAHCI>,
-    create_membdev: Arc<dyn interface::domain_create::CreateMemBDev>,
-    create_bdev_shadow: Arc<dyn interface::domain_create::CreateBDevShadow>,
-    create_dom_a: Arc<dyn interface::domain_create::CreateDomA>,
-    create_dom_b: Arc<dyn interface::domain_create::CreateDomB>,
+    create_xv6usr: Arc<dyn interface::domain_create::CreateRv6Usr>,
+    create_xv6: Arc<dyn interface::domain_create::CreateRv6>,
     create_dom_c: Arc<dyn interface::domain_create::CreateDomC>,
     create_dom_d: Arc<dyn interface::domain_create::CreateDomD>,
-    _create_hashstore: Arc<dyn interface::domain_create::CreateHashStore>,
-    create_tpm: Arc<dyn interface::domain_create::CreateTpm>,
     create_shadow: Arc<dyn interface::domain_create::CreateShadow>,
+    create_benchnvme: Arc<dyn interface::domain_create::CreateBenchnvme>,
+    create_tpm: Arc<dyn interface::domain_create::CreateTpm>,
 ) {
     libsyscalls::syscalls::init(s);
     interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
@@ -188,34 +184,26 @@ pub fn trusted_entry(
     println!("about to create proxy");
     let (_dom_proxy, proxy) = create_proxy.create_domain_proxy(
         create_pci,
-        create_ahci,
+        // create_ahci,
         create_membdev,
         create_bdev_shadow,
         create_ixgbe,
         create_nvme,
         create_net_shadow,
         create_nvme_shadow,
-        create_benchnet,
+        // create_benchnet,
         create_benchnvme,
         create_xv6fs,
         create_xv6net,
         create_xv6net_shadow,
         create_xv6usr,
         create_xv6,
-        create_dom_a,
-        create_dom_b,
         create_dom_c,
         create_dom_d,
         create_shadow,
         create_tpm,
     );
     println!("created proxy");
-
-    #[cfg(feature = "test_ab")]
-    {
-        let (dom_dom_a, dom_a) = proxy.as_create_dom_a().create_domain_dom_a();
-        let dom_dom_b = proxy.as_create_dom_b().create_domain_dom_b(dom_a);
-    }
 
     #[cfg(feature = "test_cd")]
     {

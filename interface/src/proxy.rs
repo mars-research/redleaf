@@ -16,9 +16,7 @@ use crate::domain_create::{CreatePCI,
              CreateRv6Net,
              CreateRv6NetShadow, 
              CreateRv6Usr, 
-             CreateRv6, 
-             CreateDomA, 
-             CreateDomB, 
+             CreateRv6,  
              CreateDomC, 
              CreateDomD, 
              CreateShadow
@@ -33,8 +31,6 @@ pub trait Proxy: CreatePCI +
                  CreateRv6FS + 
                  CreateRv6Usr + 
                  CreateRv6 + 
-                 CreateDomA + 
-                 CreateDomB + 
                  CreateDomC + 
                  CreateDomD + 
                  CreateShadow {
@@ -56,11 +52,9 @@ pub trait Proxy: CreatePCI +
     fn as_domain_create_CreateRv6NetShadow(
         &self,
     ) -> Arc<dyn crate::domain_create::CreateRv6NetShadow>;
-    fn as_domain_create_CreateDomA(&self) -> Arc<dyn crate::domain_create::CreateDomA>;
     fn as_domain_create_CreateNvmeShadow(
         &self,
     ) -> Arc<dyn crate::domain_create::CreateNvmeShadow>;
-    fn as_domain_create_CreateDomB(&self) -> Arc<dyn crate::domain_create::CreateDomB>;
     fn as_domain_create_CreateShadow(&self) -> Arc<dyn crate::domain_create::CreateShadow>;
     fn as_domain_create_CreateNetShadow(
         &self,

@@ -21,7 +21,6 @@ extern crate num_derive;
 extern crate bitflags;
 
 pub mod bdev;
-pub mod dom_a;
 pub mod dom_c;
 pub mod error;
 pub mod net;

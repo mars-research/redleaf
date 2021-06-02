@@ -60,8 +60,6 @@ root := ./
 domain_list := $(addprefix domains/build/, \
 	redleaf_init \
 	dom_proxy \
-	dom_a \
-	dom_b \
 	dom_c \
 	dom_d \
 	shadow \
