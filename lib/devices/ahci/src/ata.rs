@@ -232,117 +232,21 @@ impl Disk for DiskATA {
         }
     }
 
-    fn submit_and_poll_rref(
-        &mut self,
-        mut submit: RRefDeque<BlkReq, 128>,
-        mut collect: RRefDeque<BlkReq, 128>,
-        write: bool,
-    ) -> (usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>) {
-        let mut submit_count = 0;
-
-        while let Some(mut block_req) = submit.pop_front() {
-            let block = block_req.block;
-            // let data = &mut block_req.data[..];
-
-            // let buffer = &data[..];
-            // let buffer = Box::new(buffer);
-
-            let buffer;
-
-            let data = &mut block_req.data[..];
-            if write {
-                buffer = unsafe { Box::from_raw(data as *const [u8] as *mut [u8]) };
-            } else {
-                // let data = &block_req.data[..];
-                buffer = unsafe { Box::from_raw(data as *mut [u8]) };
-            }
-
-            assert!(
-                buffer.len() % 512 == 0,
-                "Must read a multiple of block size number of bytes"
-            );
-
-            let address = &*buffer as *const [u8] as *const () as usize;
-            let total_sectors = buffer.len() as u64 / 512;
-
-            if let Some(slot) = self.port.ata_dma(
-                block,
-                total_sectors as u16,
-                write,
-                &mut self.clb,
-                &mut self.ctbas,
-                &*buffer,
-            ) {
-                // Submitted, create the corresponding BlkReq in self.blkreqs_opt
-                self.port.set_slot_ready(slot, false);
-                self.blkreqs_opt[slot as usize] = Some(block_req);
-                // self.requests_opt[slot as usize] = Some(Request {
-                //     address,
-                //     start_sector: block,
-                //     total_sectors,
-                //     buffer,
-                //     start_time: libtime::get_rdtsc(),
-                // });
-                submit_count += 1;
-                self.stats.submitted += 1;
-
-                // Poll
-                while self.port.ata_running(slot) {
-                    // Wait
-                }
-                // Request finished
-                // Make sure there's space in collect then do the following
-                let mut block_req = self.blkreqs_opt[slot as usize].take().unwrap();
-                // let req = self.requests_opt[slot as usize].take().unwrap();
-                self.port.set_slot_ready(slot, true);
-                self.port.ata_stop(slot);
-                // block_req.data.copy_from_slice(&*req.buffer);
-                collect.push_back(block_req);
-                self.stats.completed += 1;
-            } else {
-                // No slots available, push back the block_req
-                // TODO: possibly submit has no space?
-                submit.push_back(block_req);
-            }
-        }
-
-        for slot in 0..self.requests_opt.len() {
-            let slot = slot as u32;
-            if let None = self.blkreqs_opt[slot as usize] {
-                continue;
-            }
-            if !self.port.ata_running(slot) {
-                // Make sure there's space in collect then do the following
-                let block_req = self.blkreqs_opt[slot as usize].take().unwrap();
-                self.port.set_slot_ready(slot, true);
-                self.port.ata_stop(slot);
-                collect.push_back(block_req);
-                self.stats.completed += 1;
-            }
-        }
-
-        (submit_count, submit, collect)
-    }
-
     // fn submit_and_poll_rref(
     //     &mut self,
     //     mut submit: RRefDeque<BlkReq, 128>,
     //     mut collect: RRefDeque<BlkReq, 128>,
     //     write: bool,
     // ) -> (usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>) {
-    //     dbg!("Entered submit and poll rref: write = {}", write);
     //     let mut submit_count = 0;
 
     //     while let Some(mut block_req) = submit.pop_front() {
     //         let block = block_req.block;
-    //         // let mut data = block_req.data;
-    //         // let buffer;
+    //         // let data = &mut block_req.data[..];
 
-    //         // if write {
-    //         //     buffer = unsafe { Box::from_raw(&data as *const [u8] as *mut [u8]) };
-    //         // } else {
-    //         //     buffer = unsafe { Box::from_raw(&mut data as *mut [u8]) };
-    //         // }
+    //         // let buffer = &data[..];
+    //         // let buffer = Box::new(buffer);
+
     //         let buffer;
 
     //         let data = &mut block_req.data[..];
@@ -353,15 +257,12 @@ impl Disk for DiskATA {
     //             buffer = unsafe { Box::from_raw(data as *mut [u8]) };
     //         }
 
-    //         // let buffer = &data[..];
-    //         // let buffer = Box::new(buffer);
-
     //         assert!(
     //             buffer.len() % 512 == 0,
     //             "Must read a multiple of block size number of bytes"
     //         );
 
-    //         // let address = &*buffer as *const [u8] as *const () as usize;
+    //         let address = &*buffer as *const [u8] as *const () as usize;
     //         let total_sectors = buffer.len() as u64 / 512;
 
     //         if let Some(slot) = self.port.ata_dma(
@@ -375,8 +276,29 @@ impl Disk for DiskATA {
     //             // Submitted, create the corresponding BlkReq in self.blkreqs_opt
     //             self.port.set_slot_ready(slot, false);
     //             self.blkreqs_opt[slot as usize] = Some(block_req);
+    //             // self.requests_opt[slot as usize] = Some(Request {
+    //             //     address,
+    //             //     start_sector: block,
+    //             //     total_sectors,
+    //             //     buffer,
+    //             //     start_time: libtime::get_rdtsc(),
+    //             // });
     //             submit_count += 1;
     //             self.stats.submitted += 1;
+
+    //             // Poll
+    //             while self.port.ata_running(slot) {
+    //                 // Wait
+    //             }
+    //             // Request finished
+    //             // Make sure there's space in collect then do the following
+    //             let mut block_req = self.blkreqs_opt[slot as usize].take().unwrap();
+    //             // let req = self.requests_opt[slot as usize].take().unwrap();
+    //             self.port.set_slot_ready(slot, true);
+    //             self.port.ata_stop(slot);
+    //             // block_req.data.copy_from_slice(&*req.buffer);
+    //             collect.push_back(block_req);
+    //             self.stats.completed += 1;
     //         } else {
     //             // No slots available, push back the block_req
     //             // TODO: possibly submit has no space?
@@ -401,6 +323,84 @@ impl Disk for DiskATA {
 
     //     (submit_count, submit, collect)
     // }
+
+    fn submit_and_poll_rref(
+        &mut self,
+        mut submit: RRefDeque<BlkReq, 128>,
+        mut collect: RRefDeque<BlkReq, 128>,
+        write: bool,
+    ) -> (usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>) {
+        console::dbg!("Entered submit and poll rref: write = {}", write);
+        let mut submit_count = 0;
+
+        while let Some(mut block_req) = submit.pop_front() {
+            let block = block_req.block;
+            // let mut data = block_req.data;
+            // let buffer;
+
+            // if write {
+            //     buffer = unsafe { Box::from_raw(&data as *const [u8] as *mut [u8]) };
+            // } else {
+            //     buffer = unsafe { Box::from_raw(&mut data as *mut [u8]) };
+            // }
+            let buffer;
+
+            let data = &mut block_req.data[..];
+            if write {
+                buffer = unsafe { Box::from_raw(data as *const [u8] as *mut [u8]) };
+            } else {
+                // let data = &block_req.data[..];
+                buffer = unsafe { Box::from_raw(data as *mut [u8]) };
+            }
+
+            // let buffer = &data[..];
+            // let buffer = Box::new(buffer);
+
+            assert!(
+                buffer.len() % 512 == 0,
+                "Must read a multiple of block size number of bytes"
+            );
+
+            // let address = &*buffer as *const [u8] as *const () as usize;
+            let total_sectors = buffer.len() as u64 / 512;
+
+            if let Some(slot) = self.port.ata_dma(
+                block,
+                total_sectors as u16,
+                write,
+                &mut self.clb,
+                &mut self.ctbas,
+                &*buffer,
+            ) {
+                // Submitted, create the corresponding BlkReq in self.blkreqs_opt
+                self.port.set_slot_ready(slot, false);
+                self.blkreqs_opt[slot as usize] = Some(block_req);
+                submit_count += 1;
+                self.stats.submitted += 1;
+            } else {
+                // No slots available, push back the block_req
+                // TODO: possibly submit has no space?
+                submit.push_back(block_req);
+            }
+        }
+
+        for slot in 0..self.requests_opt.len() {
+            let slot = slot as u32;
+            if let None = self.blkreqs_opt[slot as usize] {
+                continue;
+            }
+            if !self.port.ata_running(slot) {
+                // Make sure there's space in collect then do the following
+                let block_req = self.blkreqs_opt[slot as usize].take().unwrap();
+                self.port.set_slot_ready(slot, true);
+                self.port.ata_stop(slot);
+                collect.push_back(block_req);
+                self.stats.completed += 1;
+            }
+        }
+
+        (submit_count, submit, collect)
+    }
 
     fn poll_rref(
         &mut self,
