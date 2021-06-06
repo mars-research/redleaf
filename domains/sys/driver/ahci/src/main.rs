@@ -267,8 +267,6 @@ fn run_blocktest_rref(device: &Ahci, from_block: u64, block_num: u64) {
             while let Some(_) = collect.pop_front() {
                 println!("collect size = {}", collect.len());
             }
-        }
-        if collect.len() == 0 {
             break;
         }
     }
