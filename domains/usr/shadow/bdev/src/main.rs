@@ -14,7 +14,7 @@ use core::panic::PanicInfo;
 
 use interface::rref::RRef;
 
-use interface::domain_creation::CreateMemBDev;
+use interface::domain_create::CreateMemBDev;
 use spin::Mutex;
 use interface::bdev::{BDev, BSIZE};
 use interface::rpc::RpcResult;

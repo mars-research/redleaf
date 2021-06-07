@@ -15,7 +15,8 @@
     panic_info_message,
     asm,
     llvm_asm,
-    global_asm
+    global_asm,
+    type_ascription,
 )]
 
 extern crate x86;
@@ -57,7 +58,7 @@ pub mod arch;
 
 mod dev;
 mod domain;
-mod gen;
+mod generated_domain_create;
 mod panic;
 mod pci;
 mod sync;
@@ -187,7 +188,7 @@ extern "C" fn init_user() {
     // die() enables interrupts as it thinks it is
     // starting a user thead, lets disable them
     disable_irq();
-    gen::create_domain_init();
+    generated_domain_create::create_domain_init();
     enable_irq();
 }
 

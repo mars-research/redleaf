@@ -8,4 +8,5 @@ path = "../../lib/core/libsyscalls"
 [features]
 trampoline = []
 proxy = []
+proxy-log-error = []
 # --- Auto generated end ---

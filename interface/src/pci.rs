@@ -2,12 +2,15 @@
 use alloc::boxed::Box;
 use crate::rref::{RRef, RRefDeque};
 use pci_driver::{PciDriver, PciClass, BarRegions, PciDrivers};
+use crate::error::Result;
+use crate::rpc::RpcResult;
 
+#[interface]
 pub trait PCI: Send {
-    fn pci_register_driver(&self, pci_driver: &mut dyn pci_driver::PciDriver, bar_index: usize, class: Option<(PciClass, u8)>) -> Result<(), ()>;
+    fn pci_register_driver(&self, pci_driver: &mut dyn pci_driver::PciDriver, bar_index: usize, class: Option<(PciClass, u8)>) -> RpcResult<Result<()>>;
     /// Boxed trait objects cannot be cloned trivially!
     /// https://users.rust-lang.org/t/solved-is-it-possible-to-clone-a-boxed-trait-object/1714/6
-    fn pci_clone(&self) -> Box<dyn PCI>;
+    fn pci_clone(&self) -> RpcResult<Box<dyn PCI>>;
 }
 
 pub trait PciResource {

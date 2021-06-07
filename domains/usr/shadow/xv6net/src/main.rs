@@ -15,7 +15,7 @@ use core::panic::PanicInfo;
 
 use interface::rref::RRefVec;
 
-use interface::domain_creation::CreateRv6Net;
+use interface::domain_create::CreateRv6Net;
 use spin::Mutex;
 use interface::error::Result;
 use interface::net::Net;

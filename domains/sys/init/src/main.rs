@@ -14,7 +14,7 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use console::println;
 use core::panic::PanicInfo;
-use interface::domain_creation::*;
+use interface::domain_create::*;
 use libsyscalls::syscalls::{
     sys_backtrace, sys_create_thread, sys_readch_kbd, sys_recv_int, sys_yield,
 };
@@ -95,35 +95,31 @@ fn test_dummy_syscall() {
 //   rustc --explain E0225
 //
 // We have to re-write in an ugly way
+// This entry point must match with the signature in kernel/src/generated_domain_create.rs:create_domain_init
 #[no_mangle]
 pub fn trusted_entry(
     s: Box<dyn syscalls::Syscall + Send + Sync>,
     heap: Box<dyn syscalls::Heap + Send + Sync>,
     ints: Box<dyn syscalls::Interrupt + Send + Sync>,
-    create_proxy: Box<dyn interface::proxy::CreateProxy>,
-    create_xv6: Arc<dyn interface::domain_creation::CreateRv6>,
-    create_xv6fs: Arc<dyn interface::domain_creation::CreateRv6FS>,
-    create_xv6net: Arc<dyn interface::domain_creation::CreateRv6Net>,
-    create_xv6net_shadow: Arc<dyn interface::domain_creation::CreateRv6NetShadow>,
-    create_xv6usr: Arc<dyn interface::domain_creation::CreateRv6Usr + Send + Sync>,
-    create_pci: Arc<dyn interface::domain_creation::CreatePCI>,
-    create_ixgbe: Arc<dyn interface::domain_creation::CreateIxgbe>,
-    create_virtio_net: Arc<dyn interface::domain_creation::CreateVirtioNet>,
-    create_nvme: Arc<dyn interface::domain_creation::CreateNvme>,
-    create_net_shadow: Arc<dyn interface::domain_creation::CreateNetShadow>,
-    create_nvme_shadow: Arc<dyn interface::domain_creation::CreateNvmeShadow>,
-    create_benchnet: Arc<dyn interface::domain_creation::CreateBenchnet>,
-    create_benchnvme: Arc<dyn interface::domain_creation::CreateBenchnvme>,
-    create_ahci: Arc<dyn interface::domain_creation::CreateAHCI>,
-    create_membdev: Arc<dyn interface::domain_creation::CreateMemBDev>,
-    create_bdev_shadow: Arc<dyn interface::domain_creation::CreateBDevShadow>,
-    create_dom_a: Arc<dyn interface::domain_creation::CreateDomA>,
-    create_dom_b: Arc<dyn interface::domain_creation::CreateDomB>,
-    create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
-    create_dom_d: Arc<dyn interface::domain_creation::CreateDomD>,
-    _create_hashstore: Arc<dyn interface::domain_creation::CreateHashStore>,
-    create_tpm: Arc<dyn interface::domain_creation::CreateTpm>,
-    create_shadow: Arc<dyn interface::domain_creation::CreateShadow>,
+    create_proxy: Arc<dyn interface::domain_create::CreateProxy>,
+    create_pci: Arc<dyn interface::domain_create::CreatePCI>,
+    create_membdev: Arc<dyn interface::domain_create::CreateMemBDev>,
+    create_bdev_shadow: Arc<dyn interface::domain_create::CreateBDevShadow>,
+    create_ixgbe: Arc<dyn interface::domain_create::CreateIxgbe>,
+    create_virtio_net: Arc<dyn interface::domain_create::CreateVirtioNet>, 
+    create_net_shadow: Arc<dyn interface::domain_create::CreateNetShadow>,
+    create_nvme_shadow: Arc<dyn interface::domain_create::CreateNvmeShadow>,
+    create_nvme: Arc<dyn interface::domain_create::CreateNvme>,
+    create_xv6fs: Arc<dyn interface::domain_create::CreateRv6FS>,
+    create_xv6net: Arc<dyn interface::domain_create::CreateRv6Net>,
+    create_xv6net_shadow: Arc<dyn interface::domain_create::CreateRv6NetShadow>,
+    create_xv6usr: Arc<dyn interface::domain_create::CreateRv6Usr>,
+    create_xv6: Arc<dyn interface::domain_create::CreateRv6>,
+    create_dom_c: Arc<dyn interface::domain_create::CreateDomC>,
+    create_dom_d: Arc<dyn interface::domain_create::CreateDomD>,
+    create_shadow: Arc<dyn interface::domain_create::CreateShadow>,
+    create_benchnvme: Arc<dyn interface::domain_create::CreateBenchnvme>,
+    create_tpm: Arc<dyn interface::domain_create::CreateTpm>,
 ) {
     libsyscalls::syscalls::init(s);
     interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
@@ -189,7 +185,7 @@ pub fn trusted_entry(
     println!("about to create proxy");
     let (_dom_proxy, proxy) = create_proxy.create_domain_proxy(
         create_pci,
-        create_ahci,
+        // create_ahci,
         create_membdev,
         create_bdev_shadow,
         create_ixgbe,
@@ -197,26 +193,19 @@ pub fn trusted_entry(
         create_nvme,
         create_net_shadow,
         create_nvme_shadow,
-        create_benchnet,
+        // create_benchnet,
         create_benchnvme,
         create_xv6fs,
         create_xv6net,
         create_xv6net_shadow,
         create_xv6usr,
         create_xv6,
-        create_dom_a,
-        create_dom_b,
         create_dom_c,
         create_dom_d,
         create_shadow,
+        create_tpm,
     );
     println!("created proxy");
-
-    #[cfg(feature = "test_ab")]
-    {
-        let (dom_dom_a, dom_a) = proxy.as_create_dom_a().create_domain_dom_a();
-        let dom_dom_b = proxy.as_create_dom_b().create_domain_dom_b(dom_a);
-    }
 
     #[cfg(feature = "test_cd")]
     {
@@ -230,18 +219,18 @@ pub fn trusted_entry(
     }
 
     #[cfg(feature = "tpm")]
-    let (_dom_tpm, usr_tpm) = create_tpm.create_domain_tpm();
+    let (_dom_tpm, usr_tpm) = proxy.as_domain_create_CreateTpm().create_domain_tpm();
 
     #[cfg(feature = "hashbench")]
-    let dom_hashstore = create_hashstore.create_domain_hashstore();
+    let dom_hashstore = proxy.as_domain_create_CreateSashstore().create_domain_hashstore();
 
     println!("Creating pci");
-    let (_dom_pci, pci) = proxy.as_create_pci().create_domain_pci();
+    let (_dom_pci, pci) = proxy.as_domain_create_CreatePCI().create_domain_pci();
 
     #[cfg(feature = "virtnet")]
     let (_, net) = proxy
-        .as_create_virtio_net()
-        .create_domain_virtio_net(pci.pci_clone());
+        .as_domain_create_CreateVirtioNet()
+        .create_domain_virtio_net(pci.pci_clone().unwrap());
     #[cfg(all(not(feature = "shadow"), not(feature = "virtnet")))]
     let (_, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci.pci_clone());
     #[cfg(all(feature = "shadow", not(feature = "virtnet")))]
@@ -255,22 +244,28 @@ pub fn trusted_entry(
     #[cfg(feature = "membdev")]
     #[cfg(not(feature = "shadow"))]
     // Memfs is linked with the shadow domain so membdev doesn't work without shadow currently.
-    let (dom_ahci, bdev) = proxy.as_create_membdev().create_domain_membdev(&mut []);
+    let (dom_ahci, bdev) = proxy.as_domain_create_CreateMemBDev().create_domain_membdev(&mut []);
     #[cfg(feature = "membdev")]
     #[cfg(feature = "shadow")]
     let (_dom_ahci, bdev) = proxy
-        .as_create_bdev_shadow()
-        .create_domain_bdev_shadow(proxy.as_create_membdev());
+        .as_domain_create_CreateBDevShadow()
+        .create_domain_bdev_shadow(proxy.as_domain_create_CreateMemBDev());
 
     println!("Creating nvme domain!");
     #[cfg(not(feature = "shadow"))]
-    let (dom_nvme, nvme) = proxy.as_create_nvme().create_domain_nvme(pci.pci_clone());
+    let (dom_nvme, nvme) = proxy.as_domain_create_CreateNvme().create_domain_nvme(pci.pci_clone());
     #[cfg(feature = "shadow")]
     let (_dom_nvme, nvme) = proxy
-        .as_create_nvme_shadow()
-        .create_domain_nvme_shadow(proxy.as_create_nvme(), pci.pci_clone());
+        .as_domain_create_CreateNvmeShadow()
+        .create_domain_nvme_shadow(proxy.as_domain_create_CreateNvme(), pci.pci_clone().unwrap());
 
     println!("Creating ixgbe");
+    #[cfg(not(feature = "shadow"))]
+    let (dom_ixgbe, net) = proxy.as_domain_create_CreateRv6Net().create_domain_ixgbe(pci.pci_clone());
+    #[cfg(feature = "shadow")]
+    let (_dom_ixgbe, net) = proxy
+        .as_domain_create_CreateNetShadow()
+        .create_domain_net_shadow(proxy.as_domain_create_CreateIxgbe(), pci.pci_clone().unwrap());
 
     #[cfg(feature = "benchnet")]
     let _ = proxy.as_create_benchnet().create_domain_benchnet(net);
@@ -281,12 +276,12 @@ pub fn trusted_entry(
     #[cfg(not(any(feature = "benchnet", feature = "benchnvme")))]
     {
         println!("Starting xv6 kernel");
-        let (_dom_xv6, rv6) = proxy.as_create_xv6().create_domain_xv6kernel(
+        let (_dom_xv6, rv6) = proxy.as_domain_create_CreateRv6().create_domain_xv6kernel(
             ints_clone,
-            proxy.as_create_xv6fs(),
-            proxy.as_create_xv6net(),
-            proxy.as_create_xv6net_shadow(),
-            proxy.as_create_xv6usr(),
+            proxy.as_domain_create_CreateRv6FS(),
+            proxy.as_domain_create_CreateRv6Net(),
+            proxy.as_domain_create_CreateRv6NetShadow(),
+            proxy.as_domain_create_CreateRv6Usr(),
             bdev,
             net,
             nvme,

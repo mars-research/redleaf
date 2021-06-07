@@ -227,37 +227,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dom_a"
-version = "0.1.0"
-dependencies = [
- "console",
- "interface",
- "lazy_static",
- "libsyscalls",
- "libtime",
- "malloc",
- "num-traits",
- "spin 0.5.3",
- "syscalls",
- "tls",
-]
-
-[[package]]
-name = "dom_b"
-version = "0.1.0"
-dependencies = [
- "console",
- "interface",
- "lazy_static",
- "libsyscalls",
- "libtime",
- "malloc",
- "num-traits",
- "spin 0.5.3",
- "syscalls",
-]
-
-[[package]]
 name = "dom_c"
 version = "0.1.0"
 dependencies = [
@@ -1036,7 +1005,6 @@ dependencies = [
  "libsyscalls",
  "libtime",
  "malloc",
- "rref",
  "volatile_accessor",
 ]
 
@@ -1054,7 +1022,6 @@ dependencies = [
  "platform",
  "protocol",
  "redhttpd",
- "rref",
  "smolnet",
  "smoltcp",
  "spin 0.5.3",
@@ -1074,7 +1041,6 @@ dependencies = [
  "libtime",
  "malloc",
  "pci_driver",
- "rref",
  "spin 0.5.3",
  "virtio_device",
  "volatile_accessor",
