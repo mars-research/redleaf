@@ -330,7 +330,7 @@ impl Disk for DiskATA {
         mut collect: RRefDeque<BlkReq, 128>,
         write: bool,
     ) -> (usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>) {
-        console::dbg!("Entered submit and poll rref: write = {}", write);
+        console::println!("Entered submit and poll rref: write = {}", write);
         let mut submit_count = 0;
 
         while let Some(mut block_req) = submit.pop_front() {
@@ -373,6 +373,11 @@ impl Disk for DiskATA {
                 &*buffer,
             ) {
                 // Submitted, create the corresponding BlkReq in self.blkreqs_opt
+                console::println!(
+                    "request with block {} now in slot {}",
+                    block_req.block,
+                    slot
+                );
                 self.port.set_slot_ready(slot, false);
                 self.blkreqs_opt[slot as usize] = Some(block_req);
                 submit_count += 1;
@@ -394,8 +399,11 @@ impl Disk for DiskATA {
                 let block_req = self.blkreqs_opt[slot as usize].take().unwrap();
                 self.port.set_slot_ready(slot, true);
                 self.port.ata_stop(slot);
+                console::println!("slot {} - block {} finished.", slot, block_req.block);
                 collect.push_back(block_req);
                 self.stats.completed += 1;
+            } else {
+                console::println!("request at slot {} still running...", slot);
             }
         }
 

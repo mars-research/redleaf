@@ -262,7 +262,11 @@ fn run_blocktest_rref(device: &Ahci, from_block: u64, block_num: u64) {
             .unwrap();
         submit = submit_;
         collect = collect_;
-        println!("{:?}, {:?}", collect.len(), block_num);
+        println!(
+            "collect size = {}, blocks size = {}",
+            collect.len(),
+            block_num
+        );
         if collect.len() == block_num as usize {
             while let Some(_) = collect.pop_front() {
                 println!("collect size = {}", collect.len());
@@ -350,7 +354,7 @@ pub fn trusted_entry(
     // let ahci: Box<dyn BDev + Send + Sync> = Box::new(ahci);
     run_blocktest_rref(&ahci, 8, 4);
     run_blocktest_rref(&ahci, 512, 16);
-    run_blocktest_rref(&ahci, 1024, 32);
+    // run_blocktest_rref(&ahci, 1024, 32);
     // run_blocktest_rref(&ahci, 128, 1);
     // run_blocktest_rref(&ahci, 512, 1);
 
