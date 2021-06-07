@@ -133,8 +133,8 @@ impl Rv6 for Rv6Syscalls {
                         fs_copy.sys_set_threadlocal(tmp_storage_id).unwrap();
                         create_copy.create_domain_xv6usr(
                             &path_copy,
-                            rv6,
                             blob.as_slice(),
+                            rv6,
                             &args_copy,
                         );
                     }),

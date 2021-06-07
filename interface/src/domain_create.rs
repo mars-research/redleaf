@@ -13,14 +13,12 @@ pub trait CreateProxy {
     fn create_domain_proxy(
         &self,
         create_pci: Arc<dyn CreatePCI>,
-        // create_ahci: Arc<dyn CreateAHCI>,
         create_membdev: Arc<dyn CreateMemBDev>,
         create_bdev_shadow: Arc<dyn CreateBDevShadow>,
         create_ixgbe: Arc<dyn CreateIxgbe>,
         create_nvme: Arc<dyn CreateNvme>,
         create_net_shadow: Arc<dyn crate::domain_create::CreateNetShadow>,
         create_nvme_shadow: Arc<dyn crate::domain_create::CreateNvmeShadow>,
-        // create_benchnet: Arc<dyn CreateBenchnet>,
         create_benchnvme: Arc<dyn crate::domain_create::CreateBenchnvme>,
         create_xv6fs: Arc<dyn CreateRv6FS>,
         create_xv6net: Arc<dyn crate::domain_create::CreateRv6Net>,
@@ -75,7 +73,7 @@ pub trait CreateNvme: Send + Sync {
     fn create_domain_nvme(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn NvmeBDev>);
 }
 
-#[domain_create(path = "membdev")]
+#[domain_create(path = "xv6fs")]
 pub trait CreateRv6FS: Send + Sync {
     fn create_domain_xv6fs(&self, bdev: Box<dyn BDev>) ->(Box<dyn Domain>, Box<dyn VFS>);
 }
@@ -92,7 +90,7 @@ pub trait CreateRv6NetShadow: Send + Sync {
 
 #[domain_create_blob(path = "xv6_user")]
 pub trait CreateRv6Usr: Send + Sync {
-    fn create_domain_xv6usr(&self, name: &str, xv6: Box<dyn crate::rv6::Rv6>, blob: &[u8], args: &str) -> (Box<dyn syscalls::Domain>, ());
+    fn create_domain_xv6usr(&self, name: &str, blob: &[u8], xv6: Box<dyn crate::rv6::Rv6>, args: &str) -> (Box<dyn syscalls::Domain>, ());
 }
 pub type CreateRv6UsrPtr = Box<dyn CreateRv6Usr + Send + Sync>;
 
