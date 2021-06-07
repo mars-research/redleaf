@@ -80,6 +80,9 @@ rand = "0.7"
 ed25519-dalek = "1.0.0-pre.3"
 
 [features]
+default = [
+    "domain_create_log",
+]
 smp = [ ]
 trace_alloc = [ ]
 trace_vspace = []
@@ -88,3 +91,4 @@ large_mem = []
 c220g2_ixgbe = []
 trace_sched = []
 baremetal = []
+domain_create_log = []

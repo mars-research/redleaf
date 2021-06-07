@@ -25,8 +25,11 @@ default-features = false
 
 [features]
 default = [
-    "tramp",
+    #"tramp",
+    "log",
 ]
 
 # Enable stack unwinding. RPC calls will return an error if the thread unwinds
 tramp = ["interface/trampoline"]
+# Log 
+log = ["interface/proxy-log-error"]
