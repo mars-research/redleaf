@@ -29,6 +29,23 @@ use syscalls::Continuation;
 #[macro_export]
 macro_rules! trampoline {
     ($func: ident) => {
+        global_asm!(
+            core::concat!(r#"
+                .text
+                .align  16
+                "#,
+                core::concat!(core::stringify!($func), "_tramp:"),
+                r#"
+                jmp "#, core::stringify!($func),
+            );
+        );
+    }
+}
+
+#[macro_export]
+#[cfg(feature = "nogscont")]
+macro_rules! trampoline {
+    ($func: ident) => {
     global_asm!(
         core::concat!(r#"
             .text
@@ -116,6 +133,58 @@ macro_rules! trampoline {
     }
 }
 
+/*
+#[macro_export]
+#[cfg(not(feature = "gscont"))]
+macro_rules! trampoline {
+    ($func: ident) => {
+    global_asm!(
+        core::concat!(r#"
+            .text
+            .align  16
+            "#,
+            core::concat!(core::stringify!($func), "_tramp:"),
+            r#"
+            push %rsp
+            push %rbp
+            push %rbx
+            push %r11
+            push %r12
+            push %r13
+            push %r14
+            push %r15
+            pushfq
+            push %r10
+            push %r9
+            push %r8
+            push %rdi
+            push %rsi
+            push %rdx
+            push %rcx
+            push %rax
+            call "#, core::concat!(core::stringify!($func), "_addr"),
+            r#"
+            push %rax
+            mov %rsp, %rdi
+            call register_cont
+            add $8, %rsp
+            pop %rax
+            pop %rcx
+            pop %rdx
+            pop %rsi
+            pop %rdi
+            pop %r8
+            pop %r9
+            pop %r10
+            popfq
+            add $64, %rsp
+            jmp "#, core::stringify!($func),
+        );
+    );
+    }
+}
+*/
+
 /* global_asm!("  
     .text 
     .align  16              
@@ -151,14 +220,14 @@ foo_tramp:
 #[no_mangle]
 pub extern "C" fn register_cont(cont: &Continuation)  {
     unsafe {
-        sys_register_cont(cont);
+        // sys_register_cont(cont);
     }
 }
 
 #[no_mangle]
 pub extern "C" fn discard_cont()  {
     unsafe {
-        sys_discard_cont();
+        // sys_discard_cont();
     }
 }
 
