@@ -41,6 +41,6 @@ pub fn trusted_entry(
 fn panic(info: &PanicInfo) -> ! {
     console::println!("membdev panicked: {:?}", info);
     libsyscalls::syscalls::sys_backtrace();
-    libsyscalls::syscalls::sys_test_unwind();
+    libsyscalls::syscalls::sys_unwind(None);
     loop {}
 }
