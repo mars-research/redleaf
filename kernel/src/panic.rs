@@ -6,9 +6,21 @@ use core::panic::PanicInfo;
 use spin::Once;
 
 use addr2line;
-use addr2line::gimli;
 use addr2line::Context;
+use gimli::{EndianSlice, EndianReader, LittleEndian};
 use alloc::rc::Rc;
+
+use super::debug_sections as ds;
+
+type StaticSliceContext = Context<EndianSlice<'static, LittleEndian>>;
+
+static ELF_DATA: Once<&'static [u8]> = Once::new();
+#[thread_local]
+static ELF_CONTEXT: Once<Option<StaticSliceContext>> = Once::new();
+static ELF_BIN: Once<elfloader::ElfBinary> = Once::new();
+static RELOCATED_OFFSET: u64 = 0x0;
+
+static EMPTY_SLICE: &'static [u8] = &[];
 
 #[inline(always)]
 pub fn backtrace_exception_no_resolve(pt_regs: &mut PtRegs) {
@@ -77,12 +89,6 @@ pub fn backtrace_no_resolve() {
     });
 }
 
-static ELF_DATA: Once<&'static [u8]> = Once::new();
-#[thread_local]
-static ELF_CONTEXT: Once<Option<Context>> = Once::new();
-static ELF_BIN: Once<elfloader::ElfBinary> = Once::new();
-static RELOCATED_OFFSET: u64 = 0x0;
-
 pub fn init_backtrace(elf_data: &'static [u8]) {
     ELF_DATA.call_once(|| elf_data);
 }
@@ -101,9 +107,15 @@ pub fn init_backtrace_context() {
     }
 }
 
-fn new_ctxt(file: &elfloader::ElfBinary) -> Option<Context> {
-    let endian = gimli::RunTimeEndian::Little;
+pub fn get_kernel_elf() -> &'static Once<elfloader::ElfBinary<'static>> {
+    &ELF_BIN
+}
 
+fn new_ctxt(file: &elfloader::ElfBinary) -> Option<StaticSliceContext> {
+    let endian = LittleEndian;
+    // let endian = gimli::RunTimeEndian::Little;
+
+    /*
     fn load_section<S, Endian>(elf: &elfloader::ElfBinary, endian: Endian) -> S
     where
         S: gimli::Section<gimli::EndianRcSlice<Endian>>,
@@ -129,7 +141,7 @@ fn new_ctxt(file: &elfloader::ElfBinary) -> Option<Context> {
     let default_section = gimli::EndianRcSlice::new(Rc::from(&[][..]), endian);
 
     Context::from_sections(
-        debug_abbrev,
+        debug_abbr,
         debug_addr,
         debug_info,
         debug_line,
@@ -141,10 +153,40 @@ fn new_ctxt(file: &elfloader::ElfBinary) -> Option<Context> {
         default_section,
     )
     .ok()
+    */
+
+    unsafe {
+        let debug_abbrev = EndianSlice::new(ds::debug_abbrev(), endian).into();
+        let debug_addr = EndianSlice::new(ds::debug_addr(), endian).into();
+        let debug_info = EndianSlice::new(ds::debug_info(), endian).into();
+        let debug_line = EndianSlice::new(ds::debug_line(), endian).into();
+        let debug_line_str = EndianSlice::new(ds::debug_line_str(), endian).into();
+        let debug_ranges = EndianSlice::new(ds::debug_ranges(), endian).into();
+        let debug_rnglists = EndianSlice::new(ds::debug_rnglists(), endian).into();
+        let debug_str = EndianSlice::new(ds::debug_str(), endian).into();
+        let debug_str_offsets = EndianSlice::new(ds::debug_str_offsets(), endian).into();
+        let default_section = EndianSlice::new(EMPTY_SLICE, endian).into();
+
+        println!("The empty slice is at 0x{:x?}", EMPTY_SLICE as *const _);
+
+        Context::from_sections(
+            debug_abbrev,
+            debug_addr,
+            debug_info,
+            debug_line,
+            debug_line_str,
+            debug_ranges,
+            debug_rnglists,
+            debug_str,
+            debug_str_offsets,
+            default_section,
+        )
+            .ok()
+    }
 }
 
 fn backtrace_format(
-    context: Option<&Context>,
+    context: Option<&StaticSliceContext>,
     relocated_offset: u64,
     count: usize,
     frame: &backtracer::Frame,

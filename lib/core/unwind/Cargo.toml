@@ -8,3 +8,5 @@ edition = "2018"
 libsyscalls = { path = "../libsyscalls", version = "0.1.0"}
 syscalls = { path = "../interfaces/syscalls", version = "0.1.0"}
 
+[features]
+gscont = []

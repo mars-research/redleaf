@@ -15,7 +15,10 @@
     panic_info_message,
     asm,
     llvm_asm,
-    global_asm
+    global_asm,
+    trait_alias,
+    lang_items,
+    concat_idents,
 )]
 
 extern crate x86;
@@ -46,6 +49,8 @@ mod interrupt;
 mod kbd;
 mod redsys;
 mod unwind;
+mod logging;
+mod debug_sections;
 
 mod memory;
 mod multibootv2;
@@ -230,7 +235,7 @@ pub extern "C" fn rust_main() -> ! {
     // Init memory allocator (normal allocation should work after this)
     init_allocator(&bootinfo);
 
-    init_backtrace_kernel_elf(&bootinfo);
+    // init_backtrace_kernel_elf(&bootinfo);
 
     // To enable NX mappings
     unsafe {
@@ -363,6 +368,8 @@ pub extern "C" fn rust_main_ap() -> ! {
         // it's safe to start other CPUs, nothing will get migrated to us
         // (CPU0), but even if it will we're ready to handle it
 
+        logging::init_logging();
+
         #[cfg(feature = "smp")]
         init_ap_cpus();
 
@@ -373,8 +380,6 @@ pub extern "C" fn rust_main_ap() -> ! {
         // kick the scheduler
         start_init_thread();
     }
-
-    unwind::unwind_test();
 
     println!("cpu{}: Initialized", cpu_id);
     println!("cpu{}: Ready to enable interrupts", cpu_id);
@@ -393,4 +398,9 @@ pub fn halt() -> ! {
         //println!(".");
         x86_64::instructions::hlt();
     }
+}
+
+#[lang = "eh_personality"]
+extern "C" fn eh_personality() {
+    println!("eh_personality");
 }

@@ -1,4 +1,13 @@
-use core::panic::PanicInfo;
+use alloc::boxed::Box;
+use alloc::sync::Arc;
+
+use pc_keyboard::DecodedKey;
+use platform::PciBarAddr;
+use spin::Mutex;
+use syscalls::{Continuation, UnwindCause};
+use x86::bits64::paging::BASE_PAGE_SIZE;
+use x86::bits64::paging::{PAddr, VAddr};
+
 use crate::arch::vspace::MapAction;
 use crate::arch::vspace::{ResourceType, VSpace};
 use crate::domain::Domain;
@@ -6,18 +15,10 @@ use crate::interrupt::{disable_irq, enable_irq};
 use crate::kbd::KBDCTRL;
 use crate::memory::{paddr_to_kernel_vaddr, VSPACE};
 use crate::round_up;
-use crate::thread;
 use crate::thread::{create_thread, do_yield};
 use crate::thread::{pop_continuation, push_continuation};
+use crate::thread;
 use crate::unwind::unwind;
-use alloc::boxed::Box;
-use alloc::sync::Arc;
-use pc_keyboard::DecodedKey;
-use platform::PciBarAddr;
-use spin::Mutex;
-use syscalls::Continuation;
-use x86::bits64::paging::BASE_PAGE_SIZE;
-use x86::bits64::paging::{PAddr, VAddr};
 
 //extern crate syscalls;
 
@@ -214,10 +215,9 @@ impl syscalls::Syscall for PDomain {
         enable_irq();
     }
 
-    /* AB: XXX: Remove this system it's for testing only */
-    fn sys_test_unwind(&self) {
+    fn sys_unwind(&self, cause: Option<UnwindCause>) {
         disable_irq();
-        unwind();
+        unwind(cause);
         enable_irq();
     }
 

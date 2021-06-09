@@ -1,5 +1,9 @@
 #![no_std]
 #![no_main]
+#![feature(lang_items)]
+#![feature(panic_runtime)]
+#![feature(core_intrinsics)]
+
 extern crate alloc;
 extern crate malloc;
 
@@ -13,6 +17,9 @@ use core::panic::PanicInfo;
 
 use rref::RRef;
 
+mod unwind;
+mod catch_unwind;
+
 #[no_mangle]
 pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
@@ -23,6 +30,15 @@ pub fn trusted_entry(
     rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!("Init domain D");
+
+    // TEST
+    // catch_unwind::catch_unwind(|| {
+    //     panic!("oops");
+    //     2
+    // }).unwrap();
+    println!("TEST END");
+    //loop {}
+    // TEST END
 
     let iter = 10_000_000;
 
@@ -70,6 +86,12 @@ pub fn trusted_entry(
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     println!("domain D panic: {:?}", info);
-    libsyscalls::syscalls::sys_backtrace();
+    libsyscalls::syscalls::sys_unwind(None);
     loop {}
+}
+
+
+#[lang = "eh_personality"]
+extern "C" fn eh_personality() {
+    println!("eh_personality");
 }

@@ -27,6 +27,7 @@ mod tests {
     use super::*;
     use traits::{RRefable, CustomCleanup, TypeIdentifiable};
     use alloc::boxed::Box;
+    use core::panic::PanicInfo;
     use core::alloc::Layout;
     use alloc::vec::Vec;
     use core::mem;
@@ -173,7 +174,7 @@ mod tests {
         fn sys_make_condvar(&self) -> Box<(dyn syscalls::CondVar + Send + Sync + 'static)> { todo!() }
         unsafe fn sys_register_cont(&self, _: &syscalls::Continuation) { todo!() }
         unsafe fn sys_discard_cont(&self) { todo!() }
-        fn sys_test_unwind(&self) { todo!() }
+        fn sys_unwind(&self, cause: Option<syscalls::UnwindCause>) { todo!() }
     }
 
     fn init_heap() {

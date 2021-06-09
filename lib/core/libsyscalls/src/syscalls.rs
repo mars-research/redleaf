@@ -1,7 +1,8 @@
 extern crate alloc;
+use core::panic::PanicInfo;
 use spin::Once;
 use alloc::boxed::Box;
-use syscalls::{Syscall, Thread, Interrupt, Mmap, Continuation};
+use syscalls::{Syscall, Thread, Interrupt, Mmap, Continuation, UnwindCause};
 use pc_keyboard::{DecodedKey};
 use platform::PciBarAddr;
 
@@ -127,10 +128,9 @@ pub unsafe fn sys_discard_cont() {
     return scalls.sys_discard_cont();
 }
 
-/* AB: XXX: Remove this system it's for testing only */
-pub fn sys_test_unwind() {
+pub fn sys_unwind(cause: Option<UnwindCause>) {
     let scalls = SYSCALL.r#try().expect("System call interface is not initialized.");
-    return scalls.sys_test_unwind();
+    return scalls.sys_unwind(cause);
 }
 
 

@@ -40,7 +40,7 @@ pub static KERNEL_DOMAIN: Once<Domain> = Once::new();
 static DOMAINS: Once<RwLock<HashMap<String, Domain>>> = Once::new();
 
 /// A strong reference to a reference-counted Domain.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Domain {
     inner: Arc<RwLock<DomainInner>>,
 }
@@ -78,8 +78,26 @@ impl Domain {
         address >= start && address <= end
     }
 
+    pub fn get_section_slice<'a>(&'a self, section: &str) -> Option<&'a [u8]> {
+        let inner = self.inner.read();
+
+        match inner.sections.get(section) {
+            Some((start, end)) => {
+                // Has to be loaded first *shrug*
+                let offset = inner.offset?;
+                let ptr = (offset.as_usize() + start) as *const u8;
+                let length = end - start;
+
+                unsafe {
+                    Some(core::slice::from_raw_parts(ptr, length))
+                }
+            }
+            None => None,
+        }
+    }
+
     // FIXME: Panics, also useless error type
-    pub fn load_elf(&self, elf: ElfBinary) -> Result<(), &'static str> {
+    pub unsafe fn load_elf(&self, elf: ElfBinary) -> Result<(), &'static str> {
         let mut inner = self.inner.write();
         elf.load(&mut *inner)?;
 
@@ -104,6 +122,7 @@ impl Domain {
 }
 
 /// A Domain.
+#[derive(Debug)]
 struct DomainInner {
     id: u64,
     name: String,
@@ -129,6 +148,7 @@ struct DomainInner {
     shared_ref: Option<Domain>,
 }
 
+#[derive(Debug)]
 struct DomainThreads {
     head: Option<Arc<Mutex<Thread>>>,
 }
@@ -276,10 +296,10 @@ impl elfloader::ElfLoader for DomainInner {
         println!("num_pages: {}", (max_end - min_base) >> BASE_PAGE_SHIFT);
 
         let offset = VAddr::from(pbase.as_usize());
-        info!(
-            "Binary loaded at address: {:#x} entry {:#x}",
-            offset, self.entry_point.unwrap(),
-        );
+        // info!(
+        //     "Binary loaded at address: {:#x} entry {:#x}",
+        //     offset, self.entry_point.unwrap(),
+        // );
 
         self.offset = Some(offset);
         self.size = Some(size);
@@ -363,7 +383,7 @@ impl elfloader::ElfLoader for DomainInner {
         };
         let vaddr: VAddr = paddr_to_kernel_vaddr(paddr);
 
-        debug!("ELF relocation paddr {:#x} kernel_addr {:#x}", paddr, vaddr);
+        // debug!("ELF relocation paddr {:#x} kernel_addr {:#x}", paddr, vaddr);
 
         use elfloader::TypeRela64;
         if let TypeRela64::R_RELATIVE = TypeRela64::from(entry.get_type()) {
@@ -432,18 +452,18 @@ pub fn find_domain_containing(address: VAddr) -> Option<Domain> {
 
 // FIXME: The return type is useless for most purposes.
 /// Find a section containing an address.
-pub fn find_section_containing(address: VAddr) -> Option<(VAddr, VAddr)> {
+pub fn find_section_containing(address: VAddr) -> Option<(Domain, String)> {
     let domain = find_domain_containing(address)?;
 
     let inner = domain.inner.read();
     let domain_offset = domain.offset().unwrap();
 
     let offset = (address - domain_offset).as_usize();
-    for (start, end) in inner.sections.values() {
+    for (name, (start, end)) in inner.sections.iter() {
         if offset >= *start && offset <= *end {
             let vstart = domain_offset + *start;
             let vend = domain_offset + *end;
-            return Some((vstart, vend));
+            return Some((domain.clone(), name.clone()));
         }
     }
 

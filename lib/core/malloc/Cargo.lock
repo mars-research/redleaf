@@ -36,7 +36,7 @@ name = "malloc"
 version = "0.1.0"
 dependencies = [
  "libsyscalls",
- "slabmalloc-kernel",
+ "slabmalloc",
  "spin",
 ]
 
@@ -58,11 +58,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "slabmalloc-kernel"
-version = "0.3.4"
+name = "slabmalloc"
+version = "0.7.0"
 dependencies = [
  "log",
- "spin",
 ]
 
 [[package]]

@@ -3,6 +3,7 @@
 
 extern crate alloc;
 use alloc::boxed::Box;
+use core::panic::PanicInfo;
 use core::any::TypeId;
 use spin::{MutexGuard};
 use core::alloc::Layout;
@@ -97,8 +98,7 @@ pub trait Syscall {
     fn sys_readch_kbd(&self) -> Result<Option<DecodedKey>, &'static str>; 
     fn sys_make_condvar(&self) -> CondVarPtr;
 
-    /* AB: XXX: Remove this system it's for testing only */
-    fn sys_test_unwind(&self);
+    fn sys_unwind(&self, cause: Option<UnwindCause>);
 
 }
 
@@ -160,3 +160,7 @@ pub trait CondVar {
     fn wakeup(&self);
 }
 pub type CondVarPtr = Box<dyn CondVar + Send + Sync>;
+
+pub enum UnwindCause {
+    Panik,
+}

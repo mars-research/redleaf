@@ -285,6 +285,8 @@ name = "dom_d"
 version = "0.1.0"
 dependencies = [
  "console",
+ "fallible-iterator",
+ "gimli",
  "interface",
  "lazy_static",
  "libsyscalls",
@@ -315,6 +317,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "fallible-iterator"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb7217124812dc5672b7476d0c2d20cfe9f7c0f1ba0904b674a9762a0212f72e"
+
+[[package]]
 name = "fnv"
 version = "1.0.7"
 source = "git+https://github.com/servo/rust-fnv#4b4784ebfd3332dc61f0640764d6f1140e03a9ab"
@@ -339,6 +347,12 @@ dependencies = [
  "libc",
  "wasi",
 ]
+
+[[package]]
+name = "gimli"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f6503fe142514ca4799d4c26297c4248239fe8838d827db6bd6065c6ed29a6ce"
 
 [[package]]
 name = "hashbrown"

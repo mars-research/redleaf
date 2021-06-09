@@ -61,6 +61,6 @@ pub fn trusted_entry(
 fn panic(info: &PanicInfo) -> ! {
     println!("domain C panic: {:?}", info);
     libsyscalls::syscalls::sys_backtrace();
-    libsyscalls::syscalls::sys_test_unwind();
+    libsyscalls::syscalls::sys_unwind(None);
     loop {}
 }

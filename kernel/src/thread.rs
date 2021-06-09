@@ -250,6 +250,7 @@ pub enum ThreadState {
 pub const STACK_SIZE_IN_PAGES: usize = 4096;
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct Context {
     r15: usize,
     r14: usize,
@@ -270,6 +271,7 @@ pub struct Context {
 // https://internals.rust-lang.org/t/shouldnt-pointers-be-send-sync-or/8818
 unsafe impl core::marker::Send for Thread {}
 
+#[derive(Debug)]
 pub struct Thread {
     pub id: u64,
     pub current_domain_id: u64,

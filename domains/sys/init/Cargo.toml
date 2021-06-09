@@ -27,7 +27,7 @@ default-features = false
 [features]
 default = [
     # "test_ab",
-    # "test_cd",
+    "test_cd",
     "membdev",
     "shadow",
     #"benchnet",

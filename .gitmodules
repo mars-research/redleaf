@@ -11,3 +11,6 @@
 	path = lib/external/memops/musl
 	url = https://github.com/mars-research/musl
 	branch = redleaf
+[submodule "kernel/lib/backtracer"]
+	path = kernel/lib/backtracer
+	url = https://github.com/zhaofengli/backtracer
