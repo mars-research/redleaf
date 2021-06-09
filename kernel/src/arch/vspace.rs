@@ -10,7 +10,7 @@ use x86::controlregs;
 use super::memory::{kernel_vaddr_to_paddr, paddr_to_kernel_vaddr, PAddr, VAddr};
 
 use core::fmt::Debug;
-use custom_error::custom_error;
+use custom_error_core::custom_error;
 
 use crate::alloc::string::ToString;
 use log::{debug, info, trace};
