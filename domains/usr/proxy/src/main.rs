@@ -41,6 +41,7 @@ pub fn trusted_entry(
     create_dom_d: alloc::sync::Arc<dyn interface::domain_create::CreateDomD>,
     create_shadow: alloc::sync::Arc<dyn interface::domain_create::CreateShadow>,
     create_tpm: alloc::sync::Arc<dyn interface::domain_create::CreateTpm>,
+    create_example: alloc::sync::Arc<dyn interface::domain_create::CreateExampleDomain>,
 ) -> Arc<dyn interface::proxy::Proxy> {
     libsyscalls::syscalls::init(s);
     interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
@@ -61,6 +62,7 @@ pub fn trusted_entry(
         create_xv6,
         create_dom_c,
         create_dom_d,
+        create_example,
         create_shadow,
         create_benchnvme,
         create_tpm,

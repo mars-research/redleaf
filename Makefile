@@ -78,7 +78,8 @@ domain_list := $(addprefix domains/build/, \
 	membdev \
 	benchnet_inside \
 	benchnvme \
-	benchhash)
+	benchhash \
+	example)
 
 ################
 # QEMU

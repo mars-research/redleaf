@@ -4,7 +4,7 @@
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use syscalls::{Heap, Domain, Interrupt};
-use crate::{bdev::{BDev, NvmeBDev}, vfs::VFS, usrnet::UsrNet, rv6::Rv6, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}};
+use crate::{bdev::{BDev, NvmeBDev}, vfs::VFS, usrnet::UsrNet, rv6::Rv6, dom_c::DomC, net::Net, pci::{PCI, PciBar, PciResource}, example::Example};
 use crate::error::Result;
 use crate::tpm::UsrTpm;
 
@@ -29,7 +29,8 @@ pub trait CreateProxy {
         create_dom_c: Arc<dyn CreateDomC>,
         create_dom_d: Arc<dyn CreateDomD>,
         create_shadow: Arc<dyn CreateShadow>,
-        create_tpm: Arc<dyn CreateTpm>) -> (Box<dyn Domain>, Arc<dyn crate::proxy::Proxy>);
+        create_tpm: Arc<dyn CreateTpm>,
+        create_example: Arc<dyn CreateExampleDomain>) -> (Box<dyn Domain>, Arc<dyn crate::proxy::Proxy>);
 }
 
 /* AB: XXX: first thing: change all names to create_domain -- it's absurd */
@@ -125,6 +126,12 @@ pub trait CreateDomC: Send + Sync {
 pub trait CreateDomD: Send + Sync {
     fn create_domain_dom_d(&self, dom_c: Box<dyn DomC>) -> (Box<dyn Domain>, ());
 }
+
+#[domain_create(path = "example")]
+pub trait CreateExampleDomain: Send + Sync {
+    fn create_domain_example(&self) -> (Box<dyn Domain>, Box<dyn Example>);
+}
+
 
 #[domain_create(path = "shadow")]
 pub trait CreateShadow: Send + Sync {

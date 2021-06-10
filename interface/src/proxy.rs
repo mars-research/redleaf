@@ -39,6 +39,7 @@ pub trait Proxy: CreatePCI +
     fn as_domain_create_CreateVirtioNet(&self) -> Arc<dyn crate::domain_create::CreateVirtioNet>;
     fn as_domain_create_CreateIxgbe(&self) -> Arc<dyn crate::domain_create::CreateIxgbe>;
     fn as_domain_create_CreateDomD(&self) -> Arc<dyn crate::domain_create::CreateDomD>;
+    fn as_domain_create_CreateExampleDomain(&self) -> Arc<dyn crate::domain_create::CreateExampleDomain>;
     fn as_domain_create_CreateMemBDev(&self) -> Arc<dyn crate::domain_create::CreateMemBDev>;
     fn as_domain_create_CreateRv6(&self) -> Arc<dyn crate::domain_create::CreateRv6>;
     fn as_domain_create_CreatePCI(&self) -> Arc<dyn crate::domain_create::CreatePCI>;

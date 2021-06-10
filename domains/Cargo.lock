@@ -274,6 +274,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "example"
+version = "0.1.0"
+dependencies = [
+ "codegen-lib",
+ "console",
+ "interface",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "spin 0.5.3",
+ "syscalls",
+ "unwind",
+]
+
+[[package]]
 name = "fnv"
 version = "1.0.7"
 source = "git+https://github.com/servo/rust-fnv#4b4784ebfd3332dc61f0640764d6f1140e03a9ab"

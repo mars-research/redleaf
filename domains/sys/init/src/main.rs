@@ -117,6 +117,7 @@ pub fn trusted_entry(
     create_xv6: Arc<dyn interface::domain_create::CreateRv6>,
     create_dom_c: Arc<dyn interface::domain_create::CreateDomC>,
     create_dom_d: Arc<dyn interface::domain_create::CreateDomD>,
+    create_example: Arc<dyn interface::domain_create::CreateExampleDomain>,
     create_shadow: Arc<dyn interface::domain_create::CreateShadow>,
     create_benchnvme: Arc<dyn interface::domain_create::CreateBenchnvme>,
     create_tpm: Arc<dyn interface::domain_create::CreateTpm>,
@@ -204,8 +205,12 @@ pub fn trusted_entry(
         create_dom_d,
         create_shadow,
         create_tpm,
+        create_example,
     );
     println!("created proxy");
+
+    let (_, example) = proxy.as_domain_create_CreateExampleDomain().create_domain_example();
+    println!("Example output: {}", example.method(1));
 
     #[cfg(feature = "test_cd")]
     {

@@ -27,6 +27,7 @@ members = [
 	"usr/xv6/kernel/net",
 	"usr/xv6/usr/bin",
 	"usr/xv6/usr/lib",
+	"usr/example",
 ]
 
 [profile.dev]

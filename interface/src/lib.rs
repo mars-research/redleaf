@@ -34,6 +34,7 @@ pub mod rv6;
 pub mod tpm;
 pub mod rref;
 pub mod typeid;
+pub mod example;
 
 pub mod proxy;
 
