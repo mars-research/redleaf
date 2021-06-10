@@ -1,0 +1,2 @@
+[dependencies.interface_attribute_placeholder]
+path = "../lib/external/interface_attribute_placeholder"

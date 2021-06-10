@@ -19,6 +19,8 @@ extern crate alloc;
 extern crate num_derive;
 #[macro_use]
 extern crate bitflags;
+#[macro_use]
+extern crate interface_attribute_placeholder;
 
 pub mod bdev;
 pub mod dom_c;
