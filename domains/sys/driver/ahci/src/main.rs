@@ -282,10 +282,10 @@ fn run_blocktest_rref(device: &Ahci, from_block: u64, block_num: u64) {
     let write_end = libtime::get_ns_time();
     let time_gap = write_end - write_start;
     println!(
-        "AHCI Async benchmark: write {} blocks, takes {} ns ({} seconds)",
+        "AHCI Async benchmark: write {} blocks, takes {} ns ({:.2} seconds)",
         block_num,
         time_gap,
-        time_gap / sec_to_ns
+        time_gap as f64 / sec_to_ns as f64
     );
 
     // Submit read requests
@@ -344,10 +344,10 @@ fn run_blocktest_rref(device: &Ahci, from_block: u64, block_num: u64) {
     let read_end = libtime::get_ns_time();
     let time_gap = read_end - read_start;
     println!(
-        "AHCI Async benchmark: read {} blocks, takes {} ns ({} seconds)",
+        "AHCI Async benchmark: read {} blocks, takes {} ns ({:.2} seconds)",
         block_num,
         time_gap,
-        time_gap / sec_to_ns
+        time_gap as f64 / sec_to_ns as f64
     );
 
     println!("Async Block Test Finished!");
