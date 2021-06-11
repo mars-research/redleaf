@@ -118,7 +118,7 @@ impl Mmio {
         }
     }
 
-    pub unsafe fn memory_fence() {
+    pub fn memory_fence() {
         core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
     }
 

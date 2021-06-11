@@ -12,6 +12,8 @@
 pub mod pci;
 extern crate alloc;
 
+use core::{u16, usize};
+
 use alloc::sync::Arc;
 use console::println;
 use hashbrown::HashMap;
@@ -26,24 +28,25 @@ use virtio_device::{Mmio, VirtioDeviceStatus};
 
 #[derive(Debug)]
 #[repr(C, packed)]
-struct BlockBuffer {
+
+struct BlockBufferHeader {
     /// IN: 0, OUT: 1, FLUSH: 4, DISCARD: 11, WRITE_ZEROES: 13
     pub request_type: u32,
     pub reserved: u32,
     pub sector: u64,
-    pub data: [u8; 512],
+}
 
+#[derive(Debug)]
+#[repr(C, packed)]
+struct BlockBufferStatus {
     /// OK: 0, IOERR: 1, UNSUPP: 2
     pub status: u8,
 }
-
-static mut TEMP_BUFFER: BlockBuffer = BlockBuffer {
-    request_type: 0,
-    reserved: 0,
-    sector: 0,
-    data: [0x11; 512],
-    status: 0,
-};
+#[derive(Debug)]
+#[repr(C, packed)]
+struct BlockBufferData {
+    pub data: [u8; 512],
+}
 
 pub struct VirtioBlockInner {
     mmio: Mmio,
@@ -180,36 +183,83 @@ impl VirtioBlockInner {
         Err(())
     }
 
+    /// Errors if there are no free descriptors
+    fn get_three_free_descriptor(
+        free_descriptors: &mut [bool; DESCRIPTOR_COUNT],
+    ) -> Result<(usize, usize, usize), ()> {
+        let mut desc = (None, None, None);
+
+        for i in 0..free_descriptors.len() {
+            if free_descriptors[i] {
+                free_descriptors[i] = false;
+
+                if (desc.0.is_none()) {
+                    desc.0 = Some(i);
+                } else if (desc.1.is_none()) {
+                    desc.1 = Some(i);
+                } else if (desc.2.is_none()) {
+                    desc.2 = Some(i);
+
+                    return Ok((desc.0.unwrap(), desc.1.unwrap(), desc.2.unwrap()));
+                }
+            }
+        }
+        Err(())
+    }
+
     pub fn read(&mut self) {
         // self.submit_read_request();
         // Poll until ready
     }
 
     pub fn submit_read_request(&mut self, sector_number: u64) {
-        unsafe {
-            println!("{:x?}", TEMP_BUFFER);
-        }
+        // self.request_queue.available.idx += 3;
 
-        if let Ok(free_descriptor) = Self::get_free_descriptor(&mut self.free_descriptors) {
-            let addr: u64 = 0;
+        let mut blk_header = BlockBufferHeader {
+            request_type: 0,
+            reserved: 0,
+            sector: 1,
+        };
 
-            unsafe {
-                addr = Self::get_addr(&TEMP_BUFFER);
-            }
+        self.free_descriptors[0] = false;
+        self.free_descriptors[1] = false;
+        self.free_descriptors[2] = false;
 
-            self.request_queue.descriptors[free_descriptor as usize] = VirtqDescriptor {
-                addr: Self::get_addr(&TEMP_BUFFER),
-                len: 529,
+        let mut blk_data = BlockBufferData { data: [0x11; 512] };
+
+        let mut blk_status = BlockBufferStatus { status: 0xFF };
+
+        println!("{:#?}", blk_header);
+        println!("{:?}", blk_data);
+        println!("{:#?}", blk_status);
+
+        if let Ok(desc_idx) = Self::get_three_free_descriptor(&mut self.free_descriptors) {
+            self.request_queue.descriptors[desc_idx.0] = VirtqDescriptor {
+                addr: Self::get_addr(&blk_header),
+                len: 32,
+                flags: 1,
+                next: desc_idx.1 as u16,
+            };
+
+            self.request_queue.descriptors[desc_idx.1] = VirtqDescriptor {
+                addr: Self::get_addr(&blk_data),
+                len: 512,
+                flags: 1 | 2,
+                next: desc_idx.2 as u16,
+            };
+
+            self.request_queue.descriptors[desc_idx.2] = VirtqDescriptor {
+                addr: Self::get_addr(&blk_status),
+                len: 1,
                 flags: 2,
                 next: 0,
             };
 
-            unsafe {
-                println!("TEMP_BUFFER ADDR: {:}", Self::get_addr(&TEMP_BUFFER));
-            }
+            println!("{:#?}", desc_idx);
 
             self.request_queue.available.ring[self.request_queue.available.idx as usize] =
-                free_descriptor;
+                desc_idx.0 as u16;
+            Mmio::memory_fence();
             self.request_queue.available.idx += 1;
 
             unsafe {
@@ -219,14 +269,14 @@ impl VirtioBlockInner {
             println!("Virtio Block: No free descriptors, request dropped");
         }
 
-        for i in 0..5 {
+        for i in 0..10 {
             println!("Sleep {:}", i);
             libtime::sys_ns_loopsleep(1_000_000_000);
         }
 
         println!("{:#?}", self.request_queue.used.idx);
-        unsafe {
-            println!("{:x?}", TEMP_BUFFER);
-        }
+        println!("{:#?}", blk_header);
+        println!("{:?}", blk_data);
+        println!("{:#?}", blk_status);
     }
 }

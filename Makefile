@@ -120,7 +120,9 @@ qemu_common     += -S
 endif
 
 ifeq ($(VIRTIO_BLOCK),true)
-qemu_common 	+= -drive file=disk.img,if=virtio,media=disk
+qemu_common 	+= -drive file=disk.img,if=virtio,media=disk,format=raw
+# qemu_common 	+= -drive file=disk.img,if=none,format=raw,id=virtioblk
+# qemu_common 	+= -device virtio-blk-device,id=virtioblk,bus=virtio-pci-bus
 DOMAIN_FEATURES += --features "virtio_block"
 endif
 
