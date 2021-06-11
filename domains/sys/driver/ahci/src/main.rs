@@ -26,6 +26,7 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use byteorder::{ByteOrder, LittleEndian};
 use core::panic::PanicInfo;
+use core::time;
 use interface::bdev::{BDev, BlkReq, NvmeBDev, BSIZE};
 use interface::error::{ErrorKind, Result};
 use interface::rpc::RpcResult;
@@ -230,6 +231,8 @@ fn run_blocktest_rref(device: &Ahci, from_block: u64, block_num: u64) {
     println!("Running Async Block Test for AHCI");
     assert!(block_num <= 32, "block num must be at most 32");
 
+    let sec_to_ns = 1_000_000_000;
+
     // Submit write requests
     let mut submit = RRefDeque::<BlkReq, 128>::default();
     let mut collect = RRefDeque::<BlkReq, 128>::default();
@@ -243,6 +246,7 @@ fn run_blocktest_rref(device: &Ahci, from_block: u64, block_num: u64) {
 
     println!("Created write requests");
 
+    let write_start = libtime::get_ns_time();
     let (submit_num, submit_, collect_) = device
         .submit_and_poll_rref(submit, collect, true)
         .unwrap()
@@ -275,6 +279,14 @@ fn run_blocktest_rref(device: &Ahci, from_block: u64, block_num: u64) {
         }
     }
     assert!(submit.len() == 0, "submit is not finished");
+    let write_end = libtime::get_ns_time();
+    let time_gap = write_end - write_start;
+    println!(
+        "AHCI Async benchmark: write {} blocks, takes {} ns ({} seconds)",
+        block_num,
+        time_gap,
+        time_gap / sec_to_ns
+    );
 
     // Submit read requests
     println!("Write requests are completed, now tring to read...");
@@ -289,6 +301,7 @@ fn run_blocktest_rref(device: &Ahci, from_block: u64, block_num: u64) {
     }
 
     println!("Submitting read requests");
+    let read_start = libtime::get_ns_time();
     let (submit_num, submit_, collect_) = device
         .submit_and_poll_rref(submit, collect, false)
         .unwrap()
@@ -328,6 +341,14 @@ fn run_blocktest_rref(device: &Ahci, from_block: u64, block_num: u64) {
             break;
         }
     }
+    let read_end = libtime::get_ns_time();
+    let time_gap = read_end - read_start;
+    println!(
+        "AHCI Async benchmark: read {} blocks, takes {} ns ({} seconds)",
+        block_num,
+        time_gap,
+        time_gap / sec_to_ns
+    );
 
     println!("Async Block Test Finished!");
 }
@@ -353,8 +374,10 @@ pub fn trusted_entry(
     // let ahci: Box<dyn interface::bdev::BDev> = Box::new(ahci);
     // let ahci: Box<dyn BDev + Send + Sync> = Box::new(ahci);
     run_blocktest_rref(&ahci, 8, 4);
-    run_blocktest_rref(&ahci, 512, 16);
-    // run_blocktest_rref(&ahci, 1024, 32);
+    run_blocktest_rref(&ahci, 512, 32);
+    run_blocktest_rref(&ahci, 1024, 16);
+    run_blocktest_rref(&ahci, 8192, 16);
+    run_blocktest_rref(&ahci, 32768, 16);
     // run_blocktest_rref(&ahci, 128, 1);
     // run_blocktest_rref(&ahci, 512, 1);
 

@@ -330,7 +330,7 @@ impl Disk for DiskATA {
         mut collect: RRefDeque<BlkReq, 128>,
         write: bool,
     ) -> (usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>) {
-        console::println!("Entered submit and poll rref: write = {}", write);
+        // console::println!("Entered submit and poll rref: write = {}", write);
         let mut submit_count = 0;
 
         while let Some(mut block_req) = submit.pop_front() {
