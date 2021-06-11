@@ -210,12 +210,12 @@ pub fn trusted_entry(
     #[cfg(feature = "test_cd")]
     {
         #[cfg(not(feature = "shadow"))]
-        let (dom_dom_c, dom_c) = proxy.as_create_dom_c().create_domain_dom_c();
+        let (dom_dom_c, dom_c) = proxy.as_domain_create_CreateDomC().create_domain_dom_c();
         #[cfg(feature = "shadow")]
         let (dom_shadow, dom_c) = proxy
             .as_create_shadow()
             .create_domain_shadow(proxy.as_create_dom_c());
-        let dom_dom_d = proxy.as_create_dom_d().create_domain_dom_d(dom_c);
+        let dom_dom_d = proxy.as_domain_create_CreateDomD().create_domain_dom_d(dom_c);
     }
 
     #[cfg(feature = "tpm")]
@@ -253,7 +253,7 @@ pub fn trusted_entry(
 
     println!("Creating nvme domain!");
     #[cfg(not(feature = "shadow"))]
-    let (dom_nvme, nvme) = proxy.as_domain_create_CreateNvme().create_domain_nvme(pci.pci_clone());
+    let (dom_nvme, nvme) = proxy.as_domain_create_CreateNvme().create_domain_nvme(pci.pci_clone().unwrap());
     #[cfg(feature = "shadow")]
     let (_dom_nvme, nvme) = proxy
         .as_domain_create_CreateNvmeShadow()
@@ -261,7 +261,7 @@ pub fn trusted_entry(
 
     println!("Creating ixgbe");
     #[cfg(not(feature = "shadow"))]
-    let (dom_ixgbe, net) = proxy.as_domain_create_CreateRv6Net().create_domain_ixgbe(pci.pci_clone());
+    let (dom_ixgbe, net) = proxy.as_domain_create_CreateIxgbe().create_domain_ixgbe(pci.pci_clone().unwrap());
     #[cfg(feature = "shadow")]
     let (_dom_ixgbe, net) = proxy
         .as_domain_create_CreateNetShadow()
