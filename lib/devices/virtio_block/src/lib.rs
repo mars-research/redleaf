@@ -26,6 +26,8 @@ use virtio_device::defs::{
 };
 use virtio_device::{Mmio, VirtioDeviceStatus};
 
+// const DESCRIPTOR_COUNT: usize = 128;
+
 #[derive(Debug)]
 #[repr(C, packed)]
 
@@ -153,7 +155,11 @@ impl VirtioBlockInner {
         let mut features = self.mmio.accessor.read_device_feature();
         println!("DEVICE FEATURES: {:}", &features);
 
-        self.mmio.accessor.write_driver_feature(0);
+        if features & (1 << 5) != 0 {
+            println!("VIRTIO DEVICE IS READ ONLY!");
+        }
+
+        // self.mmio.accessor.write_driver_feature(0);
     }
 
     pub fn print_device_config(&mut self) {
@@ -240,7 +246,7 @@ impl VirtioBlockInner {
         if let Ok(desc_idx) = Self::get_three_free_descriptor(&mut self.free_descriptors) {
             self.request_queue.descriptors[desc_idx.0] = VirtqDescriptor {
                 addr: Self::get_addr(&blk_header),
-                len: 32,
+                len: 16,
                 flags: 1,
                 next: desc_idx.1 as u16,
             };
@@ -274,7 +280,7 @@ impl VirtioBlockInner {
             println!("Virtio Block: No free descriptors, request dropped");
         }
 
-        for i in 0..10 {
+        for i in 0..5 {
             println!("Sleep {:}", i);
             libtime::sys_ns_loopsleep(1_000_000_000);
         }
