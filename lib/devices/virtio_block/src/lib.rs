@@ -119,7 +119,7 @@ impl VirtioBlockInner {
             self.mmio.update_device_status(VirtioDeviceStatus::Driver); // But do we really know how to drive the device?
         }
 
-        // self.negotiate_features();
+        self.negotiate_features();
 
         // Tell the Device that feature Negotiation is complete
         unsafe {
@@ -144,6 +144,16 @@ impl VirtioBlockInner {
         println!("VIRTIO BLOCK READY!");
 
         self.print_device_config();
+    }
+
+    fn negotiate_features(&mut self) {
+        self.mmio.accessor.write_device_feature_select(0);
+        self.mmio.accessor.write_driver_feature_select(0);
+
+        let mut features = self.mmio.accessor.read_device_feature();
+        println!("DEVICE FEATURES: {:}", &features);
+
+        self.mmio.accessor.write_driver_feature(0);
     }
 
     pub fn print_device_config(&mut self) {
@@ -213,24 +223,18 @@ impl VirtioBlockInner {
     }
 
     pub fn submit_read_request(&mut self, sector_number: u64) {
-        // self.request_queue.available.idx += 3;
-
         let mut blk_header = BlockBufferHeader {
-            request_type: 0,
+            request_type: 1,
             reserved: 0,
-            sector: 1,
+            sector: 2,
         };
 
-        self.free_descriptors[0] = false;
-        self.free_descriptors[1] = false;
-        self.free_descriptors[2] = false;
-
-        let mut blk_data = BlockBufferData { data: [0x11; 512] };
+        let mut blk_data = BlockBufferData { data: [0x21; 512] };
 
         let mut blk_status = BlockBufferStatus { status: 0xFF };
 
         println!("{:#?}", blk_header);
-        println!("{:?}", blk_data);
+        println!("{:x?}", blk_data);
         println!("{:#?}", blk_status);
 
         if let Ok(desc_idx) = Self::get_three_free_descriptor(&mut self.free_descriptors) {
@@ -244,7 +248,8 @@ impl VirtioBlockInner {
             self.request_queue.descriptors[desc_idx.1] = VirtqDescriptor {
                 addr: Self::get_addr(&blk_data),
                 len: 512,
-                flags: 1 | 2,
+                // flags: 1 | 2,
+                flags: 1,
                 next: desc_idx.2 as u16,
             };
 
@@ -276,7 +281,7 @@ impl VirtioBlockInner {
 
         println!("{:#?}", self.request_queue.used.idx);
         println!("{:#?}", blk_header);
-        println!("{:?}", blk_data);
+        println!("{:x?}", blk_data);
         println!("{:#?}", blk_status);
     }
 }
