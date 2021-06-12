@@ -227,6 +227,63 @@ impl NvmeBDev for Ahci {
     }
 }
 
+fn run_async_benchmark(device: &Ahci, block_num: u64) {
+    println!("AHCI Benchmark");
+    // for i in (0..4).rev() {
+    //     println!("{}...", i);
+    //     libtime::sys_ns_sleep(1_000_000_000);
+    // }
+    for i in 0..10 {
+        println!();
+    }
+
+    println!("Reading {} blocks...", block_num);
+    let mut submit = RRefDeque::<BlkReq, 128>::default();
+    let mut collect = RRefDeque::<BlkReq, 128>::default();
+
+    let read_start = libtime::get_rdtsc();
+    for i in 0..block_num {
+        let mut block_req = BlkReq::new();
+        block_req.block = i;
+        submit.push_back(RRef::<BlkReq>::new(block_req));
+        if submit.len() == 32 || i == block_num {
+            // When there are 32 requests or we reached the end request, submit them
+            let (submit_num, _submit, _collect) = device
+                .submit_and_poll_rref(submit, collect, false)
+                .unwrap()
+                .unwrap();
+
+            submit = _submit;
+            collect = _collect;
+
+            // Wait until all the requests are finished
+            // Then empty the collect queue
+            loop {
+                let (submit_num, _submit, _collect) = device
+                    .submit_and_poll_rref(submit, collect, false)
+                    .unwrap()
+                    .unwrap();
+
+                submit = _submit;
+                collect = _collect;
+
+                if collect.len() == 32 || collect.len() == (i % 32) as usize {
+                    while let Some(block_req) = collect.pop_front() {
+                        // do nothing
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    let read_end = libtime::get_rdtsc();
+    println!(
+        "Read {} blocks in {} cycles",
+        block_num,
+        read_end - read_start
+    );
+}
+
 fn run_blocktest_rref(device: &Ahci, from_block: u64, block_num: u64) {
     println!("Running Async Block Test for AHCI");
     assert!(block_num <= 32, "block num must be at most 32");
@@ -373,13 +430,16 @@ pub fn trusted_entry(
 
     // let ahci: Box<dyn interface::bdev::BDev> = Box::new(ahci);
     // let ahci: Box<dyn BDev + Send + Sync> = Box::new(ahci);
-    run_blocktest_rref(&ahci, 8, 4);
-    run_blocktest_rref(&ahci, 512, 32);
-    run_blocktest_rref(&ahci, 1024, 16);
-    run_blocktest_rref(&ahci, 8192, 16);
-    run_blocktest_rref(&ahci, 32768, 16);
+    // run_blocktest_rref(&ahci, 8, 1);
+    // run_blocktest_rref(&ahci, 512, 32);
+    // run_blocktest_rref(&ahci, 1024, 2);
+    // run_blocktest_rref(&ahci, 8192, 4);
+    // run_blocktest_rref(&ahci, 32768, 16);
     // run_blocktest_rref(&ahci, 128, 1);
     // run_blocktest_rref(&ahci, 512, 1);
+
+    // run_async_benchmark(&ahci, 32);
+    run_async_benchmark(&ahci, 65536);
 
     let ahci: Box<dyn NvmeBDev + Send> = Box::new(ahci);
 
