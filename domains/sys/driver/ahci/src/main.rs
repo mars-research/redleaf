@@ -228,7 +228,7 @@ impl NvmeBDev for Ahci {
 }
 
 fn run_async_benchmark(device: &Ahci, block_num: u64) {
-    let batch_size = 16 as usize;
+    let batch_size = 32 as usize;
     println!("AHCI Benchmark");
     // for i in (0..4).rev() {
     //     println!("{}...", i);
@@ -347,7 +347,7 @@ fn run_blocktest_rref(device: &Ahci, from_block: u64, block_num: u64) {
     let write_end = libtime::get_ns_time();
     let time_gap = write_end - write_start;
     println!(
-        "AHCI Async benchmark: write {} blocks, takes {} ns ({:.2} seconds)",
+        "AHCI Async blocktest: write {} blocks, takes {} ns ({:.2} seconds)",
         block_num,
         time_gap,
         time_gap as f64 / sec_to_ns as f64
@@ -397,7 +397,7 @@ fn run_blocktest_rref(device: &Ahci, from_block: u64, block_num: u64) {
                 //     &value[..],
                 //     &block_req.data[..],
                 // );
-                // assert_eq!(&value[0], &block_req.data[0]);
+                assert_eq!(&value[0], &block_req.data[0]);
                 println!(
                     "should read: {}, actual read: {}",
                     &value[0], &block_req.data[0]
@@ -439,10 +439,12 @@ pub fn trusted_entry(
     // let ahci: Box<dyn interface::bdev::BDev> = Box::new(ahci);
     // let ahci: Box<dyn BDev + Send + Sync> = Box::new(ahci);
     // run_blocktest_rref(&ahci, 8, 1);
-    // run_blocktest_rref(&ahci, 512, 32);
-    // run_blocktest_rref(&ahci, 1024, 16);
-    // run_blocktest_rref(&ahci, 8192, 4);
+    run_blocktest_rref(&ahci, 256, 8);
+    run_blocktest_rref(&ahci, 512, 32);
+    run_blocktest_rref(&ahci, 1024, 32);
+    run_blocktest_rref(&ahci, 8192, 32);
     // run_blocktest_rref(&ahci, 32768, 16);
+    // run_blocktest_rref(&ahci, 32768, 32);
     // run_blocktest_rref(&ahci, 128, 1);
     // run_blocktest_rref(&ahci, 512, 1);
 
@@ -452,6 +454,8 @@ pub fn trusted_entry(
     // run_async_benchmark(&ahci, 128);
     // run_async_benchmark(&ahci, 512);
     // run_async_benchmark(&ahci, 1024);
+
+    run_async_benchmark(&ahci, 32768);
     run_async_benchmark(&ahci, 65536);
 
     let ahci: Box<dyn NvmeBDev + Send> = Box::new(ahci);
