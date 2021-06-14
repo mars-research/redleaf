@@ -15,6 +15,8 @@ use console::println;
 use core::panic::PanicInfo;
 use libsyscalls::syscalls::{sys_backtrace, sys_println};
 use syscalls::{Heap, Syscall};
+use interface::rpc::RpcResult;
+use interface::error::{Result, ErrorKind};
 
 use pci_driver::{PciClass, PciDriver};
 
@@ -35,36 +37,38 @@ impl interface::pci::PCI for PCI {
         pci_driver: &mut dyn PciDriver,
         bar_index: usize,
         class: Option<(PciClass, u8)>,
-    ) -> Result<(), ()> {
-        println!("Register driver called");
-        let vendor_id = pci_driver.get_vid();
-        let device_id = pci_driver.get_did();
-        // match vid, dev_id with the registered pci devices we have and
-        // typecast the barregion to the appropriate one for this device
-        let pci_devs = &*PCI_DEVICES.lock();
-        let pci_dev: &PciDevice = match class {
-            Some((class, subclass)) => pci_devs
-                .iter()
-                .filter(|header| header.class() == class && header.subclass() == subclass)
-                .next()
-                .ok_or(()),
-            None => pci_devs
-                .iter()
-                .filter(|header| header.vendor_id() == vendor_id && header.device_id() == device_id)
-                .next()
-                .ok_or(()),
-        }?;
+    ) -> RpcResult<Result<()>> {
+        Ok(|| -> Result<()> {
+            println!("Register driver called");
+            let vendor_id = pci_driver.get_vid();
+            let device_id = pci_driver.get_did();
+            // match vid, dev_id with the registered pci devices we have and
+            // typecast the barregion to the appropriate one for this device
+            let pci_devs = &*PCI_DEVICES.lock();
+            let pci_dev = match class {
+                Some((class, subclass)) => pci_devs
+                    .iter()
+                    .filter(|header| header.class() == class && header.subclass() == subclass)
+                    .next()
+                    .ok_or(ErrorKind::InvalidPciClass),
+                None => pci_devs
+                    .iter()
+                    .filter(|header| header.vendor_id() == vendor_id && header.device_id() == device_id)
+                    .next()
+                    .ok_or(ErrorKind::InvalidPciDeviceID),
+            };
+            let pci_dev = pci_dev?;
 
-        // TODO: dont panic here
-        let bar = pci_dev.get_bar(bar_index, pci_driver.get_driver_type());
+            // TODO: dont panic here
+            let bar = pci_dev.get_bar(bar_index, pci_driver.get_driver_type());
 
-        pci_driver.probe(bar);
-
-        Ok(())
+            pci_driver.probe(bar);
+            Ok(())
+        }())
     }
 
-    fn pci_clone(&self) -> Box<dyn interface::pci::PCI> {
-        Box::new((*self).clone())
+    fn pci_clone(&self) -> RpcResult<Box<dyn interface::pci::PCI>> {
+        Ok(Box::new((*self).clone()))
     }
 }
 

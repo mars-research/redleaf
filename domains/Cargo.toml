@@ -19,8 +19,6 @@ members = [
 	"usr/test/benchhash",
 	"usr/test/benchnet_inside",
 	"usr/test/benchnvme",
-	"usr/test/dom_a",
-	"usr/test/dom_b",
 	"usr/test/dom_c",
 	"usr/test/dom_d",
 	"usr/test/shadow",

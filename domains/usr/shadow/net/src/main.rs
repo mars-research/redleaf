@@ -15,7 +15,7 @@ use console::println;
 use core::panic::PanicInfo;
 
 use alloc::vec::Vec;
-use interface::domain_creation::CreateIxgbe;
+use interface::domain_create::CreateIxgbe;
 use interface::rref::RRefDeque;
 use spin::Mutex;
 use interface::error::Result;

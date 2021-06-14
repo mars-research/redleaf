@@ -148,6 +148,10 @@ pub enum ErrorKind {
     Utf8Error,
     /// One or more parameter is invalid
     InvalidParameter,
+    /// Failed to find Pci class/subclass.
+    InvalidPciClass,
+    /// Failed to find Pci device/vendor ID.
+    InvalidPciDeviceID,
 }
 
 // impl ErrorKind {

@@ -7,7 +7,7 @@ use alloc::vec::Vec;
 use spin::Mutex;
 
 use console::println;
-use interface::domain_creation::CreateRv6Usr;
+use interface::domain_create::CreateRv6Usr;
 use interface::rref::{RRefDeque, RRefVec};
 use interface::bdev::{BlkReq, NvmeBDev};
 use interface::net::{Net, NetworkStats};
@@ -51,11 +51,11 @@ impl Rv6Syscalls {
         Ok(Self {
             start_time: self.start_time,
             create_xv6usr: self.create_xv6usr.clone(),
-            fs: self.fs.clone(),
+            fs: self.fs.clone()?,
             usrnet: self.usrnet.clone_usrnet()?,
             net: self.net.clone_net()?,
             nvme: self.nvme.clone(),
-            usrtpm: self.usrtpm.clone_usrtpm(),
+            usrtpm: self.usrtpm.clone_usrtpm()?,
         })
     }
 }
@@ -78,7 +78,7 @@ impl Rv6 for Rv6Syscalls {
     }
 
     fn get_usrtpm(&self) -> RpcResult<Box<dyn UsrTpm>> {
-        Ok(self.usrtpm.clone_usrtpm())
+        self.usrtpm.clone_usrtpm()
     }
 
     fn as_net(&self) -> RpcResult<Box<dyn Net>> {
@@ -96,7 +96,7 @@ impl Rv6 for Rv6Syscalls {
     ) -> RpcResult<Result<Box<dyn Thread>>> {
         Ok((|| {
             let name = core::str::from_utf8(name.as_slice())?;
-            Ok(crate::thread::spawn_thread(self.fs.clone(), &name, func))
+            Ok(crate::thread::spawn_thread(self.fs.clone().unwrap(), &name, func))
         })())
     }
 
@@ -123,9 +123,9 @@ impl Rv6 for Rv6Syscalls {
 
             // Create a seperate copy of all the objects we want to pass to the new thread
             // and transfer the ownership over
-            let fs_copy = self.fs.clone();
+            let fs_copy = self.fs.clone()?;
             let create_copy = self.create_xv6usr.clone();
-            let tmp_storage_id = fs_copy.sys_save_threadlocal(fds)?;
+            let tmp_storage_id = fs_copy.sys_save_threadlocal(fds)??;
             Ok(self
                 .sys_spawn_thread(
                     path,
@@ -133,8 +133,8 @@ impl Rv6 for Rv6Syscalls {
                         fs_copy.sys_set_threadlocal(tmp_storage_id).unwrap();
                         create_copy.create_domain_xv6usr(
                             &path_copy,
-                            rv6,
                             blob.as_slice(),
+                            rv6,
                             &args_copy,
                         );
                     }),

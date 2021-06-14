@@ -52,24 +52,22 @@ impl Rv6FS {
 }
 
 impl VFS for Rv6FS {
-    fn clone(&self) -> Box<dyn VFS> {
-        box Self {}
+    fn clone(&self) -> RpcResult<Box<dyn VFS>> {
+        Ok(box Self {})
     }
-}
 
-impl KernelVFS for Rv6FS {
-    fn sys_save_threadlocal(&self, fds: [Option<usize>; NFILE]) -> Result<usize> {
-        sysfile::sys_save_threadlocal(fds)
+    // KernelVFS part
+    fn sys_save_threadlocal(&self, fds: [Option<usize>; NFILE]) -> RpcResult<Result<usize>> {
+        Ok(sysfile::sys_save_threadlocal(fds))
     }
-    fn sys_set_threadlocal(&self, id: usize) -> Result<()> {
-        sysfile::sys_set_threadlocal(id)
+    fn sys_set_threadlocal(&self, id: usize) -> RpcResult<Result<()>> {
+        Ok(sysfile::sys_set_threadlocal(id))
     }
-    fn sys_thread_exit(&self) {
-        sysfile::sys_thread_exit()
+    fn sys_thread_exit(&self) -> RpcResult<()> {
+        Ok(sysfile::sys_thread_exit())
     }
-}
 
-impl UsrVFS for Rv6FS {
+    // UsrVFS part
     fn sys_open(
         &self,
         path: RRefVec<u8>,

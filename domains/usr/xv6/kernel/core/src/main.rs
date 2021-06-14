@@ -15,7 +15,7 @@ use core::panic::PanicInfo;
 
 use console::println;
 
-use interface::domain_creation;
+use interface::domain_create;
 
 use syscalls::{Heap, Syscall};
 use interface::bdev::BDev;
@@ -27,10 +27,10 @@ pub fn trusted_entry(
     s: Box<dyn Syscall + Send + Sync>,
     heap: Box<dyn Heap + Send + Sync>,
     ints: Box<dyn syscalls::Interrupt + Send + Sync>,
-    create_xv6fs: Arc<dyn interface::domain_creation::CreateRv6FS>,
-    create_xv6net: Arc<dyn interface::domain_creation::CreateRv6Net>,
-    _create_xv6net_shadow: Arc<dyn interface::domain_creation::CreateRv6NetShadow>,
-    create_xv6usr: Arc<dyn interface::domain_creation::CreateRv6Usr + Send + Sync>,
+    create_xv6fs: Arc<dyn interface::domain_create::CreateRv6FS>,
+    create_xv6net: Arc<dyn interface::domain_create::CreateRv6Net>,
+    _create_xv6net_shadow: Arc<dyn interface::domain_create::CreateRv6NetShadow>,
+    create_xv6usr: Arc<dyn interface::domain_create::CreateRv6Usr + Send + Sync>,
     bdev: Box<dyn BDev>,
     net: Box<dyn interface::net::Net>,
     nvme: Box<dyn interface::bdev::NvmeBDev>,
@@ -51,7 +51,7 @@ pub fn trusted_entry(
     #[cfg(not(feature = "shadow"))]
     let (_dom_xv6net, usrnet) = create_xv6net.create_domain_xv6net(net.clone_net().unwrap());
     // Init kernel
-    box rv6_syscalls::Rv6Syscalls::new(create_xv6usr, fs.clone(), usrnet, net, nvme, usr_tpm)
+    box rv6_syscalls::Rv6Syscalls::new(create_xv6usr, fs, usrnet, net, nvme, usr_tpm)
 }
 
 // This function is called on panic.

@@ -1,7 +1,6 @@
 #![no_std]
 #![no_main]
 #![feature(global_asm, box_syntax, type_ascription)]
-mod gen;
 
 use interface::proxy;
 
@@ -11,7 +10,7 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use console::println;
 use core::panic::PanicInfo;
-use interface::domain_creation;
+use interface::domain_create;
 use interface::rref;
 use libsyscalls;
 use syscalls;
@@ -20,55 +19,49 @@ use syscalls;
 pub fn trusted_entry(
     s: Box<dyn syscalls::Syscall + Send + Sync>,
     heap: Box<dyn syscalls::Heap + Send + Sync>,
-    create_pci: Arc<dyn interface::domain_creation::CreatePCI>,
-    create_ahci: Arc<dyn interface::domain_creation::CreateAHCI>,
-    create_membdev: Arc<dyn interface::domain_creation::CreateMemBDev>,
-    create_bdev_shadow: Arc<dyn interface::domain_creation::CreateBDevShadow>,
-    create_ixgbe: Arc<dyn interface::domain_creation::CreateIxgbe>,
-    create_virtio_net: Arc<dyn interface::domain_creation::CreateVirtioNet>,
-    create_virtio_block: Arc<dyn interface::domain_creation::CreateVirtioBlock>,
-    create_nvme: Arc<dyn interface::domain_creation::CreateNvme>,
-    create_net_shadow: Arc<dyn interface::domain_creation::CreateNetShadow>,
-    create_nvme_shadow: Arc<dyn interface::domain_creation::CreateNvmeShadow>,
-    create_benchnet: Arc<dyn interface::domain_creation::CreateBenchnet>,
-    create_benchnvme: Arc<dyn interface::domain_creation::CreateBenchnvme>,
-    create_xv6fs: Arc<dyn interface::domain_creation::CreateRv6FS>,
-    create_xv6net: Arc<dyn interface::domain_creation::CreateRv6Net>,
-    create_xv6net_shadow: Arc<dyn interface::domain_creation::CreateRv6NetShadow>,
-    create_xv6usr: Arc<dyn interface::domain_creation::CreateRv6Usr + Send + Sync>,
-    create_xv6: Arc<dyn interface::domain_creation::CreateRv6>,
-    create_dom_a: Arc<dyn interface::domain_creation::CreateDomA>,
-    create_dom_b: Arc<dyn interface::domain_creation::CreateDomB>,
-    create_dom_c: Arc<dyn interface::domain_creation::CreateDomC>,
-    create_dom_d: Arc<dyn interface::domain_creation::CreateDomD>,
-    create_shadow: Arc<dyn interface::domain_creation::CreateShadow>,
+    create_pci: alloc::sync::Arc<dyn interface::domain_create::CreatePCI>,
+    create_membdev: alloc::sync::Arc<dyn interface::domain_create::CreateMemBDev>,
+    create_bdev_shadow: alloc::sync::Arc<dyn interface::domain_create::CreateBDevShadow>,
+    create_virtio_net: alloc::sync::Arc<dyn interface::domain_create::CreateVirtioNet>,
+    create_virtio_block: Arc<dyn interface::domain_create::CreateVirtioBlock>,
+    create_ixgbe: alloc::sync::Arc<dyn interface::domain_create::CreateIxgbe>,
+    create_nvme: alloc::sync::Arc<dyn interface::domain_create::CreateNvme>,
+    create_net_shadow: alloc::sync::Arc<dyn interface::domain_create::CreateNetShadow>,
+    create_nvme_shadow: alloc::sync::Arc<dyn interface::domain_create::CreateNvmeShadow>,
+    create_benchnvme: alloc::sync::Arc<dyn interface::domain_create::CreateBenchnvme>,
+    create_xv6fs: alloc::sync::Arc<dyn interface::domain_create::CreateRv6FS>,
+    create_xv6net: alloc::sync::Arc<dyn interface::domain_create::CreateRv6Net>,
+    create_xv6net_shadow: alloc::sync::Arc<dyn interface::domain_create::CreateRv6NetShadow>,
+    create_xv6usr: alloc::sync::Arc<dyn interface::domain_create::CreateRv6Usr>,
+    create_xv6: alloc::sync::Arc<dyn interface::domain_create::CreateRv6>,
+    create_dom_c: alloc::sync::Arc<dyn interface::domain_create::CreateDomC>,
+    create_dom_d: alloc::sync::Arc<dyn interface::domain_create::CreateDomD>,
+    create_shadow: alloc::sync::Arc<dyn interface::domain_create::CreateShadow>,
+    create_tpm: alloc::sync::Arc<dyn interface::domain_create::CreateTpm>,
 ) -> Arc<dyn interface::proxy::Proxy> {
     libsyscalls::syscalls::init(s);
     interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
-    Arc::new(gen::Proxy::new(
+    Arc::new(interface::proxy::ProxyObject::new(
         create_pci,
-        create_ahci,
         create_membdev,
         create_bdev_shadow,
         create_ixgbe,
         create_virtio_net,
         create_virtio_block,
-        create_nvme,
         create_net_shadow,
         create_nvme_shadow,
-        create_benchnet,
-        create_benchnvme,
+        create_nvme,
         create_xv6fs,
         create_xv6net,
         create_xv6net_shadow,
         create_xv6usr,
         create_xv6,
-        create_dom_a,
-        create_dom_b,
         create_dom_c,
         create_dom_d,
         create_shadow,
+        create_benchnvme,
+        create_tpm,
     ))
 }
 
