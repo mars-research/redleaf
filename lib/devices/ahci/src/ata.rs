@@ -333,6 +333,14 @@ impl Disk for DiskATA {
         // console::println!("Entered submit and poll rref: write = {}", write);
         let mut submit_count = 0;
 
+        for i in 0..32 {
+            while self.port.ata_running(i) {
+                // console::println!("waiting for port {} to finish before submitting", i);
+                // Spin
+            }
+        }
+
+        self.port.stop_port_dma();
         while let Some(mut block_req) = submit.pop_front() {
             let block = block_req.block;
             // let mut data = block_req.data;
@@ -382,12 +390,17 @@ impl Disk for DiskATA {
                 self.blkreqs_opt[slot as usize] = Some(block_req);
                 submit_count += 1;
                 self.stats.submitted += 1;
+
+                // while self.port.ata_running(slot) {
+                //     // Spin
+                // }
             } else {
                 // No slots available, push back the block_req
                 // TODO: possibly submit has no space?
                 submit.push_back(block_req);
             }
         }
+        self.port.start_port_dma();
 
         for slot in 0..self.requests_opt.len() {
             let slot = slot as u32;

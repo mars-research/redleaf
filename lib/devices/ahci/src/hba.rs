@@ -112,6 +112,14 @@ impl HbaPort {
         self.slotReady[slot as usize] = ready;
     }
 
+    pub fn start_port_dma(&self) {
+        self.start(&self.hba);
+    }
+
+    pub fn stop_port_dma(&self) {
+        self.stop(&self.hba);
+    }
+
     fn start(&self, _hba: &Hba) {
         // Wait until PxCMD.CR set to 0
         while self
@@ -346,7 +354,7 @@ impl HbaPort {
     ) -> Option<u64> {
         let dest: Dma<[u16; 256]> = allocate_dma().unwrap();
 
-        // self.stop(&self.hba);
+        self.stop(&self.hba);
         let slot = self.ata_start(clb, ctbas, |cmdheader, cmdfis, prdt_entries, _acmd| {
             cmdheader.prdtl.write(1);
 
@@ -360,7 +368,7 @@ impl HbaPort {
             cmdfis.countl.write(1);
             cmdfis.counth.write(0);
         })?;
-        // self.start(&self.hba);
+        self.start(&self.hba);
 
         self.ata_stop(slot).ok()?;
         let mut serial = String::new();
@@ -441,7 +449,8 @@ impl HbaPort {
             return None;
         }
 
-        self.ata_start(clb, ctbas, |cmdheader, cmdfis, prdt_entries, _acmd| {
+        // self.stop(&self.hba);
+        let slot = self.ata_start(clb, ctbas, |cmdheader, cmdfis, prdt_entries, _acmd| {
             if write {
                 let cfl = cmdheader.cfl.read();
                 const COMMAND_HEADER_DW0_W: u8 = 1 << 6;
@@ -477,7 +486,9 @@ impl HbaPort {
 
             cmdfis.countl.write((sectors & 0xff) as u8);
             cmdfis.counth.write((sectors >> 8) as u8);
-        })
+        });
+        // self.start(&self.hba);
+        return slot;
     }
 
     pub fn ata_start<F>(
@@ -498,7 +509,7 @@ impl HbaPort {
         // self.hba
         //     .bar
         //     .write_port_reg(self.port, AhciPortRegs::Is, u32::MAX);
-        self.stop(&self.hba);
+        // self.stop(&self.hba);
 
         if let Some(slot) = self.slot(&self.hba) {
             {
@@ -544,7 +555,7 @@ impl HbaPort {
                 .write_port_regf(self.port, AhciPortRegs::Ci, 1 << slot, true);
 
             //TODO: Should probably remove
-            self.start(&self.hba);
+            // self.start(&self.hba);
 
             Some(slot)
         } else {
