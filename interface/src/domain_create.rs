@@ -82,7 +82,8 @@ pub trait CreateVirtioNet: Send + Sync {
 
 #[domain_create(path = "virtio_block")]
 pub trait CreateVirtioBlock: Send + Sync {
-    fn create_domain_virtio_block(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn BDev>);
+    fn create_domain_virtio_block(&self, pci: Box<dyn PCI>)
+        -> (Box<dyn Domain>, Box<dyn NvmeBDev>);
 }
 
 #[domain_create(path = "net_shadow")]

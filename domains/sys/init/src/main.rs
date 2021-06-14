@@ -234,7 +234,7 @@ pub fn trusted_entry(
     let (_dom_pci, pci) = proxy.as_domain_create_CreatePCI().create_domain_pci();
 
     #[cfg(feature = "virtio_block")]
-    let (_, bdev) = proxy
+    let (_, nvme) = proxy
         .as_domain_create_CreateVirtioBlock()
         .create_domain_virtio_block(pci.pci_clone().unwrap());
 
