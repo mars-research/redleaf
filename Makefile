@@ -111,7 +111,7 @@ qemu_common     += -device tpm-tis,tpmdev=tpm0
 endif
 
 ifeq ($(GDB),true)
-qemu_common     += -S
+qemu_common     += -s -S
 endif
 
 ifeq ($(VIRTIO_NET),true)
