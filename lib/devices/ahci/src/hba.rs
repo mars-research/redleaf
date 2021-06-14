@@ -113,12 +113,34 @@ impl HbaPort {
     }
 
     fn start(&self, _hba: &Hba) {
+        // Wait until PxCMD.CR set to 0
         while self
             .hba
             .bar
             .read_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_CR)
         {
             // spin
+        }
+
+        // self.hba.bar.write_port_regf(
+        //     self.port,
+        //     AhciPortRegs::Cmd,
+        //     HBA_PORT_CMD_FRE | HBA_PORT_CMD_ST,
+        //     true,
+        // );
+
+        // Set PxCMD.FRE to 1
+        self.hba
+            .bar
+            .write_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_FRE, true);
+
+        // Wait until PxCMD.FRE set to 1
+        while !self
+            .hba
+            .bar
+            .read_port_regf(self.port, AhciPortRegs::Cmd, HBA_PORT_CMD_FRE)
+        {
+            // Spin
         }
 
         self.hba.bar.write_port_regf(
@@ -324,6 +346,7 @@ impl HbaPort {
     ) -> Option<u64> {
         let dest: Dma<[u16; 256]> = allocate_dma().unwrap();
 
+        // self.stop(&self.hba);
         let slot = self.ata_start(clb, ctbas, |cmdheader, cmdfis, prdt_entries, _acmd| {
             cmdheader.prdtl.write(1);
 
@@ -337,6 +360,7 @@ impl HbaPort {
             cmdfis.countl.write(1);
             cmdfis.counth.write(0);
         })?;
+        // self.start(&self.hba);
 
         self.ata_stop(slot).ok()?;
         let mut serial = String::new();
@@ -475,6 +499,7 @@ impl HbaPort {
         //     .bar
         //     .write_port_reg(self.port, AhciPortRegs::Is, u32::MAX);
         self.stop(&self.hba);
+
         if let Some(slot) = self.slot(&self.hba) {
             {
                 let cmdheader = &mut clb[slot as usize];
