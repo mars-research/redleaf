@@ -38,10 +38,16 @@ def init():
     Looks like we'll be doing lots of parsing :sigh:
     """
 
+    # print(gdb.lookup_symbol(
+    #     "_binary_sys_init_build_init_start"
+    # ))
     print(gdb.lookup_symbol(
-        "_binary_sys_init_build_init_start"
+        "_binary_domains_build_redleaf_init_start"
     ))
-    print(gdb.lookup_symbol(
+    print(gdb.lookup_global_symbol(
+        "_binary_domains_build_redleaf_init_start"
+    ))
+    print(gdb.lookup_static_symbol(
         "_binary_domains_build_redleaf_init_start"
     ))
 
