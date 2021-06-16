@@ -30,6 +30,7 @@ pub struct VirtqDescriptor {
     /// Length
     pub len: u32,
 
+    /// 1: NEXT, 2: DEVICE WRITABLE
     pub flags: u16,
 
     /// Next field if flags contains NEXT
