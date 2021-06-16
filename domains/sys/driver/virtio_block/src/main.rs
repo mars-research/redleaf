@@ -41,11 +41,11 @@ impl interface::bdev::NvmeBDev for VirtioBlock {
         collect: RRefDeque<BlkReq, 128>,
         write: bool,
     ) -> RpcResult<Result<(usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>)>> {
-        let mut new_packet_count = 0;
         while let Some(buffer) = submit.pop_front() {
             self.0.lock().submit_request(buffer, write);
         }
 
+        // FIXME: get correct usize for RpcResult
         Ok(Ok((0, submit, collect)))
     }
 
