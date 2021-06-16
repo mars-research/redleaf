@@ -189,7 +189,7 @@ idl_generation: tools/redIDL
 	then echo "redIDL not found. Maybe you want to do 'git submodule init && git submodule update' then try again?"; \
 			exit -1; \
 	fi
-	make -C interface
+	# make -C interface
 
 .PHONY: domains
 domains: idl_generation $(xv6fs_img) memops
