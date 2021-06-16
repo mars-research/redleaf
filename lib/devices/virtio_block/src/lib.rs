@@ -241,7 +241,9 @@ impl VirtioBlockInner {
             self.block_headers[desc_idx.0] = BlockBufferHeader {
                 request_type: if write { 1 } else { 0 },
                 reserved: 0,
-                sector: block_request.block,
+
+                // Since we use a data length of 4096, we have to multiply the sector size by 8
+                sector: block_request.block * 8,
             };
             self.block_status[desc_idx.0] = BlockBufferStatus { status: 0xFF };
 
