@@ -21,6 +21,7 @@ use syscalls::{Heap, Syscall};
 
 use console::{print, println};
 use interface::bdev::BlkReq;
+use interface::bdev::NvmeBDev;
 use interface::bdev::BSIZE;
 pub use interface::error::{ErrorKind, Result};
 use interface::rref::{RRef, RRefDeque};
@@ -36,11 +37,16 @@ pub struct VirtioBlock(Arc<Mutex<VirtioBlockInner>>);
 impl interface::bdev::NvmeBDev for VirtioBlock {
     fn submit_and_poll_rref(
         &self,
-        submit: RRefDeque<BlkReq, 128>,
+        mut submit: RRefDeque<BlkReq, 128>,
         collect: RRefDeque<BlkReq, 128>,
         write: bool,
     ) -> RpcResult<Result<(usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>)>> {
-        unimplemented!();
+        let mut new_packet_count = 0;
+        while let Some(buffer) = submit.pop_front() {
+            self.0.lock().submit_request(buffer, write);
+        }
+
+        Ok(Ok((0, submit, collect)))
     }
 
     fn poll_rref(
@@ -81,7 +87,29 @@ pub fn trusted_entry(
     };
 
     // Testing Code
-    blk.0.lock().submit_read_request(0);
+    let mut submit = RRefDeque::new([None; 128]);
+    let mut collect = RRefDeque::new([None; 128]);
+
+    // Write requests to `submit`
+    for i in 0..10 {
+        let req = BlkReq {
+            data: [0x21; 4096],
+            data_len: 4096,
+            block: i,
+        };
+        submit.push_back(RRef::new(req));
+        println!("SUBMITTED REQUEST TO SECTOR {}", i);
+    }
+
+    let req = BlkReq {
+        data: [0x0; 4096],
+        data_len: 4096,
+        block: 0,
+    };
+    collect.push_back(RRef::new(req));
+
+    blk.submit_and_poll_rref(submit, collect, true);
+    println!("POLLING FOR SUBMITTED REQUESTS");
     loop {}
 
     Box::new(blk)

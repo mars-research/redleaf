@@ -17,6 +17,7 @@ use core::{u16, usize};
 use alloc::sync::Arc;
 use console::println;
 use hashbrown::HashMap;
+use interface::bdev::BlkReq;
 use interface::rref::{RRef, RRefDeque};
 use libtime;
 use spin::Mutex;
@@ -60,6 +61,8 @@ pub struct VirtioBlockInner {
     // The last index (of the used ring) that was checked by the driver
     request_last_idx: u16,
     // rx_buffers: HashMap<u64, RRef<NetworkPacketBuffer>>,
+    block_status: [BlockBufferStatus; DESCRIPTOR_COUNT],
+    block_headers: [BlockBufferHeader; DESCRIPTOR_COUNT],
 }
 
 impl VirtioBlockInner {
@@ -94,6 +97,12 @@ impl VirtioBlockInner {
 
             free_descriptors,
             request_last_idx: 0,
+            block_status: [BlockBufferStatus { status: 0xFF }; DESCRIPTOR_COUNT],
+            block_headers: [BlockBufferHeader {
+                request_type: 0xFF,
+                reserved: 0,
+                sector: 0,
+            }; DESCRIPTOR_COUNT],
         };
 
         virtio_inner
@@ -205,6 +214,7 @@ impl VirtioBlockInner {
     ) -> Result<(usize, usize, usize), ()> {
         let mut desc = (None, None, None);
 
+        // TODO: make `get_three_free_descriptor` use `get_free_descriptor` like in xv6
         for i in 0..free_descriptors.len() {
             if free_descriptors[i] {
                 free_descriptors[i] = false;
@@ -223,50 +233,40 @@ impl VirtioBlockInner {
         Err(())
     }
 
-    pub fn read(&mut self) {
-        // self.submit_read_request();
-        // Poll until ready
-    }
-
-    pub fn submit_read_request(&mut self, sector_number: u64) {
-        let mut blk_header = BlockBufferHeader {
-            request_type: 1,
-            reserved: 0,
-            sector: 2,
-        };
-
-        let mut blk_data = BlockBufferData { data: [0x21; 512] };
-
-        let mut blk_status = BlockBufferStatus { status: 0xFF };
-
-        println!("{:#?}", blk_header);
-        println!("{:x?}", blk_data);
-        println!("{:#?}", blk_status);
-
+    pub fn submit_request(&mut self, block_request: RRef<BlkReq>, write: bool) {
         if let Ok(desc_idx) = Self::get_three_free_descriptor(&mut self.free_descriptors) {
+            // Strange hack we decided was fine for the time being. We use `desc_idx.0` to index
+            // into both `block_headers` and `block_status` since they're both of size
+            // `DESCRIPTOR_COUNT`.
+            self.block_headers[desc_idx.0] = BlockBufferHeader {
+                request_type: if write { 1 } else { 0 },
+                reserved: 0,
+                sector: block_request.block,
+            };
+            self.block_status[desc_idx.0] = BlockBufferStatus { status: 0xFF };
+
             self.request_queue.descriptors[desc_idx.0] = VirtqDescriptor {
-                addr: Self::get_addr(&blk_header),
+                addr: Self::get_addr(&self.block_headers[desc_idx.0]),
                 len: 16,
                 flags: 1,
                 next: desc_idx.1 as u16,
             };
 
             self.request_queue.descriptors[desc_idx.1] = VirtqDescriptor {
-                addr: Self::get_addr(&blk_data),
-                len: 512,
-                // flags: 1 | 2,
-                flags: 1,
+                addr: Self::get_addr(&block_request.data),
+                len: 4096,
+                flags: if write { 1 } else { 1 | 2 },
                 next: desc_idx.2 as u16,
             };
 
             self.request_queue.descriptors[desc_idx.2] = VirtqDescriptor {
-                addr: Self::get_addr(&blk_status),
+                addr: Self::get_addr(&self.block_status[desc_idx.0]),
                 len: 1,
                 flags: 2,
                 next: 0,
             };
 
-            println!("{:#?}", desc_idx);
+            println!("DESC IDX: {:#?}", desc_idx);
 
             self.request_queue.available.ring[self.request_queue.available.idx as usize] =
                 desc_idx.0 as u16;
@@ -280,14 +280,14 @@ impl VirtioBlockInner {
             println!("Virtio Block: No free descriptors, request dropped");
         }
 
-        for i in 0..5 {
-            println!("Sleep {:}", i);
-            libtime::sys_ns_loopsleep(1_000_000_000);
-        }
+        // for i in 0..5 {
+        //     println!("Sleep {:}", i);
+        //     libtime::sys_ns_loopsleep(1_000_000_000);
+        // }
 
-        println!("{:#?}", self.request_queue.used.idx);
-        println!("{:#?}", blk_header);
-        println!("{:x?}", blk_data);
-        println!("{:#?}", blk_status);
+        // println!("{:#?}", self.request_queue.used.idx);
+        // println!("{:#?}", blk_header);
+        // println!("{:x?}", blk_data);
+        // println!("{:#?}", blk_status);
     }
 }
