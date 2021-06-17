@@ -58,11 +58,15 @@ pub struct VirtioBlockInner {
     /// Tracks which descriptors on the queue are free
     free_descriptors: [bool; DESCRIPTOR_COUNT],
 
-    // The last index (of the used ring) that was checked by the driver
+    /// The last index (of the used ring) that was checked by the driver
     request_last_idx: u16,
+
     // rx_buffers: HashMap<u64, RRef<NetworkPacketBuffer>>,
     block_status: [BlockBufferStatus; DESCRIPTOR_COUNT],
     block_headers: [BlockBufferHeader; DESCRIPTOR_COUNT],
+
+    /// Holds the buffers for requests. The key is the their address
+    request_buffers: HashMap<usize, RRef<BlkReq>>,
 }
 
 impl VirtioBlockInner {
@@ -103,6 +107,8 @@ impl VirtioBlockInner {
                 reserved: 0,
                 sector: 0,
             }; DESCRIPTOR_COUNT],
+
+            request_buffers: HashMap::new(),
         };
 
         virtio_inner
@@ -214,7 +220,6 @@ impl VirtioBlockInner {
     ) -> Result<(usize, usize, usize), ()> {
         let mut desc = (None, None, None);
 
-        // TODO: make `get_three_free_descriptor` use `get_free_descriptor` like in xv6
         for i in 0..free_descriptors.len() {
             if free_descriptors[i] {
                 free_descriptors[i] = false;
@@ -233,7 +238,36 @@ impl VirtioBlockInner {
         Err(())
     }
 
+    pub fn free_request_buffers(&mut self, collect: &mut RRefDeque<BlkReq, 128>) -> usize {
+        let mut freed_count = 0;
+        while self.request_last_idx < self.request_queue.used.idx {
+            let used_element =
+                self.request_queue.used.ring[(self.request_last_idx as usize) % DESCRIPTOR_COUNT];
+            let buffer_header_desc = self.request_queue.descriptors[used_element.id as usize];
+            let buffer_data_desc = self.request_queue.descriptors[buffer_header_desc.next as usize];
+
+            if let Some(buffer) = self.request_buffers.remove(&(used_element.id as usize)) {
+                collect.push_back(buffer);
+
+                // Free the descriptors: header, data, and status
+                self.free_descriptors[used_element.id as usize] = true;
+                self.free_descriptors[buffer_header_desc.next as usize] = true;
+                self.free_descriptors[buffer_data_desc.next as usize] = true;
+            } else {
+                // FIXME: How do we report errors? If we have a rogue descriptor and just hold onto it,
+                // we leak.
+                println!("ERROR: VIRTIO BLOCK: REQUEST BUFFER MISSING OR BUFFER ADDRESS CHANGED!");
+            }
+
+            freed_count += 1;
+            self.request_last_idx += 1;
+        }
+
+        freed_count
+    }
+
     pub fn submit_request(&mut self, block_request: RRef<BlkReq>, write: bool) {
+        // FIXME: change to `self.get_three_free_descriptor()`
         if let Ok(desc_idx) = Self::get_three_free_descriptor(&mut self.free_descriptors) {
             // Strange hack we decided was fine for the time being. We use `desc_idx.0` to index
             // into both `block_headers` and `block_status` since they're both of size
@@ -267,6 +301,8 @@ impl VirtioBlockInner {
                 flags: 2,
                 next: 0,
             };
+
+            self.request_buffers.insert(desc_idx.0, block_request);
 
             println!("DESC IDX: {:#?}", desc_idx);
 
