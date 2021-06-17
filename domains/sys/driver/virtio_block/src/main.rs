@@ -38,15 +38,17 @@ impl interface::bdev::NvmeBDev for VirtioBlock {
     fn submit_and_poll_rref(
         &self,
         mut submit: RRefDeque<BlkReq, 128>,
-        collect: RRefDeque<BlkReq, 128>,
+        mut collect: RRefDeque<BlkReq, 128>,
         write: bool,
     ) -> RpcResult<Result<(usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>)>> {
         while let Some(buffer) = submit.pop_front() {
             self.0.lock().submit_request(buffer, write);
         }
 
+        let count = self.0.lock().free_request_buffers(&mut collect);
+
         // FIXME: get correct usize for RpcResult
-        Ok(Ok((0, submit, collect)))
+        Ok(Ok((count, submit, collect)))
     }
 
     fn poll_rref(
