@@ -187,6 +187,9 @@ impl VirtioNetInner {
             panic!("Failed to negotiate virtio net features!");
         }
 
+        // Configure queue_size in common configuration
+        self.mmio.accessor.write_queue_size(DESCRIPTOR_COUNT as u16);
+
         // Setup Virtual Queues
         self.initialize_virtual_queue(0, &(self.virtual_queues.receive_queue));
         self.initialize_virtual_queue(1, &(self.virtual_queues.transmit_queue));
