@@ -150,6 +150,9 @@ impl VirtioBlockInner {
             panic!("Failed to negotiate Virtio Block features!");
         }
 
+        // Update the queue size to 256
+        self.mmio.accessor.write_queue_size(DESCRIPTOR_COUNT as u16);
+
         // Setup Virtual Queues
         self.initialize_virtual_queue(0, &(self.request_queue));
 
@@ -304,9 +307,7 @@ impl VirtioBlockInner {
 
             self.request_buffers.insert(desc_idx.0, block_request);
 
-            println!("DESC IDX: {:#?}", desc_idx);
-
-            self.request_queue.available.ring[self.request_queue.available.idx as usize] =
+            self.request_queue.available.ring[(self.request_queue.available.idx as usize) % DESCRIPTOR_COUNT] =
                 desc_idx.0 as u16;
             Mmio::memory_fence();
             self.request_queue.available.idx += 1;
