@@ -150,6 +150,9 @@ impl VirtioBlockInner {
             panic!("Failed to negotiate Virtio Block features!");
         }
 
+        // Configure queue_size in common configuration
+        self.mmio.accessor.write_queue_size(DESCRIPTOR_COUNT as u16);
+
         // Setup Virtual Queues
         self.initialize_virtual_queue(0, &(self.request_queue));
 
