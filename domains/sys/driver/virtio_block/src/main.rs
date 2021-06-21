@@ -6,7 +6,8 @@
     const_raw_ptr_to_usize_cast,
     const_in_array_repeat_expressions,
     untagged_unions,
-    maybe_uninit_extra
+    maybe_uninit_extra,
+    assoc_char_funcs
 )]
 
 extern crate alloc;
@@ -93,25 +94,68 @@ pub fn trusted_entry(
     let mut collect = RRefDeque::new([None; 128]);
 
     // Write requests to `submit`
-    for i in 0..10 {
+    for i in 0..(300 as u16) {
         let req = BlkReq {
-            data: [0x21; 4096],
+            data: [(i % 20 + 33) as u8; 4096],
             data_len: 4096,
-            block: i,
+            block: (i % 20) as u64,
         };
+
+        println!(
+            "Writing {:} to sector {:}",
+            char::from_u32((i % 20 + 33) as u32).unwrap(),
+            i % 20
+        );
+
+        libtime::sys_ns_sleep(9999999);
+
         submit.push_back(RRef::new(req));
-        println!("SUBMITTED REQUEST TO SECTOR {}", i);
+        let res = blk
+            .submit_and_poll_rref(submit, collect, true)
+            .unwrap()
+            .unwrap();
+        submit = res.1;
+        collect = res.2;
+
+        // Clear out collect
+        while let Some(_) = collect.pop_front() {}
     }
 
-    let req = BlkReq {
-        data: [0x0; 4096],
-        data_len: 4096,
-        block: 0,
-    };
-    collect.push_back(RRef::new(req));
+    // Read back and check
+    for i in 0..(20 as u16) {
+        let req = BlkReq {
+            data: [0xFF; 4096],
+            data_len: 4096,
+            block: (i % 20) as u64,
+        };
 
-    blk.submit_and_poll_rref(submit, collect, true);
-    println!("POLLING FOR SUBMITTED REQUESTS");
+        libtime::sys_ns_sleep(9999999);
+
+        submit.push_back(RRef::new(req));
+        let res = blk
+            .submit_and_poll_rref(submit, collect, false)
+            .unwrap()
+            .unwrap();
+        submit = res.1;
+        collect = res.2;
+
+        while let Some(block) = collect.pop_front() {
+            // println!("{:} == {:}?", block.data[0], block.block % 20 + 33);
+
+            if block.data == [(block.block % 20 + 33) as u8; 4096] {
+                println!("CORRECT");
+            }
+            else {
+                println!("INCORRECT!");
+            }
+        }
+
+        // Clear out collect
+        while let Some(_) = collect.pop_front() {}
+    }
+
+
+    // println!("POLLING FOR SUBMITTED REQUESTS");
     loop {}
 
     Box::new(blk)
