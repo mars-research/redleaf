@@ -48,7 +48,6 @@ impl interface::bdev::NvmeBDev for VirtioBlock {
 
         let count = self.0.lock().free_request_buffers(&mut collect);
 
-        // FIXME: get correct usize for RpcResult
         Ok(Ok((count, submit, collect)))
     }
 
@@ -140,22 +139,20 @@ pub fn trusted_entry(
         collect = res.2;
 
         while let Some(block) = collect.pop_front() {
-            // println!("{:} == {:}?", block.data[0], block.block % 20 + 33);
-
-            if block.data == [(block.block % 20 + 33) as u8; 4096] {
-                println!("CORRECT");
-            }
-            else {
-                println!("INCORRECT!");
-            }
+            println!("{:} == {:}?", block.data[0], block.block % 20 + 33);
+            assert_eq!(
+                block.data[0],
+                (block.block % 20 + 33) as u8,
+                "block.data: {:} != block.block % 20 + 33 {:}",
+                block.data[0],
+                block.block % 20 + 33
+            );
         }
 
         // Clear out collect
         while let Some(_) = collect.pop_front() {}
     }
 
-
-    // println!("POLLING FOR SUBMITTED REQUESTS");
     loop {}
 
     Box::new(blk)

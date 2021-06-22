@@ -218,14 +218,12 @@ impl VirtioBlockInner {
     }
 
     /// Errors if there are no free descriptors
-    fn get_three_free_descriptor(
-        free_descriptors: &mut [bool; DESCRIPTOR_COUNT],
-    ) -> Result<(usize, usize, usize), ()> {
+    fn get_three_free_descriptors(&mut self) -> Result<(usize, usize, usize), ()> {
         let mut desc = (None, None, None);
 
-        for i in 0..free_descriptors.len() {
-            if free_descriptors[i] {
-                free_descriptors[i] = false;
+        for i in 0..self.free_descriptors.len() {
+            if self.free_descriptors[i] {
+                self.free_descriptors[i] = false;
 
                 if (desc.0.is_none()) {
                     desc.0 = Some(i);
@@ -256,10 +254,9 @@ impl VirtioBlockInner {
                 self.free_descriptors[used_element.id as usize] = true;
                 self.free_descriptors[buffer_header_desc.next as usize] = true;
                 self.free_descriptors[buffer_data_desc.next as usize] = true;
-            } else {
-                // FIXME: How do we report errors? If we have a rogue descriptor and just hold onto it,
-                // we leak.
-                println!("ERROR: VIRTIO BLOCK: REQUEST BUFFER MISSING OR BUFFER ADDRESS CHANGED!");
+            } else if self.block_status[used_element.id as usize].status != 0 {
+                // Panic on rogue descriptors. Not ideal, but such is life.
+                panic!("ERROR: VIRTIO BLOCK: REQUEST BUFFER MISSING OR BUFFER ADDRESS CHANGED!");
             }
 
             freed_count += 1;
@@ -270,17 +267,14 @@ impl VirtioBlockInner {
     }
 
     pub fn submit_request(&mut self, block_request: RRef<BlkReq>, write: bool) {
-        // FIXME: change to `self.get_three_free_descriptor()`
-        if let Ok(desc_idx) = Self::get_three_free_descriptor(&mut self.free_descriptors) {
+        if let Ok(desc_idx) = self.get_three_free_descriptors() {
             // Strange hack we decided was fine for the time being. We use `desc_idx.0` to index
             // into both `block_headers` and `block_status` since they're both of size
             // `DESCRIPTOR_COUNT`.
             self.block_headers[desc_idx.0] = BlockBufferHeader {
                 request_type: if write { 1 } else { 0 },
                 reserved: 0,
-
-                // Since we use a data length of 4096, we have to multiply the sector size by 8
-                sector: block_request.block * 8,
+                sector: block_request.block * 8, // Data length is 4096, have to multiply by 8
             };
             self.block_status[desc_idx.0] = BlockBufferStatus { status: 0xFF };
 
