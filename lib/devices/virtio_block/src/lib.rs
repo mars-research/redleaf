@@ -12,7 +12,7 @@
 pub mod pci;
 extern crate alloc;
 
-use core::{u16, usize};
+use core::{panic, u16, usize};
 
 use alloc::sync::Arc;
 use console::println;
@@ -254,9 +254,13 @@ impl VirtioBlockInner {
                 self.free_descriptors[used_element.id as usize] = true;
                 self.free_descriptors[buffer_header_desc.next as usize] = true;
                 self.free_descriptors[buffer_data_desc.next as usize] = true;
-            } else if self.block_status[used_element.id as usize].status != 0 {
-                // Panic on rogue descriptors. Not ideal, but such is life.
+            } else {
                 panic!("ERROR: VIRTIO BLOCK: REQUEST BUFFER MISSING OR BUFFER ADDRESS CHANGED!");
+            }
+            
+            if self.block_status[used_element.id as usize].status != 0 {
+                // Panic on failed requests. Not ideal, but such is life.
+                panic!("ERROR: VIRTIO BLOCK: Block Request Failed with IO ERROR.");
             }
 
             freed_count += 1;
