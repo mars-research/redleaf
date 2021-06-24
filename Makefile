@@ -7,7 +7,7 @@
 DEBUG            ?= false
 LARGE_MEM        ?= true
 IXGBE		 	 ?= true
-VIRTIO_NET 		 ?= false
+VIRTIO_NET 		 ?= true
 VIRTIO_BLOCK 	 ?= true
 
 ifndef NO_DEFAULT_FLAGS
