@@ -9,6 +9,7 @@ libsyscalls = { path = "../../../../lib/core/libsyscalls" }
 libtime = { path = "../../../../lib/core/libtime" }
 console = { path = "../../../../lib/core/console" }
 malloc = { path = "../../../../lib/core/malloc" }
+libbenchnet = { path = "../../../lib/libbenchnet" }
 spin = { path = "../../../../lib/core/spin-rs" }
 
 smolnet = { path = "../../../../domains/lib/smolnet" }

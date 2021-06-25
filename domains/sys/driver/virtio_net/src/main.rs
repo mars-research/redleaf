@@ -83,14 +83,32 @@ impl interface::net::Net for VirtioNet {
 
     fn poll_rref(
         &self,
-        collect: RRefDeque<[u8; 1514], 512>,
+        mut collect: RRefDeque<[u8; 1514], 512>,
         tx: bool,
     ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>> {
-        unimplemented!()
+        // let mut new_packet_count = 0;
+        // let device = self.0.lock();
+
+        // if tx {
+        //     new_packet_count = device.free_processed_tx_packets(&mut collect);
+        // } else {
+        //     new_packet_count = device.get_received_packets(&mut collect);
+        // }
+
+        // Ok(Ok((new_packet_count, collect)))
+        Ok(Ok((0, collect)))
     }
 
     fn get_stats(&self) -> RpcResult<Result<NetworkStats>> {
-        unimplemented!()
+        // unimplemented!()
+        Ok(Ok(NetworkStats {
+            tx_count: 0,
+            rx_count: 0,
+            tx_dma_ok: 0,
+            rx_dma_ok: 0,
+            rx_missed: 0,
+            rx_crc_err: 0,
+        }))
     }
 
     fn test_domain_crossing(&self) -> RpcResult<()> {
@@ -124,9 +142,10 @@ pub fn trusted_entry(
     #[cfg(not(feature = "virtio_net"))]
     let net = { nullnet::NullNet::new() };
 
-    /*
     // VIRTIO DEMO LOOP
     // Run SmolNet
+
+    libbenchnet::run_fwd_udptest_rref(&net, 1514);
     let mut smol = SmolPhy::new(Box::new(net));
 
     use smoltcp::iface::{EthernetInterfaceBuilder, NeighborCache};
@@ -158,7 +177,6 @@ pub fn trusted_entry(
         httpd.handle(&mut sockets);
         iface.device_mut().do_tx();
     }
-    */
 
     Box::new(net)
 }
