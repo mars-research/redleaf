@@ -28,6 +28,11 @@ pub trait Disk {
     fn submit(&mut self, block: u64, write: bool, buffer: Box<[u8]>) -> Result<u32>;
     fn poll(&mut self, slot: u32) -> Result<Option<Box<[u8]>>>;
 
+    // fn submit_batch(
+    //     &mut self,
+    //     submit: RRefDeque<BlkReq, 128>,
+    //     write: bool,
+    // ) -> (usize, RRefDeque<BlkReq, 128>);
     fn submit_and_poll_rref(
         &mut self,
         submit: RRefDeque<BlkReq, 128>,

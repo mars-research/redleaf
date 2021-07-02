@@ -451,22 +451,17 @@ pub fn trusted_entry(
 
     // let ahci: Box<dyn interface::bdev::BDev> = Box::new(ahci);
     // let ahci: Box<dyn BDev + Send + Sync> = Box::new(ahci);
-    // run_blocktest_rref(&ahci, 8, 1);
-    run_blocktest_rref(&ahci, 256, 8);
-    run_blocktest_rref(&ahci, 512, 32);
+    run_blocktest_rref(&ahci, 8, 1);
+    run_blocktest_rref(&ahci, 256, 2);
+    // run_blocktest_rref(&ahci, 256, 8);
+    run_blocktest_rref(&ahci, 512, 8);
     run_blocktest_rref(&ahci, 1024, 32);
+    run_blocktest_rref(&ahci, 1024, 16);
     run_blocktest_rref(&ahci, 8192, 32);
     // run_blocktest_rref(&ahci, 32768, 16);
     // run_blocktest_rref(&ahci, 32768, 32);
     // run_blocktest_rref(&ahci, 128, 1);
     // run_blocktest_rref(&ahci, 512, 1);
-
-    // run_async_benchmark(&ahci, 16);
-    // run_async_benchmark(&ahci, 32);
-    // run_async_benchmark(&ahci, 64);
-    // run_async_benchmark(&ahci, 128);
-    // run_async_benchmark(&ahci, 512);
-    // run_async_benchmark(&ahci, 1024);
 
     run_async_benchmark(&ahci, 32768, true);
     run_async_benchmark(&ahci, 32768, false);

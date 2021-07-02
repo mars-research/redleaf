@@ -434,6 +434,83 @@ impl HbaPort {
         Some(sectors * 512)
     }
 
+    pub fn batch_dma(
+        &mut self,
+        block: u64,
+        sectors: u16,
+        write: bool,
+        clb: &mut Dma<[HbaCmdHeader; 32]>,
+        ctbas: &mut [Dma<HbaCmdTable>; 32],
+        buf_arr: [Option<Box<[u8]>>; 128],
+    ) -> Option<u32> {
+        if sectors > 0xFFFF {
+            println!("Cannot R/W to more than {} sectors at a time", 0xFFFF);
+            return None;
+        }
+
+        let slot = self.ata_start(clb, ctbas, |cmdheader, cmdfis, prdt_entries, _acmd| {
+            if write {
+                let cfl = cmdheader.cfl.read();
+                const COMMAND_HEADER_DW0_W: u8 = 1 << 6;
+                cmdheader.cfl.write(cfl | COMMAND_HEADER_DW0_W);
+            }
+
+            let mut num_chuncks = 0;
+            for i in 0..buf_arr.len() {
+                let buf = &buf_arr[i];
+                if buf.is_none() {
+                    break;
+                }
+                let buf = buf.as_ref().unwrap();
+                let chuncks = buf.chunks(MAX_BYTES_PER_PRDT_ENTRY);
+                // num_chuncks += chuncks.len() as u16;
+                // // let chunk = &**buf;
+                // for (chunck, prdt_entry) in chuncks.zip(prdt_entries.iter_mut()) {
+                //     prdt_entry.dba.write(chunck.as_ptr() as u64);
+                //     prdt_entry.dbc.write((chunck.len() as u32) - 1);
+                // }
+                // TODO: figure out mutable in array
+                // let prdt_entry = &mut prdt_entries[i];
+                // prdt_entry.dba.write(chunck.as_ptr() as u64);
+                // prdt_entry.dbc.write((chunck.len() as u32) - 1);
+
+                num_chuncks += chuncks.len() as u16;
+                for chunck in chuncks {
+                    let prdt_entry = &mut prdt_entries[i];
+                    // console::println!("prdt_entry[{}] used, len = {}", i, chunck.len() - 1);
+                    prdt_entry.dba.write(chunck.as_ptr() as u64);
+                    prdt_entry.dbc.write((chunck.len() as u32) - 1);
+                }
+            }
+            // console::println!("sector = {}, num_chuncks = {}", sectors, num_chuncks);
+
+            cmdheader.prdtl.write(num_chuncks);
+            // println!("The buffer is splitted into {} chuncks", num_chuncks);
+
+            cmdfis.pm.write(1 << 7);
+            if write {
+                cmdfis.command.write(ATA_CMD_WRITE_DMA_EXT);
+            } else {
+                cmdfis.command.write(ATA_CMD_READ_DMA_EXT);
+            }
+
+            cmdfis.lba0.write(block as u8);
+            cmdfis.lba1.write((block >> 8) as u8);
+            cmdfis.lba2.write((block >> 16) as u8);
+
+            cmdfis.device.write(1 << 6);
+
+            cmdfis.lba3.write((block >> 24) as u8);
+            cmdfis.lba4.write((block >> 32) as u8);
+            cmdfis.lba5.write((block >> 40) as u8);
+
+            cmdfis.countl.write((sectors & 0xff) as u8);
+            cmdfis.counth.write((sectors >> 8) as u8);
+        });
+        // self.start(&self.hba);
+        return slot;
+    }
+
     pub fn ata_dma(
         &mut self,
         block: u64,

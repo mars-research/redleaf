@@ -24,9 +24,11 @@ extern crate alloc;
 
 use alloc::boxed::Box;
 
+use array_init::array_init;
 // use console::println;
 use libsyscalls::errors::Result;
 use libsyscalls::errors::{Error, EBUSY, EINVAL};
+use rref::traits::CustomCleanup;
 
 use super::disk::Disk;
 use super::hba::HbaPort;
@@ -76,6 +78,7 @@ pub struct DiskATA {
     // requests_opt: [Option<BlkReq>; 32],
     requests_opt: [Option<Request>; 32],
     blkreqs_opt: [Option<RRef<BlkReq>>; 32],
+    blk_batch_opt: [Option<RRefDeque<BlkReq, 128>>; 32],
     // request_opt: Option<Request>,
     clb: Dma<[HbaCmdHeader; 32]>,
     ctbas: [Dma<HbaCmdTable>; 32],
@@ -133,6 +136,7 @@ impl DiskATA {
             // request_opt: None,
             requests_opt: array_init::array_init(|_| None),
             blkreqs_opt: array_init::array_init(|_| None),
+            blk_batch_opt: array_init::array_init(|_| None),
             clb,
             ctbas,
             _fb: fb,
@@ -141,6 +145,77 @@ impl DiskATA {
                 completed: 0,
             },
         })
+    }
+
+    fn submit_serial_batch(&mut self, submit: &mut RRefDeque<BlkReq, 128>, write: bool) -> usize {
+        // console::println!("submit_batch size = {}", submit.len());
+        let mut submit_count = 0;
+        let mut start_block = 0;
+        // let mut buffers = RRefDeque::<Box<[u8]>, 128>::default();
+        let mut buf_arr: [Option<Box<[u8]>>; 128] = array_init(|_| None);
+        let mut total_sectors = 0;
+        let mut submit_iter = submit.iter();
+        let mut curr = 0;
+        let mut _submit = RRefDeque::<BlkReq, 128>::default();
+
+        while let Some(mut block_req) = submit.pop_front() {
+            if submit_count == 0 {
+                start_block = block_req.block;
+            }
+            submit_count += 1;
+
+            let buffer;
+            let data = &mut block_req.data[..];
+
+            if write {
+                buffer = unsafe { Box::from_raw(data as *const [u8] as *mut [u8]) };
+            } else {
+                buffer = unsafe { Box::from_raw(data as *mut [u8]) };
+            }
+
+            total_sectors += buffer.len() as u64 / 512;
+            buf_arr[curr] = Some(buffer);
+            curr += 1;
+
+            _submit.push_back(block_req);
+        }
+
+        // for block_req in submit_iter {
+        //     if submit_count == 0 {
+        //         start_block = block_req.block;
+        //     }
+        //     submit_count += 1;
+
+        //     let buffer;
+        //     let data = &mut block_req.data[..];
+
+        //     if write {
+        //         buffer = unsafe { Box::from_raw(data as *const [u8] as *mut [u8]) };
+        //     } else {
+        //         buffer = unsafe { Box::from_raw(data as *mut [u8]) };
+        //     }
+
+        //     total_sectors += buffer.len() as u64 / 512;
+        //     buf_arr[curr] = Some(buffer);
+        // }
+
+        if let Some(slot) = self.port.batch_dma(
+            start_block,
+            total_sectors as u16,
+            write,
+            &mut self.clb,
+            &mut self.ctbas,
+            buf_arr,
+        ) {
+            self.port.set_slot_ready(slot, false);
+            self.blk_batch_opt[slot as usize] = Some(_submit);
+            self.stats.submitted += 1;
+        } else {
+            // No slots available
+            // TODO: should return submit back
+        }
+
+        submit_count
     }
 }
 
@@ -323,6 +398,25 @@ impl Disk for DiskATA {
 
     //     (submit_count, submit, collect)
     // }
+    // fn submit_batch(
+    //     &mut self,
+    //     mut submit: RRefDeque<BlkReq, 128>,
+    //     write: bool,
+    // ) -> (uszie, RRefDeque<BlkReq, 128>) {
+    //     if submit.len() == 0 {
+    //         return (0, submit);
+    //     }
+
+    //     let mut submit_count = 0;
+    //     let mut prev_block_num = 0;
+    //     let mut command_batch = RRefDeque::<BlkReq, 128>::default();
+    //     while let Some(mut block_req) = submit.pop_front() {
+    //         if command_batch.len() == 0 || prev_block_num + 1 == block_req.block {
+    //             prev_block_num = block_req.block;
+    //             command_batch.push_back(block_req);
+    //         }
+    //     }
+    // }
 
     fn submit_and_poll_rref(
         &mut self,
@@ -331,6 +425,7 @@ impl Disk for DiskATA {
         write: bool,
     ) -> (usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>) {
         // console::println!("Entered submit and poll rref: write = {}", write);
+        // console::println!("submit size = {}", submit.len());
         let mut submit_count = 0;
 
         for i in 0..32 {
@@ -341,87 +436,150 @@ impl Disk for DiskATA {
         }
 
         self.port.stop_port_dma();
+
+        let mut prev_block_num = 0;
+        let mut command_batch = RRefDeque::<BlkReq, 128>::default();
+
         while let Some(mut block_req) = submit.pop_front() {
-            let block = block_req.block;
-            // let mut data = block_req.data;
-            // let buffer;
+            if (command_batch.len() == 0) || (prev_block_num + 1 == block_req.block) {
+                prev_block_num = block_req.block;
+                command_batch.push_back(block_req);
 
-            // if write {
-            //     buffer = unsafe { Box::from_raw(&data as *const [u8] as *mut [u8]) };
-            // } else {
-            //     buffer = unsafe { Box::from_raw(&mut data as *mut [u8]) };
-            // }
-            let buffer;
-
-            let data = &mut block_req.data[..];
-            if write {
-                buffer = unsafe { Box::from_raw(data as *const [u8] as *mut [u8]) };
+                if submit.len() == 0 {
+                    // console::println!("command_batch size = {}", command_batch.len());
+                    let count = self.submit_serial_batch(&mut command_batch, write);
+                    submit_count += count;
+                }
             } else {
-                // let data = &block_req.data[..];
-                buffer = unsafe { Box::from_raw(data as *mut [u8]) };
-            }
-
-            // let buffer = &data[..];
-            // let buffer = Box::new(buffer);
-
-            assert!(
-                buffer.len() % 512 == 0,
-                "Must read a multiple of block size number of bytes"
-            );
-
-            // let address = &*buffer as *const [u8] as *const () as usize;
-            let total_sectors = buffer.len() as u64 / 512;
-
-            if let Some(slot) = self.port.ata_dma(
-                block,
-                total_sectors as u16,
-                write,
-                &mut self.clb,
-                &mut self.ctbas,
-                &*buffer,
-            ) {
-                // Submitted, create the corresponding BlkReq in self.blkreqs_opt
-                // console::println!(
-                //     "request with block {} now in slot {}",
-                //     block_req.block,
-                //     slot
-                // );
-                self.port.set_slot_ready(slot, false);
-                self.blkreqs_opt[slot as usize] = Some(block_req);
-                submit_count += 1;
-                self.stats.submitted += 1;
-
-                // while self.port.ata_running(slot) {
-                //     // Spin
-                // }
-            } else {
-                // No slots available, push back the block_req
-                // TODO: possibly submit has no space?
-                submit.push_back(block_req);
+                let count = self.submit_serial_batch(&mut command_batch, write);
+                submit_count += count;
+                assert!(command_batch.len() == 0);
+                command_batch.push_back(block_req);
             }
         }
+
         self.port.start_port_dma();
 
-        for slot in 0..self.requests_opt.len() {
+        for slot in 0..self.blk_batch_opt.len() {
             let slot = slot as u32;
-            if let None = self.blkreqs_opt[slot as usize] {
+            if let None = self.blk_batch_opt[slot as usize] {
                 continue;
             }
             if !self.port.ata_running(slot) {
-                // Make sure there's space in collect then do the following
-                let block_req = self.blkreqs_opt[slot as usize].take().unwrap();
+                let mut req_deque = self.blk_batch_opt[slot as usize].take().unwrap();
                 self.port.set_slot_ready(slot, true);
                 self.port.ata_stop(slot);
-                // console::println!("slot {} - block {} finished.", slot, block_req.block);
-                collect.push_back(block_req);
+
+                while let Some(blk_req) = req_deque.pop_front() {
+                    collect.push_back(blk_req);
+                }
                 self.stats.completed += 1;
             } else {
-                // console::println!("request at slot {} still running...", slot);
+                // console::println!("slot {} is still running", slot);
             }
         }
 
         (submit_count, submit, collect)
     }
+
+    // fn submit_and_poll_rref(
+    //     &mut self,
+    //     mut submit: RRefDeque<BlkReq, 128>,
+    //     mut collect: RRefDeque<BlkReq, 128>,
+    //     write: bool,
+    // ) -> (usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>) {
+    //     // console::println!("Entered submit and poll rref: write = {}", write);
+    //     let mut submit_count = 0;
+
+    //     for i in 0..32 {
+    //         while self.port.ata_running(i) {
+    //             // console::println!("waiting for port {} to finish before submitting", i);
+    //             // Spin
+    //         }
+    //     }
+
+    //     self.port.stop_port_dma();
+    //     while let Some(mut block_req) = submit.pop_front() {
+    //         let block = block_req.block;
+    //         // let mut data = block_req.data;
+    //         // let buffer;
+
+    //         // if write {
+    //         //     buffer = unsafe { Box::from_raw(&data as *const [u8] as *mut [u8]) };
+    //         // } else {
+    //         //     buffer = unsafe { Box::from_raw(&mut data as *mut [u8]) };
+    //         // }
+    //         let buffer;
+
+    //         let data = &mut block_req.data[..];
+    //         if write {
+    //             buffer = unsafe { Box::from_raw(data as *const [u8] as *mut [u8]) };
+    //         } else {
+    //             // let data = &block_req.data[..];
+    //             buffer = unsafe { Box::from_raw(data as *mut [u8]) };
+    //         }
+
+    //         // let buffer = &data[..];
+    //         // let buffer = Box::new(buffer);
+
+    //         assert!(
+    //             buffer.len() % 512 == 0,
+    //             "Must read a multiple of block size number of bytes"
+    //         );
+
+    //         // let address = &*buffer as *const [u8] as *const () as usize;
+    //         let total_sectors = buffer.len() as u64 / 512;
+
+    //         if let Some(slot) = self.port.ata_dma(
+    //             block,
+    //             total_sectors as u16,
+    //             write,
+    //             &mut self.clb,
+    //             &mut self.ctbas,
+    //             &*buffer,
+    //         ) {
+    //             // Submitted, create the corresponding BlkReq in self.blkreqs_opt
+    //             // console::println!(
+    //             //     "request with block {} now in slot {}",
+    //             //     block_req.block,
+    //             //     slot
+    //             // );
+    //             self.port.set_slot_ready(slot, false);
+    //             self.blkreqs_opt[slot as usize] = Some(block_req);
+    //             submit_count += 1;
+    //             self.stats.submitted += 1;
+
+    //             // while self.port.ata_running(slot) {
+    //             //     // Spin
+    //             // }
+    //         } else {
+    //             // No slots available, push back the block_req
+    //             // TODO: possibly submit has no space?
+    //             submit.push_back(block_req);
+    //         }
+    //     }
+    //     self.port.start_port_dma();
+
+    //     for slot in 0..self.requests_opt.len() {
+    //         let slot = slot as u32;
+    //         if let None = self.blkreqs_opt[slot as usize] {
+    //             continue;
+    //         }
+    //         if !self.port.ata_running(slot) {
+    //             // Make sure there's space in collect then do the following
+    //             let block_req = self.blkreqs_opt[slot as usize].take().unwrap();
+    //             self.port.set_slot_ready(slot, true);
+    //             self.port.ata_stop(slot);
+    //             // console::println!("slot {} - block {} finished.", slot, block_req.block);
+    //             collect.push_back(block_req);
+    //             self.stats.completed += 1;
+    //         } else {
+    //             // console::println!("request at slot {} still running...", slot);
+    //         }
+    //     }
+
+    //     (submit_count, submit, collect)
+    // }
 
     fn poll_rref(
         &mut self,
