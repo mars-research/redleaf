@@ -1048,6 +1048,7 @@ dependencies = [
  "console",
  "hashbrown 0.7.2",
  "interface",
+ "libbenchnet",
  "libsyscalls",
  "libtime",
  "malloc",

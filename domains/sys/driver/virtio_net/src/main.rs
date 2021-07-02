@@ -146,6 +146,7 @@ pub fn trusted_entry(
     // Run SmolNet
 
     libbenchnet::run_fwd_udptest_rref(&net, 1514);
+
     let mut smol = SmolPhy::new(Box::new(net));
 
     use smoltcp::iface::{EthernetInterfaceBuilder, NeighborCache};

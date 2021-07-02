@@ -314,7 +314,7 @@ impl VirtioNetInner {
             // Mark the buffer as usable
             rx_q.available.ring[(rx_q.available.idx as usize) % DESCRIPTOR_COUNT] =
                 header_idx as u16;
-            rx_q.available.idx += 1; // We only added one "chain head"
+            rx_q.available.idx = rx_q.available.idx.wrapping_add(1); // We only added one "chain head"
         } else {
             println!("ERR: Virtio Net RX: Invariant failed, free descriptor count does not match number of free descriptors!");
         }
@@ -370,7 +370,12 @@ impl VirtioNetInner {
             self.virtual_queues.transmit_queue.available.ring
                 [(self.virtual_queues.transmit_queue.available.idx as usize) % DESCRIPTOR_COUNT] =
                 header_idx as u16;
-            self.virtual_queues.transmit_queue.available.idx += 1;
+            self.virtual_queues.transmit_queue.available.idx = self
+                .virtual_queues
+                .transmit_queue
+                .available
+                .idx
+                .wrapping_add(1);
         } else {
             println!("ERR: Virtio Net TX: No Free Buffers!");
             return Err(());
@@ -405,7 +410,7 @@ impl VirtioNetInner {
         /// We have to return the number of packets received
         let mut new_packets_count = 0;
 
-        while self.rx_last_idx < self.virtual_queues.receive_queue.used.idx {
+        while self.rx_last_idx != self.virtual_queues.receive_queue.used.idx {
             let used_element = self.virtual_queues.receive_queue.used.ring
                 [(self.rx_last_idx as usize) % DESCRIPTOR_COUNT];
             let used_element_descriptor =
@@ -426,7 +431,7 @@ impl VirtioNetInner {
                 println!("ERROR: VIRTIO NET: RX BUFFER MISSING OR BUFFER ADDRESS CHANGED!");
             }
 
-            self.rx_last_idx += 1;
+            self.rx_last_idx = self.rx_last_idx.wrapping_add(1);
         }
 
         new_packets_count
@@ -438,7 +443,7 @@ impl VirtioNetInner {
     ) -> usize {
         let mut freed_count = 0;
 
-        while self.tx_last_idx < self.virtual_queues.transmit_queue.used.idx {
+        while self.tx_last_idx != self.virtual_queues.transmit_queue.used.idx {
             let used_element = self.virtual_queues.transmit_queue.used.ring
                 [(self.tx_last_idx as usize) % DESCRIPTOR_COUNT];
             let used_element_descriptor =
@@ -457,7 +462,7 @@ impl VirtioNetInner {
             }
 
             freed_count += 1;
-            self.tx_last_idx += 1;
+            self.tx_last_idx = self.tx_last_idx.wrapping_add(1);
         }
 
         freed_count

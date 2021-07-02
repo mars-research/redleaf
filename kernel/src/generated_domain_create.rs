@@ -85,8 +85,8 @@ pub(crate) fn dom_proxy_create_domain_proxy(
         _binary_domains_build_dom_proxy_end as *const u8,
     );
     type UserInit_ = fn(
-        ::alloc::boxed::Box<dyn::syscalls::Syscall>,
-        ::alloc::boxed::Box<dyn::syscalls::Heap>,
+        ::alloc::boxed::Box<dyn ::syscalls::Syscall>,
+        ::alloc::boxed::Box<dyn ::syscalls::Heap>,
         create_pci: alloc::sync::Arc<dyn interface::domain_create::CreatePCI>,
         create_membdev: alloc::sync::Arc<dyn interface::domain_create::CreateMemBDev>,
         create_bdev_shadow: alloc::sync::Arc<dyn interface::domain_create::CreateBDevShadow>,
@@ -150,7 +150,7 @@ pub(crate) fn dom_proxy_create_domain_proxy(
     }
     #[cfg(feature = "domain_create_log")]
     println!("domain/{}: returned from entry point", "dom_proxy");
-    let dom_: ::alloc::boxed::Box<dyn::syscalls::Domain> = ::alloc::boxed::Box::new(
+    let dom_: ::alloc::boxed::Box<dyn ::syscalls::Domain> = ::alloc::boxed::Box::new(
         crate::syscalls::PDomain::new(::alloc::sync::Arc::clone(&dom_)),
     );
     let rtn_ = (dom_, ep_rtn_);
@@ -264,8 +264,8 @@ pub(crate) fn membdev_create_domain_membdev(
         _binary_domains_build_membdev_end as *const u8,
     );
     type UserInit_ = fn(
-        ::alloc::boxed::Box<dyn::syscalls::Syscall>,
-        ::alloc::boxed::Box<dyn::syscalls::Heap>,
+        ::alloc::boxed::Box<dyn ::syscalls::Syscall>,
+        ::alloc::boxed::Box<dyn ::syscalls::Heap>,
         memdisk: &'static mut [u8],
     ) -> alloc::boxed::Box<dyn interface::bdev::BDev>;
     let (dom_, entry_) = unsafe { crate::domain::load_domain("membdev", binary_range_) };
@@ -289,7 +289,7 @@ pub(crate) fn membdev_create_domain_membdev(
     }
     #[cfg(feature = "domain_create_log")]
     println!("domain/{}: returned from entry point", "membdev");
-    let dom_: ::alloc::boxed::Box<dyn::syscalls::Domain> = ::alloc::boxed::Box::new(
+    let dom_: ::alloc::boxed::Box<dyn ::syscalls::Domain> = ::alloc::boxed::Box::new(
         crate::syscalls::PDomain::new(::alloc::sync::Arc::clone(&dom_)),
     );
     let rtn_ = (dom_, ep_rtn_);
@@ -313,8 +313,8 @@ pub(crate) fn membdev_recreate_domain_membdev(
         _binary_domains_build_membdev_end as *const u8,
     );
     type UserInit_ = fn(
-        ::alloc::boxed::Box<dyn::syscalls::Syscall>,
-        ::alloc::boxed::Box<dyn::syscalls::Heap>,
+        ::alloc::boxed::Box<dyn ::syscalls::Syscall>,
+        ::alloc::boxed::Box<dyn ::syscalls::Heap>,
         dom: alloc::boxed::Box<dyn syscalls::Domain>,
         memdisk: &'static mut [u8],
     ) -> alloc::boxed::Box<dyn interface::bdev::BDev>;
@@ -344,7 +344,7 @@ pub(crate) fn membdev_recreate_domain_membdev(
     }
     #[cfg(feature = "domain_create_log")]
     println!("domain/{}: returned from entry point", "membdev");
-    let dom_: ::alloc::boxed::Box<dyn::syscalls::Domain> = ::alloc::boxed::Box::new(
+    let dom_: ::alloc::boxed::Box<dyn ::syscalls::Domain> = ::alloc::boxed::Box::new(
         crate::syscalls::PDomain::new(::alloc::sync::Arc::clone(&dom_)),
     );
     let rtn_ = (dom_, ep_rtn_);
@@ -383,8 +383,8 @@ pub(crate) fn bdev_shadow_create_domain_bdev_shadow(
         _binary_domains_build_bdev_shadow_end as *const u8,
     );
     type UserInit_ = fn(
-        ::alloc::boxed::Box<dyn::syscalls::Syscall>,
-        ::alloc::boxed::Box<dyn::syscalls::Heap>,
+        ::alloc::boxed::Box<dyn ::syscalls::Syscall>,
+        ::alloc::boxed::Box<dyn ::syscalls::Heap>,
         create: alloc::sync::Arc<dyn interface::domain_create::CreateMemBDev>,
     ) -> alloc::boxed::Box<dyn interface::bdev::BDev>;
     let (dom_, entry_) = unsafe { crate::domain::load_domain("bdev_shadow", binary_range_) };
@@ -412,7 +412,7 @@ pub(crate) fn bdev_shadow_create_domain_bdev_shadow(
     }
     #[cfg(feature = "domain_create_log")]
     println!("domain/{}: returned from entry point", "bdev_shadow");
-    let dom_: ::alloc::boxed::Box<dyn::syscalls::Domain> = ::alloc::boxed::Box::new(
+    let dom_: ::alloc::boxed::Box<dyn ::syscalls::Domain> = ::alloc::boxed::Box::new(
         crate::syscalls::PDomain::new(::alloc::sync::Arc::clone(&dom_)),
     );
     let rtn_ = (dom_, ep_rtn_);
@@ -449,8 +449,8 @@ pub(crate) fn ixgbe_create_domain_ixgbe(
         _binary_domains_build_ixgbe_end as *const u8,
     );
     type UserInit_ = fn(
-        ::alloc::boxed::Box<dyn::syscalls::Syscall>,
-        ::alloc::boxed::Box<dyn::syscalls::Heap>,
+        ::alloc::boxed::Box<dyn ::syscalls::Syscall>,
+        ::alloc::boxed::Box<dyn ::syscalls::Heap>,
         pci: alloc::boxed::Box<dyn interface::pci::PCI>,
     ) -> alloc::boxed::Box<dyn interface::net::Net>;
     let (dom_, entry_) = unsafe { crate::domain::load_domain("ixgbe", binary_range_) };
@@ -478,7 +478,7 @@ pub(crate) fn ixgbe_create_domain_ixgbe(
     }
     #[cfg(feature = "domain_create_log")]
     println!("domain/{}: returned from entry point", "ixgbe");
-    let dom_: ::alloc::boxed::Box<dyn::syscalls::Domain> = ::alloc::boxed::Box::new(
+    let dom_: ::alloc::boxed::Box<dyn ::syscalls::Domain> = ::alloc::boxed::Box::new(
         crate::syscalls::PDomain::new(::alloc::sync::Arc::clone(&dom_)),
     );
     let rtn_ = (dom_, ep_rtn_);
@@ -516,8 +516,8 @@ pub(crate) fn virtio_net_create_domain_virtio_net(
         _binary_domains_build_virtio_net_end as *const u8,
     );
     type UserInit_ = fn(
-        ::alloc::boxed::Box<dyn::syscalls::Syscall>,
-        ::alloc::boxed::Box<dyn::syscalls::Heap>,
+        ::alloc::boxed::Box<dyn ::syscalls::Syscall>,
+        ::alloc::boxed::Box<dyn ::syscalls::Heap>,
         pci: alloc::boxed::Box<dyn interface::pci::PCI>,
     ) -> alloc::boxed::Box<dyn interface::net::Net>;
     let (dom_, entry_) = unsafe { crate::domain::load_domain("virtio_net", binary_range_) };
@@ -545,7 +545,7 @@ pub(crate) fn virtio_net_create_domain_virtio_net(
     }
     #[cfg(feature = "domain_create_log")]
     println!("domain/{}: returned from entry point", "virtio_net");
-    let dom_: ::alloc::boxed::Box<dyn::syscalls::Domain> = ::alloc::boxed::Box::new(
+    let dom_: ::alloc::boxed::Box<dyn ::syscalls::Domain> = ::alloc::boxed::Box::new(
         crate::syscalls::PDomain::new(::alloc::sync::Arc::clone(&dom_)),
     );
     let rtn_ = (dom_, ep_rtn_);
@@ -584,8 +584,8 @@ pub(crate) fn virtio_block_create_domain_virtio_block(
         _binary_domains_build_virtio_block_end as *const u8,
     );
     type UserInit_ = fn(
-        ::alloc::boxed::Box<dyn::syscalls::Syscall>,
-        ::alloc::boxed::Box<dyn::syscalls::Heap>,
+        ::alloc::boxed::Box<dyn ::syscalls::Syscall>,
+        ::alloc::boxed::Box<dyn ::syscalls::Heap>,
         pci: alloc::boxed::Box<dyn interface::pci::PCI>,
     ) -> alloc::boxed::Box<dyn interface::bdev::NvmeBDev>;
     let (dom_, entry_) = unsafe { crate::domain::load_domain("virtio_block", binary_range_) };
@@ -613,7 +613,7 @@ pub(crate) fn virtio_block_create_domain_virtio_block(
     }
     #[cfg(feature = "domain_create_log")]
     println!("domain/{}: returned from entry point", "virtio_block");
-    let dom_: ::alloc::boxed::Box<dyn::syscalls::Domain> = ::alloc::boxed::Box::new(
+    let dom_: ::alloc::boxed::Box<dyn ::syscalls::Domain> = ::alloc::boxed::Box::new(
         crate::syscalls::PDomain::new(::alloc::sync::Arc::clone(&dom_)),
     );
     let rtn_ = (dom_, ep_rtn_);
@@ -655,8 +655,8 @@ pub(crate) fn net_shadow_create_domain_net_shadow(
         _binary_domains_build_net_shadow_end as *const u8,
     );
     type UserInit_ = fn(
-        ::alloc::boxed::Box<dyn::syscalls::Syscall>,
-        ::alloc::boxed::Box<dyn::syscalls::Heap>,
+        ::alloc::boxed::Box<dyn ::syscalls::Syscall>,
+        ::alloc::boxed::Box<dyn ::syscalls::Heap>,
         create: alloc::sync::Arc<dyn interface::domain_create::CreateIxgbe>,
         pci: alloc::boxed::Box<dyn interface::pci::PCI>,
     ) -> alloc::boxed::Box<dyn interface::net::Net>;
@@ -686,7 +686,7 @@ pub(crate) fn net_shadow_create_domain_net_shadow(
     }
     #[cfg(feature = "domain_create_log")]
     println!("domain/{}: returned from entry point", "net_shadow");
-    let dom_: ::alloc::boxed::Box<dyn::syscalls::Domain> = ::alloc::boxed::Box::new(
+    let dom_: ::alloc::boxed::Box<dyn ::syscalls::Domain> = ::alloc::boxed::Box::new(
         crate::syscalls::PDomain::new(::alloc::sync::Arc::clone(&dom_)),
     );
     let rtn_ = (dom_, ep_rtn_);
@@ -728,8 +728,8 @@ pub(crate) fn nvme_shadow_create_domain_nvme_shadow(
         _binary_domains_build_nvme_shadow_end as *const u8,
     );
     type UserInit_ = fn(
-        ::alloc::boxed::Box<dyn::syscalls::Syscall>,
-        ::alloc::boxed::Box<dyn::syscalls::Heap>,
+        ::alloc::boxed::Box<dyn ::syscalls::Syscall>,
+        ::alloc::boxed::Box<dyn ::syscalls::Heap>,
         create: alloc::sync::Arc<dyn interface::domain_create::CreateNvme>,
         pci: alloc::boxed::Box<dyn interface::pci::PCI>,
     ) -> alloc::boxed::Box<dyn interface::bdev::NvmeBDev>;
@@ -759,7 +759,7 @@ pub(crate) fn nvme_shadow_create_domain_nvme_shadow(
     }
     #[cfg(feature = "domain_create_log")]
     println!("domain/{}: returned from entry point", "nvme_shadow");
-    let dom_: ::alloc::boxed::Box<dyn::syscalls::Domain> = ::alloc::boxed::Box::new(
+    let dom_: ::alloc::boxed::Box<dyn ::syscalls::Domain> = ::alloc::boxed::Box::new(
         crate::syscalls::PDomain::new(::alloc::sync::Arc::clone(&dom_)),
     );
     let rtn_ = (dom_, ep_rtn_);
@@ -796,8 +796,8 @@ pub(crate) fn nvme_create_domain_nvme(
         _binary_domains_build_nvme_end as *const u8,
     );
     type UserInit_ = fn(
-        ::alloc::boxed::Box<dyn::syscalls::Syscall>,
-        ::alloc::boxed::Box<dyn::syscalls::Heap>,
+        ::alloc::boxed::Box<dyn ::syscalls::Syscall>,
+        ::alloc::boxed::Box<dyn ::syscalls::Heap>,
         pci: alloc::boxed::Box<dyn interface::pci::PCI>,
     ) -> alloc::boxed::Box<dyn interface::bdev::NvmeBDev>;
     let (dom_, entry_) = unsafe { crate::domain::load_domain("nvme", binary_range_) };
@@ -825,7 +825,7 @@ pub(crate) fn nvme_create_domain_nvme(
     }
     #[cfg(feature = "domain_create_log")]
     println!("domain/{}: returned from entry point", "nvme");
-    let dom_: ::alloc::boxed::Box<dyn::syscalls::Domain> = ::alloc::boxed::Box::new(
+    let dom_: ::alloc::boxed::Box<dyn ::syscalls::Domain> = ::alloc::boxed::Box::new(
         crate::syscalls::PDomain::new(::alloc::sync::Arc::clone(&dom_)),
     );
     let rtn_ = (dom_, ep_rtn_);
@@ -862,8 +862,8 @@ pub(crate) fn xv6fs_create_domain_xv6fs(
         _binary_domains_build_xv6fs_end as *const u8,
     );
     type UserInit_ = fn(
-        ::alloc::boxed::Box<dyn::syscalls::Syscall>,
-        ::alloc::boxed::Box<dyn::syscalls::Heap>,
+        ::alloc::boxed::Box<dyn ::syscalls::Syscall>,
+        ::alloc::boxed::Box<dyn ::syscalls::Heap>,
         bdev: alloc::boxed::Box<dyn interface::bdev::BDev>,
     ) -> alloc::boxed::Box<dyn interface::vfs::VFS>;
     let (dom_, entry_) = unsafe { crate::domain::load_domain("xv6fs", binary_range_) };
@@ -891,7 +891,7 @@ pub(crate) fn xv6fs_create_domain_xv6fs(
     }
     #[cfg(feature = "domain_create_log")]
     println!("domain/{}: returned from entry point", "xv6fs");
-    let dom_: ::alloc::boxed::Box<dyn::syscalls::Domain> = ::alloc::boxed::Box::new(
+    let dom_: ::alloc::boxed::Box<dyn ::syscalls::Domain> = ::alloc::boxed::Box::new(
         crate::syscalls::PDomain::new(::alloc::sync::Arc::clone(&dom_)),
     );
     let rtn_ = (dom_, ep_rtn_);
@@ -928,8 +928,8 @@ pub(crate) fn xv6net_create_domain_xv6net(
         _binary_domains_build_xv6net_end as *const u8,
     );
     type UserInit_ = fn(
-        ::alloc::boxed::Box<dyn::syscalls::Syscall>,
-        ::alloc::boxed::Box<dyn::syscalls::Heap>,
+        ::alloc::boxed::Box<dyn ::syscalls::Syscall>,
+        ::alloc::boxed::Box<dyn ::syscalls::Heap>,
         net: alloc::boxed::Box<dyn interface::net::Net>,
     ) -> alloc::boxed::Box<dyn interface::usrnet::UsrNet>;
     let (dom_, entry_) = unsafe { crate::domain::load_domain("xv6net", binary_range_) };
@@ -957,7 +957,7 @@ pub(crate) fn xv6net_create_domain_xv6net(
     }
     #[cfg(feature = "domain_create_log")]
     println!("domain/{}: returned from entry point", "xv6net");
-    let dom_: ::alloc::boxed::Box<dyn::syscalls::Domain> = ::alloc::boxed::Box::new(
+    let dom_: ::alloc::boxed::Box<dyn ::syscalls::Domain> = ::alloc::boxed::Box::new(
         crate::syscalls::PDomain::new(::alloc::sync::Arc::clone(&dom_)),
     );
     let rtn_ = (dom_, ep_rtn_);
@@ -999,8 +999,8 @@ pub(crate) fn xv6net_shadow_create_domain_xv6net_shadow(
         _binary_domains_build_xv6net_shadow_end as *const u8,
     );
     type UserInit_ = fn(
-        ::alloc::boxed::Box<dyn::syscalls::Syscall>,
-        ::alloc::boxed::Box<dyn::syscalls::Heap>,
+        ::alloc::boxed::Box<dyn ::syscalls::Syscall>,
+        ::alloc::boxed::Box<dyn ::syscalls::Heap>,
         create: alloc::sync::Arc<dyn interface::domain_create::CreateRv6Net>,
         net: alloc::boxed::Box<dyn interface::net::Net>,
     ) -> alloc::boxed::Box<dyn interface::usrnet::UsrNet>;
@@ -1030,7 +1030,7 @@ pub(crate) fn xv6net_shadow_create_domain_xv6net_shadow(
     }
     #[cfg(feature = "domain_create_log")]
     println!("domain/{}: returned from entry point", "xv6net_shadow");
-    let dom_: ::alloc::boxed::Box<dyn::syscalls::Domain> = ::alloc::boxed::Box::new(
+    let dom_: ::alloc::boxed::Box<dyn ::syscalls::Domain> = ::alloc::boxed::Box::new(
         crate::syscalls::PDomain::new(::alloc::sync::Arc::clone(&dom_)),
     );
     let rtn_ = (dom_, ep_rtn_);
@@ -1071,8 +1071,8 @@ pub(crate) fn xv6_user_create_domain_xv6usr(
     let end_ = unsafe { begin_.offset(blob.len() as isize) };
     let binary_range_ = (begin_, end_);
     type UserInit_ = fn(
-        ::alloc::boxed::Box<dyn::syscalls::Syscall>,
-        ::alloc::boxed::Box<dyn::syscalls::Heap>,
+        ::alloc::boxed::Box<dyn ::syscalls::Syscall>,
+        ::alloc::boxed::Box<dyn ::syscalls::Heap>,
         xv6: alloc::boxed::Box<dyn interface::rv6::Rv6>,
         args: &str,
     ) -> ();
@@ -1107,7 +1107,7 @@ pub(crate) fn xv6_user_create_domain_xv6usr(
         "blob_domain/{}/{}: returned from entry point",
         "xv6_user", name
     );
-    let dom_: ::alloc::boxed::Box<dyn::syscalls::Domain> = ::alloc::boxed::Box::new(
+    let dom_: ::alloc::boxed::Box<dyn ::syscalls::Domain> = ::alloc::boxed::Box::new(
         crate::syscalls::PDomain::new(::alloc::sync::Arc::clone(&dom_)),
     );
     let rtn_ = (dom_, ep_rtn_);
@@ -1171,8 +1171,8 @@ pub(crate) fn xv6kernel_create_domain_xv6kernel(
         _binary_domains_build_xv6kernel_end as *const u8,
     );
     type UserInit_ = fn(
-        ::alloc::boxed::Box<dyn::syscalls::Syscall>,
-        ::alloc::boxed::Box<dyn::syscalls::Heap>,
+        ::alloc::boxed::Box<dyn ::syscalls::Syscall>,
+        ::alloc::boxed::Box<dyn ::syscalls::Heap>,
         ints: alloc::boxed::Box<dyn syscalls::Interrupt>,
         create_xv6fs: alloc::sync::Arc<dyn interface::domain_create::CreateRv6FS>,
         create_xv6net: alloc::sync::Arc<dyn interface::domain_create::CreateRv6Net>,
@@ -1216,7 +1216,7 @@ pub(crate) fn xv6kernel_create_domain_xv6kernel(
     }
     #[cfg(feature = "domain_create_log")]
     println!("domain/{}: returned from entry point", "xv6kernel");
-    let dom_: ::alloc::boxed::Box<dyn::syscalls::Domain> = ::alloc::boxed::Box::new(
+    let dom_: ::alloc::boxed::Box<dyn ::syscalls::Domain> = ::alloc::boxed::Box::new(
         crate::syscalls::PDomain::new(::alloc::sync::Arc::clone(&dom_)),
     );
     let rtn_ = (dom_, ep_rtn_);
@@ -1262,8 +1262,8 @@ pub(crate) fn dom_c_create_domain_dom_c() -> (
         _binary_domains_build_dom_c_end as *const u8,
     );
     type UserInit_ = fn(
-        ::alloc::boxed::Box<dyn::syscalls::Syscall>,
-        ::alloc::boxed::Box<dyn::syscalls::Heap>,
+        ::alloc::boxed::Box<dyn ::syscalls::Syscall>,
+        ::alloc::boxed::Box<dyn ::syscalls::Heap>,
     ) -> alloc::boxed::Box<dyn interface::dom_c::DomC>;
     let (dom_, entry_) = unsafe { crate::domain::load_domain("dom_c", binary_range_) };
     let user_ep_: UserInit_ = unsafe { ::core::mem::transmute::<*const (), UserInit_>(entry_) };
@@ -1286,7 +1286,7 @@ pub(crate) fn dom_c_create_domain_dom_c() -> (
     }
     #[cfg(feature = "domain_create_log")]
     println!("domain/{}: returned from entry point", "dom_c");
-    let dom_: ::alloc::boxed::Box<dyn::syscalls::Domain> = ::alloc::boxed::Box::new(
+    let dom_: ::alloc::boxed::Box<dyn ::syscalls::Domain> = ::alloc::boxed::Box::new(
         crate::syscalls::PDomain::new(::alloc::sync::Arc::clone(&dom_)),
     );
     let rtn_ = (dom_, ep_rtn_);
@@ -1309,8 +1309,8 @@ pub(crate) fn dom_c_recreate_domain_dom_c(
         _binary_domains_build_dom_c_end as *const u8,
     );
     type UserInit_ = fn(
-        ::alloc::boxed::Box<dyn::syscalls::Syscall>,
-        ::alloc::boxed::Box<dyn::syscalls::Heap>,
+        ::alloc::boxed::Box<dyn ::syscalls::Syscall>,
+        ::alloc::boxed::Box<dyn ::syscalls::Heap>,
         dom: alloc::boxed::Box<dyn syscalls::Domain>,
     ) -> alloc::boxed::Box<dyn interface::dom_c::DomC>;
     let (dom_, entry_) = unsafe { crate::domain::load_domain("dom_c", binary_range_) };
@@ -1334,7 +1334,7 @@ pub(crate) fn dom_c_recreate_domain_dom_c(
     }
     #[cfg(feature = "domain_create_log")]
     println!("domain/{}: returned from entry point", "dom_c");
-    let dom_: ::alloc::boxed::Box<dyn::syscalls::Domain> = ::alloc::boxed::Box::new(
+    let dom_: ::alloc::boxed::Box<dyn ::syscalls::Domain> = ::alloc::boxed::Box::new(
         crate::syscalls::PDomain::new(::alloc::sync::Arc::clone(&dom_)),
     );
     let rtn_ = (dom_, ep_rtn_);
@@ -1365,8 +1365,8 @@ pub(crate) fn dom_d_create_domain_dom_d(
         _binary_domains_build_dom_d_end as *const u8,
     );
     type UserInit_ = fn(
-        ::alloc::boxed::Box<dyn::syscalls::Syscall>,
-        ::alloc::boxed::Box<dyn::syscalls::Heap>,
+        ::alloc::boxed::Box<dyn ::syscalls::Syscall>,
+        ::alloc::boxed::Box<dyn ::syscalls::Heap>,
         dom_c: alloc::boxed::Box<dyn interface::dom_c::DomC>,
     ) -> ();
     let (dom_, entry_) = unsafe { crate::domain::load_domain("dom_d", binary_range_) };
@@ -1394,7 +1394,7 @@ pub(crate) fn dom_d_create_domain_dom_d(
     }
     #[cfg(feature = "domain_create_log")]
     println!("domain/{}: returned from entry point", "dom_d");
-    let dom_: ::alloc::boxed::Box<dyn::syscalls::Domain> = ::alloc::boxed::Box::new(
+    let dom_: ::alloc::boxed::Box<dyn ::syscalls::Domain> = ::alloc::boxed::Box::new(
         crate::syscalls::PDomain::new(::alloc::sync::Arc::clone(&dom_)),
     );
     let rtn_ = (dom_, ep_rtn_);
@@ -1433,8 +1433,8 @@ pub(crate) fn shadow_create_domain_shadow(
         _binary_domains_build_shadow_end as *const u8,
     );
     type UserInit_ = fn(
-        ::alloc::boxed::Box<dyn::syscalls::Syscall>,
-        ::alloc::boxed::Box<dyn::syscalls::Heap>,
+        ::alloc::boxed::Box<dyn ::syscalls::Syscall>,
+        ::alloc::boxed::Box<dyn ::syscalls::Heap>,
         create_dom_c: alloc::sync::Arc<dyn interface::domain_create::CreateDomC>,
     ) -> alloc::boxed::Box<dyn interface::dom_c::DomC>;
     let (dom_, entry_) = unsafe { crate::domain::load_domain("shadow", binary_range_) };
@@ -1462,7 +1462,7 @@ pub(crate) fn shadow_create_domain_shadow(
     }
     #[cfg(feature = "domain_create_log")]
     println!("domain/{}: returned from entry point", "shadow");
-    let dom_: ::alloc::boxed::Box<dyn::syscalls::Domain> = ::alloc::boxed::Box::new(
+    let dom_: ::alloc::boxed::Box<dyn ::syscalls::Domain> = ::alloc::boxed::Box::new(
         crate::syscalls::PDomain::new(::alloc::sync::Arc::clone(&dom_)),
     );
     let rtn_ = (dom_, ep_rtn_);
@@ -1495,8 +1495,8 @@ pub(crate) fn benchnvme_create_domain_benchnvme(
         _binary_domains_build_benchnvme_end as *const u8,
     );
     type UserInit_ = fn(
-        ::alloc::boxed::Box<dyn::syscalls::Syscall>,
-        ::alloc::boxed::Box<dyn::syscalls::Heap>,
+        ::alloc::boxed::Box<dyn ::syscalls::Syscall>,
+        ::alloc::boxed::Box<dyn ::syscalls::Heap>,
         nvme: alloc::boxed::Box<dyn interface::bdev::NvmeBDev>,
     ) -> ();
     let (dom_, entry_) = unsafe { crate::domain::load_domain("benchnvme", binary_range_) };
@@ -1524,7 +1524,7 @@ pub(crate) fn benchnvme_create_domain_benchnvme(
     }
     #[cfg(feature = "domain_create_log")]
     println!("domain/{}: returned from entry point", "benchnvme");
-    let dom_: ::alloc::boxed::Box<dyn::syscalls::Domain> = ::alloc::boxed::Box::new(
+    let dom_: ::alloc::boxed::Box<dyn ::syscalls::Domain> = ::alloc::boxed::Box::new(
         crate::syscalls::PDomain::new(::alloc::sync::Arc::clone(&dom_)),
     );
     let rtn_ = (dom_, ep_rtn_);
@@ -1558,8 +1558,8 @@ pub(crate) fn tpm_create_domain_tpm() -> (
         _binary_domains_build_tpm_end as *const u8,
     );
     type UserInit_ = fn(
-        ::alloc::boxed::Box<dyn::syscalls::Syscall>,
-        ::alloc::boxed::Box<dyn::syscalls::Heap>,
+        ::alloc::boxed::Box<dyn ::syscalls::Syscall>,
+        ::alloc::boxed::Box<dyn ::syscalls::Heap>,
     ) -> alloc::boxed::Box<dyn interface::tpm::UsrTpm>;
     let (dom_, entry_) = unsafe { crate::domain::load_domain("tpm", binary_range_) };
     let user_ep_: UserInit_ = unsafe { ::core::mem::transmute::<*const (), UserInit_>(entry_) };
@@ -1582,14 +1582,14 @@ pub(crate) fn tpm_create_domain_tpm() -> (
     }
     #[cfg(feature = "domain_create_log")]
     println!("domain/{}: returned from entry point", "tpm");
-    let dom_: ::alloc::boxed::Box<dyn::syscalls::Domain> = ::alloc::boxed::Box::new(
+    let dom_: ::alloc::boxed::Box<dyn ::syscalls::Domain> = ::alloc::boxed::Box::new(
         crate::syscalls::PDomain::new(::alloc::sync::Arc::clone(&dom_)),
     );
     let rtn_ = (dom_, ep_rtn_);
     crate::interrupt::enable_irq();
     rtn_
 }
-pub fn create_domain_init() -> ::alloc::boxed::Box<dyn::syscalls::Domain> {
+pub fn create_domain_init() -> ::alloc::boxed::Box<dyn ::syscalls::Domain> {
     let name = "init";
     extern "C" {
         fn _binary_domains_build_redleaf_init_start();
@@ -1600,9 +1600,9 @@ pub fn create_domain_init() -> ::alloc::boxed::Box<dyn::syscalls::Domain> {
         _binary_domains_build_redleaf_init_end as *const u8,
     );
     type UserInit = fn(
-        ::alloc::boxed::Box<dyn::syscalls::Syscall + Send + Sync>,
-        ::alloc::boxed::Box<dyn::syscalls::Heap + Send + Sync>,
-        ::alloc::boxed::Box<dyn::syscalls::Interrupt>,
+        ::alloc::boxed::Box<dyn ::syscalls::Syscall + Send + Sync>,
+        ::alloc::boxed::Box<dyn ::syscalls::Heap + Send + Sync>,
+        ::alloc::boxed::Box<dyn ::syscalls::Interrupt>,
         ::alloc::sync::Arc<dyn interface::domain_create::CreateProxy>,
         ::alloc::sync::Arc<dyn interface::domain_create::CreatePCI>,
         ::alloc::sync::Arc<dyn interface::domain_create::CreateMemBDev>,
