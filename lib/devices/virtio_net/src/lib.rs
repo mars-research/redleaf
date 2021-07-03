@@ -68,8 +68,8 @@ pub struct VirtioNetInner {
     tx_last_idx: u16,
 
     /// Holds the rx_packets (to prevent dropping) while they are in the rx_queue. The key is their address.
-    rx_buffers: HashMap<u64, RRef<NetworkPacketBuffer>>,
-    tx_buffers: HashMap<u64, RRef<NetworkPacketBuffer>>,
+    rx_buffers: [Option<RRef<NetworkPacketBuffer>>; DESCRIPTOR_COUNT],
+    tx_buffers: [Option<RRef<NetworkPacketBuffer>>; DESCRIPTOR_COUNT],
 }
 
 impl VirtioNetInner {
@@ -141,8 +141,8 @@ impl VirtioNetInner {
             rx_last_idx: 0,
             tx_last_idx: 0,
 
-            rx_buffers: HashMap::new(),
-            tx_buffers: HashMap::new(),
+            rx_buffers: [None; DESCRIPTOR_COUNT],
+            tx_buffers: [None; DESCRIPTOR_COUNT],
         };
 
         // virtio_inner.init();
@@ -291,7 +291,7 @@ impl VirtioNetInner {
 
             let buffer_addr = buffer.as_ptr() as u64;
 
-            self.rx_buffers.insert(buffer_addr, buffer);
+            self.rx_buffers[buffer_idx] = Some(buffer);
 
             // One descriptor points at the network header, chain this with a descriptor to the buffer
             // Header
@@ -352,7 +352,7 @@ impl VirtioNetInner {
             let buffer_addr = buffer.as_ptr() as u64;
 
             // Add the buffer to our HashMap
-            self.tx_buffers.insert(buffer_addr, buffer);
+            self.tx_buffers[buffer_idx] = Some(buffer);
 
             self.virtual_queues.transmit_queue.descriptors[header_idx] = VirtqDescriptor {
                 addr: Self::get_addr(&self.virtio_network_headers[header_idx]),
@@ -418,7 +418,7 @@ impl VirtioNetInner {
             let buffer_descriptor = self.virtual_queues.receive_queue.descriptors
                 [used_element_descriptor.next as usize];
 
-            if let Some(buffer) = self.rx_buffers.remove(&buffer_descriptor.addr) {
+            if let Some(buffer) = self.rx_buffers[used_element_descriptor.next as usize].take() {
                 // Processed packets are "collected"
                 collect.push_back(buffer);
                 new_packets_count += 1;
@@ -451,7 +451,7 @@ impl VirtioNetInner {
             let buffer_descriptor = self.virtual_queues.transmit_queue.descriptors
                 [used_element_descriptor.next as usize];
 
-            if let Some(buffer) = self.tx_buffers.remove(&buffer_descriptor.addr) {
+            if let Some(buffer) = self.tx_buffers[used_element_descriptor.next as usize].take() {
                 packets.push_back(buffer);
 
                 // Free the descriptor
