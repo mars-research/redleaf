@@ -322,6 +322,46 @@ impl VirtioNetInner {
         }
     }
 
+    pub fn infinite_rx(&mut self) {
+        let BUFFERS = [[0x0u8; 1514]; 128];
+
+        // Init Descriptors
+        let rx_q = &mut self.virtual_queues.receive_queue;
+
+        for i in 0..128 {
+            let buffer_addr = BUFFERS[i].as_ptr() as u64;
+
+            // One descriptor points at the network header, chain this with a descriptor to the buffer
+            // Header
+            rx_q.descriptors[i] = VirtqDescriptor {
+                addr: Self::get_addr(&self.virtio_network_headers[i]),
+                len: 10,
+                // 1 is NEXT FLAG
+                // 2 is WRITABLE FLAG
+                flags: 1 | 2,
+                next: (i + 128) as u16,
+            };
+            // Actual Buffer
+            rx_q.descriptors[i + 128] = VirtqDescriptor {
+                addr: buffer_addr,
+                len: 1514,
+                flags: 2,
+                next: 0,
+            };
+
+            // Mark the buffer as usable
+            rx_q.available.ring[i] = i as u16;
+        }
+
+        loop {
+            rx_q.available.idx = rx_q.available.idx.wrapping_add(128); // We only added one "chain head"
+
+            unsafe {
+                self.mmio.queue_notify(0, 0);
+            }
+        }
+    }
+
     pub fn infinite_tx(&mut self) {
         const BUFFER: [u8; 16] = [0xAA; 16];
 
