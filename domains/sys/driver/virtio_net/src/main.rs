@@ -145,6 +145,8 @@ pub fn trusted_entry(
     // VIRTIO DEMO LOOP
     // Run SmolNet
 
+    net.0.lock().infinite_tx();
+
     libbenchnet::run_fwd_udptest_rref(&net, 1514);
 
     let mut smol = SmolPhy::new(Box::new(net));

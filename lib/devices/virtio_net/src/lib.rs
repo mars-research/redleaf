@@ -12,6 +12,8 @@
 pub mod pci;
 extern crate alloc;
 
+use core::usize;
+
 use alloc::sync::Arc;
 use console::println;
 use hashbrown::HashMap;
@@ -67,7 +69,7 @@ pub struct VirtioNetInner {
     rx_last_idx: u16,
     tx_last_idx: u16,
 
-    /// Holds the rx_packets (to prevent dropping) while they are in the rx_queue. The key is their address.
+    /// Holds the rx_packets (to prevent dropping) while they are in the rx_queue. Stored at the chain's buffer idx
     rx_buffers: [Option<RRef<NetworkPacketBuffer>>; DESCRIPTOR_COUNT],
     tx_buffers: [Option<RRef<NetworkPacketBuffer>>; DESCRIPTOR_COUNT],
 }
@@ -320,6 +322,43 @@ impl VirtioNetInner {
         }
     }
 
+    pub fn infinite_tx(&mut self) {
+        const BUFFER: [u8; 16] = [0xAA; 16];
+
+        // Create a buffer
+        let buffer_addr = BUFFER.as_ptr() as u64;
+
+        self.virtual_queues.transmit_queue.descriptors[0] = VirtqDescriptor {
+            addr: Self::get_addr(&self.virtio_network_headers[0]),
+            len: 10,
+            flags: 1, // 1 is next flag
+            next: 1 as u16,
+        };
+        self.virtual_queues.transmit_queue.descriptors[1] = VirtqDescriptor {
+            addr: buffer_addr,
+            len: 16,
+            flags: 0,
+            next: 0,
+        };
+
+        for i in 0..DESCRIPTOR_COUNT {
+            self.virtual_queues.transmit_queue.available.ring[i] = 0 as u16;
+        }
+
+        // Continually add packet
+        loop {
+            self.virtual_queues.transmit_queue.available.idx = self
+                .virtual_queues
+                .transmit_queue
+                .available
+                .idx
+                .wrapping_add(128);
+            unsafe {
+                self.mmio.queue_notify(1, 1);
+            }
+        }
+    }
+
     pub fn add_rx_buffers(
         &mut self,
         packets: &mut RRefDeque<NetworkPacketBuffer, 32>,
@@ -351,7 +390,6 @@ impl VirtioNetInner {
         if let Ok((header_idx, buffer_idx)) = descriptors {
             let buffer_addr = buffer.as_ptr() as u64;
 
-            // Add the buffer to our HashMap
             self.tx_buffers[buffer_idx] = Some(buffer);
 
             self.virtual_queues.transmit_queue.descriptors[header_idx] = VirtqDescriptor {
@@ -362,7 +400,7 @@ impl VirtioNetInner {
             };
             self.virtual_queues.transmit_queue.descriptors[buffer_idx] = VirtqDescriptor {
                 addr: buffer_addr,
-                len: 1514,
+                len: 53,
                 flags: 0,
                 next: 0,
             };
@@ -393,6 +431,7 @@ impl VirtioNetInner {
             let res = self.add_tx_packet(packet);
 
             if res.is_err() {
+                println!("VIRTIO NET: FAILED TO ADD TX PACKET!");
                 break;
             }
         }
@@ -417,6 +456,12 @@ impl VirtioNetInner {
                 self.virtual_queues.receive_queue.descriptors[used_element.id as usize];
             let buffer_descriptor = self.virtual_queues.receive_queue.descriptors
                 [used_element_descriptor.next as usize];
+
+            // println!(
+            //     "{}",
+            //     used_element.len as usize - core::mem::size_of::<VirtioNetworkHeader>()
+            // );
+            // println!("{}", core::mem::size_of::<VirtioNetworkHeader>());
 
             if let Some(buffer) = self.rx_buffers[used_element_descriptor.next as usize].take() {
                 // Processed packets are "collected"
