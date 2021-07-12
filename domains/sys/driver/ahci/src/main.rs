@@ -227,7 +227,11 @@ impl NvmeBDev for Ahci {
     }
 }
 
-fn run_async_benchmark(device: &Ahci, block_num: u64, write: bool) {
+fn get_rand_block(seed: u64) -> u64 {
+    unsafe { (63214213 * seed + 43621) % 2u64.pow(16) }
+}
+
+fn run_async_benchmark(device: &Ahci, block_num: u64, write: bool, random: bool) {
     let submit_type;
     if write {
         submit_type = "write";
@@ -236,6 +240,7 @@ fn run_async_benchmark(device: &Ahci, block_num: u64, write: bool) {
     }
 
     let batch_size = 32 as usize;
+    let mut seed = 8321745u64;
     println!("AHCI Benchmark");
     // for i in (0..4).rev() {
     //     println!("{}...", i);
@@ -252,12 +257,20 @@ fn run_async_benchmark(device: &Ahci, block_num: u64, write: bool) {
     let read_start = libtime::get_rdtsc();
     for i in 0..block_num {
         let mut block_req;
+
         if write {
             block_req = BlkReq::from_data([1u8; 4096]);
         } else {
             block_req = BlkReq::new();
         }
-        block_req.block = i;
+
+        if random {
+            seed = get_rand_block(seed);
+            block_req.block = seed;
+        } else {
+            block_req.block = i;
+        }
+
         submit.push_back(RRef::<BlkReq>::new(block_req));
         // println!(
         //     "i = {}, submit size = {}, block num = {}",
@@ -463,10 +476,12 @@ pub fn trusted_entry(
     // run_blocktest_rref(&ahci, 128, 1);
     // run_blocktest_rref(&ahci, 512, 1);
 
-    run_async_benchmark(&ahci, 32768, true);
-    run_async_benchmark(&ahci, 32768, false);
-    run_async_benchmark(&ahci, 65536, true);
-    run_async_benchmark(&ahci, 65536, false);
+    // run_async_benchmark(&ahci, 8192, true, true);
+    run_async_benchmark(&ahci, 8192 * 2, true, true);
+    run_async_benchmark(&ahci, 32768, true, true);
+    run_async_benchmark(&ahci, 32768, false, true);
+    run_async_benchmark(&ahci, 65536, true, false);
+    run_async_benchmark(&ahci, 65536, false, false);
 
     let ahci: Box<dyn NvmeBDev + Send> = Box::new(ahci);
 

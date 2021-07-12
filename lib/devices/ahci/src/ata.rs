@@ -148,7 +148,7 @@ impl DiskATA {
     }
 
     fn submit_serial_batch(&mut self, submit: &mut RRefDeque<BlkReq, 128>, write: bool) -> usize {
-        console::println!("submit_batch size = {}", submit.len());
+        // console::println!("submit_batch size = {}", submit.len());
         let mut submit_count = 0;
         let mut start_block = 0;
         // let mut buffers = RRefDeque::<Box<[u8]>, 128>::default();
