@@ -148,7 +148,7 @@ impl DiskATA {
     }
 
     fn submit_serial_batch(&mut self, submit: &mut RRefDeque<BlkReq, 128>, write: bool) -> usize {
-        // console::println!("submit_batch size = {}", submit.len());
+        console::println!("submit_batch size = {}", submit.len());
         let mut submit_count = 0;
         let mut start_block = 0;
         // let mut buffers = RRefDeque::<Box<[u8]>, 128>::default();
@@ -444,20 +444,20 @@ impl Disk for DiskATA {
             if (command_batch.len() == 0) || (prev_block_num + 1 == block_req.block) {
                 prev_block_num = block_req.block;
                 command_batch.push_back(block_req);
-
-                if submit.len() == 0 {
-                    // console::println!("command_batch size = {}", command_batch.len());
-                    let count = self.submit_serial_batch(&mut command_batch, write);
-                    submit_count += count;
-                }
             } else {
                 let count = self.submit_serial_batch(&mut command_batch, write);
                 submit_count += count;
                 assert!(command_batch.len() == 0);
                 command_batch.push_back(block_req);
             }
-        }
 
+            if submit.len() == 0 {
+                // console::println!("command_batch size = {}", command_batch.len());
+                let count = self.submit_serial_batch(&mut command_batch, write);
+                submit_count += count;
+            }
+        }
+        // console::println!("submit finished\n");
         self.port.start_port_dma();
 
         for slot in 0..self.blk_batch_opt.len() {
