@@ -72,12 +72,6 @@ pub struct VirtioNetInner {
     /// Header Descriptor will be at i and Buffer Descriptor will be at i + BUFFER_COUNT
     tx_free_descriptors: [bool; BUFFER_COUNT],
 
-    /// These numbers are an alternative to rx/tx_free_descriptors
-    /// Instead of doing a linear scan for a free descriptor we will simply
-    /// increment this number and wrap it once it reaches BUFFER_COUNT
-    rx_next_header_idx: u16,
-    tx_next_header_idx: u16,
-
     // The last index (of the used ring) that was checked by the driver
     rx_last_idx: u16,
     tx_last_idx: u16,
@@ -149,9 +143,6 @@ impl VirtioNetInner {
 
             rx_free_descriptors: [true; BUFFER_COUNT],
             tx_free_descriptors: [true; BUFFER_COUNT],
-
-            rx_next_header_idx: 0,
-            tx_next_header_idx: 0,
 
             rx_last_idx: 0,
             tx_last_idx: 0,
@@ -261,82 +252,82 @@ impl VirtioNetInner {
         self.mmio.accessor.write_queue_enable(1);
     }
 
-    pub fn infinite_rx(&mut self) {
-        let BUFFERS = [[0x0u8; 1514]; 128];
+    // pub fn infinite_rx(&mut self) {
+    //     let BUFFERS = [[0x0u8; 1514]; 128];
 
-        // Init Descriptors
-        let rx_q = &mut self.virtual_queues.receive_queue;
+    //     // Init Descriptors
+    //     let rx_q = &mut self.virtual_queues.receive_queue;
 
-        for i in 0..128 {
-            let buffer_addr = BUFFERS[i].as_ptr() as u64;
+    //     for i in 0..128 {
+    //         let buffer_addr = BUFFERS[i].as_ptr() as u64;
 
-            // One descriptor points at the network header, chain this with a descriptor to the buffer
-            // Header
-            rx_q.descriptors[i] = VirtqDescriptor {
-                addr: Self::get_addr(&self.virtio_network_headers[i]),
-                len: 10,
-                // 1 is NEXT FLAG
-                // 2 is WRITABLE FLAG
-                flags: 1 | 2,
-                next: (i + 128) as u16,
-            };
-            // Actual Buffer
-            rx_q.descriptors[i + 128] = VirtqDescriptor {
-                addr: buffer_addr,
-                len: 1514,
-                flags: 2,
-                next: 0,
-            };
+    //         // One descriptor points at the network header, chain this with a descriptor to the buffer
+    //         // Header
+    //         rx_q.descriptors[i] = VirtqDescriptor {
+    //             addr: Self::get_addr(&self.virtio_network_headers[i]),
+    //             len: 10,
+    //             // 1 is NEXT FLAG
+    //             // 2 is WRITABLE FLAG
+    //             flags: 1 | 2,
+    //             next: (i + 128) as u16,
+    //         };
+    //         // Actual Buffer
+    //         rx_q.descriptors[i + 128] = VirtqDescriptor {
+    //             addr: buffer_addr,
+    //             len: 1514,
+    //             flags: 2,
+    //             next: 0,
+    //         };
 
-            // Mark the buffer as usable
-            rx_q.available.ring[i] = i as u16;
-        }
+    //         // Mark the buffer as usable
+    //         rx_q.available.ring[i] = i as u16;
+    //     }
 
-        loop {
-            rx_q.available.idx = rx_q.available.idx.wrapping_add(128); // We only added one "chain head"
+    //     loop {
+    //         rx_q.available.idx = rx_q.available.idx.wrapping_add(128); // We only added one "chain head"
 
-            unsafe {
-                self.mmio.queue_notify(0, 0);
-            }
-        }
-    }
+    //         unsafe {
+    //             self.mmio.queue_notify(0, 0);
+    //         }
+    //     }
+    // }
 
-    pub fn infinite_tx(&mut self) {
-        const BUFFER: [u8; 16] = [0xAA; 16];
+    // pub fn infinite_tx(&mut self) {
+    //     const BUFFER: [u8; 16] = [0xAA; 16];
 
-        // Create a buffer
-        let buffer_addr = BUFFER.as_ptr() as u64;
+    //     // Create a buffer
+    //     let buffer_addr = BUFFER.as_ptr() as u64;
 
-        self.virtual_queues.transmit_queue.descriptors[0] = VirtqDescriptor {
-            addr: Self::get_addr(&self.virtio_network_headers[0]),
-            len: 10,
-            flags: 1, // 1 is next flag
-            next: 1 as u16,
-        };
-        self.virtual_queues.transmit_queue.descriptors[1] = VirtqDescriptor {
-            addr: buffer_addr,
-            len: 16,
-            flags: 0,
-            next: 0,
-        };
+    //     self.virtual_queues.transmit_queue.descriptors[0] = VirtqDescriptor {
+    //         addr: Self::get_addr(&self.virtio_network_headers[0]),
+    //         len: 10,
+    //         flags: 1, // 1 is next flag
+    //         next: 1 as u16,
+    //     };
+    //     self.virtual_queues.transmit_queue.descriptors[1] = VirtqDescriptor {
+    //         addr: buffer_addr,
+    //         len: 16,
+    //         flags: 0,
+    //         next: 0,
+    //     };
 
-        for i in 0..DESCRIPTOR_COUNT {
-            self.virtual_queues.transmit_queue.available.ring[i] = 0 as u16;
-        }
+    //     for i in 0..DESCRIPTOR_COUNT {
+    //         self.virtual_queues.transmit_queue.available.ring[i] = 0 as u16;
+    //     }
 
-        // Continually add packet
-        loop {
-            self.virtual_queues.transmit_queue.available.idx = self
-                .virtual_queues
-                .transmit_queue
-                .available
-                .idx
-                .wrapping_add(128);
-            unsafe {
-                self.mmio.queue_notify(1, 1);
-            }
-        }
-    }
+    //     // Continually add packet
+    //     loop {
+    //         self.virtual_queues.transmit_queue.available.idx = self
+    //             .virtual_queues
+    //             .transmit_queue
+    //             .available
+    //             .idx
+    //             .wrapping_add(128);
+    //         unsafe {
+    //             self.mmio.queue_notify(1, 1);
+    //         }
+    //     }
+    // }
 
     /// Will return an index between 0 and BUFFER_COUNT
     /// Place the header at i and the buffer at i + BUFFER_COUNT
@@ -350,15 +341,15 @@ impl VirtioNetInner {
         Err(())
     }
 
-    fn get_next_header_idx(next_idx: &mut u16) -> usize {
-        let val = *next_idx;
-        *next_idx += 1;
+    // fn get_next_header_idx(next_idx: &mut u8) {
+    //     let val = next_idx;
+    //     next_idx += 1;
 
-        if *next_idx as usize >= BUFFER_COUNT {
-            *next_idx = 0;
-        }
-        return val as usize;
-    }
+    //     if next_idx >= BUFFER_COUNT {
+    //         next_idx = 0;
+    //     }
+    //     return val;
+    // }
 
     #[inline]
     fn get_addr<T>(obj: &T) -> u64 {
@@ -372,7 +363,7 @@ impl VirtioNetInner {
 
         let rx_q = &mut self.virtual_queues.receive_queue;
 
-        if let header_idx = Self::get_next_header_idx(&mut self.rx_next_header_idx) {
+        if let Ok(header_idx) = Self::get_free_buffer_descriptor(&mut self.rx_free_descriptors) {
             self.rx_free_descriptor_count -= 1;
 
             let buffer_addr = buffer.as_ptr() as u64;
@@ -424,7 +415,7 @@ impl VirtioNetInner {
 
     /// Returns an error if there's no free space in the TX queue, Ok otherwise
     pub fn add_tx_packet(&mut self, buffer: RRef<NetworkPacketBuffer>) -> Result<(), ()> {
-        if let header_idx = Self::get_next_header_idx(&mut self.tx_next_header_idx) {
+        if let Ok(header_idx) = Self::get_free_buffer_descriptor(&mut self.tx_free_descriptors) {
             let buffer_addr = buffer.as_ptr() as u64;
             self.tx_buffers[header_idx] = Some(buffer);
 
@@ -467,10 +458,10 @@ impl VirtioNetInner {
         while let Some(packet) = packets.pop_front() {
             let res = self.add_tx_packet(packet);
 
-            // if res.is_err() {
-            //     println!("VIRTIO NET: FAILED TO ADD TX PACKET!");
-            //     break;
-            // }
+            if res.is_err() {
+                println!("VIRTIO NET: FAILED TO ADD TX PACKET!");
+                break;
+            }
         }
 
         unsafe {
