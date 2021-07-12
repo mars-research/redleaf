@@ -75,8 +75,8 @@ pub struct VirtioNetInner {
     /// These numbers are an alternative to rx/tx_free_descriptors
     /// Instead of doing a linear scan for a free descriptor we will simply
     /// increment this number and wrap it once it reaches BUFFER_COUNT
-    rx_next_header_idx: u8,
-    tx_next_header_idx: u8,
+    rx_next_header_idx: u16,
+    tx_next_header_idx: u16,
 
     // The last index (of the used ring) that was checked by the driver
     rx_last_idx: u16,
@@ -350,14 +350,14 @@ impl VirtioNetInner {
         Err(())
     }
 
-    fn get_next_header_idx(next_idx: &mut u8) {
-        let val = next_idx;
-        next_idx += 1;
+    fn get_next_header_idx(next_idx: &mut u16) -> usize {
+        let val = *next_idx;
+        *next_idx += 1;
 
-        if next_idx >= BUFFER_COUNT {
-            next_idx = 0;
+        if *next_idx as usize >= BUFFER_COUNT {
+            *next_idx = 0;
         }
-        return val;
+        return val as usize;
     }
 
     #[inline]
@@ -372,7 +372,7 @@ impl VirtioNetInner {
 
         let rx_q = &mut self.virtual_queues.receive_queue;
 
-        if let Ok(header_idx) = Self::get_free_buffer_descriptor(&mut self.rx_free_descriptors) {
+        if let header_idx = Self::get_next_header_idx(&mut self.rx_next_header_idx) {
             self.rx_free_descriptor_count -= 1;
 
             let buffer_addr = buffer.as_ptr() as u64;
@@ -424,7 +424,7 @@ impl VirtioNetInner {
 
     /// Returns an error if there's no free space in the TX queue, Ok otherwise
     pub fn add_tx_packet(&mut self, buffer: RRef<NetworkPacketBuffer>) -> Result<(), ()> {
-        if let Ok(header_idx) = Self::get_free_buffer_descriptor(&mut self.tx_free_descriptors) {
+        if let header_idx = Self::get_next_header_idx(&mut self.tx_next_header_idx) {
             let buffer_addr = buffer.as_ptr() as u64;
             self.tx_buffers[header_idx] = Some(buffer);
 
@@ -467,10 +467,10 @@ impl VirtioNetInner {
         while let Some(packet) = packets.pop_front() {
             let res = self.add_tx_packet(packet);
 
-            if res.is_err() {
-                println!("VIRTIO NET: FAILED TO ADD TX PACKET!");
-                break;
-            }
+            // if res.is_err() {
+            //     println!("VIRTIO NET: FAILED TO ADD TX PACKET!");
+            //     break;
+            // }
         }
 
         unsafe {
