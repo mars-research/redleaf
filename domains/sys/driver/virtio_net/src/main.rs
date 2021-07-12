@@ -71,7 +71,7 @@ impl interface::net::Net for VirtioNet {
             device.add_tx_buffers(&mut packets);
         } else {
             new_packet_count = device.get_received_packets(&mut collect);
-            device.add_rx_buffers(&mut packets, &mut collect);
+            device.add_rx_buffers(&mut packets);
         }
 
         Ok(Ok((new_packet_count, packets, collect)))
@@ -146,7 +146,7 @@ pub fn trusted_entry(
     // Run SmolNet
 
     // net.0.lock().infinite_tx();
-    net.0.lock().infinite_rx();
+    // net.0.lock().infinite_rx();
 
     libbenchnet::run_fwd_udptest_rref(&net, 1514);
 
