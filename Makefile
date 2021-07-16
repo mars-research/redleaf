@@ -7,7 +7,7 @@
 DEBUG            ?= false
 LARGE_MEM        ?= true
 IXGBE		 	 ?= true
-VIRTIO_NET 		 ?= false
+VIRTIO_NET 		 ?= true
 VIRTIO_BLOCK 	 ?= true
 
 ifndef NO_DEFAULT_FLAGS
@@ -82,6 +82,8 @@ domain_list := $(addprefix domains/build/, \
 	benchnvme \
 	benchhash)
 
+
+
 ################
 # QEMU
 ################
@@ -99,8 +101,8 @@ qemu_common     += -cpu 'Haswell,pdpe1gb' -machine q35
 #qemu_common    += -device vfio-pci,romfile=,host=06:00.1
 #qemu_common    += -vnc 127.0.0.1:0
 #qemu_common	+= -mem-path /dev/hugepages
-# qemu_common		+= --trace virtio_*
-# qemu_common		+= --trace virtqueue_*
+qemu_common		+= --trace virtio_*
+qemu_common		+= --trace virtqueue_*
 
 ifeq ($(LARGE_MEM),true)
 qemu_common     += -m 8G
