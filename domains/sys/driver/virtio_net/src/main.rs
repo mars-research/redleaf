@@ -124,9 +124,9 @@ pub fn trusted_entry(
     #[cfg(not(feature = "virtio_net"))]
     let net = { nullnet::NullNet::new() };
 
-    /*
     // VIRTIO DEMO LOOP
     // Run SmolNet
+    println!("VIRTIO NET READY!");
     let mut smol = SmolPhy::new(Box::new(net));
 
     use smoltcp::iface::{EthernetInterfaceBuilder, NeighborCache};
@@ -158,7 +158,6 @@ pub fn trusted_entry(
         httpd.handle(&mut sockets);
         iface.device_mut().do_tx();
     }
-    */
 
     Box::new(net)
 }

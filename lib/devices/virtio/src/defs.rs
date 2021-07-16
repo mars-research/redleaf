@@ -1,12 +1,9 @@
-/// The number of Descriptors (must be a multiple of 2), called "Queue Size" in documentation
-pub const DESCRIPTOR_COUNT: usize = 256; // Maybe change this to 256, was 8 before
-
-#[derive(Debug)]
-#[repr(C, align(16))]
-pub struct VirtualQueues {
-    pub receive_queue: VirtQueue,
-    pub transmit_queue: VirtQueue,
-}
+use alloc::{
+    alloc::{alloc, dealloc},
+    boxed::Box,
+    vec::Vec,
+};
+use core::{alloc::Layout, mem::size_of};
 
 // 2.6.12 Virtqueue Operation
 // There are two parts to virtqueue operation: supplying new available buffers to the device, and processing used buffers from the device.
@@ -14,10 +11,9 @@ pub struct VirtualQueues {
 // The driver adds outgoing (device-readable) packets to the transmit virtqueue, and then frees them after they are used.
 // Similarly, incoming (device-writable) buffers are added to the receive virtqueue, and processed after they are used.
 
-#[derive(Debug)]
 #[repr(C, align(16))]
 pub struct VirtQueue {
-    pub descriptors: [VirtqDescriptor; DESCRIPTOR_COUNT],
+    pub descriptors: Vec<VirtqDescriptor>,
     pub available: VirtqAvailable,
     pub used: VirtqUsed,
 }
@@ -37,28 +33,6 @@ pub struct VirtqDescriptor {
     pub next: u16,
 }
 
-#[derive(Debug, Copy, Clone)]
-#[repr(C, packed(2))]
-pub struct VirtqAvailable {
-    pub flags: u16,
-
-    /// Index into VirtqDescriptor Array. Count of Descriptor Chain Heads
-    pub idx: u16,
-
-    /// The index of the head of the descriptor chain in the descriptor table
-    pub ring: [u16; DESCRIPTOR_COUNT],
-}
-
-impl VirtqAvailable {
-    pub fn default() -> VirtqAvailable {
-        VirtqAvailable {
-            flags: 0,
-            idx: 0,
-            ring: [0; DESCRIPTOR_COUNT],
-        }
-    }
-}
-
 #[derive(Debug, Copy, Clone, Default)]
 #[repr(C, packed)]
 pub struct VirtqUsedElement {
@@ -70,21 +44,91 @@ pub struct VirtqUsedElement {
 
 #[derive(Debug, Copy, Clone)]
 #[repr(C, packed(4))]
-pub struct VirtqUsed {
+pub struct VirtqUsedPacked {
     pub flags: u16,
 
     /// Index into VirtqDescriptor Array
     pub idx: u16,
 
-    pub ring: [VirtqUsedElement; DESCRIPTOR_COUNT],
+    pub ring: [VirtqUsedElement; 0], // Will have size queue_size
+}
+
+#[derive(Debug, Copy, Clone)]
+#[repr(C, packed(2))]
+pub struct VirtqAvailablePacked {
+    pub flags: u16,
+
+    /// Index into VirtqDescriptor Array. Count of Descriptor Chain Heads
+    pub idx: u16,
+
+    /// The index of the head of the descriptor chain in the descriptor table
+    pub ring: [u16; 0], // Will have size queue_size
+}
+
+pub struct VirtqAvailable {
+    pub data: Box<VirtqAvailablePacked>,
+    queue_size: usize,
+}
+
+impl VirtqAvailable {
+    pub unsafe fn new(queue_size: usize) -> Self {
+        let layout = Self::get_layout(queue_size);
+        let ptr = alloc(layout);
+
+        Self {
+            data: Box::from_raw(ptr as *mut VirtqAvailablePacked),
+            queue_size,
+        }
+    }
+
+    fn get_layout(queue_size: usize) -> Layout {
+        let size = size_of::<VirtqAvailablePacked>() + queue_size * size_of::<u16>();
+        Layout::from_size_align(size, 2).unwrap()
+    }
+}
+
+impl Drop for VirtqAvailable {
+    fn drop(&mut self) {
+        let layout = Self::get_layout(self.queue_size);
+        unsafe {
+            dealloc(
+                self.data.as_mut() as *mut VirtqAvailablePacked as *mut u8,
+                layout,
+            );
+        }
+    }
+}
+
+pub struct VirtqUsed {
+    pub data: Box<VirtqUsedPacked>,
+    queue_size: usize,
 }
 
 impl VirtqUsed {
-    pub fn default() -> VirtqUsed {
-        VirtqUsed {
-            flags: 0,
-            idx: 0,
-            ring: [VirtqUsedElement { id: 0, len: 0 }; DESCRIPTOR_COUNT],
+    pub unsafe fn new(queue_size: usize) -> Self {
+        let layout = Self::get_layout(queue_size);
+        let ptr = alloc(layout);
+
+        Self {
+            data: Box::from_raw(ptr as *mut VirtqUsedPacked),
+            queue_size,
+        }
+    }
+
+    fn get_layout(queue_size: usize) -> Layout {
+        let size = size_of::<VirtqUsedPacked>() + queue_size * size_of::<VirtqUsedElement>();
+        Layout::from_size_align(size, 4).unwrap()
+    }
+}
+
+impl Drop for VirtqUsed {
+    fn drop(&mut self) {
+        let layout = Self::get_layout(self.queue_size);
+        unsafe {
+            dealloc(
+                self.data.as_mut() as *mut VirtqUsedPacked as *mut u8,
+                layout,
+            );
         }
     }
 }
