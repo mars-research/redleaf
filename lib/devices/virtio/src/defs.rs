@@ -3,7 +3,7 @@ use alloc::{
     boxed::Box,
     vec::Vec,
 };
-use core::{alloc::Layout, mem::size_of};
+use core::{alloc::Layout, mem::size_of, usize};
 
 // 2.6.12 Virtqueue Operation
 // There are two parts to virtqueue operation: supplying new available buffers to the device, and processing used buffers from the device.
@@ -67,11 +67,11 @@ pub struct VirtqAvailablePacked {
 
 pub struct VirtqAvailable {
     pub data: Box<VirtqAvailablePacked>,
-    queue_size: usize,
+    queue_size: u16,
 }
 
 impl VirtqAvailable {
-    pub unsafe fn new(queue_size: usize) -> Self {
+    pub unsafe fn new(queue_size: u16) -> Self {
         let layout = Self::get_layout(queue_size);
         let ptr = alloc(layout);
 
@@ -81,8 +81,19 @@ impl VirtqAvailable {
         }
     }
 
-    fn get_layout(queue_size: usize) -> Layout {
-        let size = size_of::<VirtqAvailablePacked>() + queue_size * size_of::<u16>();
+    pub fn ring(&mut self, index: u16) -> &mut u16 {
+        if index < self.queue_size {
+            unsafe { self.data.ring.get_unchecked_mut(index as usize) }
+        } else {
+            panic!(
+                "Ring Index Out Of Bounds! index: {}, queue_size: {}",
+                index, self.queue_size
+            );
+        }
+    }
+
+    fn get_layout(queue_size: u16) -> Layout {
+        let size = size_of::<VirtqAvailablePacked>() + (queue_size as usize) * size_of::<u16>();
         Layout::from_size_align(size, 2).unwrap()
     }
 }
@@ -101,11 +112,11 @@ impl Drop for VirtqAvailable {
 
 pub struct VirtqUsed {
     pub data: Box<VirtqUsedPacked>,
-    queue_size: usize,
+    queue_size: u16,
 }
 
 impl VirtqUsed {
-    pub unsafe fn new(queue_size: usize) -> Self {
+    pub unsafe fn new(queue_size: u16) -> Self {
         let layout = Self::get_layout(queue_size);
         let ptr = alloc(layout);
 
@@ -115,8 +126,20 @@ impl VirtqUsed {
         }
     }
 
-    fn get_layout(queue_size: usize) -> Layout {
-        let size = size_of::<VirtqUsedPacked>() + queue_size * size_of::<VirtqUsedElement>();
+    pub fn ring(&mut self, index: u16) -> &mut VirtqUsedElement {
+        if index < self.queue_size {
+            unsafe { self.data.ring.get_unchecked_mut(index as usize) }
+        } else {
+            panic!(
+                "Ring Index Out Of Bounds! index: {}, queue_size: {}",
+                index, self.queue_size
+            );
+        }
+    }
+
+    fn get_layout(queue_size: u16) -> Layout {
+        let size =
+            size_of::<VirtqUsedPacked>() + (queue_size as usize) * size_of::<VirtqUsedElement>();
         Layout::from_size_align(size, 4).unwrap()
     }
 }

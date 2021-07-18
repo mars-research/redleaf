@@ -173,9 +173,9 @@ impl VirtioNetInner {
         // self.print_device_status();
 
         self.mmio.accessor.write_queue_select(0);
-        self.print_device_config();
+        // self.print_device_config();
         self.mmio.accessor.write_queue_select(1);
-        self.print_device_config();
+        // self.print_device_config();
 
         println!("VIRTIO NET READY!");
     }
@@ -240,13 +240,13 @@ impl VirtioNetInner {
         self.virtual_queues = Some(VirtualQueues {
             receive_queue: VirtQueue {
                 descriptors: vec![],
-                available: VirtqAvailable::new(self.queue_size as usize),
-                used: VirtqUsed::new(self.queue_size as usize),
+                available: VirtqAvailable::new(self.queue_size),
+                used: VirtqUsed::new(self.queue_size),
             },
             transmit_queue: VirtQueue {
                 descriptors: vec![],
-                available: VirtqAvailable::new(self.queue_size as usize),
-                used: VirtqUsed::new(self.queue_size as usize),
+                available: VirtqAvailable::new(self.queue_size),
+                used: VirtqUsed::new(self.queue_size),
             },
         });
     }
@@ -319,15 +319,14 @@ impl VirtioNetInner {
             };
 
             // Mark the buffer as usable
-            unsafe {
-                *rx_q
-                    .available
-                    .data
-                    .ring
-                    .get_unchecked_mut((rx_q.available.data.idx % self.queue_size) as usize) =
-                    header_idx as u16;
-            }
+            *rx_q
+                .available
+                .ring(rx_q.available.data.idx % self.queue_size) = header_idx as u16;
             rx_q.available.data.idx = rx_q.available.data.idx.wrapping_add(1); // We only added one "chain head"
+
+            unsafe {
+                self.mmio.queue_notify(0, 0);
+            }
 
             return Ok(());
         } else {
@@ -351,10 +350,6 @@ impl VirtioNetInner {
                 packets.push_back(res.unwrap_err());
                 break;
             }
-        }
-
-        unsafe {
-            self.mmio.queue_notify(0, 0);
         }
     }
 
@@ -385,15 +380,14 @@ impl VirtioNetInner {
                 next: 0,
             };
 
-            unsafe {
-                *tx_q
-                    .available
-                    .data
-                    .ring
-                    .get_unchecked_mut((tx_q.available.data.idx % self.queue_size) as usize) =
-                    header_idx as u16;
-            }
+            *tx_q
+                .available
+                .ring(tx_q.available.data.idx % self.queue_size) = header_idx as u16;
             tx_q.available.data.idx = tx_q.available.data.idx.wrapping_add(1);
+
+            unsafe {
+                self.mmio.queue_notify(1, 1);
+            }
             return Ok(());
         } else {
             return Err(buffer);
@@ -414,10 +408,6 @@ impl VirtioNetInner {
                 break;
             }
         }
-
-        unsafe {
-            self.mmio.queue_notify(1, 1);
-        }
     }
 
     /// Adds new packets to `packets`. Returns the number of received packets
@@ -431,9 +421,9 @@ impl VirtioNetInner {
         let rx_q = &mut self.virtual_queues.as_mut().unwrap().receive_queue;
 
         while self.rx_last_idx != rx_q.used.data.idx {
-            let used_element = rx_q.used.data.ring[(self.rx_last_idx % self.queue_size) as usize];
-            let header_descriptor = rx_q.descriptors[used_element.id as usize];
-            let buffer_descriptor = rx_q.descriptors[header_descriptor.next as usize];
+            let used_element = rx_q.used.ring(self.rx_last_idx % self.queue_size);
+            let header_descriptor = &rx_q.descriptors[used_element.id as usize];
+            let buffer_descriptor = &rx_q.descriptors[header_descriptor.next as usize];
 
             if let Some(buffer) = self.rx_buffers[used_element.id as usize].take() {
                 // Processed packets are "collected"
@@ -461,9 +451,9 @@ impl VirtioNetInner {
         let tx_q = &mut self.virtual_queues.as_mut().unwrap().transmit_queue;
 
         while self.tx_last_idx != tx_q.used.data.idx {
-            let used_element = tx_q.used.data.ring[(self.tx_last_idx % self.queue_size) as usize];
-            let header_descriptor = tx_q.descriptors[used_element.id as usize];
-            let buffer_descriptor = tx_q.descriptors[header_descriptor.next as usize];
+            let used_element = tx_q.used.ring(self.tx_last_idx % self.queue_size);
+            let header_descriptor = &tx_q.descriptors[used_element.id as usize];
+            let buffer_descriptor = &tx_q.descriptors[header_descriptor.next as usize];
 
             if let Some(buffer) = self.tx_buffers[used_element.id as usize].take() {
                 packets.push_back(buffer);

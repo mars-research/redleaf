@@ -126,7 +126,6 @@ pub fn trusted_entry(
 
     // VIRTIO DEMO LOOP
     // Run SmolNet
-    println!("VIRTIO NET READY!");
     let mut smol = SmolPhy::new(Box::new(net));
 
     use smoltcp::iface::{EthernetInterfaceBuilder, NeighborCache};
