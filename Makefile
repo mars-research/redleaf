@@ -7,8 +7,8 @@
 DEBUG            ?= false
 LARGE_MEM        ?= true
 IXGBE		 	 ?= true
-VIRTIO_NET 		 ?= true
-VIRTIO_BLOCK 	 ?= true
+VIRTIO_NET 		 ?= false
+VIRTIO_BLOCK 	 ?= false
 
 ifndef NO_DEFAULT_FLAGS
 CARGO_FLAGS      ?=
@@ -101,8 +101,8 @@ qemu_common     += -cpu 'Haswell,pdpe1gb' -machine q35
 #qemu_common    += -device vfio-pci,romfile=,host=06:00.1
 #qemu_common    += -vnc 127.0.0.1:0
 #qemu_common	+= -mem-path /dev/hugepages
-qemu_common		+= --trace virtio_*
-qemu_common		+= --trace virtqueue_*
+# qemu_common		+= --trace virtio_*
+# qemu_common		+= --trace virtqueue_*
 
 ifeq ($(LARGE_MEM),true)
 qemu_common     += -m 8G
@@ -133,7 +133,7 @@ endif
 
 QEMU            ?= $(shell which qemu-system-x86_64)
 TASKSET         := $(shell which taskset)
-KVM             := sudo ${TASKSET} -c 4 ${QEMU}
+KVM             := sudo ${TASKSET} -c 3-4 ${QEMU}
 qemu_kvm_args	:= --enable-kvm
 
 # https://superuser.com/a/1412150
