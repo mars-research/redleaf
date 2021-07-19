@@ -18,6 +18,7 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use alloc::{boxed::Box, collections::BTreeMap};
 use core::{borrow::BorrowMut, panic::PanicInfo, pin::Pin, usize};
+use nullblk::NullBlk;
 use syscalls::{Heap, Syscall};
 
 use console::{print, println};
@@ -33,6 +34,8 @@ use spin::Mutex;
 use virtio_block_device::pci::PciFactory;
 use virtio_block_device::VirtioBlockInner;
 
+mod nullblk;
+
 pub struct VirtioBlock(Arc<Mutex<VirtioBlockInner>>);
 
 impl interface::bdev::NvmeBDev for VirtioBlock {
@@ -42,11 +45,13 @@ impl interface::bdev::NvmeBDev for VirtioBlock {
         mut collect: RRefDeque<BlkReq, 128>,
         write: bool,
     ) -> RpcResult<Result<(usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>)>> {
+        let mut device = self.0.lock();
+
         while let Some(buffer) = submit.pop_front() {
-            self.0.lock().submit_request(buffer, write);
+            device.submit_request(buffer, write);
         }
 
-        let count = self.0.lock().free_request_buffers(&mut collect);
+        let count = device.free_request_buffers(&mut collect);
 
         Ok(Ok((count, submit, collect)))
     }
@@ -75,6 +80,7 @@ pub fn trusted_entry(
     // #[cfg(feature = "virtio_block")]
     // println!("Virtio Block starting");
 
+    #[cfg(feature = "virtio_block")]
     let blk = {
         let blk = {
             let mut pci_factory = PciFactory::new();
@@ -88,73 +94,77 @@ pub fn trusted_entry(
         blk
     };
 
+    #[cfg(not(feature = "virtio_block"))]
+    let blk = NullBlk::new();
+
     // Testing Code
-    let mut submit = RRefDeque::new([None; 128]);
-    let mut collect = RRefDeque::new([None; 128]);
 
-    // Write requests to `submit`
-    for i in 0..(300 as u16) {
-        let req = BlkReq {
-            data: [(i % 20 + 33) as u8; 4096],
-            data_len: 4096,
-            block: (i % 20) as u64,
-        };
+    // let mut submit = RRefDeque::new([None; 128]);
+    // let mut collect = RRefDeque::new([None; 128]);
 
-        println!(
-            "Writing {:} to sector {:}",
-            char::from_u32((i % 20 + 33) as u32).unwrap(),
-            i % 20
-        );
+    // // Write requests to `submit`
+    // for i in 0..(300 as u16) {
+    //     let req = BlkReq {
+    //         data: [(i % 20 + 33) as u8; 4096],
+    //         data_len: 4096,
+    //         block: (i % 20) as u64,
+    //     };
 
-        libtime::sys_ns_sleep(9999999);
+    //     println!(
+    //         "Writing {:} to sector {:}",
+    //         char::from_u32((i % 20 + 33) as u32).unwrap(),
+    //         i % 20
+    //     );
 
-        submit.push_back(RRef::new(req));
-        let res = blk
-            .submit_and_poll_rref(submit, collect, true)
-            .unwrap()
-            .unwrap();
-        submit = res.1;
-        collect = res.2;
+    //     libtime::sys_ns_sleep(9999999);
 
-        // Clear out collect
-        while let Some(_) = collect.pop_front() {}
-    }
+    //     submit.push_back(RRef::new(req));
+    //     let res = blk
+    //         .submit_and_poll_rref(submit, collect, true)
+    //         .unwrap()
+    //         .unwrap();
+    //     submit = res.1;
+    //     collect = res.2;
 
-    // Read back and check
-    for i in 0..(20 as u16) {
-        let req = BlkReq {
-            data: [0xFF; 4096],
-            data_len: 4096,
-            block: (i % 20) as u64,
-        };
+    //     // Clear out collect
+    //     while let Some(_) = collect.pop_front() {}
+    // }
 
-        libtime::sys_ns_sleep(9999999);
+    // // Read back and check
+    // for i in 0..(20 as u16) {
+    //     let req = BlkReq {
+    //         data: [0xFF; 4096],
+    //         data_len: 4096,
+    //         block: (i % 20) as u64,
+    //     };
 
-        submit.push_back(RRef::new(req));
-        let res = blk
-            .submit_and_poll_rref(submit, collect, false)
-            .unwrap()
-            .unwrap();
-        submit = res.1;
-        collect = res.2;
+    //     libtime::sys_ns_sleep(9999999);
 
-        while let Some(block) = collect.pop_front() {
-            println!("{:} == {:}?", block.data[0], block.block % 20 + 33);
-            assert_eq!(
-                block.data[0],
-                (block.block % 20 + 33) as u8,
-                "block.data: {:} != block.block % 20 + 33 {:}",
-                block.data[0],
-                block.block % 20 + 33
-            );
-        }
+    //     submit.push_back(RRef::new(req));
+    //     let res = blk
+    //         .submit_and_poll_rref(submit, collect, false)
+    //         .unwrap()
+    //         .unwrap();
+    //     submit = res.1;
+    //     collect = res.2;
 
-        // Clear out collect
-        while let Some(_) = collect.pop_front() {}
-    }
+    //     while let Some(block) = collect.pop_front() {
+    //         println!("{:} == {:}?", block.data[0], block.block % 20 + 33);
+    //         assert_eq!(
+    //             block.data[0],
+    //             (block.block % 20 + 33) as u8,
+    //             "block.data: {:} != block.block % 20 + 33 {:}",
+    //             block.data[0],
+    //             block.block % 20 + 33
+    //         );
+    //     }
 
-    loop {}
+    //     // Clear out collect
+    //     while let Some(_) = collect.pop_front() {}
+    // }
 
+    // println!("Block Test Complete!");
+    // loop {}
     Box::new(blk)
 }
 

@@ -172,9 +172,9 @@ impl VirtioNetInner {
 
         // self.print_device_status();
 
-        self.mmio.accessor.write_queue_select(0);
+        // self.mmio.accessor.write_queue_select(0);
         // self.print_device_config();
-        self.mmio.accessor.write_queue_select(1);
+        // self.mmio.accessor.write_queue_select(1);
         // self.print_device_config();
 
         println!("VIRTIO NET READY!");
@@ -199,22 +199,8 @@ impl VirtioNetInner {
         println!("Device Status Bits: {:b}", device_status);
     }
 
-    /// Initializes all the vectors using the set queue_size
-    pub fn initialize_vectors(&mut self) {
-        // Virtual Queues use queue_size
-        self.virtual_queues
-            .as_mut()
-            .unwrap()
-            .receive_queue
-            .descriptors = vec![VirtqDescriptor::default(); self.queue_size as usize];
-
-        self.virtual_queues
-            .as_mut()
-            .unwrap()
-            .transmit_queue
-            .descriptors = vec![VirtqDescriptor::default(); self.queue_size as usize];
-
-        // Everything else uses buffer_count
+    /// Initializes all the vectors using the set buffer_count
+    fn initialize_vectors(&mut self) {
         self.virtio_network_headers = vec![
             VirtioNetworkHeader {
                 csum_offset: 0,
@@ -239,12 +225,12 @@ impl VirtioNetInner {
     unsafe fn setup_virtual_queues(&mut self) {
         self.virtual_queues = Some(VirtualQueues {
             receive_queue: VirtQueue {
-                descriptors: vec![],
+                descriptors: vec![VirtqDescriptor::default(); self.queue_size as usize],
                 available: VirtqAvailable::new(self.queue_size),
                 used: VirtqUsed::new(self.queue_size),
             },
             transmit_queue: VirtQueue {
-                descriptors: vec![],
+                descriptors: vec![VirtqDescriptor::default(); self.queue_size as usize],
                 available: VirtqAvailable::new(self.queue_size),
                 used: VirtqUsed::new(self.queue_size),
             },
@@ -253,7 +239,7 @@ impl VirtioNetInner {
 
     /// Receive Queues must be 2*N and Transmit Queues must be 2*N + 1
     /// For example, Receive Queue must be 0 and Transmit Queue must be 1
-    pub fn initialize_virtual_queue(&self, queue_index: u16, virt_queue: &VirtQueue) {
+    fn initialize_virtual_queue(&self, queue_index: u16, virt_queue: &VirtQueue) {
         self.mmio.accessor.write_queue_select(queue_index);
 
         self.mmio
@@ -287,7 +273,7 @@ impl VirtioNetInner {
     }
 
     /// If the buffer can't be added, it is returned in the Err()
-    pub fn add_rx_buffer(
+    fn add_rx_buffer(
         &mut self,
         buffer: RRef<NetworkPacketBuffer>,
     ) -> Result<(), RRef<NetworkPacketBuffer>> {
@@ -354,7 +340,7 @@ impl VirtioNetInner {
     }
 
     /// Returns an error if there's no free space in the TX queue, Ok otherwise
-    pub fn add_tx_packet(
+    fn add_tx_packet(
         &mut self,
         buffer: RRef<NetworkPacketBuffer>,
     ) -> Result<(), RRef<NetworkPacketBuffer>> {

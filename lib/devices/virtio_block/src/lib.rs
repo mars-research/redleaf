@@ -15,6 +15,8 @@ extern crate alloc;
 use core::{panic, u16, usize};
 
 use alloc::sync::Arc;
+use alloc::vec;
+use alloc::vec::Vec;
 use console::println;
 use hashbrown::HashMap;
 use interface::bdev::BlkReq;
@@ -22,14 +24,12 @@ use interface::rref::{RRef, RRefDeque};
 use libtime;
 use spin::Mutex;
 use virtio_device::defs::{
-    VirtQueue, VirtqAvailable, VirtqDescriptor, VirtqUsed, VirtqUsedElement, VirtualQueues,
-    DESCRIPTOR_COUNT,
+    VirtQueue, VirtqAvailable, VirtqAvailablePacked, VirtqDescriptor, VirtqUsed, VirtqUsedElement,
+    VirtqUsedPacked,
 };
 use virtio_device::{Mmio, VirtioDeviceStatus};
 
-// const DESCRIPTOR_COUNT: usize = 128;
-
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[repr(C, packed)]
 
 struct BlockBufferHeader {
@@ -39,7 +39,7 @@ struct BlockBufferHeader {
     pub sector: u64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[repr(C, packed)]
 struct BlockBufferStatus {
     /// OK: 0, IOERR: 1, UNSUPP: 2
@@ -53,65 +53,47 @@ struct BlockBufferData {
 
 pub struct VirtioBlockInner {
     mmio: Mmio,
-    request_queue: VirtQueue,
+
+    /// The size of the virtio virtual queues (also known as descriptor count)
+    queue_size: u16,
+
+    /// The number of buffers that can be in the queues at any time.
+    /// For Virtio Block, it takes 3 descriptors for every buffer (block request),
+    /// so `buffer_count = queue_size / 3`
+    buffer_count: usize,
+
+    request_queue: Option<VirtQueue>,
 
     /// Tracks which descriptors on the queue are free
-    free_descriptors: [bool; DESCRIPTOR_COUNT],
+    free_descriptors: Vec<bool>,
 
     /// The last index (of the used ring) that was checked by the driver
     request_last_idx: u16,
 
     // rx_buffers: HashMap<u64, RRef<NetworkPacketBuffer>>,
-    block_status: [BlockBufferStatus; DESCRIPTOR_COUNT],
-    block_headers: [BlockBufferHeader; DESCRIPTOR_COUNT],
+    block_status: Vec<BlockBufferStatus>,
+    block_headers: Vec<BlockBufferHeader>,
 
     /// Holds the buffers for requests. The key is the their address
-    request_buffers: HashMap<usize, RRef<BlkReq>>,
+    request_buffers: Vec<Option<RRef<BlkReq>>>,
 }
 
 impl VirtioBlockInner {
     /// Returns an initialized VirtioBlock from a base address.
     unsafe fn new(mmio_base: usize) -> Self {
-        let mmio = Mmio::new(mmio_base);
+        Self {
+            mmio: Mmio::new(mmio_base),
 
-        let request_queue = VirtQueue {
-            descriptors: [VirtqDescriptor {
-                addr: 0,
-                len: 0,
-                flags: 0,
-                next: 0,
-            }; DESCRIPTOR_COUNT],
-            available: VirtqAvailable {
-                flags: 0,
-                idx: 0,
-                ring: [0; DESCRIPTOR_COUNT],
-            },
-            used: VirtqUsed {
-                flags: 0,
-                idx: 0,
-                ring: [VirtqUsedElement { id: 0, len: 0 }; DESCRIPTOR_COUNT],
-            },
-        };
+            queue_size: 0,
+            buffer_count: 0,
 
-        let free_descriptors = [true; DESCRIPTOR_COUNT];
-
-        let virtio_inner = Self {
-            mmio,
-            request_queue,
-
-            free_descriptors,
+            request_queue: None,
+            free_descriptors: vec![],
             request_last_idx: 0,
-            block_status: [BlockBufferStatus { status: 0xFF }; DESCRIPTOR_COUNT],
-            block_headers: [BlockBufferHeader {
-                request_type: 0xFF,
-                reserved: 0,
-                sector: 0,
-            }; DESCRIPTOR_COUNT],
-
-            request_buffers: HashMap::new(),
-        };
-
-        virtio_inner
+            block_status: vec![],
+            block_headers: vec![],
+            request_buffers: vec![],
+        }
     }
 
     pub fn init(&mut self) {
@@ -150,28 +132,33 @@ impl VirtioBlockInner {
             panic!("Failed to negotiate Virtio Block features!");
         }
 
-        // Configure queue_size in common configuration
-        self.mmio.accessor.write_queue_size(DESCRIPTOR_COUNT as u16);
+        // Figure out queue_size
+        self.queue_size = self.mmio.accessor.read_queue_size();
+        self.buffer_count = (self.queue_size / 3) as usize;
+
+        unsafe {
+            self.setup_virtual_queues();
+        }
+        self.initialize_vectors();
 
         // Setup Virtual Queues
-        self.initialize_virtual_queue(0, &(self.request_queue));
+        self.initialize_virtual_queue(0, &(self.request_queue.as_ref().unwrap()));
 
-        // Tell the Device we're all done, even though we aren't
+        // Tell the Device we're all done, even though we aren't (init must be called)
         unsafe { self.mmio.update_device_status(VirtioDeviceStatus::DriverOk) };
 
-        self.mmio.accessor.write_queue_select(0);
+        // self.mmio.accessor.write_queue_select(0);
+        // self.print_device_config();
 
         println!("VIRTIO BLOCK READY!");
-
-        self.print_device_config();
     }
 
     fn negotiate_features(&mut self) {
         self.mmio.accessor.write_device_feature_select(0);
         self.mmio.accessor.write_driver_feature_select(0);
 
-        let mut features = self.mmio.accessor.read_device_feature();
-        println!("DEVICE FEATURES: {:}", &features);
+        let features = self.mmio.accessor.read_device_feature();
+        // println!("DEVICE FEATURES: {:}", &features);
 
         if features & (1 << 5) != 0 {
             println!("VIRTIO DEVICE IS READ ONLY!");
@@ -181,135 +168,143 @@ impl VirtioBlockInner {
     }
 
     pub fn print_device_config(&mut self) {
-        let mut cfg = unsafe { self.mmio.read_common_config() };
+        let cfg = unsafe { self.mmio.read_common_config() };
         println!("{:#?}", cfg);
     }
 
-    /// Receive Queues must be 2*N and Transmit Queues must be 2*N + 1
-    /// For example, Receive Queue must be 0 and Transmit Queue must be 1
-    pub fn initialize_virtual_queue(&self, queue_index: u16, virt_queue: &VirtQueue) {
+    fn initialize_vectors(&mut self) {
+        self.free_descriptors = vec![true; self.buffer_count];
+        self.block_headers = vec![
+            BlockBufferHeader {
+                request_type: 0xFF,
+                reserved: 0,
+                sector: 0
+            };
+            self.buffer_count
+        ];
+        self.block_status = vec![BlockBufferStatus { status: 0xFF }; self.buffer_count];
+        self.request_buffers = Vec::with_capacity(self.buffer_count);
+        self.request_buffers.resize_with(self.buffer_count, || None); // Fill with None
+    }
+
+    unsafe fn setup_virtual_queues(&mut self) {
+        self.request_queue = Some(VirtQueue {
+            descriptors: vec![VirtqDescriptor::default(); self.queue_size as usize],
+            available: VirtqAvailable::new(self.queue_size),
+            used: VirtqUsed::new(self.queue_size),
+        })
+    }
+
+    fn initialize_virtual_queue(&self, queue_index: u16, virt_queue: &VirtQueue) {
         self.mmio.accessor.write_queue_select(queue_index);
 
-        self.mmio.accessor.write_queue_desc(
-            (&virt_queue.descriptors as *const [VirtqDescriptor; DESCRIPTOR_COUNT]) as u64,
+        self.mmio
+            .accessor
+            .write_queue_desc(virt_queue.descriptors.as_ptr() as u64);
+        self.mmio.accessor.write_queue_driver(
+            (virt_queue.available.data.as_ref() as *const VirtqAvailablePacked) as u64,
         );
         self.mmio
             .accessor
-            .write_queue_driver((&virt_queue.available as *const VirtqAvailable) as u64);
-        self.mmio
-            .accessor
-            .write_queue_device((&virt_queue.used as *const VirtqUsed) as u64);
+            .write_queue_device((virt_queue.used.data.as_ref() as *const VirtqUsedPacked) as u64);
         self.mmio.accessor.write_queue_enable(1);
     }
 
+    /// Returns a free descriptor chain index
+    /// For Virtio Block, the header is placed at i, the buffer at i + self.buffer_count and the status at i + 2 * self.buffer_count
+    fn get_free_idx(&mut self) -> Result<usize, ()> {
+        for i in 0..self.free_descriptors.len() {
+            if self.free_descriptors[i] {
+                self.free_descriptors[i] = false;
+                return Ok(i);
+            }
+        }
+
+        return Err(());
+    }
+
+    #[inline]
     fn get_addr<T>(obj: &T) -> u64 {
         (obj as *const T) as u64
     }
 
-    /// Errors if there are no free descriptors
-    fn get_free_descriptor(free_descriptors: &mut [bool; DESCRIPTOR_COUNT]) -> Result<u16, ()> {
-        for i in 0..free_descriptors.len() {
-            if free_descriptors[i] {
-                free_descriptors[i] = false;
-                return Ok(i as u16);
-            }
-        }
-        Err(())
-    }
-
-    /// Errors if there are no free descriptors
-    fn get_three_free_descriptors(&mut self) -> Result<(usize, usize, usize), ()> {
-        let mut desc = (None, None, None);
-
-        for i in 0..self.free_descriptors.len() {
-            if self.free_descriptors[i] {
-                self.free_descriptors[i] = false;
-
-                if (desc.0.is_none()) {
-                    desc.0 = Some(i);
-                } else if (desc.1.is_none()) {
-                    desc.1 = Some(i);
-                } else if (desc.2.is_none()) {
-                    desc.2 = Some(i);
-
-                    return Ok((desc.0.unwrap(), desc.1.unwrap(), desc.2.unwrap()));
-                }
-            }
-        }
-        Err(())
-    }
-
+    /// Frees processed requests, returns the number of processed requests
     pub fn free_request_buffers(&mut self, collect: &mut RRefDeque<BlkReq, 128>) -> usize {
         let mut freed_count = 0;
-        while self.request_last_idx < self.request_queue.used.idx {
-            let used_element =
-                self.request_queue.used.ring[(self.request_last_idx as usize) % DESCRIPTOR_COUNT];
-            let buffer_header_desc = self.request_queue.descriptors[used_element.id as usize];
-            let buffer_data_desc = self.request_queue.descriptors[buffer_header_desc.next as usize];
 
-            if let Some(buffer) = self.request_buffers.remove(&(used_element.id as usize)) {
+        let queue = &mut self.request_queue.as_mut().unwrap();
+
+        while self.request_last_idx != queue.used.data.idx {
+            let used_element = queue.used.ring(self.request_last_idx % self.queue_size);
+            let buffer_header_desc = &queue.descriptors[used_element.id as usize];
+            // let buffer_data_desc = &queue.descriptors[buffer_header_desc.next as usize];
+
+            if let Some(buffer) = self.request_buffers[used_element.id as usize].take() {
                 collect.push_back(buffer);
+                freed_count += 1;
 
-                // Free the descriptors: header, data, and status
+                // Free the descriptor
                 self.free_descriptors[used_element.id as usize] = true;
-                self.free_descriptors[buffer_header_desc.next as usize] = true;
-                self.free_descriptors[buffer_data_desc.next as usize] = true;
             } else {
-                panic!("ERROR: VIRTIO BLOCK: REQUEST BUFFER MISSING OR BUFFER ADDRESS CHANGED!");
+                panic!("ERROR: VIRTIO BLOCK: REQUEST BUFFER MISSING BEFORE RELEASE!");
             }
-            
+
             if self.block_status[used_element.id as usize].status != 0 {
                 // Panic on failed requests. Not ideal, but such is life.
                 panic!("ERROR: VIRTIO BLOCK: Block Request Failed with IO ERROR.");
             }
 
-            freed_count += 1;
-            self.request_last_idx += 1;
+            self.request_last_idx = self.request_last_idx.wrapping_add(1);
         }
 
         freed_count
     }
 
     pub fn submit_request(&mut self, block_request: RRef<BlkReq>, write: bool) {
-        if let Ok(desc_idx) = self.get_three_free_descriptors() {
-            // Strange hack we decided was fine for the time being. We use `desc_idx.0` to index
-            // into both `block_headers` and `block_status` since they're both of size
-            // `DESCRIPTOR_COUNT`.
-            self.block_headers[desc_idx.0] = BlockBufferHeader {
+        if let Ok(header_idx) = self.get_free_idx() {
+            let queue = &mut self.request_queue.as_mut().unwrap();
+
+            self.block_headers[header_idx] = BlockBufferHeader {
                 request_type: if write { 1 } else { 0 },
                 reserved: 0,
                 sector: block_request.block * 8, // Data length is 4096, have to multiply by 8
             };
-            self.block_status[desc_idx.0] = BlockBufferStatus { status: 0xFF };
+            self.block_status[header_idx] = BlockBufferStatus { status: 0xFF };
 
-            self.request_queue.descriptors[desc_idx.0] = VirtqDescriptor {
-                addr: Self::get_addr(&self.block_headers[desc_idx.0]),
-                len: 16,
+            let buffer_idx = header_idx + self.buffer_count;
+            let status_idx = buffer_idx + self.buffer_count;
+
+            // Add the descriptors
+            // Header
+            queue.descriptors[header_idx] = VirtqDescriptor {
+                addr: Self::get_addr(&self.block_headers[header_idx]),
+                len: core::mem::size_of::<BlockBufferHeader>() as u32,
                 flags: 1,
-                next: desc_idx.1 as u16,
+                next: buffer_idx as u16,
             };
 
-            self.request_queue.descriptors[desc_idx.1] = VirtqDescriptor {
+            // Buffer
+            queue.descriptors[buffer_idx] = VirtqDescriptor {
                 addr: Self::get_addr(&block_request.data),
                 len: 4096,
                 flags: if write { 1 } else { 1 | 2 },
-                next: desc_idx.2 as u16,
+                next: status_idx as u16,
             };
 
-            self.request_queue.descriptors[desc_idx.2] = VirtqDescriptor {
-                addr: Self::get_addr(&self.block_status[desc_idx.0]),
-                len: 1,
+            // Status
+            queue.descriptors[status_idx] = VirtqDescriptor {
+                addr: Self::get_addr(&self.block_status[header_idx]),
+                len: core::mem::size_of::<BlockBufferStatus>() as u32,
                 flags: 2,
                 next: 0,
             };
 
-            self.request_buffers.insert(desc_idx.0, block_request);
+            self.request_buffers[header_idx] = Some(block_request);
 
-            self.request_queue.available.ring
-                [(self.request_queue.available.idx as usize) % DESCRIPTOR_COUNT] =
-                desc_idx.0 as u16;
-            Mmio::memory_fence();
-            self.request_queue.available.idx += 1;
+            *queue
+                .available
+                .ring(queue.available.data.idx % self.queue_size) = header_idx as u16;
+            queue.available.data.idx = queue.available.data.idx.wrapping_add(1);
 
             unsafe {
                 self.mmio.queue_notify(0, 0);
@@ -317,15 +312,5 @@ impl VirtioBlockInner {
         } else {
             println!("Virtio Block: No free descriptors, request dropped");
         }
-
-        // for i in 0..5 {
-        //     println!("Sleep {:}", i);
-        //     libtime::sys_ns_loopsleep(1_000_000_000);
-        // }
-
-        // println!("{:#?}", self.request_queue.used.idx);
-        // println!("{:#?}", blk_header);
-        // println!("{:x?}", blk_data);
-        // println!("{:#?}", blk_status);
     }
 }

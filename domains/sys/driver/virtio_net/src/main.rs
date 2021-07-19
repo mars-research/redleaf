@@ -126,37 +126,38 @@ pub fn trusted_entry(
 
     // VIRTIO DEMO LOOP
     // Run SmolNet
-    let mut smol = SmolPhy::new(Box::new(net));
 
-    use smoltcp::iface::{EthernetInterfaceBuilder, NeighborCache};
-    use smoltcp::socket::SocketSet;
-    use smoltcp::time::Instant;
-    use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
+    // let mut smol = SmolPhy::new(Box::new(net));
 
-    let neighbor_cache = NeighborCache::new(BTreeMap::new());
+    // use smoltcp::iface::{EthernetInterfaceBuilder, NeighborCache};
+    // use smoltcp::socket::SocketSet;
+    // use smoltcp::time::Instant;
+    // use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
 
-    let ip_addresses = [IpCidr::new(IpAddress::v4(10, 10, 10, 10), 24)];
-    let mac_address = [0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x10];
-    let mut iface = EthernetInterfaceBuilder::new(smol)
-        .ethernet_addr(EthernetAddress::from_bytes(&mac_address))
-        .neighbor_cache(neighbor_cache)
-        .ip_addrs(ip_addresses)
-        .finalize();
+    // let neighbor_cache = NeighborCache::new(BTreeMap::new());
 
-    let mut sockets = SocketSet::new(Vec::with_capacity(512));
+    // let ip_addresses = [IpCidr::new(IpAddress::v4(10, 10, 10, 10), 24)];
+    // let mac_address = [0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x10];
+    // let mut iface = EthernetInterfaceBuilder::new(smol)
+    //     .ethernet_addr(EthernetAddress::from_bytes(&mac_address))
+    //     .neighbor_cache(neighbor_cache)
+    //     .ip_addrs(ip_addresses)
+    //     .finalize();
 
-    let mut httpd = redhttpd::Httpd::new();
+    // let mut sockets = SocketSet::new(Vec::with_capacity(512));
 
-    loop {
-        iface.device_mut().do_rx();
+    // let mut httpd = redhttpd::Httpd::new();
 
-        let current = libtime::get_ns_time() / 1000000;
-        let timestamp = Instant::from_millis(current as i64);
+    // loop {
+    //     iface.device_mut().do_rx();
 
-        iface.poll(&mut sockets, timestamp);
-        httpd.handle(&mut sockets);
-        iface.device_mut().do_tx();
-    }
+    //     let current = libtime::get_ns_time() / 1000000;
+    //     let timestamp = Instant::from_millis(current as i64);
+
+    //     iface.poll(&mut sockets, timestamp);
+    //     httpd.handle(&mut sockets);
+    //     iface.device_mut().do_tx();
+    // }
 
     Box::new(net)
 }
