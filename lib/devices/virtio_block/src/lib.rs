@@ -45,11 +45,6 @@ struct BlockBufferStatus {
     /// OK: 0, IOERR: 1, UNSUPP: 2
     pub status: u8,
 }
-#[derive(Debug)]
-#[repr(C, packed)]
-struct BlockBufferData {
-    pub data: [u8; 512],
-}
 
 pub struct VirtioBlockInner {
     mmio: Mmio,

@@ -24,3 +24,4 @@ virtio_block_device = { path = "../../../../lib/devices/virtio_block" }
 default = [
 ]
 
+virtio_block = []
