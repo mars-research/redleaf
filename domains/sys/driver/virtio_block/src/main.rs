@@ -35,7 +35,6 @@ use virtio_block_device::pci::PciFactory;
 use virtio_block_device::VirtioBlockInner;
 
 mod nullblk;
-
 pub struct VirtioBlock(Arc<Mutex<VirtioBlockInner>>);
 
 impl interface::bdev::NvmeBDev for VirtioBlock {
@@ -45,6 +44,7 @@ impl interface::bdev::NvmeBDev for VirtioBlock {
         mut collect: RRefDeque<BlkReq, 128>,
         write: bool,
     ) -> RpcResult<Result<(usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>)>> {
+        println!("VIRTIO BLOCK: submit_and_poll_rref");
         let mut device = self.0.lock();
 
         while let Some(buffer) = submit.pop_front() {
@@ -52,6 +52,9 @@ impl interface::bdev::NvmeBDev for VirtioBlock {
         }
 
         let count = device.free_request_buffers(&mut collect);
+
+        assert_eq!(submit.len(), 0);
+        println!("FJFJFJ: {}", submit.len());
 
         Ok(Ok((count, submit, collect)))
     }
