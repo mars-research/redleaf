@@ -607,8 +607,7 @@ pub(crate) fn virtio_block_create_domain_virtio_block(
         pheap_,
         pci: alloc::boxed::Box<dyn interface::pci::PCI>,
     );
-    println!("SDJFAHFSDLJFAHSKLDFHASKLD");
-    ep_rtn_.get_stats();
+
     crate::interrupt::disable_irq();
     {
         thread_.lock().current_domain_id = old_id_;
@@ -618,8 +617,15 @@ pub(crate) fn virtio_block_create_domain_virtio_block(
     let dom_: ::alloc::boxed::Box<dyn ::syscalls::Domain> = ::alloc::boxed::Box::new(
         crate::syscalls::PDomain::new(::alloc::sync::Arc::clone(&dom_)),
     );
+
+    // ep_rtn_.get_stats();
+
     let rtn_ = (dom_, ep_rtn_);
+
     crate::interrupt::enable_irq();
+
+    println!("generated domain create {:?}", rtn_.1.as_ref() as *const _);
+
     rtn_
 }
 impl interface::domain_create::CreateNetShadow for crate::syscalls::PDomain {

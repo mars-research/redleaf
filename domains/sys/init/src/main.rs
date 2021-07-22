@@ -299,6 +299,8 @@ pub fn trusted_entry(
         .as_domain_create_CreateVirtioBlock()
         .create_domain_virtio_block(pci.pci_clone().unwrap());
 
+    println!("init {:?}", virtio_block.as_ref() as *const _);
+
     println!("Should crash here!");
     virtio_block.get_stats();
 
