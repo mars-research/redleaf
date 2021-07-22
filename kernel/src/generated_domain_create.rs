@@ -607,6 +607,8 @@ pub(crate) fn virtio_block_create_domain_virtio_block(
         pheap_,
         pci: alloc::boxed::Box<dyn interface::pci::PCI>,
     );
+    println!("SDJFAHFSDLJFAHSKLDFHASKLD");
+    ep_rtn_.get_stats();
     crate::interrupt::disable_irq();
     {
         thread_.lock().current_domain_id = old_id_;

@@ -67,6 +67,7 @@ impl interface::bdev::NvmeBDev for VirtioBlock {
     }
 
     fn get_stats(&self) -> RpcResult<Result<(u64, u64)>> {
+        println!("Virtio Block: get_stats()");
         unimplemented!();
     }
 }
@@ -168,6 +169,9 @@ pub fn trusted_entry(
 
     // println!("Block Test Complete!");
     // loop {}
+
+    println!("Virtio Block: trusted_entry()");
+
     Box::new(blk)
 }
 
