@@ -1,7 +1,7 @@
 # Some notes to help developing redleaf
 
 ## Debugging interrupts
-1. `grep` for `v=` when you want to see what interrupt that qemu's sending to the kernel.
+1. `grep` for `v=` when you want to see what interrupt that qemu's sending to the kernel. add `-d int` to qemu flag to ask it to print out interrupt info.
 2. The handler for interrupts is `do_IRQ`
 
 ## Debugging domains
