@@ -44,7 +44,7 @@ impl interface::bdev::NvmeBDev for VirtioBlock {
         mut collect: RRefDeque<BlkReq, 128>,
         write: bool,
     ) -> RpcResult<Result<(usize, RRefDeque<BlkReq, 128>, RRefDeque<BlkReq, 128>)>> {
-        println!("VIRTIO BLOCK: submit_and_poll_rref");
+        // println!("VIRTIO BLOCK: submit_and_poll_rref");
         let mut device = self.0.lock();
 
         while let Some(buffer) = submit.pop_front() {
@@ -53,8 +53,7 @@ impl interface::bdev::NvmeBDev for VirtioBlock {
 
         let count = device.free_request_buffers(&mut collect);
 
-        assert_eq!(submit.len(), 0);
-        println!("FJFJFJ: {}", submit.len());
+        // assert_eq!(submit.len(), 0);
 
         Ok(Ok((count, submit, collect)))
     }
@@ -67,9 +66,13 @@ impl interface::bdev::NvmeBDev for VirtioBlock {
     }
 
     fn get_stats(&self) -> RpcResult<Result<(u64, u64)>> {
-        println!("Virtio Block: get_stats()");
-        // unimplemented!();
-        Ok(Ok((9, 9)))
+        let dev = self.0.lock();
+        dev.print_device_config();
+        dev.print_queue_object_pointers();
+
+        // println!("Virtio Block: get_stats()");
+        unimplemented!();
+        // Ok(Ok((9, 9)))
     }
 }
 

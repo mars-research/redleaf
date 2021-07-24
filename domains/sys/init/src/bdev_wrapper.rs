@@ -34,18 +34,21 @@ pub struct BDevWrapper {
 
 impl BDevWrapper {
     pub fn new(nvme: Box<dyn NvmeBDev>) -> Self {
-        println!("{}", nvme.get_stats().is_ok());
-        Self {
-            inner: Arc::new(Mutex::new(BDevWrapperInner {
-                nvme,
-                submit: Some(RRefDeque::new([None; 128])),
-                collect: Some(RRefDeque::new([None; 128])),
-                request: Some(RRef::new(BlkReq {
-                    block: 0,
-                    data: [0; 4096],
-                    data_len: 4096,
-                })),
+        let wrapper = BDevWrapperInner {
+            nvme,
+            submit: Some(RRefDeque::new([None; 128])),
+            collect: Some(RRefDeque::new([None; 128])),
+            request: Some(RRef::new(BlkReq {
+                block: 0,
+                data: [0; 4096],
+                data_len: 4096,
             })),
+        };
+
+        wrapper.nvme.get_stats();
+
+        Self {
+            inner: Arc::new(Mutex::new(wrapper)),
         }
     }
 }
@@ -72,7 +75,8 @@ impl BDevWrapperInner {
             .unwrap()
             .push_back(self.request.take().unwrap());
 
-        println!("Block: {}", &block);
+        println!("Block {}: Started", &block);
+        println!("submit.len(): {}", self.submit.as_ref().unwrap().len());
 
         match self.nvme.submit_and_poll_rref(
             self.submit.take().unwrap(),
@@ -80,22 +84,20 @@ impl BDevWrapperInner {
             false,
         ) {
             Ok(Ok((_, submit, collect))) => {
-                println!("ASFSDF: {}, {}", submit.len(), collect.len());
-
                 self.submit.replace(submit);
                 self.collect.replace(collect);
-                println!("{} request submitted", &block);
+                println!("Block {}: Request Submitted", &block);
             }
             Err(e) => {
-                panic!("BDevWrapper Failed {:?}", e);
+                panic!("BDevWrapper RpcError {:?}", e);
             }
             Ok(Err(e)) => {
-                panic!("BDevWrapper Failed 2 {:?}", e);
+                panic!("BDevWrapper Other Error {:?}", e);
             }
         }
 
         println!(
-            "submit: {}, collect: {}",
+            "submit.len(): {}, collect.len(): {}",
             self.submit.as_ref().unwrap().len(),
             self.collect.as_ref().unwrap().len()
         );
@@ -108,32 +110,28 @@ impl BDevWrapperInner {
                 false,
             ) {
                 Ok(Ok((count, submit, mut collect))) => {
-                    println!("count: {}", &count);
+                    while let Some(req) = collect.pop_front() {
+                        println!("Block {}: Done", &block);
 
-                    while collect.len() != 0 {
-                        println!("count 2: {}", collect.len());
-                        let req = collect.pop_front();
+                        let data = req.data;
 
-                        if req.is_some() {
-                            let req = req.unwrap();
+                        self.submit.replace(submit);
+                        self.collect.replace(collect);
+                        self.request.replace(req);
 
-                            println!("{} done", &block);
-
-                            self.submit.replace(submit);
-                            self.collect.replace(collect);
-                            return Ok(RRef::new(req.data));
-                        }
+                        return Ok(RRef::new(data));
                     }
 
-                    println!("{} not done", &block);
+                    println!("Block {}: Not Done", &block);
+                    println!("Collect Len: {}", collect.len());
                     self.submit.replace(submit);
                     self.collect.replace(collect);
                 }
                 Err(e) => {
-                    panic!("BDevWrapper Failed {:?}", e);
+                    panic!("BDevWrapper RpcError {:?}", e);
                 }
                 Ok(Err(e)) => {
-                    panic!("BDevWrapper Failed 2 {:?}", e);
+                    panic!("BDevWrapper Other Error {:?}", e);
                 }
             }
         }

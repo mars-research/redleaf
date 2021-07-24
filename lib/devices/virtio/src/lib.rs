@@ -122,7 +122,7 @@ impl Mmio {
         core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
     }
 
-    pub unsafe fn read_common_config(&mut self) -> VirtioPciCommonConfig {
+    pub unsafe fn read_common_config(&self) -> VirtioPciCommonConfig {
         let cfg_ptr =
             (self.mmio_base + Register::CommonCfg.offset()) as *const VirtioPciCommonConfig;
         ptr::read_volatile(cfg_ptr)

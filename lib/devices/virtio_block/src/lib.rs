@@ -143,7 +143,7 @@ impl VirtioBlockInner {
         unsafe { self.mmio.update_device_status(VirtioDeviceStatus::DriverOk) };
 
         // self.mmio.accessor.write_queue_select(0);
-        // self.print_device_config();
+        self.print_device_config();
 
         println!("VIRTIO BLOCK READY!");
     }
@@ -162,9 +162,20 @@ impl VirtioBlockInner {
         // self.mmio.accessor.write_driver_feature(0);
     }
 
-    pub fn print_device_config(&mut self) {
+    pub fn print_device_config(&self) {
         let cfg = unsafe { self.mmio.read_common_config() };
         println!("{:#?}", cfg);
+    }
+
+    pub fn print_queue_object_pointers(&self) {
+        let queue = self.request_queue.as_ref().unwrap();
+
+        println!(
+            "DESC: {}, AVAIL: {}, USED: {}",
+            queue.descriptors.as_ptr() as u64,
+            &queue.available.data as *const _ as u64,
+            &queue.used.data as *const _ as u64
+        )
     }
 
     fn initialize_vectors(&mut self) {
@@ -188,6 +199,10 @@ impl VirtioBlockInner {
             available: VirtqAvailable::new(self.queue_size),
             used: VirtqUsed::new(self.queue_size),
         })
+    }
+
+    pub unsafe fn reinit_virtual_queue(&self) {
+        self.initialize_virtual_queue(0, &self.request_queue.as_ref().unwrap());
     }
 
     fn initialize_virtual_queue(&self, queue_index: u16, virt_queue: &VirtQueue) {
@@ -256,6 +271,8 @@ impl VirtioBlockInner {
     }
 
     pub fn submit_request(&mut self, block_request: RRef<BlkReq>, write: bool) {
+        println!("virtio_block.submit_request()");
+
         if let Ok(header_idx) = self.get_free_idx() {
             let queue = &mut self.request_queue.as_mut().unwrap();
 
@@ -300,6 +317,7 @@ impl VirtioBlockInner {
                 .available
                 .ring(queue.available.data.idx % self.queue_size) = header_idx as u16;
             queue.available.data.idx = queue.available.data.idx.wrapping_add(1);
+            println!("IDX: {}", &queue.available.data as *const _ as u64);
 
             unsafe {
                 self.mmio.queue_notify(0, 0);

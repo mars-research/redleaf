@@ -618,13 +618,9 @@ pub(crate) fn virtio_block_create_domain_virtio_block(
         crate::syscalls::PDomain::new(::alloc::sync::Arc::clone(&dom_)),
     );
 
-    // ep_rtn_.get_stats();
-
     let rtn_ = (dom_, ep_rtn_);
 
     crate::interrupt::enable_irq();
-
-    println!("generated domain create {:?}", rtn_.1.as_ref() as *const _);
 
     rtn_
 }

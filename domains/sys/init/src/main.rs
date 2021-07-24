@@ -299,11 +299,6 @@ pub fn trusted_entry(
         .as_domain_create_CreateVirtioBlock()
         .create_domain_virtio_block(pci.pci_clone().unwrap());
 
-    println!("init {:?}", virtio_block.as_ref() as *const _);
-
-    println!("Should crash here!");
-    virtio_block.get_stats();
-
     #[cfg(not(any(feature = "benchnet", feature = "benchnvme")))]
     {
         println!("Starting xv6 kernel");
@@ -314,7 +309,7 @@ pub fn trusted_entry(
             proxy.as_domain_create_CreateRv6NetShadow(),
             proxy.as_domain_create_CreateRv6Usr(),
             // bdev,
-            Box::new(bdev_wrapper::BDevWrapper::new(nvme)),
+            Box::new(bdev_wrapper::BDevWrapper::new(virtio_block)),
             net,
             Box::new(nullblk::NullBlk::new()),
             usr_tpm,
