@@ -1,8 +1,9 @@
 use alloc::{
-    alloc::{alloc, dealloc},
+    alloc::{alloc, alloc_zeroed, dealloc},
     boxed::Box,
     vec::Vec,
 };
+use console::println;
 use core::{alloc::Layout, mem::size_of, usize};
 
 // 2.6.12 Virtqueue Operation
@@ -50,7 +51,7 @@ pub struct VirtqUsedPacked {
     /// Index into VirtqDescriptor Array
     pub idx: u16,
 
-    pub ring: [VirtqUsedElement; 0], // Will have size queue_size
+    ring: [VirtqUsedElement; 0], // Will have size queue_size
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -62,7 +63,7 @@ pub struct VirtqAvailablePacked {
     pub idx: u16,
 
     /// The index of the head of the descriptor chain in the descriptor table
-    pub ring: [u16; 0], // Will have size queue_size
+    ring: [u16; 0], // Will have size queue_size
 }
 
 pub struct VirtqAvailable {
@@ -73,7 +74,10 @@ pub struct VirtqAvailable {
 impl VirtqAvailable {
     pub unsafe fn new(queue_size: u16) -> Self {
         let layout = Self::get_layout(queue_size);
-        let ptr = alloc(layout);
+        let ptr = alloc_zeroed(layout);
+
+        // println!("VirtqAvailable Allocated At: {}", ptr as u64);
+        // println!("Layout: {:#?}", &layout);
 
         Self {
             data: Box::from_raw(ptr as *mut VirtqAvailablePacked),
@@ -100,6 +104,7 @@ impl VirtqAvailable {
 
 impl Drop for VirtqAvailable {
     fn drop(&mut self) {
+        println!("VirtqAvailable.drop()");
         let layout = Self::get_layout(self.queue_size);
         unsafe {
             dealloc(
@@ -118,7 +123,7 @@ pub struct VirtqUsed {
 impl VirtqUsed {
     pub unsafe fn new(queue_size: u16) -> Self {
         let layout = Self::get_layout(queue_size);
-        let ptr = alloc(layout);
+        let ptr = alloc_zeroed(layout);
 
         Self {
             data: Box::from_raw(ptr as *mut VirtqUsedPacked),
@@ -146,6 +151,7 @@ impl VirtqUsed {
 
 impl Drop for VirtqUsed {
     fn drop(&mut self) {
+        println!("VirtqAvailable.drop()");
         let layout = Self::get_layout(self.queue_size);
         unsafe {
             dealloc(

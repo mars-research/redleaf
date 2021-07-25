@@ -132,7 +132,7 @@ impl VirtioBlockInner {
         self.buffer_count = (self.queue_size / 3) as usize;
 
         unsafe {
-            self.setup_virtual_queues();
+            self.setup_virtual_queue();
         }
         self.initialize_vectors();
 
@@ -144,8 +144,38 @@ impl VirtioBlockInner {
 
         // self.mmio.accessor.write_queue_select(0);
         self.print_device_config();
+        self.print_queue_object_pointers();
+
+        // self.throw_away_request();
 
         println!("VIRTIO BLOCK READY!");
+    }
+
+    /// Generates a throw away block request. It reads from block 0 of the device
+    fn throw_away_request(&mut self) {
+        let req_1 = BlkReq {
+            block: 1,
+            data: [0; 4096],
+            data_len: 4096,
+        };
+        let req_2 = BlkReq {
+            block: 1,
+            data: [0; 4096],
+            data_len: 4096,
+        };
+        self.submit_request(RRef::new(req_1), false);
+        self.submit_request(RRef::new(req_2), false);
+
+        let mut processed_count = 0;
+        let mut collect = RRefDeque::new([None; 128]);
+
+        while let res = self.free_request_buffers(&mut collect) {
+            processed_count += res;
+
+            if processed_count >= 2 {
+                return;
+            }
+        }
     }
 
     fn negotiate_features(&mut self) {
@@ -173,9 +203,9 @@ impl VirtioBlockInner {
         println!(
             "DESC: {}, AVAIL: {}, USED: {}",
             queue.descriptors.as_ptr() as u64,
-            &queue.available.data as *const _ as u64,
-            &queue.used.data as *const _ as u64
-        )
+            queue.available.data.as_ref() as *const VirtqAvailablePacked as u64,
+            queue.used.data.as_ref() as *const VirtqUsedPacked as u64
+        );
     }
 
     fn initialize_vectors(&mut self) {
@@ -193,16 +223,12 @@ impl VirtioBlockInner {
         self.request_buffers.resize_with(self.buffer_count, || None); // Fill with None
     }
 
-    unsafe fn setup_virtual_queues(&mut self) {
+    unsafe fn setup_virtual_queue(&mut self) {
         self.request_queue = Some(VirtQueue {
             descriptors: vec![VirtqDescriptor::default(); self.queue_size as usize],
             available: VirtqAvailable::new(self.queue_size),
             used: VirtqUsed::new(self.queue_size),
         })
-    }
-
-    pub unsafe fn reinit_virtual_queue(&self) {
-        self.initialize_virtual_queue(0, &self.request_queue.as_ref().unwrap());
     }
 
     fn initialize_virtual_queue(&self, queue_index: u16, virt_queue: &VirtQueue) {
@@ -217,6 +243,8 @@ impl VirtioBlockInner {
         self.mmio
             .accessor
             .write_queue_device((virt_queue.used.data.as_ref() as *const VirtqUsedPacked) as u64);
+
+        Mmio::memory_fence();
         self.mmio.accessor.write_queue_enable(1);
     }
 
@@ -274,7 +302,7 @@ impl VirtioBlockInner {
         println!("virtio_block.submit_request()");
 
         if let Ok(header_idx) = self.get_free_idx() {
-            let queue = &mut self.request_queue.as_mut().unwrap();
+            let queue = self.request_queue.as_mut().unwrap();
 
             self.block_headers[header_idx] = BlockBufferHeader {
                 request_type: if write { 1 } else { 0 },
@@ -297,7 +325,7 @@ impl VirtioBlockInner {
 
             // Buffer
             queue.descriptors[buffer_idx] = VirtqDescriptor {
-                addr: Self::get_addr(&block_request.data),
+                addr: block_request.data.as_ptr() as u64,
                 len: 4096,
                 flags: if write { 1 } else { 1 | 2 },
                 next: status_idx as u16,
@@ -313,11 +341,13 @@ impl VirtioBlockInner {
 
             self.request_buffers[header_idx] = Some(block_request);
 
+            Mmio::memory_fence();
             *queue
                 .available
                 .ring(queue.available.data.idx % self.queue_size) = header_idx as u16;
+            Mmio::memory_fence();
             queue.available.data.idx = queue.available.data.idx.wrapping_add(1);
-            println!("IDX: {}", &queue.available.data as *const _ as u64);
+            Mmio::memory_fence();
 
             unsafe {
                 self.mmio.queue_notify(0, 0);

@@ -45,8 +45,6 @@ impl BDevWrapper {
             })),
         };
 
-        wrapper.nvme.get_stats();
-
         Self {
             inner: Arc::new(Mutex::new(wrapper)),
         }
@@ -66,14 +64,11 @@ impl BDev for BDevWrapper {
 impl BDevWrapperInner {
     fn read(&mut self, block: u32, data: RRef<[u8; 4096]>) -> RpcResult<RRef<[u8; 4096]>> {
         // Modify the request
-        let mut req = self.request.as_mut().unwrap();
+        let mut req = self.request.take().unwrap();
         req.block = block as u64;
         req.data = *data;
 
-        self.submit
-            .as_mut()
-            .unwrap()
-            .push_back(self.request.take().unwrap());
+        self.submit.as_mut().unwrap().push_back(req);
 
         println!("Block {}: Started", &block);
         println!("submit.len(): {}", self.submit.as_ref().unwrap().len());
