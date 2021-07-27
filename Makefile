@@ -103,6 +103,12 @@ qemu_common     += -cpu 'Haswell,pdpe1gb' -machine q35
 #qemu_common	+= -mem-path /dev/hugepages
 qemu_common		+= --trace virtio_*
 qemu_common		+= --trace virtqueue_*
+# qemu_common		+= --trace file_*
+# qemu_common		+= --trace vhost_*
+# qemu_common		+= --trace vfio_*
+
+
+
 
 ifeq ($(LARGE_MEM),true)
 qemu_common     += -m 8G
@@ -121,7 +127,14 @@ qemu_common     += -S -s
 endif
 
 ifeq ($(VIRTIO_BLOCK),true)
-qemu_common 	+= -drive file=$(xv6fs_img),if=virtio,media=disk,format=raw
+# qemu_common 	+= -drive file=$(xv6fs_img),if=virtio,media=disk,format=raw
+qemu_common 	+= -drive if=none,id=virtio_block,file=$(xv6fs_img),format=raw,cache=none,aio=native
+qemu_common 	+= -device virtio-blk-pci,drive=virtio_block,ioeventfd=off
+
+# qemu_common 	+= -drive file=disk.img,if=virtio,media=disk,format=raw
+# qemu_common 	+= -drive if=none,id=virtio_block,file=disk.img,format=raw
+# qemu_common 	+= -device virtio-blk-pci,drive=virtio_block,ioeventfd=off
+
 DOMAIN_FEATURES += --features "virtio_block"
 endif
 

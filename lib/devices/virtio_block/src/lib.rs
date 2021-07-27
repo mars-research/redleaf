@@ -106,6 +106,13 @@ impl VirtioBlockInner {
         // Perform device-specific setup, including discovery of virtqueues for the device, optional per-bus setup, reading and possibly writing the device’s virtio configuration space, and population of virtqueues.
         // Set the DRIVER_OK status bit. At this point the device is “live”.
 
+        // Reset the device
+        // Failing to do this DOES cause errors, don't ask how I know *sigh*
+        unsafe {
+            self.mmio.accessor.write_device_status(0);
+        }
+        Mmio::memory_fence();
+
         // Acknowledge Device
         unsafe {
             self.mmio
@@ -149,33 +156,6 @@ impl VirtioBlockInner {
         // self.throw_away_request();
 
         println!("VIRTIO BLOCK READY!");
-    }
-
-    /// Generates a throw away block request. It reads from block 0 of the device
-    fn throw_away_request(&mut self) {
-        let req_1 = BlkReq {
-            block: 1,
-            data: [0; 4096],
-            data_len: 4096,
-        };
-        let req_2 = BlkReq {
-            block: 1,
-            data: [0; 4096],
-            data_len: 4096,
-        };
-        self.submit_request(RRef::new(req_1), false);
-        self.submit_request(RRef::new(req_2), false);
-
-        let mut processed_count = 0;
-        let mut collect = RRefDeque::new([None; 128]);
-
-        while let res = self.free_request_buffers(&mut collect) {
-            processed_count += res;
-
-            if processed_count >= 2 {
-                return;
-            }
-        }
     }
 
     fn negotiate_features(&mut self) {
@@ -228,7 +208,7 @@ impl VirtioBlockInner {
             descriptors: vec![VirtqDescriptor::default(); self.queue_size as usize],
             available: VirtqAvailable::new(self.queue_size),
             used: VirtqUsed::new(self.queue_size),
-        })
+        });
     }
 
     fn initialize_virtual_queue(&self, queue_index: u16, virt_queue: &VirtQueue) {
@@ -274,22 +254,31 @@ impl VirtioBlockInner {
 
         while self.request_last_idx != queue.used.data.idx {
             let used_element = queue.used.ring(self.request_last_idx % self.queue_size);
-            let buffer_header_desc = &queue.descriptors[used_element.id as usize];
+
+            let header_idx = used_element.id as usize;
+            let buffer_header_desc = &queue.descriptors[header_idx];
             // let buffer_data_desc = &queue.descriptors[buffer_header_desc.next as usize];
 
-            if let Some(buffer) = self.request_buffers[used_element.id as usize].take() {
+            if let Some(buffer) = self.request_buffers[header_idx].take() {
+                if self.block_status[header_idx].status != 0 {
+                    // Panic on failed requests. Not ideal, but such is life.
+                    println!(
+                        "IDX: {}, Used IDX: {}, Block Status: {:#X} (Default: 0xFF), Block Sector: {}, Block Data: {:?}",
+                        self.request_last_idx, queue.used.data.idx,
+                        &self.block_status[header_idx].status,
+                        &self.block_headers[header_idx].sector,
+                        &buffer.data[0..20]
+                    );
+                    panic!("ERROR: VIRTIO BLOCK: Block Request Failed with IO ERROR.");
+                }
+
                 collect.push_back(buffer);
                 freed_count += 1;
 
                 // Free the descriptor
-                self.free_descriptors[used_element.id as usize] = true;
+                self.free_descriptors[header_idx] = true;
             } else {
                 panic!("ERROR: VIRTIO BLOCK: REQUEST BUFFER MISSING BEFORE RELEASE!");
-            }
-
-            if self.block_status[used_element.id as usize].status != 0 {
-                // Panic on failed requests. Not ideal, but such is life.
-                panic!("ERROR: VIRTIO BLOCK: Block Request Failed with IO ERROR.");
             }
 
             self.request_last_idx = self.request_last_idx.wrapping_add(1);
@@ -299,8 +288,6 @@ impl VirtioBlockInner {
     }
 
     pub fn submit_request(&mut self, block_request: RRef<BlkReq>, write: bool) {
-        println!("virtio_block.submit_request()");
-
         if let Ok(header_idx) = self.get_free_idx() {
             let queue = self.request_queue.as_mut().unwrap();
 
@@ -341,14 +328,10 @@ impl VirtioBlockInner {
 
             self.request_buffers[header_idx] = Some(block_request);
 
-            Mmio::memory_fence();
             *queue
                 .available
                 .ring(queue.available.data.idx % self.queue_size) = header_idx as u16;
-            Mmio::memory_fence();
             queue.available.data.idx = queue.available.data.idx.wrapping_add(1);
-            Mmio::memory_fence();
-
             unsafe {
                 self.mmio.queue_notify(0, 0);
             }
