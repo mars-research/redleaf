@@ -294,7 +294,8 @@ impl VirtioBlockInner {
             self.block_headers[header_idx] = BlockBufferHeader {
                 request_type: if write { 1 } else { 0 },
                 reserved: 0,
-                sector: block_request.block * 8, // Data length is 4096, have to multiply by 8
+                // sector: block_request.block * 8, // Data length is 4096, have to multiply by 8
+                sector: block_request.block
             };
             self.block_status[header_idx] = BlockBufferStatus { status: 0xFF };
 
@@ -331,6 +332,8 @@ impl VirtioBlockInner {
             *queue
                 .available
                 .ring(queue.available.data.idx % self.queue_size) = header_idx as u16;
+
+            Mmio::memory_fence();
             queue.available.data.idx = queue.available.data.idx.wrapping_add(1);
             unsafe {
                 self.mmio.queue_notify(0, 0);
