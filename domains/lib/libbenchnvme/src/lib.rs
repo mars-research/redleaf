@@ -7,10 +7,10 @@ use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use b2histogram::Base2Histogram;
 use console::{print, println};
-use libtime::get_rdtsc as rdtsc;
-use interface::rref::{RRef, RRefDeque};
 use interface::bdev::{BlkReq, NvmeBDev};
 use interface::error::Result;
+use interface::rref::{RRef, RRefDeque};
+use libtime::get_rdtsc as rdtsc;
 
 static mut seed: u64 = 123456789;
 static pow: u64 = 2u64.pow(31);
@@ -38,7 +38,7 @@ pub fn run_blocktest_rref(
     is_write: bool,
     is_random: bool,
 ) -> Result<()> {
-    let mut block_num: u64 = 0;
+    let mut block_num: u8 = 0;
     let batch_sz = 32;
     let runtime = 30;
 
@@ -56,7 +56,7 @@ pub fn run_blocktest_rref(
         if is_random {
             breq.block = get_rand_block();
         } else {
-            breq.block = block_num;
+            breq.block = block_num as u64;
             block_num = block_num.wrapping_add(8);
         }
         submit.push_back(RRef::<BlkReq>::new(breq));
@@ -107,7 +107,7 @@ pub fn run_blocktest_rref(
             if is_random {
                 breq.block = get_rand_block();
             } else {
-                breq.block = block_num;
+                breq.block = block_num as u64;
                 block_num = block_num.wrapping_add(8);
             }
             if submit_.push_back(breq).is_some() {
@@ -126,7 +126,7 @@ pub fn run_blocktest_rref(
                 if is_random {
                     breq.block = get_rand_block();
                 } else {
-                    breq.block = block_num;
+                    breq.block = block_num as u64;
                     block_num = block_num.wrapping_add(8);
                 }
                 submit_.push_back(RRef::<BlkReq>::new(breq));

@@ -291,13 +291,15 @@ pub fn trusted_entry(
     #[cfg(feature = "benchnet")]
     let _ = proxy.as_create_benchnet().create_domain_benchnet(net);
 
-    #[cfg(feature = "benchnvme")]
-    let _ = proxy.as_create_benchnvme().create_domain_benchnvme(nvme);
-
     #[cfg(feature = "virtio_block")]
     let (_, virtio_block) = proxy
         .as_domain_create_CreateVirtioBlock()
         .create_domain_virtio_block(pci.pci_clone().unwrap());
+
+    #[cfg(feature = "benchnvme")]
+    let _ = proxy
+        .as_domain_create_CreateBenchnvme()
+        .create_domain_benchnvme(virtio_block);
 
     #[cfg(not(any(feature = "benchnet", feature = "benchnvme")))]
     {

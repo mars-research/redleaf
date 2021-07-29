@@ -48,7 +48,12 @@ impl interface::bdev::NvmeBDev for VirtioBlock {
         let mut device = self.0.lock();
 
         while let Some(buffer) = submit.pop_front() {
-            device.submit_request(buffer, write);
+            let res = device.submit_request(buffer, write);
+
+            if res.is_err() {
+                submit.push_back(res.unwrap_err());
+                break;
+            }
         }
 
         let count = device.free_request_buffers(&mut collect);
@@ -62,17 +67,13 @@ impl interface::bdev::NvmeBDev for VirtioBlock {
         &self,
         collect: RRefDeque<BlkReq, 1024>,
     ) -> RpcResult<Result<(usize, RRefDeque<BlkReq, 1024>)>> {
-        unimplemented!();
+        // Dummy Data
+        Ok(Ok((0, collect)))
     }
 
     fn get_stats(&self) -> RpcResult<Result<(u64, u64)>> {
-        let dev = self.0.lock();
-        dev.print_device_config();
-        dev.print_queue_object_pointers();
-
-        // println!("Virtio Block: get_stats()");
-        unimplemented!();
-        // Ok(Ok((9, 9)))
+        // Dummy Data
+        Ok(Ok((9, 9)))
     }
 }
 
@@ -107,45 +108,45 @@ pub fn trusted_entry(
 
     // Testing Code
 
-    let mut submit = RRefDeque::new([None; 128]);
-    let mut collect = RRefDeque::new([None; 128]);
+    // let mut submit = RRefDeque::new([None; 128]);
+    // let mut collect = RRefDeque::new([None; 128]);
 
-    // *** Single Read Request ***
-    submit.push_back(RRef::new(BlkReq {
-        data: [99u8; 4096],
-        data_len: 4096,
-        block: 0,
-    }));
-
+    // // *** Single Read Request ***
     // submit.push_back(RRef::new(BlkReq {
     //     data: [99u8; 4096],
     //     data_len: 4096,
-    //     block: 1,
+    //     block: 0,
     // }));
 
-    let total_needed = submit.len();
-    let mut total = 0;
+    // // submit.push_back(RRef::new(BlkReq {
+    // //     data: [99u8; 4096],
+    // //     data_len: 4096,
+    // //     block: 1,
+    // // }));
 
-    loop {
-        let res = blk
-            .submit_and_poll_rref(submit, collect, false)
-            .unwrap()
-            .unwrap();
+    // let total_needed = submit.len();
+    // let mut total = 0;
 
-        total += res.0;
-        submit = res.1;
-        collect = res.2;
+    // loop {
+    //     let res = blk
+    //         .submit_and_poll_rref(submit, collect, false)
+    //         .unwrap()
+    //         .unwrap();
 
-        while let Some(blk) = collect.pop_front() {
-            println!("Total: {}", total);
-            println!("{:?}", &blk.data[0..20]);
-        }
+    //     total += res.0;
+    //     submit = res.1;
+    //     collect = res.2;
 
-        if total >= total_needed {
-            println!("Done");
-            loop {}
-        }
-    }
+    //     while let Some(blk) = collect.pop_front() {
+    //         println!("Total: {}", total);
+    //         println!("{:?}", &blk.data[0..20]);
+    //     }
+
+    //     if total >= total_needed {
+    //         println!("Done");
+    //         loop {}
+    //     }
+    // }
 
     // *** Write requests to `submit` ***
 
@@ -218,7 +219,7 @@ pub fn trusted_entry(
     // println!("Block Test Complete!");
     // loop {}
 
-    println!("Virtio Block: trusted_entry()");
+    // println!("Virtio Block: trusted_entry()");
 
     Box::new(blk)
 }

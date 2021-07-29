@@ -287,14 +287,19 @@ impl VirtioBlockInner {
         freed_count
     }
 
-    pub fn submit_request(&mut self, block_request: RRef<BlkReq>, write: bool) {
+    pub fn submit_request(
+        &mut self,
+        block_request: RRef<BlkReq>,
+        write: bool,
+    ) -> Result<(), RRef<BlkReq>> {
         if let Ok(header_idx) = self.get_free_idx() {
             let queue = self.request_queue.as_mut().unwrap();
 
             self.block_headers[header_idx] = BlockBufferHeader {
                 request_type: if write { 1 } else { 0 },
                 reserved: 0,
-                sector: block_request.block * 8, // Data length is 4096, have to multiply by 8
+                // sector: block_request.block * 8, // Data length is 4096, have to multiply by 8
+                sector: block_request.block,
             };
             self.block_status[header_idx] = BlockBufferStatus { status: 0xFF };
 
@@ -335,8 +340,11 @@ impl VirtioBlockInner {
             unsafe {
                 self.mmio.queue_notify(0, 0);
             }
+
+            Ok(())
         } else {
-            println!("Virtio Block: No free descriptors, request dropped");
+            // println!("Virtio Block: No free descriptors, request dropped");
+            Err(block_request)
         }
     }
 }

@@ -101,8 +101,8 @@ qemu_common     += -cpu 'Haswell,pdpe1gb' -machine q35
 #qemu_common    += -device vfio-pci,romfile=,host=06:00.1
 #qemu_common    += -vnc 127.0.0.1:0
 #qemu_common	+= -mem-path /dev/hugepages
-qemu_common		+= --trace virtio_*
-qemu_common		+= --trace virtqueue_*
+# qemu_common		+= --trace virtio_*
+# qemu_common		+= --trace virtqueue_*
 # qemu_common		+= --trace file_*
 # qemu_common		+= --trace vhost_*
 # qemu_common		+= --trace vfio_*
@@ -128,14 +128,18 @@ endif
 
 ifeq ($(VIRTIO_BLOCK),true)
 # qemu_common 	+= -drive file=$(xv6fs_img),if=virtio,media=disk,format=raw
-qemu_common 	+= -drive if=none,id=virtio_block,file=$(xv6fs_img),format=raw,cache=none,aio=native
-qemu_common 	+= -device virtio-blk-pci,drive=virtio_block,ioeventfd=off
+# qemu_common 	+= -drive if=none,id=virtio_block,file=$(xv6fs_img),format=raw,cache=none,aio=native
+# qemu_common 	+= -device virtio-blk-pci,drive=virtio_block,ioeventfd=off
 
 # qemu_common 	+= -drive file=disk.img,if=virtio,media=disk,format=raw
-# qemu_common 	+= -drive if=none,id=virtio_block,file=disk.img,format=raw
+qemu_common 	+= -drive if=none,id=virtio_block,file=disk.img,format=raw
+qemu_common 	+= -device virtio-blk-pci,drive=virtio_block,ioeventfd=off
+
+# qemu_common 	+= -drive if=none,id=virtio_block,file=/dev/zero,format=raw
 # qemu_common 	+= -device virtio-blk-pci,drive=virtio_block,ioeventfd=off
 
 DOMAIN_FEATURES += --features "virtio_block"
+DOMAIN_FEATURES += --features "benchnvme"
 endif
 
 ifeq ($(VIRTIO_NET),true)
