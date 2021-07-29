@@ -336,6 +336,8 @@ impl VirtioBlockInner {
             *queue
                 .available
                 .ring(queue.available.data.idx % self.queue_size) = header_idx as u16;
+
+            Mmio::memory_fence();
             queue.available.data.idx = queue.available.data.idx.wrapping_add(1);
             unsafe {
                 self.mmio.queue_notify(0, 0);

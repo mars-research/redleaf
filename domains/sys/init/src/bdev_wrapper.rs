@@ -104,9 +104,9 @@ impl BDevWrapperInner {
                 self.collect.take().unwrap(),
                 false,
             ) {
-                Ok(Ok((count, submit, mut collect))) => {
+                Ok(Ok((_, submit, mut collect))) => {
                     while let Some(req) = collect.pop_front() {
-                        println!("Block {}: Done", &block);
+                        println!("Read Block {}: Done", &req.block);
 
                         let data = req.data;
 
@@ -117,8 +117,8 @@ impl BDevWrapperInner {
                         return Ok(RRef::new(data));
                     }
 
-                    println!("Block {}: Not Done", &block);
-                    println!("Collect Len: {}", collect.len());
+                    println!("Read Block {}: Not Done", &block);
+                    println!("Read Collect Len: {}", collect.len());
                     self.submit.replace(submit);
                     self.collect.replace(collect);
                 }
@@ -132,7 +132,56 @@ impl BDevWrapperInner {
         }
     }
 
-    fn write(&self, block: u32, data: &RRef<[u8; 4096]>) -> RpcResult<()> {
-        unimplemented!();
+    fn write(&mut self, block: u32, data: &RRef<[u8; 4096]>) -> RpcResult<()> {
+        // Modify the request
+        let mut req = self.request.take().unwrap();
+        req.block = block as u64;
+        // req.data = **data;
+        req.data = [0x69; 4096];
+
+        // println!("block: {}, req.block: {}", block, req.block);
+        // println!("data: {:?}, req.data: {:?}", **data, req.data);
+
+        self.submit.as_mut().unwrap().push_back(req);
+
+        println!("Write Block {}: Started", &block);
+        println!("Write submit.len(): {}", self.submit.as_ref().unwrap().len());
+
+        // Wait for it to finish and return
+        loop {
+            match self.nvme.submit_and_poll_rref(
+                self.submit.take().unwrap(),
+                self.collect.take().unwrap(),
+                true,
+            ) {
+                Ok(Ok((_, submit, mut collect))) => {
+                    while let Some(req) = collect.pop_front() {
+                        println!("Write Block {}: Done", &req.block);
+
+                        self.submit.replace(submit);
+                        self.collect.replace(collect);
+                        self.request.replace(req);
+
+                        let data = RRef::new([0x42; 4096]);
+                        if let Ok(res) = self.read(block, data) {
+                            println!("Write data: {:?}", *res);
+                        }
+
+                        return Ok(());
+                    }
+
+                    println!("Write Block {}: Not Done", &block);
+                    println!("Write Collect Len: {}", collect.len());
+                    self.submit.replace(submit);
+                    self.collect.replace(collect);
+                }
+                Err(e) => {
+                    panic!("BDevWrapper RpcError {:?}", e);
+                }
+                Ok(Err(e)) => {
+                    panic!("BDevWrapper Other Error {:?}", e);
+                }
+            }
+        }
     }
 }
