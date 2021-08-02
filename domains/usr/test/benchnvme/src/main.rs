@@ -18,7 +18,7 @@ pub fn trusted_entry(
     libsyscalls::syscalls::init(s);
     interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
-    println!("Init domain benchnvme_inside (╯°□°）╯︵ ┻━┻ ^_^");
+    println!("Init domain benchnvme_inside (╯°□°）╯︵ ┻━┻ ^_^ ʕ·͡ᴥ·ʔ (҂◡_◡) ᕤ (┬┬﹏┬┬) ノ┬─┬ノ ︵ ( \\o°o)\\");
 
     for _ in 0..=6 {
         let _ = libbenchnvme::run_blocktest_rref(

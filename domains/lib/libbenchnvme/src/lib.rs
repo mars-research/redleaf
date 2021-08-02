@@ -75,6 +75,7 @@ pub fn run_blocktest_rref(
     let mut alloc_elapsed = 0;
 
     let mut count: u64 = 0;
+    let mut total_requests = 0;
 
     let mut submit = Some(submit);
     let mut collect = Some(collect);
@@ -88,7 +89,7 @@ pub fn run_blocktest_rref(
     let mut sq_id = 0;
 
     let tsc_start = rdtsc();
-    let tsc_end = tsc_start + runtime * 2_400_000_000;
+    let tsc_end = tsc_start + runtime * 3_000_000_000;
 
     loop {
         count += 1;
@@ -97,6 +98,9 @@ pub fn run_blocktest_rref(
             .submit_and_poll_rref(submit.take().unwrap(), collect.take().unwrap(), is_write)
             .unwrap()?;
         submit_elapsed += rdtsc() - submit_start;
+
+        assert_eq!(ret, collect_.len());
+        total_requests += ret;
 
         //println!("submitted {} reqs, collect {} reqs sq: {} cq {}", ret, collect_.len(), last_sq, last_cq);
         submit_hist.record(ret as u64);
@@ -143,10 +147,6 @@ pub fn run_blocktest_rref(
         //sys_ns_loopsleep(2000);
     }
 
-    println!("Starting Nap");
-    libtime::sys_ns_sleep(10_000_000_000);
-    println!("Ending Nap");
-
     let elapsed = rdtsc() - tsc_start;
 
     let adj_runtime = elapsed as f64 / 3_000_000_000_u64 as f64;
@@ -180,9 +180,9 @@ pub fn run_blocktest_rref(
         submit_elapsed / count
     );
 
-    let bytes_sec = ((count * 4096) as f64 / adj_runtime);
+    let bytes_sec = ((total_requests * 4096) as f64 / adj_runtime);
 
-    println!("Total Blocks: {}", count);
+    println!("Total Blocks: {}", total_requests);
     println!("Throughput: {} Bytes / sec", bytes_sec);
     println!("Throughput: {} KB / sec", bytes_sec / 1024 as f64);
     println!("Throughput: {} MB / sec", bytes_sec / (1024 * 1024) as f64);
