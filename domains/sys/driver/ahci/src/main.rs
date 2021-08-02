@@ -309,12 +309,14 @@ fn run_async_benchmark(device: &Ahci, block_num: u64, write: bool, random: bool)
             }
         }
     }
+    let freq: u64 = 2_400_000_000;
     let read_end = libtime::get_rdtsc();
     println!(
-        "{} {} blocks in {} cycles",
+        "{} {} blocks in {} cycles, {} seconds",
         submit_type,
         block_num,
-        read_end - read_start
+        read_end - read_start,
+        (read_end - read_start) as f64 / freq as f64
     );
 }
 
@@ -477,11 +479,18 @@ pub fn trusted_entry(
     // run_blocktest_rref(&ahci, 512, 1);
 
     // run_async_benchmark(&ahci, 8192, true, true);
-    run_async_benchmark(&ahci, 8192 * 2, true, true);
-    run_async_benchmark(&ahci, 32768, true, true);
-    run_async_benchmark(&ahci, 32768, false, true);
+    // run_async_benchmark(&ahci, 8192 * 2, true, true);
+    // run_async_benchmark(&ahci, 32768, true, true);
+    // run_async_benchmark(&ahci, 32768, false, true);
     run_async_benchmark(&ahci, 65536, true, false);
     run_async_benchmark(&ahci, 65536, false, false);
+    run_async_benchmark(&ahci, 65536 * 4, true, false);
+    run_async_benchmark(&ahci, 65536 * 4, true, false);
+
+    run_async_benchmark(&ahci, 65536, true, true);
+    run_async_benchmark(&ahci, 65536, false, true);
+    run_async_benchmark(&ahci, 65536 * 4, true, true);
+    run_async_benchmark(&ahci, 65536 * 4, true, true);
 
     let ahci: Box<dyn NvmeBDev + Send> = Box::new(ahci);
 
