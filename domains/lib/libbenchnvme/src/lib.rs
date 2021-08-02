@@ -38,7 +38,7 @@ pub fn run_blocktest_rref(
     is_write: bool,
     is_random: bool,
 ) -> Result<()> {
-    let mut block_num: u8 = 0;
+    let mut block_num: u64 = 0;
     let batch_sz = 32;
     let runtime = 30;
 
@@ -143,9 +143,13 @@ pub fn run_blocktest_rref(
         //sys_ns_loopsleep(2000);
     }
 
+    println!("Starting Nap");
+    libtime::sys_ns_sleep(10_000_000_000);
+    println!("Ending Nap");
+
     let elapsed = rdtsc() - tsc_start;
 
-    let adj_runtime = elapsed as f64 / 2_400_000_000_u64 as f64;
+    let adj_runtime = elapsed as f64 / 3_000_000_000_u64 as f64;
 
     let (sub, comp) = dev.get_stats().unwrap()?;
 
@@ -174,6 +178,17 @@ pub fn run_blocktest_rref(
         "submit_and_poll_rref took {} cycles (avg {} cycles)",
         submit_elapsed,
         submit_elapsed / count
+    );
+
+    let bytes_sec = ((count * 4096) as f64 / adj_runtime);
+
+    println!("Total Blocks: {}", count);
+    println!("Throughput: {} Bytes / sec", bytes_sec);
+    println!("Throughput: {} KB / sec", bytes_sec / 1024 as f64);
+    println!("Throughput: {} MB / sec", bytes_sec / (1024 * 1024) as f64);
+    println!(
+        "Throughput: {} GB / sec",
+        bytes_sec / (1024 * 1024 * 1024) as f64
     );
 
     println!("Number of new allocations {}", alloc_count * batch_sz);

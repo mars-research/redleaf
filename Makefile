@@ -91,6 +91,7 @@ domain_list := $(addprefix domains/build/, \
 # qemu_common     := ${QEMU_MEM} -vga std -s
 qemu_common     := ${QEMU_MEM} -vga std
 qemu_common     += -cdrom $(iso)
+qemu_common 	+= -boot d
 #qemu_common    += -no-reboot -no-shutdown -d int,cpu_reset
 # qemu_common     += -drive id=satadisk,file=$(xv6fs_img),format=raw,if=none
 # qemu_common     += -device ahci,id=ahci
@@ -132,8 +133,9 @@ ifeq ($(VIRTIO_BLOCK),true)
 # qemu_common 	+= -device virtio-blk-pci,drive=virtio_block,ioeventfd=off
 
 # qemu_common 	+= -drive file=disk.img,if=virtio,media=disk,format=raw
-qemu_common 	+= -drive if=none,id=virtio_block,file=disk.img,format=raw
-qemu_common 	+= -device virtio-blk-pci,drive=virtio_block,ioeventfd=off
+# qemu_common 	+= -drive if=none,id=virtio_block,file=disk.img,format=raw
+qemu_common 	+= -drive if=none,id=virtio_block,file=/dev/sdb,format=raw,cache=writethrough
+qemu_common 	+= -device virtio-blk-pci,drive=virtio_block
 
 # qemu_common 	+= -drive if=none,id=virtio_block,file=/dev/zero,format=raw
 # qemu_common 	+= -device virtio-blk-pci,drive=virtio_block,ioeventfd=off
