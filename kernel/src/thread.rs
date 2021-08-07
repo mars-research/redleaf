@@ -46,7 +46,7 @@ static THREAD_ID: AtomicU64 = AtomicU64::new(0);
 
 const MAX_PRIO: usize = 15;
 const MAX_CPUS: usize = 64;
-const MAX_CONT: usize = 10;
+const MAX_CONT: usize = 30;
 const NULL_RETURN_MARKER: usize = 0x0000_0000;
 
 /// Per-CPU scheduler
