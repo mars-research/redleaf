@@ -80,7 +80,7 @@ impl interface::dom_c::DomC for Shadow {
         self.dom.lock().dom_c.one_rref(x)
     }
 
-    fn init_dom_c(&self, c: Box<dyn interface::dom_c::DomC>) -> RpcResult<()> {
+    fn init_dom_c(&self, c: *const Box<dyn interface::dom_c::DomC>) -> RpcResult<()> {
         self.dom.lock().dom_c.init_dom_c(c)
     }
 }

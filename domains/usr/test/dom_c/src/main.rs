@@ -15,6 +15,8 @@ use interface::rref::RRef;
 
 use interface::rpc::RpcResult;
 
+static mut SELF_BOX: Option<*const Box<dyn interface::dom_c::DomC>> = None;
+
 struct DomC {}
 
 impl DomC {
@@ -38,11 +40,22 @@ impl interface::dom_c::DomC for DomC {
     }
 
     fn one_rref(&self, mut x: RRef<usize>) -> RpcResult<RRef<usize>> {
-        *x += 1;
-        Ok(x)
+        if *x <= 1 {
+            *x = 42;
+            Ok(x)
+        } else {
+            *x -= 1;
+            unsafe {
+                let stolen_box = SELF_BOX.as_ref().unwrap();
+                stolen_box.as_ref().unwrap().one_rref(x)
+            }
+        }
     }
 
-    fn init_dom_c(&self, c: Box<dyn interface::dom_c::DomC>) -> RpcResult<()> {
+    fn init_dom_c(&self, c: *const Box<dyn interface::dom_c::DomC>) -> RpcResult<()> {
+        unsafe {
+            SELF_BOX.replace(c);
+        }
         Ok(())
     }
 }

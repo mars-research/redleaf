@@ -24,6 +24,29 @@ pub fn trusted_entry(
 
     println!("Init domain D");
 
+    dom_c.init_dom_c(&dom_c as *const _);
+
+    let iterations = 1_000_000;
+
+    let depth = 16;
+
+    let start = libtime::get_rdtsc();
+    let mut depth_rref = RRef::new(depth);
+    for _ in 0..iterations {
+        depth_rref = dom_c.one_rref(depth_rref).unwrap();
+        *depth_rref = depth;
+    }
+    let cycles = libtime::get_rdtsc() - start;
+    println!(
+        "{}, {}, {}, {}, {}",
+        depth,
+        iterations,
+        cycles,
+        cycles as usize / iterations,
+        cycles as usize / iterations / depth,
+    );
+
+    /*
     let iter = 10_000_000;
 
     let start = libtime::get_rdtsc();
@@ -64,6 +87,7 @@ pub fn trusted_entry(
         iter
     );
     assert!(*dom_c.one_rref(x).unwrap() == iter + 1);
+    */
 }
 
 // This function is called on panic.
