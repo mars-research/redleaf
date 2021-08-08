@@ -4,7 +4,7 @@
 # Configurations
 ################
 
-DEBUG            ?= false
+DEBUG            ?= true
 LARGE_MEM        ?= true
 IXGBE		 ?= true
 VIRTIO_NET 		 ?= false
@@ -112,6 +112,7 @@ endif
 
 ifeq ($(GDB),true)
 qemu_common     += -s -S
+KERNEL_FEATURES  += --features "gdb_domain_variables"
 endif
 
 ifeq ($(VIRTIO_NET),true)

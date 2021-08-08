@@ -15,6 +15,7 @@ use crate::heap::PHeap;
 use crate::syscalls::PDomain;
 use crate::{is_page_aligned, round_up};
 use alloc::boxed::Box;
+use alloc::fmt::format;
 use core::sync::atomic::{AtomicU64, Ordering};
 use libsyscalls;
 use spin::Once;
@@ -25,6 +26,23 @@ static DOMAIN_ID: AtomicU64 = AtomicU64::new(0);
 
 /// Global Domain list
 pub static KERNEL_DOMAIN: Once<Arc<Mutex<Domain>>> = Once::new();
+
+#[derive(Debug)]
+pub struct GDBDomain {
+    pub name: String,
+    pub offset: VAddr,
+    pub entry_point: VAddr,
+}
+
+#[cfg(feature = "gdb_domain_variables")]
+#[no_mangle]
+pub(crate) static LOADED_DOMAINS: Once<Arc<Mutex<Vec<GDBDomain>>>> = Once::new();
+
+#[cfg(feature = "gdb_domain_variables")]
+#[no_mangle]
+unsafe fn get_loaded_domains_as_string() -> String {
+    format!("{:#?}", *LOADED_DOMAINS.wait().unwrap().lock())
+}
 
 //#[thread_local]
 //pub static BOOTING_DOMAIN: RefCell<Option<Box<PDomain>>> = RefCell::new(None);
@@ -88,6 +106,10 @@ pub fn init_domains() {
     let kernel = Arc::new(Mutex::new(Domain::new("kernel")));
     libsyscalls::syscalls::init(Box::new(PDomain::new(Arc::clone(&kernel))));
     KERNEL_DOMAIN.call_once(|| kernel);
+
+    #[cfg(feature = "gdb_domain_variables")]
+    LOADED_DOMAINS.call_once(|| Arc::new(Mutex::new(vec![])));
+
     // init global references to syscalls (mostly for RRef deallocation)
     interface::rref::init(Box::new(PHeap::new()), 0);
 }

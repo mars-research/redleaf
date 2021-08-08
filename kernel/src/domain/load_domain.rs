@@ -1,6 +1,9 @@
+use crate::domain::domain::{GDBDomain, LOADED_DOMAINS};
+
 use super::domain::Domain;
 use super::trusted_binary;
 use super::trusted_binary::SignatureCheckResult;
+use alloc::string::String;
 use alloc::sync::Arc;
 use elfloader::ElfBinary;
 use spin::Mutex;
@@ -83,6 +86,24 @@ pub unsafe fn load_domain(
                 .unwrap()
                 .address()
     );
+
+    #[cfg(feature = "gdb_domain_variables")]
+    {
+        let gdb_domain = GDBDomain {
+            name: String::from(name),
+            offset: loader.offset
+                + domain_elf
+                    .file
+                    .find_section_by_name(".text")
+                    .unwrap()
+                    .address(),
+            entry_point: loader.offset + domain_elf.entry_point(),
+        };
+
+        println!("{:#?}", gdb_domain);
+
+        LOADED_DOMAINS.wait().unwrap().lock().push(gdb_domain);
+    }
 
     let user_ep: *const () = {
         let mut entry: *const u8 = (*loader).offset.as_ptr();
