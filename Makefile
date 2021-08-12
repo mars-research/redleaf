@@ -7,8 +7,8 @@
 DEBUG            ?= false
 LARGE_MEM        ?= true
 IXGBE		 	 ?= true
-VIRTIO_NET 		 ?= true
-VIRTIO_BLOCK 	 ?= true
+VIRTIO_NET 		 ?= false
+VIRTIO_BLOCK 	 ?= false
 
 ifndef NO_DEFAULT_FLAGS
 CARGO_FLAGS      ?=
@@ -128,17 +128,19 @@ qemu_common     += -S -s
 endif
 
 ifeq ($(VIRTIO_BLOCK),true)
+# use xv6 image, requires that AHCI is not using the file
 # qemu_common 	+= -drive file=$(xv6fs_img),if=virtio,media=disk,format=raw
 # qemu_common 	+= -drive if=none,id=virtio_block,file=$(xv6fs_img),format=raw,cache=none,aio=native
-# qemu_common 	+= -device virtio-blk-pci,drive=virtio_block,ioeventfd=off
 
-# qemu_common 	+= -drive file=disk.img,if=virtio,media=disk,format=raw
-# qemu_common 	+= -drive if=none,id=virtio_block,file=disk.img,format=raw
-qemu_common 	+= -drive if=none,id=virtio_block,file=/dev/sdb,format=raw,cache=writethrough
-qemu_common 	+= -device virtio-blk-pci,drive=virtio_block
+# use disk.img file
+qemu_common 	+= -drive file=disk.img,if=virtio,media=disk,format=raw
+qemu_common 	+= -drive if=none,id=virtio_block,file=disk.img,format=raw
+
+# qemu_common 	+= -drive if=none,id=virtio_block,file=/dev/sdb,format=raw,cache=writethrough
 
 # qemu_common 	+= -drive if=none,id=virtio_block,file=/dev/zero,format=raw
-# qemu_common 	+= -device virtio-blk-pci,drive=virtio_block,ioeventfd=off
+
+qemu_common 	+= -device virtio-blk-pci,drive=virtio_block,ioeventfd=off
 
 DOMAIN_FEATURES += --features "virtio_block"
 DOMAIN_FEATURES += --features "benchnvme"

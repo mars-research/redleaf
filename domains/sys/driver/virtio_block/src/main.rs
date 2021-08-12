@@ -106,7 +106,6 @@ pub fn trusted_entry(
     let blk = NullBlk::new();
 
     // Testing Code
-<<<<<<< HEAD
 
     // let mut submit = RRefDeque::new([None; 128]);
     // let mut collect = RRefDeque::new([None; 128]);
@@ -221,79 +220,6 @@ pub fn trusted_entry(
 
     // println!("Virtio Block: trusted_entry()");
 
-=======
->>>>>>> virtio_net_bench
-    // let mut submit = RRefDeque::new([None; 128]);
-    // let mut collect = RRefDeque::new([None; 128]);
-
-    // // Write requests to `submit`
-    // for i in 0..(300 as u16) {
-    //     let req = BlkReq {
-    //         data: [(i % 20 + 33) as u8; 4096],
-    //         data_len: 4096,
-    //         block: (i % 20) as u64,
-    //     };
-
-    //     println!(
-    //         "Writing {:} to sector {:}",
-    //         char::from_u32((i % 20 + 33) as u32).unwrap(),
-    //         i % 20
-    //     );
-
-    //     libtime::sys_ns_sleep(9999999);
-
-    //     submit.push_back(RRef::new(req));
-    //     let res = blk
-    //         .submit_and_poll_rref(submit, collect, true)
-    //         .unwrap()
-    //         .unwrap();
-    //     submit = res.1;
-    //     collect = res.2;
-
-    //     // Clear out collect
-    //     while let Some(_) = collect.pop_front() {}
-    // }
-
-    // // Read back and check
-    // for i in 0..(20 as u16) {
-    //     let req = BlkReq {
-    //         data: [0xFF; 4096],
-    //         data_len: 4096,
-    //         block: (i % 20) as u64,
-    //     };
-
-    //     libtime::sys_ns_sleep(9999999);
-
-    //     submit.push_back(RRef::new(req));
-    //     let res = blk
-    //         .submit_and_poll_rref(submit, collect, false)
-    //         .unwrap()
-    //         .unwrap();
-    //     submit = res.1;
-    //     collect = res.2;
-
-    //     while let Some(block) = collect.pop_front() {
-    //         println!("{:} == {:}?", block.data[0], block.block % 20 + 33);
-    //         assert_eq!(
-    //             block.data[0],
-    //             (block.block % 20 + 33) as u8,
-    //             "block.data: {:} != block.block % 20 + 33 {:}",
-    //             block.data[0],
-    //             block.block % 20 + 33
-    //         );
-    //     }
-
-    //     // Clear out collect
-    //     while let Some(_) = collect.pop_front() {}
-    // }
-<<<<<<< HEAD
-=======
-
-    // loop {}
->>>>>>> virtio_net_bench
-
-    // println!("Block Test Complete!");
-    // loop {}
     Box::new(blk)
 }
 

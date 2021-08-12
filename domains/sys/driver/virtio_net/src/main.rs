@@ -71,7 +71,7 @@ impl interface::net::Net for VirtioNet {
             device.add_tx_buffers(&mut packets);
         } else {
             new_packet_count = device.get_received_packets(&mut collect);
-            device.add_rx_buffers(&mut packets);
+            device.add_rx_buffers(&mut packets, &mut collect);
         }
 
         Ok(Ok((new_packet_count, packets, collect)))
@@ -142,18 +142,10 @@ pub fn trusted_entry(
     #[cfg(not(feature = "virtio_net"))]
     let net = { nullnet::NullNet::new() };
 
+    // libbenchnet::run_fwd_udptest_rref(&net, 1514);
+
     // VIRTIO DEMO LOOP
     // Run SmolNet
-<<<<<<< HEAD
-=======
-
-    // net.0.lock().infinite_tx();
-    // net.0.lock().infinite_rx();
-
-    libbenchnet::run_fwd_udptest_rref(&net, 1514);
-
-    let mut smol = SmolPhy::new(Box::new(net));
->>>>>>> virtio_net_bench
 
     // let mut smol = SmolPhy::new(Box::new(net));
 
@@ -179,7 +171,6 @@ pub fn trusted_entry(
     // loop {
     //     iface.device_mut().do_rx();
 
-<<<<<<< HEAD
     //     let current = libtime::get_ns_time() / 1000000;
     //     let timestamp = Instant::from_millis(current as i64);
 
@@ -187,12 +178,6 @@ pub fn trusted_entry(
     //     httpd.handle(&mut sockets);
     //     iface.device_mut().do_tx();
     // }
-=======
-        iface.poll(&mut sockets, timestamp);
-        httpd.handle(&mut sockets);
-        iface.device_mut().do_tx();
-    }
->>>>>>> virtio_net_bench
 
     Box::new(net)
 }

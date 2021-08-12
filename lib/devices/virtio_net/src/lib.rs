@@ -56,9 +56,6 @@ struct VirtualQueues {
 
 type NetworkPacketBuffer = [u8; 1514];
 
-/// There are always 2 descriptors for every buffer
-const BUFFER_COUNT: usize = DESCRIPTOR_COUNT / 2;
-
 pub struct VirtioNetInner {
     mmio: Mmio,
     virtual_queues: Option<VirtualQueues>, // None until init() is called
@@ -297,10 +294,10 @@ impl VirtioNetInner {
                 // 1 is NEXT FLAG
                 // 2 is WRITABLE FLAG
                 flags: 1 | 2,
-                next: (header_idx + BUFFER_COUNT) as u16,
+                next: buffer_idx as u16,
             };
             // Actual Buffer
-            rx_q.descriptors[header_idx + BUFFER_COUNT] = VirtqDescriptor {
+            rx_q.descriptors[buffer_idx] = VirtqDescriptor {
                 addr: buffer_addr,
                 len: 1514,
                 flags: 2,
@@ -364,17 +361,11 @@ impl VirtioNetInner {
             };
             tx_q.descriptors[buffer_idx] = VirtqDescriptor {
                 addr: buffer_addr,
-                len: 1514,
+                // len: 1514,
+                len: 53, // reduced length for performance
                 flags: 0,
                 next: 0,
             };
-            self.virtual_queues.transmit_queue.descriptors[header_idx + BUFFER_COUNT] =
-                VirtqDescriptor {
-                    addr: buffer_addr,
-                    len: 53,
-                    flags: 0,
-                    next: 0,
-                };
 
             *tx_q
                 .available
