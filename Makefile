@@ -91,10 +91,11 @@ domain_list := $(addprefix domains/build/, \
 # qemu_common     := ${QEMU_MEM} -vga std -s
 qemu_common     := ${QEMU_MEM} -vga std
 qemu_common     += -cdrom $(iso)
+qemu_common 	+= -boot d
 #qemu_common    += -no-reboot -no-shutdown -d int,cpu_reset
-qemu_common     += -drive id=satadisk,file=$(xv6fs_img),format=raw,if=none
-qemu_common     += -device ahci,id=ahci
-qemu_common     += -device ide-hd,drive=satadisk,bus=ahci.0
+# qemu_common     += -drive id=satadisk,file=$(xv6fs_img),format=raw,if=none
+# qemu_common     += -device ahci,id=ahci
+# qemu_common     += -device ide-hd,drive=satadisk,bus=ahci.0
 #qemu_common    += -smp 4
 # qemu_common     += -monitor telnet:127.0.0.1:55555,server,nowait
 qemu_common     += -cpu 'Haswell,pdpe1gb' -machine q35
@@ -103,6 +104,12 @@ qemu_common     += -cpu 'Haswell,pdpe1gb' -machine q35
 #qemu_common	+= -mem-path /dev/hugepages
 # qemu_common		+= --trace virtio_*
 # qemu_common		+= --trace virtqueue_*
+# qemu_common		+= --trace file_*
+# qemu_common		+= --trace vhost_*
+# qemu_common		+= --trace vfio_*
+
+
+
 
 ifeq ($(LARGE_MEM),true)
 qemu_common     += -m 8G
@@ -117,12 +124,24 @@ qemu_common     += -device tpm-tis,tpmdev=tpm0
 endif
 
 ifeq ($(GDB),true)
-qemu_common     += -S
+qemu_common     += -S -s
 endif
 
 ifeq ($(VIRTIO_BLOCK),true)
-qemu_common 	+= -drive file=disk.img,if=virtio,media=disk,format=raw
+# qemu_common 	+= -drive file=$(xv6fs_img),if=virtio,media=disk,format=raw
+# qemu_common 	+= -drive if=none,id=virtio_block,file=$(xv6fs_img),format=raw,cache=none,aio=native
+# qemu_common 	+= -device virtio-blk-pci,drive=virtio_block,ioeventfd=off
+
+# qemu_common 	+= -drive file=disk.img,if=virtio,media=disk,format=raw
+# qemu_common 	+= -drive if=none,id=virtio_block,file=disk.img,format=raw
+qemu_common 	+= -drive if=none,id=virtio_block,file=/dev/sdb,format=raw,cache=writethrough
+qemu_common 	+= -device virtio-blk-pci,drive=virtio_block
+
+# qemu_common 	+= -drive if=none,id=virtio_block,file=/dev/zero,format=raw
+# qemu_common 	+= -device virtio-blk-pci,drive=virtio_block,ioeventfd=off
+
 DOMAIN_FEATURES += --features "virtio_block"
+DOMAIN_FEATURES += --features "benchnvme"
 endif
 
 ifeq ($(VIRTIO_NET),true)
@@ -191,7 +210,7 @@ idl_generation: tools/redIDL
 	then echo "redIDL not found. Maybe you want to do 'git submodule init && git submodule update' then try again?"; \
 			exit -1; \
 	fi
-	make -C interface
+	# make -C interface
 
 .PHONY: domains
 domains: idl_generation $(xv6fs_img) memops

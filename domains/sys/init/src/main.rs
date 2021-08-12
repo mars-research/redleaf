@@ -4,7 +4,8 @@
     const_fn,
     const_raw_ptr_to_usize_cast,
     untagged_unions,
-    get_mut_unchecked
+    get_mut_unchecked,
+    const_in_array_repeat_expressions
 )]
 
 extern crate alloc;
@@ -19,6 +20,8 @@ use interface::rref::RRefVec;
 use libsyscalls::syscalls::{
     sys_backtrace, sys_create_thread, sys_readch_kbd, sys_recv_int, sys_yield,
 };
+mod bdev_wrapper;
+mod nullblk;
 
 #[cfg(feature = "test_guard_page")]
 fn test_stack_exhaustion() -> u64 {
@@ -233,11 +236,6 @@ pub fn trusted_entry(
     println!("Creating pci");
     let (_dom_pci, pci) = proxy.as_domain_create_CreatePCI().create_domain_pci();
 
-    #[cfg(feature = "virtio_block")]
-    let (_, nvme) = proxy
-        .as_domain_create_CreateVirtioBlock()
-        .create_domain_virtio_block(pci.pci_clone().unwrap());
-
     #[cfg(feature = "virtio_net")]
     let (_, net) = proxy
         .as_domain_create_CreateVirtioNet()
@@ -293,8 +291,15 @@ pub fn trusted_entry(
     #[cfg(feature = "benchnet")]
     let _ = proxy.as_create_benchnet().create_domain_benchnet(net);
 
+    #[cfg(feature = "virtio_block")]
+    let (_, virtio_block) = proxy
+        .as_domain_create_CreateVirtioBlock()
+        .create_domain_virtio_block(pci.pci_clone().unwrap());
+
     #[cfg(feature = "benchnvme")]
-    let _ = proxy.as_create_benchnvme().create_domain_benchnvme(nvme);
+    let _ = proxy
+        .as_domain_create_CreateBenchnvme()
+        .create_domain_benchnvme(virtio_block);
 
     #[cfg(not(any(feature = "benchnet", feature = "benchnvme")))]
     {
@@ -305,9 +310,10 @@ pub fn trusted_entry(
             proxy.as_domain_create_CreateRv6Net(),
             proxy.as_domain_create_CreateRv6NetShadow(),
             proxy.as_domain_create_CreateRv6Usr(),
-            bdev,
+            // bdev,
+            Box::new(bdev_wrapper::BDevWrapper::new(virtio_block)),
             net,
-            nvme,
+            Box::new(nullblk::NullBlk::new()),
             usr_tpm,
         );
         println!("Starting xv6 user init");

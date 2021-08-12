@@ -1,8 +1,16 @@
 use alloc::{
+<<<<<<< HEAD
     alloc::{alloc, dealloc},
     boxed::Box,
     vec::Vec,
 };
+=======
+    alloc::{alloc, alloc_zeroed, dealloc},
+    boxed::Box,
+    vec::Vec,
+};
+use console::println;
+>>>>>>> virtio_blk_bench
 use core::{alloc::Layout, mem::size_of, usize};
 
 // 2.6.12 Virtqueue Operation
@@ -50,7 +58,11 @@ pub struct VirtqUsedPacked {
     /// Index into VirtqDescriptor Array
     pub idx: u16,
 
+<<<<<<< HEAD
     pub ring: [VirtqUsedElement; 0], // Will have size queue_size
+=======
+    ring: [VirtqUsedElement; 0], // Will have size queue_size
+>>>>>>> virtio_blk_bench
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -62,7 +74,11 @@ pub struct VirtqAvailablePacked {
     pub idx: u16,
 
     /// The index of the head of the descriptor chain in the descriptor table
+<<<<<<< HEAD
     pub ring: [u16; 0], // Will have size queue_size
+=======
+    ring: [u16; 0], // Will have size queue_size
+>>>>>>> virtio_blk_bench
 }
 
 pub struct VirtqAvailable {
@@ -73,11 +89,19 @@ pub struct VirtqAvailable {
 impl VirtqAvailable {
     pub unsafe fn new(queue_size: u16) -> Self {
         let layout = Self::get_layout(queue_size);
+<<<<<<< HEAD
         let ptr = alloc(layout);
+=======
+        let ptr = alloc_zeroed(layout);
+
+        // println!("VirtqAvailable Allocated At: {}", ptr as u64);
+        // println!("Layout: {:#?}", &layout);
+>>>>>>> virtio_blk_bench
 
         Self {
             data: Box::from_raw(ptr as *mut VirtqAvailablePacked),
             queue_size,
+<<<<<<< HEAD
         }
     }
 
@@ -92,6 +116,22 @@ impl VirtqAvailable {
         }
     }
 
+=======
+        }
+    }
+
+    pub fn ring(&mut self, index: u16) -> &mut u16 {
+        if index < self.queue_size {
+            unsafe { self.data.ring.get_unchecked_mut(index as usize) }
+        } else {
+            panic!(
+                "Ring Index Out Of Bounds! index: {}, queue_size: {}",
+                index, self.queue_size
+            );
+        }
+    }
+
+>>>>>>> virtio_blk_bench
     fn get_layout(queue_size: u16) -> Layout {
         let size = size_of::<VirtqAvailablePacked>() + (queue_size as usize) * size_of::<u16>();
         Layout::from_size_align(size, 2).unwrap()
@@ -100,6 +140,10 @@ impl VirtqAvailable {
 
 impl Drop for VirtqAvailable {
     fn drop(&mut self) {
+<<<<<<< HEAD
+=======
+        println!("VirtqAvailable.drop()");
+>>>>>>> virtio_blk_bench
         let layout = Self::get_layout(self.queue_size);
         unsafe {
             dealloc(
@@ -118,6 +162,7 @@ pub struct VirtqUsed {
 impl VirtqUsed {
     pub unsafe fn new(queue_size: u16) -> Self {
         let layout = Self::get_layout(queue_size);
+<<<<<<< HEAD
         let ptr = alloc(layout);
 
         Self {
@@ -126,6 +171,16 @@ impl VirtqUsed {
         }
     }
 
+=======
+        let ptr = alloc_zeroed(layout);
+
+        Self {
+            data: Box::from_raw(ptr as *mut VirtqUsedPacked),
+            queue_size,
+        }
+    }
+
+>>>>>>> virtio_blk_bench
     pub fn ring(&mut self, index: u16) -> &mut VirtqUsedElement {
         if index < self.queue_size {
             unsafe { self.data.ring.get_unchecked_mut(index as usize) }
@@ -146,6 +201,10 @@ impl VirtqUsed {
 
 impl Drop for VirtqUsed {
     fn drop(&mut self) {
+<<<<<<< HEAD
+=======
+        println!("VirtqAvailable.drop()");
+>>>>>>> virtio_blk_bench
         let layout = Self::get_layout(self.queue_size);
         unsafe {
             dealloc(

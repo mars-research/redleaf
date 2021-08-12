@@ -3,15 +3,11 @@
 extern crate alloc;
 extern crate malloc;
 
-use syscalls::{Heap, Syscall};
-
 use alloc::boxed::Box;
-
 use console::println;
-
 use core::panic::PanicInfo;
-
 use interface::bdev::NvmeBDev;
+use syscalls::{Heap, Syscall};
 
 #[no_mangle]
 pub fn trusted_entry(
@@ -22,7 +18,7 @@ pub fn trusted_entry(
     libsyscalls::syscalls::init(s);
     interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
-    println!("Init domain benchnet_inside");
+    println!("Init domain benchnvme_inside (╯°□°）╯︵ ┻━┻ ^_^ ʕ·͡ᴥ·ʔ (҂◡_◡) ᕤ (┬┬﹏┬┬) ノ┬─┬ノ ︵ ( \\o°o)\\");
 
     for _ in 0..=6 {
         let _ = libbenchnvme::run_blocktest_rref(
