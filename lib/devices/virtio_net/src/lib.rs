@@ -56,12 +56,15 @@ struct VirtualQueues {
 
 type NetworkPacketBuffer = [u8; 1514];
 
+/// There are always 2 descriptors for every buffer
+const BUFFER_COUNT: usize = DESCRIPTOR_COUNT / 2;
+
 pub struct VirtioNetInner {
     mmio: Mmio,
     virtual_queues: Option<VirtualQueues>, // None until init() is called
 
     /// This is the size of the queues used by the device, it is read during init().
-    /// It would be less annoying to use if it were usize but it truely is a u16 value.
+    /// It would be less annoying to use if it were usize but it truly is a u16 value.
     queue_size: u16,
 
     /// This tracks the maximum number of buffers or descriptor chains we can simultaneiously have.
@@ -294,10 +297,10 @@ impl VirtioNetInner {
                 // 1 is NEXT FLAG
                 // 2 is WRITABLE FLAG
                 flags: 1 | 2,
-                next: buffer_idx as u16,
+                next: (header_idx + BUFFER_COUNT) as u16,
             };
             // Actual Buffer
-            rx_q.descriptors[buffer_idx] = VirtqDescriptor {
+            rx_q.descriptors[header_idx + BUFFER_COUNT] = VirtqDescriptor {
                 addr: buffer_addr,
                 len: 1514,
                 flags: 2,
@@ -365,6 +368,13 @@ impl VirtioNetInner {
                 flags: 0,
                 next: 0,
             };
+            self.virtual_queues.transmit_queue.descriptors[header_idx + BUFFER_COUNT] =
+                VirtqDescriptor {
+                    addr: buffer_addr,
+                    len: 53,
+                    flags: 0,
+                    next: 0,
+                };
 
             *tx_q
                 .available

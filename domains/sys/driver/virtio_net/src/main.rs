@@ -71,7 +71,7 @@ impl interface::net::Net for VirtioNet {
             device.add_tx_buffers(&mut packets);
         } else {
             new_packet_count = device.get_received_packets(&mut collect);
-            device.add_rx_buffers(&mut packets, &mut collect);
+            device.add_rx_buffers(&mut packets);
         }
 
         Ok(Ok((new_packet_count, packets, collect)))
@@ -83,14 +83,32 @@ impl interface::net::Net for VirtioNet {
 
     fn poll_rref(
         &self,
-        collect: RRefDeque<[u8; 1514], 512>,
+        mut collect: RRefDeque<[u8; 1514], 512>,
         tx: bool,
     ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>> {
-        unimplemented!()
+        // let mut new_packet_count = 0;
+        // let device = self.0.lock();
+
+        // if tx {
+        //     new_packet_count = device.free_processed_tx_packets(&mut collect);
+        // } else {
+        //     new_packet_count = device.get_received_packets(&mut collect);
+        // }
+
+        // Ok(Ok((new_packet_count, collect)))
+        Ok(Ok((0, collect)))
     }
 
     fn get_stats(&self) -> RpcResult<Result<NetworkStats>> {
-        unimplemented!()
+        // unimplemented!()
+        Ok(Ok(NetworkStats {
+            tx_count: 0,
+            rx_count: 0,
+            tx_dma_ok: 0,
+            rx_dma_ok: 0,
+            rx_missed: 0,
+            rx_crc_err: 0,
+        }))
     }
 
     fn test_domain_crossing(&self) -> RpcResult<()> {
@@ -126,6 +144,16 @@ pub fn trusted_entry(
 
     // VIRTIO DEMO LOOP
     // Run SmolNet
+<<<<<<< HEAD
+=======
+
+    // net.0.lock().infinite_tx();
+    // net.0.lock().infinite_rx();
+
+    libbenchnet::run_fwd_udptest_rref(&net, 1514);
+
+    let mut smol = SmolPhy::new(Box::new(net));
+>>>>>>> virtio_net_bench
 
     // let mut smol = SmolPhy::new(Box::new(net));
 
@@ -151,6 +179,7 @@ pub fn trusted_entry(
     // loop {
     //     iface.device_mut().do_rx();
 
+<<<<<<< HEAD
     //     let current = libtime::get_ns_time() / 1000000;
     //     let timestamp = Instant::from_millis(current as i64);
 
@@ -158,6 +187,12 @@ pub fn trusted_entry(
     //     httpd.handle(&mut sockets);
     //     iface.device_mut().do_tx();
     // }
+=======
+        iface.poll(&mut sockets, timestamp);
+        httpd.handle(&mut sockets);
+        iface.device_mut().do_tx();
+    }
+>>>>>>> virtio_net_bench
 
     Box::new(net)
 }

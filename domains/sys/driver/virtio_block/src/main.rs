@@ -106,6 +106,7 @@ pub fn trusted_entry(
     let blk = NullBlk::new();
 
     // Testing Code
+<<<<<<< HEAD
 
     // let mut submit = RRefDeque::new([None; 128]);
     // let mut collect = RRefDeque::new([None; 128]);
@@ -220,6 +221,8 @@ pub fn trusted_entry(
 
     // println!("Virtio Block: trusted_entry()");
 
+=======
+>>>>>>> virtio_net_bench
     // let mut submit = RRefDeque::new([None; 128]);
     // let mut collect = RRefDeque::new([None; 128]);
 
@@ -283,6 +286,11 @@ pub fn trusted_entry(
     //     // Clear out collect
     //     while let Some(_) = collect.pop_front() {}
     // }
+<<<<<<< HEAD
+=======
+
+    // loop {}
+>>>>>>> virtio_net_bench
 
     // println!("Block Test Complete!");
     // loop {}
