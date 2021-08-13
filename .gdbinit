@@ -1,5 +1,3 @@
-source vermilion.py
-
 echo + target remote localhost:1234\n
 target remote localhost:1234
 
@@ -10,3 +8,5 @@ symbol-file build/redleaf.mb2
 define btall
 	thread apply all backtrace
 end
+
+source vermilion_testing.py

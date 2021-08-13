@@ -6,6 +6,7 @@ from typing import Dict, List
 from dataclasses import dataclass
 import re
 
+
 @dataclass
 class GDBDomain:
     name: str
@@ -135,6 +136,15 @@ def get_gdb_loaded_domains():
 
     return res
 
+def add_load_domain_breakpoint():
+    gdb.Breakpoint(r"redleaf_kernel::domain::domain::gdb_helper_new_domain_loaded", internal=True)
+
+def break_point_handler(event):
+    print(event)
+    print(event.breakpoints)
+
+    for bp in event.breakpoints:
+        print(bp.location, bp.expression, bp.commands, bp.silent)
 
 def event_handler(event):
     print("STOP EVENT:", event)
@@ -181,51 +191,13 @@ def _add_all_event_listeners():
         # print(event_type)
         gdb.events.__dict__[event_type].connect(print)
 
-    # Register our stop handler
-    gdb.events.stop.connect(event_handler)
-
-    # for event_type in EVENT_TYPES:
-    #     print(event_type)
-    #     gdb.events.__dict__[event_type].disconnect(event_handler)
-    # gdb.events.exited.connect(event_handler)
-
-
-def _testing_objfiles():
-    print("OBJFILES:")
-    for file in gdb.objfiles():
-        print(file)
-
-    # print(gdb.selected_thread())
-    # print(gdb.current_progspace().__dict__)
-
-    """
-    These Symbols 100% exist because I can find them in gdb just fine. 
-
-    >> (gdb) info address _binary_domains_build_redleaf_init_start
-    >> Symbol "_binary_domains_build_redleaf_init_start" is at 0x18026c in a file compiled without debugging.
-
-    Looks like we'll be doing lots of parsing :sigh:
-    """
-
-    # print(gdb.lookup_symbol(
-    #     "_binary_sys_init_build_init_start"
-    # ))
-    # print(gdb.lookup_symbol(
-    #     "_binary_domains_build_redleaf_init_start"
-    # ))
-    # print(gdb.lookup_global_symbol(
-    #     "_binary_domains_build_redleaf_init_start"
-    # ))
-    # print(gdb.lookup_static_symbol(
-    #     "_binary_domains_build_redleaf_init_start"
-    # ))
-
-    # print("Available Events:", gdb.events.__dict__.keys())
-
 
 def init():
     print_greeting()
-    gdb.events.stop.connect(event_handler)
+    _add_all_event_listeners()
+    add_load_domain_breakpoint()
+    gdb.events.stop.connect(break_point_handler)
+    # gdb.events.stop.connect(event_handler)
 
 
 init()

@@ -1,4 +1,4 @@
-use crate::domain::domain::{GDBDomain, LOADED_DOMAINS};
+use crate::domain::domain::gdb_notify_new_domain_loaded;
 
 use super::domain::Domain;
 use super::trusted_binary;
@@ -89,20 +89,16 @@ pub unsafe fn load_domain(
 
     #[cfg(feature = "gdb_domain_variables")]
     {
-        let gdb_domain = GDBDomain {
-            name: String::from(name),
-            offset: loader.offset
-                + domain_elf
-                    .file
-                    .find_section_by_name(".text")
-                    .unwrap()
-                    .address(),
-            entry_point: loader.offset + domain_elf.entry_point(),
-        };
+        // _domain_start is used by the gdb script
+        let _domain_start: u64 = (loader.offset
+            + domain_elf
+                .file
+                .find_section_by_name(".text")
+                .unwrap()
+                .address())
+        .0;
 
-        println!("{:#?}", gdb_domain);
-
-        LOADED_DOMAINS.wait().unwrap().lock().push(gdb_domain);
+        gdb_notify_new_domain_loaded();
     }
 
     let user_ep: *const () = {
