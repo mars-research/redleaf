@@ -2,21 +2,34 @@
 Named after the Vermilion Flycatcher (Bird). Helping you catch bugs with a bird's eye view of RedLeaf ;)
 """
 
-from typing import Dict, List
-from dataclasses import dataclass
-import re
+# *** DEFINITIONS & CONSTANTS ***
+
+USING_HARDWARE_BREAKPOINTS = True
 
 
-@dataclass
-class GDBDomain:
-    name: str
-    offset: int
-    entry_point: int
+NEW_DOMAIN_LOADED = "redleaf_kernel::domain::domain::gdb_notify_new_domain_loaded"
+LOAD_DOMAIN = "redleaf_kernel::domain::load_domain::load_domain"
+REDLEAF_KERNEL_ENTRY = "redleaf_kernel::rust_main"
 
-# Maps domain name (e.x. pci to text addr)
-ACTIVE_DOMAINS: Dict[str, str] = {}
-DOMAIN_TEXT_REGEX = r"cpu\(0\):domain/(\w+): .text starts at ([0-9a-fA-F]+)"
-GDB_DOMAIN_REGEX = r'GDBDomain {\n\s*name: \"(?P<name>\w+)\",\n\s*offset: (?P<offset>\w+),\n\s*entry_point: (?P<entry_point>\w+),\n\s*},'
+
+class DelayedExecute:
+    def __init__(self, command: str) -> None:
+        self.command: str = command
+
+    def __call__(self):
+        gdb.execute(self.command)
+
+
+class DelayedWrite:
+    def __init__(self, string: str) -> None:
+        self.string: str = string
+
+    def __call__(self):
+        gdb.write(self.string)
+        gdb.flush()
+
+
+# *** PRINTERS ***
 
 
 def print_greeting():
@@ -24,53 +37,6 @@ def print_greeting():
     print("|                Vermilion                 |")
     print("|  For RedLeaf by the Mars Research Group  |")
     print("--------------------------------------------")
-
-def parse_loaded_domain_str(s: str):
-    """
-    [
-        GDBDomain {
-            name: "init",
-            offset: 0x1028c0000,
-            entry_point: 0x1028c2b90,
-        },
-        GDBDomain {
-            name: "dom_proxy",
-            offset: 0x102d00000,
-            entry_point: 0x102d00000,
-        },
-        GDBDomain {
-            name: "tpm",
-            offset: 0x102d80000,
-            entry_point: 0x102d81cb0,
-        },
-    ]
-    """
-    matches = re.findall(GDB_DOMAIN_REGEX, s)
-
-    return [
-        GDBDomain(
-            name=match[0],
-            offset=int(match[1], 16),
-            entry_point=int(match[2], 16)
-        ) for match in matches
-    ]
-
-
-def get_loaded_domains():
-    """
-    Uses redleaf_kernel::domain::domain::get_loaded_domains_as_string to figure out which domains have been loaded by the Kernel.
-    (I think calling this function leaks memory because the String object is never Dropped by GDB)
-    """
-
-    loaded_domains: str = gdb.execute(
-        r'printf "%s\n", redleaf_kernel::domain::domain::get_loaded_domains_as_string().vec.buf.ptr.pointer',
-        to_string=True,
-    )
-
-    # print("AS STR:", loaded_domains)
-    # print("PARSED:", parse_loaded_domain_str(loaded_domains))
-
-    return parse_loaded_domain_str(loaded_domains)
 
 
 def print_frame_info():
@@ -84,120 +50,95 @@ def print_frame_info():
     print(newest_frame.function())
 
 
-def parse_log_for_loaded_domains():
-    found_domains = {}
-
-    with open("serial.log", "r") as file:
-        for line in file:
-            # print(line)
-            match = re.match(DOMAIN_TEXT_REGEX, line)
-
-            if match != None:
-                groups = match.groups()
-
-                if len(groups) == 2:
-                    domain_name = groups[0]
-                    text_start = groups[1]
-
-                    found_domains[domain_name] = text_start
-                else:
-                    print(
-                        f"WARNING: THE FOLLOWING LINE IS INCOMPATIBLE WITH DOMAIN LOADING REGEX: {line}"
-                    )
-
-    return found_domains
+# *** AUTOMATIC DOMAIN LOADING ***
 
 
-def add_symbol_file_for_domain(domain: str, text_start: str):
-    print(f"Adding Domain {domain} @ {text_start}")
-    file_path = f"domains/build/{domain}"
+def load_domain_symbol_file(name: str, text_start: int):
+    file_path = f"domains/build/{name}"
+    print(f"Adding Domain {file_path} @ {text_start}")
 
-    gdb.execute(f"add-symbol-file {file_path} {text_start}")
-
-
-def add_domain_symbol_files(domains_to_load: List[GDBDomain]):
-    for domain in domains_to_load:
-        add_symbol_file_for_domain(domain.name, domain.offset)
-
-def get_gdb_loaded_domains():
-    """
-    Returns the names of the domains already loaded by gdb
-    """
-
-    DOMAIN_NAME_REGEX = r"\/domains\/build\/(\w+)"
-
-    res = set()
-
-    for objfile in gdb.selected_inferior().progspace.objfiles():
-        if objfile.is_valid():
-            match = re.search(DOMAIN_NAME_REGEX, objfile.filename)
-            if match:
-                res.add(match.groups()[0])
-
-    return res
-
-def add_load_domain_breakpoint():
-    gdb.Breakpoint(r"redleaf_kernel::domain::domain::gdb_helper_new_domain_loaded", internal=True)
-
-def break_point_handler(event):
-    print(event)
-    print(event.breakpoints)
-
-    for bp in event.breakpoints:
-        print(bp.location, bp.expression, bp.commands, bp.silent)
-
-def event_handler(event):
-    print("STOP EVENT:", event)
-
-    if isinstance(event, gdb.StopEvent):
-        pass
-        # Run our helpers
-        print("IS INSTANCE OF STOP EVENT")
-        loaded_domains = get_loaded_domains()
-        gdb_loaded_domains = get_gdb_loaded_domains()
-
-        print(loaded_domains, gdb_loaded_domains)
-
-        # Only load domains that haven't been loaded
-        domains_to_load = [domain for domain in loaded_domains if domain.name not in gdb_loaded_domains]
-
-        add_domain_symbol_files(domains_to_load)
+    # Command of interest: "add-symbol-file-from-memory address"
+    gdb.execute(f"add-symbol-file {file_path} {text_start}", to_string=True)
 
 
-def _add_all_event_listeners():
-    """
-    Helpful for debugging purposes
-    """
+def handle_stop_event(event):
+    print("handle_stop_event", event)
 
-    EVENT_TYPES = (
-        "stop",
-        "cont",
-        "exited",
-        "new_objfile",
-        "clear_objfiles",
-        "new_inferior",
-        "inferior_deleted",
-        "new_thread",
-        "inferior_call",
-        "memory_changed",
-        "register_changed",
-        "breakpoint_created",
-        "breakpoint_deleted",
-        "breakpoint_modified",
-        "before_prompt",
-    )
+    if isinstance(event, gdb.SignalEvent):
+        # Ignore Signal Events
+        return
 
-    for event_type in EVENT_TYPES:
-        # print(event_type)
-        gdb.events.__dict__[event_type].connect(print)
+    if USING_HARDWARE_BREAKPOINTS:
+        # Look at the current frame
+        frame = gdb.newest_frame()
+
+        if frame.function().name == NEW_DOMAIN_LOADED:
+            print("Load New Domain!")
+            caller_frame = frame.older()
+
+            if caller_frame.function().name == LOAD_DOMAIN:
+                print(caller_frame.read_var("name").format_string())
+                domain_name = caller_frame.read_var("name")
+                domain_start = caller_frame.read_var("_domain_start")
+
+                load_domain_symbol_file(domain_name, domain_start)
+                gdb.post_event(DelayedExecute("continue"))
+            else:
+                print(
+                    f"ERROR: {NEW_DOMAIN_LOADED} should not be called by {caller_frame.function()}"
+                )
+    else:
+        if isinstance(event, gdb.BreakpointEvent):
+            breakpoints = event.breakpoints
+
+            for bp in breakpoints:
+                # print(
+                #     f"{bp.enabled=}, {bp.silent=}, {bp.pending=}, {bp.number=}, {bp.type=}, {bp.temporary=}, {bp.location=}"
+                # )
+                print(f"{bp.number=}")
+
+                if bp.location == NEW_DOMAIN_LOADED:
+                    try:
+                        # Load the domain
+                        frame = gdb.newest_frame()
+
+                        caller_frame = frame.older()
+                        print(
+                            frame.name(),
+                            caller_frame.name(),
+                            caller_frame.read_var("name"),
+                        )
+
+                        domain_name = caller_frame.read_var("name")
+                        domain_start = caller_frame.read_var("_domain_start")
+
+                        load_domain_symbol_file(domain_name, domain_start)
+                    except Exception as e:
+                        print("Vermilion Error:", e)
+
+        # gdb.post_event(DelayedExecute("continue"))
+        # gdb.post_event(DelayedWrite("(gdc) "))
+
+
+def setup_automatic_domain_loading():
+    # Create the Domain Load Breakpoint
+    if USING_HARDWARE_BREAKPOINTS:
+        # The docs Say that I can create Hardware Breakpoints using the API, but it doesn't work
+        gdb.execute(f"hbreak {NEW_DOMAIN_LOADED}", to_string=True)
+        gdb.execute("commands\nsilent\nend", to_string=True)
+    else:
+        bp = gdb.Breakpoint(NEW_DOMAIN_LOADED, internal=True)
+        bp.silent = True
+
+    gdb.events.stop.connect(handle_stop_event)
+
+
+# *** INITIALIZATION ***
 
 
 def init():
     print_greeting()
-    _add_all_event_listeners()
-    add_load_domain_breakpoint()
-    gdb.events.stop.connect(break_point_handler)
-    # gdb.events.stop.connect(event_handler)
+    setup_automatic_domain_loading()
 
 
 init()

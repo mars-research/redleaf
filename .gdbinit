@@ -9,4 +9,4 @@ define btall
 	thread apply all backtrace
 end
 
-source vermilion_testing.py
+source vermilion.py

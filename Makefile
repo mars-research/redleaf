@@ -84,7 +84,6 @@ domain_list := $(addprefix domains/build/, \
 # QEMU
 ################
 
-# qemu_common     := ${QEMU_MEM} -vga std -s
 qemu_common     := ${QEMU_MEM} -vga std
 qemu_common     += -cdrom $(iso)
 #qemu_common    += -no-reboot -no-shutdown -d int,cpu_reset
