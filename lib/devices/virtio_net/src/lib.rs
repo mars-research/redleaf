@@ -368,8 +368,7 @@ impl VirtioNetInner {
             };
             tx_q.descriptors[buffer_idx] = VirtqDescriptor {
                 addr: buffer_addr,
-                // len: 1514,
-                len: 53, // reduced length for performance
+                len: 1514,
                 flags: 0,
                 next: 0,
             };

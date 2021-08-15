@@ -150,10 +150,7 @@ impl VirtioBlockInner {
         unsafe { self.mmio.update_device_status(VirtioDeviceStatus::DriverOk) };
 
         // self.mmio.accessor.write_queue_select(0);
-        self.print_device_config();
-        self.print_queue_object_pointers();
-
-        // self.throw_away_request();
+        // self.print_device_config();
 
         println!("VIRTIO BLOCK READY!");
     }
@@ -172,20 +169,9 @@ impl VirtioBlockInner {
         // self.mmio.accessor.write_driver_feature(0);
     }
 
-    pub fn print_device_config(&self) {
+    fn print_device_config(&self) {
         let cfg = unsafe { self.mmio.read_common_config() };
         println!("{:#?}", cfg);
-    }
-
-    pub fn print_queue_object_pointers(&self) {
-        let queue = self.request_queue.as_ref().unwrap();
-
-        println!(
-            "DESC: {}, AVAIL: {}, USED: {}",
-            queue.descriptors.as_ptr() as u64,
-            queue.available.data.as_ref() as *const VirtqAvailablePacked as u64,
-            queue.used.data.as_ref() as *const VirtqUsedPacked as u64
-        );
     }
 
     fn initialize_vectors(&mut self) {
@@ -336,8 +322,6 @@ impl VirtioBlockInner {
             *queue
                 .available
                 .ring(queue.available.data.idx % self.queue_size) = header_idx as u16;
-
-            Mmio::memory_fence();
             queue.available.data.idx = queue.available.data.idx.wrapping_add(1);
             unsafe {
                 self.mmio.queue_notify(0, 0);
