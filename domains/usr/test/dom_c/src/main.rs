@@ -41,6 +41,10 @@ impl interface::dom_c::DomC for DomC {
         *x += 1;
         Ok(x)
     }
+
+    fn init_dom_c(&self, c: Box<dyn interface::dom_c::DomC>) -> RpcResult<()> {
+        Ok(())
+    }
 }
 
 #[no_mangle]

@@ -79,6 +79,10 @@ impl interface::dom_c::DomC for Shadow {
     fn one_rref(&self, x: RRef<usize>) -> RpcResult<RRef<usize>> {
         self.dom.lock().dom_c.one_rref(x)
     }
+
+    fn init_dom_c(&self, c: Box<dyn interface::dom_c::DomC>) -> RpcResult<()> {
+        self.dom.lock().dom_c.init_dom_c(c)
+    }
 }
 
 #[no_mangle]

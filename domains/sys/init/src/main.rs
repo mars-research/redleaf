@@ -218,8 +218,8 @@ pub fn trusted_entry(
         let (dom_dom_c, dom_c) = proxy.as_domain_create_CreateDomC().create_domain_dom_c();
         #[cfg(feature = "shadow")]
         let (dom_shadow, dom_c) = proxy
-            .as_create_shadow()
-            .create_domain_shadow(proxy.as_create_dom_c());
+            .as_domain_create_CreateShadow()
+            .create_domain_shadow(proxy.as_domain_create_CreateDomC());
         let dom_dom_d = proxy
             .as_domain_create_CreateDomD()
             .create_domain_dom_d(dom_c);
@@ -299,7 +299,7 @@ pub fn trusted_entry(
     #[cfg(feature = "benchnvme")]
     let _ = proxy
         .as_domain_create_CreateBenchnvme()
-        .create_domain_benchnvme(virtio_block);
+        .create_domain_benchnvme(nvme);
 
     #[cfg(not(any(feature = "benchnet", feature = "benchnvme")))]
     {
@@ -310,10 +310,9 @@ pub fn trusted_entry(
             proxy.as_domain_create_CreateRv6Net(),
             proxy.as_domain_create_CreateRv6NetShadow(),
             proxy.as_domain_create_CreateRv6Usr(),
-            // bdev,
-            Box::new(bdev_wrapper::BDevWrapper::new(virtio_block)),
+            bdev,
             net,
-            Box::new(nullblk::NullBlk::new()),
+            nvme,
             usr_tpm,
         );
         println!("Starting xv6 user init");
