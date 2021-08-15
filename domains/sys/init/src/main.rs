@@ -20,8 +20,6 @@ use interface::rref::RRefVec;
 use libsyscalls::syscalls::{
     sys_backtrace, sys_create_thread, sys_readch_kbd, sys_recv_int, sys_yield,
 };
-mod bdev_wrapper;
-mod nullblk;
 
 #[cfg(feature = "test_guard_page")]
 fn test_stack_exhaustion() -> u64 {
