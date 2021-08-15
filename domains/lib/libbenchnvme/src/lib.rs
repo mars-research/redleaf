@@ -89,7 +89,7 @@ pub fn run_blocktest_rref(
     let mut sq_id = 0;
 
     let tsc_start = rdtsc();
-    let tsc_end = tsc_start + runtime * 3_000_000_000;
+    let tsc_end = tsc_start + runtime * 2_400_000_000;
 
     loop {
         count += 1;
@@ -149,7 +149,7 @@ pub fn run_blocktest_rref(
 
     let elapsed = rdtsc() - tsc_start;
 
-    let adj_runtime = elapsed as f64 / 3_000_000_000_u64 as f64;
+    let adj_runtime = elapsed as f64 / 2_400_000_000_u64 as f64;
 
     let (sub, comp) = dev.get_stats().unwrap()?;
 

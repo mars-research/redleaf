@@ -1,6 +1,6 @@
 #![no_std]
 static NS_IN_TIMER_TICK: u64 = 10_000_000;
-static NS_IN_RDTSC: u64 = 3;
+static NS_IN_RDTSC: u64 = 2;
 
 use console::println;
 use libsyscalls::syscalls::sys_yield;
