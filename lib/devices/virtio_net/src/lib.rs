@@ -126,6 +126,13 @@ impl VirtioNetInner {
         // Perform device-specific setup, including discovery of virtqueues for the device, optional per-bus setup, reading and possibly writing the device’s virtio configuration space, and population of virtqueues.
         // Set the DRIVER_OK status bit. At this point the device is “live”.
 
+        // Reset the device
+        // Failing to do this DOES cause errors, don't ask how I know *sigh*
+        unsafe {
+            self.mmio.accessor.write_device_status(0);
+        }
+        Mmio::memory_fence();
+
         // Acknowledge Device
         unsafe {
             self.mmio
