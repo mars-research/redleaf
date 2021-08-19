@@ -7,10 +7,10 @@ use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use b2histogram::Base2Histogram;
 use console::{print, println};
-use libtime::get_rdtsc as rdtsc;
-use interface::rref::{RRef, RRefDeque};
 use interface::bdev::{BlkReq, NvmeBDev};
 use interface::error::Result;
+use interface::rref::{RRef, RRefDeque};
+use libtime::get_rdtsc as rdtsc;
 
 static mut seed: u64 = 123456789;
 static pow: u64 = 2u64.pow(31);
@@ -56,7 +56,7 @@ pub fn run_blocktest_rref(
         if is_random {
             breq.block = get_rand_block();
         } else {
-            breq.block = block_num;
+            breq.block = block_num as u64;
             block_num = block_num.wrapping_add(8);
         }
         submit.push_back(RRef::<BlkReq>::new(breq));
@@ -75,6 +75,7 @@ pub fn run_blocktest_rref(
     let mut alloc_elapsed = 0;
 
     let mut count: u64 = 0;
+    let mut total_requests = 0;
 
     let mut submit = Some(submit);
     let mut collect = Some(collect);
@@ -98,6 +99,9 @@ pub fn run_blocktest_rref(
             .unwrap()?;
         submit_elapsed += rdtsc() - submit_start;
 
+        assert_eq!(ret, collect_.len());
+        total_requests += ret;
+
         //println!("submitted {} reqs, collect {} reqs sq: {} cq {}", ret, collect_.len(), last_sq, last_cq);
         submit_hist.record(ret as u64);
 
@@ -107,7 +111,7 @@ pub fn run_blocktest_rref(
             if is_random {
                 breq.block = get_rand_block();
             } else {
-                breq.block = block_num;
+                breq.block = block_num as u64;
                 block_num = block_num.wrapping_add(8);
             }
             if submit_.push_back(breq).is_some() {
@@ -126,7 +130,7 @@ pub fn run_blocktest_rref(
                 if is_random {
                     breq.block = get_rand_block();
                 } else {
-                    breq.block = block_num;
+                    breq.block = block_num as u64;
                     block_num = block_num.wrapping_add(8);
                 }
                 submit_.push_back(RRef::<BlkReq>::new(breq));
@@ -174,6 +178,17 @@ pub fn run_blocktest_rref(
         "submit_and_poll_rref took {} cycles (avg {} cycles)",
         submit_elapsed,
         submit_elapsed / count
+    );
+
+    let bytes_sec = ((total_requests * 4096) as f64 / adj_runtime);
+
+    println!("Total Blocks: {}", total_requests);
+    println!("Throughput: {} Bytes / sec", bytes_sec);
+    println!("Throughput: {} KB / sec", bytes_sec / 1024 as f64);
+    println!("Throughput: {} MB / sec", bytes_sec / (1024 * 1024) as f64);
+    println!(
+        "Throughput: {} GB / sec",
+        bytes_sec / (1024 * 1024 * 1024) as f64
     );
 
     println!("Number of new allocations {}", alloc_count * batch_sz);

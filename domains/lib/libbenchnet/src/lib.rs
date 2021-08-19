@@ -17,13 +17,13 @@ use byteorder::{BigEndian, ByteOrder};
 use console::{print, println};
 use core::alloc::Layout;
 use core::ptr;
+use interface::error::Result;
+use interface::net::{Net, NetworkStats};
+use interface::rref::{RRef, RRefDeque};
 use libtime::get_rdtsc as rdtsc;
 use libtime::sys_ns_loopsleep;
 use packettool::{ETH_HEADER_LEN, IPV4_PROTO_OFFSET};
-use interface::rref::{RRef, RRefDeque};
 use sashstore_redleaf::SashStore;
-use interface::error::Result;
-use interface::net::{Net, NetworkStats};
 
 macro_rules! print_hist {
     ($hist: ident) => {
@@ -1152,9 +1152,17 @@ pub fn run_fwd_maglevtest(net: &dyn Net, pkt_size: u16) -> Result<()> {
             };
 
             if let Some(_) = backend {
-                unsafe { 
-                    ptr::copy(our_mac.as_ptr(), pkt.as_mut_ptr().offset(6), our_mac.capacity());
-                    ptr::copy(sender_mac.as_ptr(), pkt.as_mut_ptr().offset(0), sender_mac.capacity());
+                unsafe {
+                    ptr::copy(
+                        our_mac.as_ptr(),
+                        pkt.as_mut_ptr().offset(6),
+                        our_mac.capacity(),
+                    );
+                    ptr::copy(
+                        sender_mac.as_ptr(),
+                        pkt.as_mut_ptr().offset(0),
+                        sender_mac.capacity(),
+                    );
                 }
             };
 
@@ -1343,10 +1351,10 @@ pub fn run_fwd_udptest_rref_with_delay(net: &dyn Net, pkt_len: usize, delay: u64
 
         let ms_start = rdtsc();
         for pkt in rx_collect_.iter_mut() {
-            /*for i in 0..6 {
+            for i in 0..6 {
                 (pkt).swap(i, 6 + i);
-            }*/
-            //let mut pkt = pkt as *mut [u8; 1514] as *mut u8;
+            }
+            let mut pkt = pkt as *mut [u8; 1514] as *mut u8;
             /*unsafe {
                 ptr::copy(our_mac.as_ptr(), pkt.as_mut_ptr().offset(6), our_mac.capacity());
                 ptr::copy(sender_mac.as_ptr(), pkt.as_mut_ptr().offset(0), sender_mac.capacity());
@@ -1493,7 +1501,6 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
         println!("{} : {:x?}", i, v.as_ptr());
     }
 
-
     // Make the packets valid so that they don't get rejected by maglev
     for packet in rx_submit.iter_mut() {
         // Set protocol to ipv4
@@ -1555,12 +1562,12 @@ pub fn run_maglev_fwd_udptest_rref(net: &dyn Net, pkt_len: usize) -> Result<()> 
             //
             let backend = {
                 if let Some(hash) = packettool::get_flowhash(pkt) {
-                   Some(maglev.get_index_from_hash(hash))
+                    Some(maglev.get_index_from_hash(hash))
                 } else {
                     None
                 }
             };
- 
+
             if let Some(_) = Some(backend) {
                 /*
                 for i in 0..6 {

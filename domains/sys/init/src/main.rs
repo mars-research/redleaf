@@ -4,7 +4,8 @@
     const_fn,
     const_raw_ptr_to_usize_cast,
     untagged_unions,
-    get_mut_unchecked
+    get_mut_unchecked,
+    const_in_array_repeat_expressions
 )]
 
 extern crate alloc;
@@ -15,10 +16,10 @@ use alloc::vec::Vec;
 use console::println;
 use core::panic::PanicInfo;
 use interface::domain_create::*;
+use interface::rref::RRefVec;
 use libsyscalls::syscalls::{
     sys_backtrace, sys_create_thread, sys_readch_kbd, sys_recv_int, sys_yield,
 };
-use interface::rref::RRefVec;
 
 #[cfg(feature = "test_guard_page")]
 fn test_stack_exhaustion() -> u64 {
@@ -106,7 +107,8 @@ pub fn trusted_entry(
     create_membdev: Arc<dyn interface::domain_create::CreateMemBDev>,
     create_bdev_shadow: Arc<dyn interface::domain_create::CreateBDevShadow>,
     create_ixgbe: Arc<dyn interface::domain_create::CreateIxgbe>,
-    create_virtio_net: Arc<dyn interface::domain_create::CreateVirtioNet>, 
+    create_virtio_net: Arc<dyn interface::domain_create::CreateVirtioNet>,
+    create_virtio_block: Arc<dyn interface::domain_create::CreateVirtioBlock>,
     create_net_shadow: Arc<dyn interface::domain_create::CreateNetShadow>,
     create_nvme_shadow: Arc<dyn interface::domain_create::CreateNvmeShadow>,
     create_nvme: Arc<dyn interface::domain_create::CreateNvme>,
@@ -190,6 +192,7 @@ pub fn trusted_entry(
         create_bdev_shadow,
         create_ixgbe,
         create_virtio_net,
+        create_virtio_block,
         create_nvme,
         create_net_shadow,
         create_nvme_shadow,
@@ -215,25 +218,29 @@ pub fn trusted_entry(
         let (dom_shadow, dom_c) = proxy
             .as_domain_create_CreateShadow()
             .create_domain_shadow(proxy.as_domain_create_CreateDomC());
-        let dom_dom_d = proxy.as_domain_create_CreateDomD().create_domain_dom_d(dom_c);
+        let dom_dom_d = proxy
+            .as_domain_create_CreateDomD()
+            .create_domain_dom_d(dom_c);
     }
 
     #[cfg(feature = "tpm")]
     let (_dom_tpm, usr_tpm) = proxy.as_domain_create_CreateTpm().create_domain_tpm();
 
     #[cfg(feature = "hashbench")]
-    let dom_hashstore = proxy.as_domain_create_CreateSashstore().create_domain_hashstore();
+    let dom_hashstore = proxy
+        .as_domain_create_CreateSashstore()
+        .create_domain_hashstore();
 
     println!("Creating pci");
     let (_dom_pci, pci) = proxy.as_domain_create_CreatePCI().create_domain_pci();
 
-    #[cfg(feature = "virtnet")]
+    #[cfg(feature = "virtio_net")]
     let (_, net) = proxy
         .as_domain_create_CreateVirtioNet()
         .create_domain_virtio_net(pci.pci_clone().unwrap());
     #[cfg(all(not(feature = "shadow"), not(feature = "virtnet")))]
     let (_, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci.pci_clone());
-    #[cfg(all(feature = "shadow", not(feature = "virtnet")))]
+    #[cfg(all(feature = "shadow", not(feature = "virtio_net")))]
     let (_, net) = proxy
         .as_create_net_shadow()
         .create_domain_net_shadow(proxy.as_create_ixgbe(), pci.pci_clone());
@@ -244,7 +251,9 @@ pub fn trusted_entry(
     #[cfg(feature = "membdev")]
     #[cfg(not(feature = "shadow"))]
     // Memfs is linked with the shadow domain so membdev doesn't work without shadow currently.
-    let (dom_ahci, bdev) = proxy.as_domain_create_CreateMemBDev().create_domain_membdev(&mut []);
+    let (dom_ahci, bdev) = proxy
+        .as_domain_create_CreateMemBDev()
+        .create_domain_membdev(&mut []);
     #[cfg(feature = "membdev")]
     #[cfg(feature = "shadow")]
     let (_dom_ahci, bdev) = proxy
@@ -253,25 +262,42 @@ pub fn trusted_entry(
 
     println!("Creating nvme domain!");
     #[cfg(not(feature = "shadow"))]
-    let (dom_nvme, nvme) = proxy.as_domain_create_CreateNvme().create_domain_nvme(pci.pci_clone().unwrap());
+    let (dom_nvme, nvme) = proxy
+        .as_domain_create_CreateNvme()
+        .create_domain_nvme(pci.pci_clone().unwrap());
     #[cfg(feature = "shadow")]
     let (_dom_nvme, nvme) = proxy
         .as_domain_create_CreateNvmeShadow()
-        .create_domain_nvme_shadow(proxy.as_domain_create_CreateNvme(), pci.pci_clone().unwrap());
+        .create_domain_nvme_shadow(
+            proxy.as_domain_create_CreateNvme(),
+            pci.pci_clone().unwrap(),
+        );
 
     println!("Creating ixgbe");
     #[cfg(not(feature = "shadow"))]
-    let (dom_ixgbe, net) = proxy.as_domain_create_CreateIxgbe().create_domain_ixgbe(pci.pci_clone().unwrap());
+    let (dom_ixgbe, net) = proxy
+        .as_domain_create_CreateIxgbe()
+        .create_domain_ixgbe(pci.pci_clone().unwrap());
     #[cfg(feature = "shadow")]
     let (_dom_ixgbe, net) = proxy
         .as_domain_create_CreateNetShadow()
-        .create_domain_net_shadow(proxy.as_domain_create_CreateIxgbe(), pci.pci_clone().unwrap());
+        .create_domain_net_shadow(
+            proxy.as_domain_create_CreateIxgbe(),
+            pci.pci_clone().unwrap(),
+        );
 
     #[cfg(feature = "benchnet")]
     let _ = proxy.as_create_benchnet().create_domain_benchnet(net);
 
+    #[cfg(feature = "virtio_block")]
+    let (_, virtio_block) = proxy
+        .as_domain_create_CreateVirtioBlock()
+        .create_domain_virtio_block(pci.pci_clone().unwrap());
+
     #[cfg(feature = "benchnvme")]
-    let _ = proxy.as_create_benchnvme().create_domain_benchnvme(nvme);
+    let _ = proxy
+        .as_domain_create_CreateBenchnvme()
+        .create_domain_benchnvme(nvme);
 
     #[cfg(not(any(feature = "benchnet", feature = "benchnvme")))]
     {

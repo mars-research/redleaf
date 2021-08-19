@@ -6,8 +6,9 @@
 
 DEBUG            ?= false
 LARGE_MEM        ?= true
-IXGBE		 ?= true
+IXGBE		 	 ?= true
 VIRTIO_NET 		 ?= false
+VIRTIO_BLOCK 	 ?= false
 
 ifndef NO_DEFAULT_FLAGS
 CARGO_FLAGS      ?=
@@ -70,6 +71,7 @@ domain_list := $(addprefix domains/build/, \
 	pci \
 	ixgbe \
 	virtio_net \
+	virtio_block \
 	nvme \
 	tpm \
 	bdev_shadow \
@@ -80,23 +82,33 @@ domain_list := $(addprefix domains/build/, \
 	benchnvme \
 	benchhash)
 
+
+
 ################
 # QEMU
 ################
 
-# qemu_common     := ${QEMU_MEM} -vga std -s
 qemu_common     := ${QEMU_MEM} -vga std
 qemu_common     += -cdrom $(iso)
-#qemu_common    += -no-reboot -no-shutdown -d int,cpu_reset
+qemu_common 	+= -boot d
+# qemu_common    	+= -no-reboot -no-shutdown -d int,cpu_reset
 qemu_common     += -drive id=satadisk,file=$(xv6fs_img),format=raw,if=none
 qemu_common     += -device ahci,id=ahci
 qemu_common     += -device ide-hd,drive=satadisk,bus=ahci.0
-#qemu_common    += -smp 4
-# qemu_common     += -monitor telnet:127.0.0.1:55555,server,nowait
+# qemu_common    	+= -smp 4
+# qemu_common     	+= -monitor telnet:127.0.0.1:55555,server,nowait
 qemu_common     += -cpu 'Haswell,pdpe1gb' -machine q35
-#qemu_common    += -device vfio-pci,romfile=,host=06:00.1
-#qemu_common    += -vnc 127.0.0.1:0
-#qemu_common	+= -mem-path /dev/hugepages
+# qemu_common    	+= -device vfio-pci,romfile=,host=06:00.1
+# qemu_common    	+= -vnc 127.0.0.1:0
+# qemu_common		+= -mem-path /dev/hugepages
+# qemu_common		+= --trace virtio_*
+# qemu_common		+= --trace virtqueue_*
+# qemu_common		+= --trace file_*
+# qemu_common		+= --trace vhost_*
+# qemu_common		+= --trace vfio_*
+
+
+
 
 ifeq ($(LARGE_MEM),true)
 qemu_common     += -m 8G
@@ -114,6 +126,18 @@ ifeq ($(GDB),true)
 qemu_common     += -S -s
 endif
 
+ifeq ($(VIRTIO_BLOCK),true)
+# use xv6 image, requires that AHCI is not using the file
+# qemu_common 	+= -drive if=none,id=virtio_block,file=$(xv6fs_img),format=raw,cache=none,aio=native
+
+# use disk.img file
+qemu_common 	+= -drive if=none,id=virtio_block,file=disk.img,format=raw
+qemu_common 	+= -device virtio-blk-pci,drive=virtio_block,ioeventfd=off
+
+DOMAIN_FEATURES += --features "virtio_block"
+# DOMAIN_FEATURES += --features "benchnvme"
+endif
+
 ifeq ($(VIRTIO_NET),true)
 qemu_common 	+= -device virtio-net-pci,netdev=net0
 qemu_common		+= -netdev tap,id=net0,ifname=virtio,script=no,downscript=no
@@ -122,7 +146,7 @@ endif
 
 QEMU            ?= $(shell which qemu-system-x86_64)
 TASKSET         := $(shell which taskset)
-KVM             := sudo ${TASKSET} -c 4 ${QEMU}
+KVM             := sudo ${TASKSET} -c 3-4 ${QEMU}
 qemu_kvm_args	:= --enable-kvm
 
 # https://superuser.com/a/1412150
@@ -242,7 +266,7 @@ $(mb2): kernel domains memops $(linker_script)
 		lib/external/memops/libmemops.a \
 		-b binary \
 		kernel/build/entryother.bin \
-		$(domain_list) 
+		$(domain_list)
 
 .PHONY: memops
 memops:
