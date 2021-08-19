@@ -998,6 +998,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5a972e5669d67ba988ce3dc826706fb0a8b01471c088cb0b6110b805cc36aed"
 
 [[package]]
+name = "virtio_backend"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "interface",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "pci_driver",
+ "platform",
+ "protocol",
+ "spin 0.5.3",
+ "syscalls",
+]
+
+[[package]]
 name = "virtio_block"
 version = "0.1.0"
 dependencies = [

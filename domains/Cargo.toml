@@ -10,6 +10,7 @@ members = [
 	"sys/driver/tpm",
 	"sys/driver/virtio_net",
 	"sys/driver/virtio_block",
+	"sys/driver/virtio_backend",
 	"sys/init",
 	"usr/proxy",
 	"usr/shadow/bdev",

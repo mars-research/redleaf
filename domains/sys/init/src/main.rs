@@ -109,6 +109,7 @@ pub fn trusted_entry(
     create_ixgbe: Arc<dyn interface::domain_create::CreateIxgbe>,
     create_virtio_net: Arc<dyn interface::domain_create::CreateVirtioNet>,
     create_virtio_block: Arc<dyn interface::domain_create::CreateVirtioBlock>,
+    create_virtio_backend: Arc<dyn interface::domain_create::CreateVirtioBackend>,
     create_net_shadow: Arc<dyn interface::domain_create::CreateNetShadow>,
     create_nvme_shadow: Arc<dyn interface::domain_create::CreateNvmeShadow>,
     create_nvme: Arc<dyn interface::domain_create::CreateNvme>,
@@ -193,6 +194,7 @@ pub fn trusted_entry(
         create_ixgbe,
         create_virtio_net,
         create_virtio_block,
+        create_virtio_backend,
         create_nvme,
         create_net_shadow,
         create_nvme_shadow,
@@ -238,8 +240,19 @@ pub fn trusted_entry(
     let (_, net) = proxy
         .as_domain_create_CreateVirtioNet()
         .create_domain_virtio_net(pci.pci_clone().unwrap());
+
+    #[cfg(feature = "virtio_block")]
+    let (_, virtio_block) = proxy
+        .as_domain_create_CreateVirtioBlock()
+        .create_domain_virtio_block(pci.pci_clone().unwrap());
+
+    let (_) = proxy
+        .as_domain_create_CreateVirtioBackend()
+        .create_domain_virtio_backend();
+
     #[cfg(all(not(feature = "shadow"), not(feature = "virtnet")))]
     let (_, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci.pci_clone());
+
     #[cfg(all(feature = "shadow", not(feature = "virtio_net")))]
     let (_, net) = proxy
         .as_create_net_shadow()
@@ -288,11 +301,6 @@ pub fn trusted_entry(
 
     #[cfg(feature = "benchnet")]
     let _ = proxy.as_create_benchnet().create_domain_benchnet(net);
-
-    #[cfg(feature = "virtio_block")]
-    let (_, virtio_block) = proxy
-        .as_domain_create_CreateVirtioBlock()
-        .create_domain_virtio_block(pci.pci_clone().unwrap());
 
     #[cfg(feature = "benchnvme")]
     let _ = proxy

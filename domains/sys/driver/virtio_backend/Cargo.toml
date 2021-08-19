@@ -1,0 +1,22 @@
+[package]
+name = "virtio_backend"
+version = "0.1.0"
+authors = ["RedLeaf Team"]
+edition = "2018"
+
+[dependencies]
+libsyscalls = { path = "../../../../lib/core/libsyscalls" }
+libtime = { path = "../../../../lib/core/libtime" }
+console = { path = "../../../../lib/core/console" }
+malloc = { path = "../../../../lib/core/malloc" }
+spin = { path = "../../../../lib/core/spin-rs" }
+
+# Interfaces
+syscalls = { path = "../../../../lib/core/interfaces/syscalls" }
+pci_driver = { path = "../../../../lib/core/interfaces/dev/pci/pci_driver" }
+protocol = { path = "../../../../lib/core/interfaces/protocol" }
+platform = { path = "../../../../lib/core/interfaces/platform" }
+interface = { path = "../../../../interface/generated" }
+
+[features]
+default = []
