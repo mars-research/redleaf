@@ -89,7 +89,7 @@ pub struct VirtioNetInner {
 
 impl VirtioNetInner {
     /// Returns an initialized VirtioNet from a base address.
-    unsafe fn new(mmio_base: usize) -> Self {
+    pub unsafe fn new(mmio_base: usize) -> Self {
         Self {
             mmio: Mmio::new(mmio_base),
 
@@ -172,6 +172,11 @@ impl VirtioNetInner {
 
         // Setup Virtual Queues
         self.initialize_virtual_queue(0, &(self.virtual_queues.as_ref().unwrap().receive_queue));
+
+        println!("Virtio Net Should Yield here!");
+        self.print_device_config();
+        libsyscalls::syscalls::sys_yield();
+
         self.initialize_virtual_queue(1, &(self.virtual_queues.as_ref().unwrap().transmit_queue));
 
         // Tell the Device we're all done, even though we aren't

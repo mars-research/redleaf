@@ -1011,6 +1011,8 @@ dependencies = [
  "protocol",
  "spin 0.5.3",
  "syscalls",
+ "virtio_device",
+ "virtio_network_device",
 ]
 
 [[package]]

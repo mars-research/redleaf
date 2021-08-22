@@ -18,5 +18,8 @@ protocol = { path = "../../../../lib/core/interfaces/protocol" }
 platform = { path = "../../../../lib/core/interfaces/platform" }
 interface = { path = "../../../../interface/generated" }
 
+virtio_device = { path = "../../../../lib/devices/virtio" }
+virtio_network_device = { path = "../../../../lib/devices/virtio_net" }
+
 [features]
 default = []
