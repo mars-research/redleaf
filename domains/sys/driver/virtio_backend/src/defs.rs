@@ -1,4 +1,4 @@
-use virtio_device::defs::VirtQueue;
+use virtio_device::defs::{VirtQueue, VirtqAvailablePacked, VirtqUsedPacked};
 
 pub const MAX_SUPPORTED_QUEUES: u16 = 3;
 
@@ -19,9 +19,15 @@ pub struct VirtioBackendQueue {
 }
 
 impl VirtioBackendQueue {
-    pub fn get_driver_queue(&mut self) -> &mut VirtQueue {
+    pub fn get_driver_queue(&mut self) -> &mut VirtqAvailablePacked {
         unsafe {
-            return &mut *(self.queue_driver as *mut VirtQueue);
+            return &mut *(self.queue_driver as *mut VirtqAvailablePacked);
+        }
+    }
+
+    pub fn get_device_queue(&mut self) -> &mut VirtqUsedPacked {
+        unsafe {
+            return &mut *(self.queue_driver as *mut VirtqUsedPacked);
         }
     }
 }

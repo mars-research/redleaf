@@ -133,6 +133,8 @@ fn virtio_backend() {
         for q in &mut backend.lock().backend_queues {
             if let Some(queue) = q.as_mut() {
                 println!("Driver Queue: {:#?}", queue.get_driver_queue());
+                println!("Device Queue: {:#?}", queue.get_device_queue());
+
             }
         }
 
