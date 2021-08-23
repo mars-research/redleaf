@@ -9,7 +9,6 @@
     maybe_uninit_extra
 )]
 
-pub mod pci;
 extern crate alloc;
 
 use core::usize;
@@ -19,7 +18,6 @@ use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
 use console::println;
-use hashbrown::HashMap;
 use interface::rref::{RRef, RRefDeque};
 use spin::Mutex;
 use virtio_device::defs::{
@@ -27,6 +25,8 @@ use virtio_device::defs::{
     VirtqUsedPacked,
 };
 use virtio_device::{Mmio, VirtioDeviceStatus};
+
+use crate::virtio_device_config_modified;
 
 #[repr(C, packed)]
 pub struct VirtioNetworkDeviceConfig {
@@ -128,9 +128,7 @@ impl VirtioNetInner {
 
         // Reset the device
         // Failing to do this DOES cause errors, don't ask how I know *sigh*
-        unsafe {
-            self.mmio.accessor.write_device_status(0);
-        }
+        self.mmio.accessor.write_device_status(0);
         Mmio::memory_fence();
 
         // Acknowledge Device
@@ -177,7 +175,11 @@ impl VirtioNetInner {
         // self.print_device_config();
         // libsyscalls::syscalls::sys_yield();
 
+        virtio_device_config_modified();
+
         self.initialize_virtual_queue(1, &(self.virtual_queues.as_ref().unwrap().transmit_queue));
+
+        virtio_device_config_modified();
 
         // Tell the Device we're all done, even though we aren't
         unsafe { self.mmio.update_device_status(VirtioDeviceStatus::DriverOk) };
