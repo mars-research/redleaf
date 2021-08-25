@@ -334,6 +334,7 @@ dependencies = [
  "spin 0.5.3",
  "syscalls",
  "unwind",
+ "virtio_backend_trusted",
 ]
 
 [[package]]
@@ -755,6 +756,7 @@ dependencies = [
  "pc-keyboard",
  "spin 0.5.3",
  "syscalls",
+ "virtio_backend_trusted",
 ]
 
 [[package]]
@@ -1015,6 +1017,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "virtio_backend_trusted"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "hashbrown 0.7.2",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "spin 0.5.3",
+ "virtio_device",
+ "volatile_accessor",
+]
+
+[[package]]
 name = "virtio_block"
 version = "0.1.0"
 dependencies = [
@@ -1060,6 +1076,29 @@ dependencies = [
 
 [[package]]
 name = "virtio_net"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "hashbrown 0.7.2",
+ "interface",
+ "libbenchnet",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "pci_driver",
+ "platform",
+ "protocol",
+ "redhttpd",
+ "smolnet",
+ "smoltcp",
+ "spin 0.5.3",
+ "syscalls",
+ "virtio_device",
+ "virtio_network_device",
+]
+
+[[package]]
+name = "virtio_net_mmio"
 version = "0.1.0"
 dependencies = [
  "console",

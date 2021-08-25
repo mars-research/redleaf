@@ -15,6 +15,8 @@ spin = { path = "../../../lib/core/spin-rs" }
 libtime = { path = "../../../lib/core/libtime" }
 pc-keyboard = "0.3.1"
 
+virtio_backend_trusted = { path = "../../../lib/devices/virtio_backend" }
+
 [dependencies.lazy_static]
 version = "1.3.0"
 features = ["spin_no_std"]

@@ -13,6 +13,7 @@ use crate::{
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use syscalls::{Domain, Heap, Interrupt};
+use virtio_backend_trusted::defs::VirtioMMIOConfiguration;
 
 #[domain_create(path = "dom_proxy")]
 pub trait CreateProxy {
@@ -25,6 +26,7 @@ pub trait CreateProxy {
         create_virtio_net: Arc<dyn crate::domain_create::CreateVirtioNet>,
         create_virtio_block: Arc<dyn crate::domain_create::CreateVirtioBlock>,
         create_virtio_backend: Arc<dyn crate::domain_create::CreateVirtioBackend>,
+        create_virtio_net_mmio: Arc<dyn crate::domain_create::CreateVirtioNetMMIO>,
         create_nvme: Arc<dyn CreateNvme>,
         create_net_shadow: Arc<dyn crate::domain_create::CreateNetShadow>,
         create_nvme_shadow: Arc<dyn crate::domain_create::CreateNvmeShadow>,
@@ -90,6 +92,14 @@ pub trait CreateVirtioBlock: Send + Sync {
 #[domain_create(path = "virtio_backend")]
 pub trait CreateVirtioBackend: Send + Sync {
     fn create_domain_virtio_backend(&self) -> (Box<dyn Domain>, ());
+}
+
+#[domain_create(path = "virtio_net_mmio")]
+pub trait CreateVirtioNetMMIO: Send + Sync {
+    fn create_domain_virtio_net_mmio(
+        &self,
+        config: Box<VirtioMMIOConfiguration>,
+    ) -> (Box<dyn Domain>, Box<dyn Net>);
 }
 
 #[domain_create(path = "net_shadow")]

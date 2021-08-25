@@ -20,6 +20,7 @@ use interface::rref::RRefVec;
 use libsyscalls::syscalls::{
     sys_backtrace, sys_create_thread, sys_readch_kbd, sys_recv_int, sys_yield,
 };
+use virtio_backend_trusted::defs::VirtioMMIOConfiguration;
 
 #[cfg(feature = "test_guard_page")]
 fn test_stack_exhaustion() -> u64 {
@@ -110,6 +111,7 @@ pub fn trusted_entry(
     create_virtio_net: Arc<dyn interface::domain_create::CreateVirtioNet>,
     create_virtio_block: Arc<dyn interface::domain_create::CreateVirtioBlock>,
     create_virtio_backend: Arc<dyn interface::domain_create::CreateVirtioBackend>,
+    create_virtio_net_mmio: Arc<dyn interface::domain_create::CreateVirtioNetMMIO>,
     create_net_shadow: Arc<dyn interface::domain_create::CreateNetShadow>,
     create_nvme_shadow: Arc<dyn interface::domain_create::CreateNvmeShadow>,
     create_nvme: Arc<dyn interface::domain_create::CreateNvme>,
@@ -195,6 +197,7 @@ pub fn trusted_entry(
         create_virtio_net,
         create_virtio_block,
         create_virtio_backend,
+        create_virtio_net_mmio,
         create_nvme,
         create_net_shadow,
         create_nvme_shadow,
@@ -249,6 +252,12 @@ pub fn trusted_entry(
     let (_) = proxy
         .as_domain_create_CreateVirtioBackend()
         .create_domain_virtio_backend();
+
+    let (_, net) = proxy
+        .as_domain_create_CreateVirtioNetMMIO()
+        .create_domain_virtio_net_mmio(Box::new(VirtioMMIOConfiguration {
+            configuration_address: 0x100000,
+        }));
 
     #[cfg(all(not(feature = "shadow"), not(feature = "virtnet")))]
     let (_, net) = proxy.as_create_ixgbe().create_domain_ixgbe(pci.pci_clone());

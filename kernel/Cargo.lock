@@ -298,6 +298,7 @@ dependencies = [
  "spin 0.5.3",
  "syscalls",
  "unwind",
+ "virtio_backend_trusted",
 ]
 
 [[package]]
@@ -341,12 +342,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "libtime"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "libsyscalls",
+]
+
+[[package]]
 name = "log"
 version = "0.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4fabed175da42fed1fa0746b0ea71f412aa9d35e76e95e59b192c64b9dc2bf8b"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "malloc"
+version = "0.1.0"
+dependencies = [
+ "libsyscalls",
+ "slabmalloc 0.7.0",
+ "spin 0.5.3",
 ]
 
 [[package]]
@@ -538,10 +556,11 @@ dependencies = [
  "platform",
  "rand",
  "signature",
- "slabmalloc",
+ "slabmalloc 0.7.0 (git+https://github.com/gz/rust-slabmalloc.git)",
  "spin 0.5.3",
  "syscalls",
  "unwind",
+ "virtio_backend_trusted",
  "volatile",
  "x86 0.33.0",
  "x86_64",
@@ -611,6 +630,13 @@ name = "signature"
 version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29f060a7d147e33490ec10da418795238fd7545bba241504d6b31a409f2e6210"
+
+[[package]]
+name = "slabmalloc"
+version = "0.7.0"
+dependencies = [
+ "log",
+]
 
 [[package]]
 name = "slabmalloc"
@@ -711,10 +737,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "virtio_backend_trusted"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "hashbrown 0.7.2",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "spin 0.5.3",
+ "virtio_device",
+ "volatile_accessor",
+]
+
+[[package]]
+name = "virtio_device"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "volatile_accessor",
+]
+
+[[package]]
 name = "volatile"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6b06ad3ed06fef1713569d547cdbdb439eafed76341820fb0e0344f29a41945"
+
+[[package]]
+name = "volatile_accessor"
+version = "0.1.0"
+dependencies = [
+ "lazy_static",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "wasi"

@@ -3,7 +3,7 @@ use crate::domain_create::{
     CreateAHCI, CreateBDevShadow, CreateBenchnet, CreateBenchnvme, CreateDomC, CreateDomD,
     CreateIxgbe, CreateMemBDev, CreateNetShadow, CreateNvme, CreateNvmeShadow, CreatePCI,
     CreateRv6, CreateRv6FS, CreateRv6Net, CreateRv6NetShadow, CreateRv6Usr, CreateShadow,
-    CreateVirtioBackend, CreateVirtioBlock, CreateVirtioNet,
+    CreateVirtioBackend, CreateVirtioBlock, CreateVirtioNet, CreateVirtioNetMMIO,
 };
 use alloc::boxed::Box;
 use alloc::sync::Arc;
@@ -25,6 +25,7 @@ pub trait Proxy:
     + CreateVirtioNet
     + CreateVirtioBlock
     + CreateVirtioBackend
+    + CreateVirtioNetMMIO
 {
     // necessary because rust doesn't support trait object upcasting
     fn as_domain_create_CreateVirtioNet(&self) -> Arc<dyn crate::domain_create::CreateVirtioNet>;
@@ -34,6 +35,9 @@ pub trait Proxy:
     fn as_domain_create_CreateVirtioBackend(
         &self,
     ) -> Arc<dyn crate::domain_create::CreateVirtioBackend>;
+    fn as_domain_create_CreateVirtioNetMMIO(
+        &self,
+    ) -> Arc<dyn crate::domain_create::CreateVirtioNetMMIO>;
     fn as_domain_create_CreateIxgbe(&self) -> Arc<dyn crate::domain_create::CreateIxgbe>;
     fn as_domain_create_CreateDomD(&self) -> Arc<dyn crate::domain_create::CreateDomD>;
     fn as_domain_create_CreateMemBDev(&self) -> Arc<dyn crate::domain_create::CreateMemBDev>;

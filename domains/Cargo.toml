@@ -11,6 +11,7 @@ members = [
 	"sys/driver/virtio_net",
 	"sys/driver/virtio_block",
 	"sys/driver/virtio_backend",
+	"sys/driver/virtio_net_mmio",
 	"sys/init",
 	"usr/proxy",
 	"usr/shadow/bdev",

@@ -47,6 +47,7 @@ interface = { path = "../interface/generated" }
 ahci = { path = "../lib/core/interfaces/dev/ahci" }
 platform = { path = "../lib/core/interfaces/platform" }
 # pci_driver = { path = "../lib/core/interfaces/dev/pci/pci_driver" }
+virtio_backend_trusted = { path = "../lib/devices/virtio_backend" }
 
 [dependencies.lazy_static]
 version = "1.3.0"
