@@ -26,14 +26,6 @@ static DOMAIN_ID: AtomicU64 = AtomicU64::new(0);
 /// Global Domain list
 pub static KERNEL_DOMAIN: Once<Arc<Mutex<Domain>>> = Once::new();
 
-#[cfg(feature = "gdb_domain_variables")]
-#[no_mangle]
-#[inline]
-/// This is a dummy function. It exists only to have a breakpoint set on it which will allow the gdb helper script to handle changes
-pub(crate) fn gdb_notify_new_domain_loaded() {
-    // println!("GDB NOTIFY");
-}
-
 //#[thread_local]
 //pub static BOOTING_DOMAIN: RefCell<Option<Box<PDomain>>> = RefCell::new(None);
 

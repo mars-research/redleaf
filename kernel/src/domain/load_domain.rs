@@ -1,5 +1,3 @@
-use crate::domain::domain::gdb_notify_new_domain_loaded;
-
 use super::domain::Domain;
 use super::trusted_binary;
 use super::trusted_binary::SignatureCheckResult;
@@ -7,6 +5,11 @@ use alloc::string::String;
 use alloc::sync::Arc;
 use elfloader::ElfBinary;
 use spin::Mutex;
+
+#[cfg(feature = "gdb_domain_variables")]
+#[no_mangle]
+/// This is a dummy function. It exists only to have a breakpoint set on it which will allow the gdb helper script to handle changes
+pub(crate) fn gdb_notify_new_domain_loaded() {}
 
 pub unsafe fn load_domain(
     name: &str,
