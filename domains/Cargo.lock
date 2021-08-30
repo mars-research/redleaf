@@ -1014,6 +1014,8 @@ dependencies = [
  "spin 0.5.3",
  "syscalls",
  "virtio_device",
+ "virtio_net_mmio",
+ "virtio_net_mmio_device",
 ]
 
 [[package]]
@@ -1117,7 +1119,23 @@ dependencies = [
  "spin 0.5.3",
  "syscalls",
  "virtio_device",
- "virtio_network_device",
+ "virtio_net_mmio_device",
+]
+
+[[package]]
+name = "virtio_net_mmio_device"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "hashbrown 0.7.2",
+ "interface",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "pci_driver",
+ "spin 0.5.3",
+ "virtio_device",
+ "volatile_accessor",
 ]
 
 [[package]]

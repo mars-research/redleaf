@@ -1,5 +1,5 @@
 [package]
-name = "virtio_network_device"
+name = "virtio_net_mmio_device"
 version = "0.1.0"
 authors = ["Redleaf team <aburtsev@uci.edu>"]
 edition = "2018"

@@ -17,7 +17,7 @@ hashbrown = "0.7.2"
 redhttpd = { path = "../../../lib/redhttpd" }
 
 virtio_device = { path = "../../../../lib/devices/virtio" }
-virtio_network_device = { path = "../../../../lib/devices/virtio_net" }
+virtio_net_mmio_device = { path = "../../../../lib/devices/virtio_net_mmio" }
 
 # Interfaces
 syscalls = { path = "../../../../lib/core/interfaces/syscalls" }

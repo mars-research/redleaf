@@ -18,6 +18,9 @@ protocol = { path = "../../../../lib/core/interfaces/protocol" }
 platform = { path = "../../../../lib/core/interfaces/platform" }
 interface = { path = "../../../../interface/generated" }
 
+virtio_net_mmio_device = { path = "../../../../lib/devices/virtio_net_mmio" }
+virtio_net_mmio = { path = "../virtio_net_mmio" }
+
 virtio_device = { path = "../../../../lib/devices/virtio" }
 
 [features]

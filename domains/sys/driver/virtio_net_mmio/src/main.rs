@@ -6,7 +6,8 @@
     const_raw_ptr_to_usize_cast,
     const_in_array_repeat_expressions,
     untagged_unions,
-    maybe_uninit_extra
+    maybe_uninit_extra,
+    core_intrinsics
 )]
 
 extern crate alloc;
@@ -18,24 +19,27 @@ use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use alloc::{boxed::Box, collections::BTreeMap};
+use core::intrinsics::size_of;
+use core::ptr::{read_volatile, write_volatile};
 use core::{borrow::BorrowMut, panic::PanicInfo, pin::Pin, usize};
 use syscalls::{Heap, Syscall};
 
 use console::{print, println};
 use interface::{net::Net, rpc::RpcResult};
-use libsyscalls::syscalls::sys_backtrace;
+use libsyscalls::syscalls::{sys_backtrace, sys_yield};
 pub use platform::PciBarAddr;
 use spin::Mutex;
 
 pub use interface::error::{ErrorKind, Result};
-use virtio_network_device::pci::PciFactory;
-use virtio_network_device::VirtioNetInner;
+use virtio_net_mmio_device::VirtioNetInner;
 
 use interface::rref::{RRef, RRefDeque};
 
 use smolnet::{self, SmolPhy};
 
 pub use interface::net::NetworkStats;
+
+const MMIO_CONFIG_ADDRESS: usize = 0x100000;
 
 pub struct VirtioNet(Arc<Mutex<VirtioNetInner>>);
 
@@ -124,42 +128,12 @@ pub fn trusted_entry(
     libsyscalls::syscalls::init(s);
     interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
-    // libbenchnet::run_fwd_udptest_rref(&net, 1514);
+    unsafe {
+        let mut inner = VirtioNetInner::new(MMIO_CONFIG_ADDRESS);
+        inner.init();
+    }
 
-    // VIRTIO DEMO LOOP
-    // Run SmolNet
-
-    // let mut smol = SmolPhy::new(Box::new(net));
-
-    // use smoltcp::iface::{EthernetInterfaceBuilder, NeighborCache};
-    // use smoltcp::socket::SocketSet;
-    // use smoltcp::time::Instant;
-    // use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
-
-    // let neighbor_cache = NeighborCache::new(BTreeMap::new());
-
-    // let ip_addresses = [IpCidr::new(IpAddress::v4(10, 10, 10, 10), 24)];
-    // let mac_address = [0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x10];
-    // let mut iface = EthernetInterfaceBuilder::new(smol)
-    //     .ethernet_addr(EthernetAddress::from_bytes(&mac_address))
-    //     .neighbor_cache(neighbor_cache)
-    //     .ip_addrs(ip_addresses)
-    //     .finalize();
-
-    // let mut sockets = SocketSet::new(Vec::with_capacity(512));
-
-    // let mut httpd = redhttpd::Httpd::new();
-
-    // loop {
-    //     iface.device_mut().do_rx();
-
-    //     let current = libtime::get_ns_time() / 1000000;
-    //     let timestamp = Instant::from_millis(current as i64);
-
-    //     iface.poll(&mut sockets, timestamp);
-    //     httpd.handle(&mut sockets);
-    //     iface.device_mut().do_tx();
-    // }
+    loop {}
 
     Box::new(nullnet::NullNet::new())
 }
