@@ -106,13 +106,13 @@ def handle_stop_event(event):
                         gdb.post_event(DelayedExecute("bt"))
 
                     if caller_frame.function().name == LOAD_DOMAIN:
-                        print(
-                            frame.name(),
-                            caller_frame.name(),
-                        )
-                        print(caller_frame.read_var("name"))
+                        # print(
+                        #     frame.name(),
+                        #     caller_frame.name(),
+                        # )
+                        # print(caller_frame.read_var("name"))
 
-                        domain_name = caller_frame.read_var("name")
+                        domain_name = str(caller_frame.read_var("name"))[1:-1]
                         domain_start = caller_frame.read_var("_domain_start")
 
                         load_domain_symbol_file(domain_name, domain_start)
@@ -144,7 +144,7 @@ def load_all_domains_for_autocomplete():
     for file in pathlib.Path("./domains/build/").iterdir():
         if file.suffix == "":
             # Add the domain
-            gdb.post_event(DelayedExecute(f"add-symbol-file {file}"))
+            gdb.post_event(DelayedExecute(f"add-symbol-file {file}", to_string=True))
 
 
 # *** INITIALIZATION ***
