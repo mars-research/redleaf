@@ -17,7 +17,7 @@ volatile_accessor = { path = "../../../lib/external/volatile_accessor" }
 pci_driver = { path = "../../../lib/core/interfaces/dev/pci/pci_driver" }
 interface = { path = "../../../interface/generated" }
 
-
+virtio_backend_trusted = { path = "../virtio_backend" }
 virtio_device = { path = "../virtio" }
 
 hashbrown = "0.7.2"

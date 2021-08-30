@@ -1,7 +1,5 @@
 use virtio_device::defs::{VirtQueue, VirtqAvailablePacked, VirtqUsedPacked};
 
-pub const MAX_SUPPORTED_QUEUES: u16 = 3;
-
 #[derive(Debug)]
 pub struct VirtioBackendQueue {
     pub queue_index: u16,

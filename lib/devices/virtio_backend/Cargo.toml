@@ -14,8 +14,6 @@ malloc = { path = "../../../lib/core/malloc" }
 spin = { path = "../../../lib/core/spin-rs" }
 volatile_accessor = { path = "../../../lib/external/volatile_accessor" }
 
-
-
 virtio_device = { path = "../virtio" }
 
 hashbrown = "0.7.2"

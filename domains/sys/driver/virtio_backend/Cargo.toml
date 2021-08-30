@@ -20,6 +20,7 @@ interface = { path = "../../../../interface/generated" }
 
 virtio_net_mmio_device = { path = "../../../../lib/devices/virtio_net_mmio" }
 virtio_net_mmio = { path = "../virtio_net_mmio" }
+virtio_backend_trusted = { path = "../../../../lib/devices/virtio_backend" }
 
 virtio_device = { path = "../../../../lib/devices/virtio" }
 

@@ -24,29 +24,13 @@ use hashbrown::HashMap;
 use interface::rref::{RRef, RRefDeque};
 use libsyscalls::syscalls::sys_yield;
 use spin::Mutex;
+use virtio_backend_trusted::defs::DeviceNotificationType;
+use virtio_backend_trusted::device_notify;
 use virtio_device::defs::{
     VirtQueue, VirtqAvailable, VirtqAvailablePacked, VirtqDescriptor, VirtqUsed, VirtqUsedElement,
     VirtqUsedPacked,
 };
 use virtio_device::{Mmio, VirtioDeviceStatus};
-
-const DEVICE_NOTIFY: *mut usize = (0x100000 - size_of::<usize>()) as *mut usize;
-
-fn device_notify() {
-    unsafe {
-        let v = read_volatile(DEVICE_NOTIFY);
-        write_volatile(DEVICE_NOTIFY, v + 1);
-
-        println!("Waiting for device to process notification");
-
-        // Wait for acknowledgement
-        while read_volatile(DEVICE_NOTIFY) != 0 {
-            sys_yield();
-        }
-    }
-
-    println!("Device Processed Notification");
-}
 
 #[repr(C, packed)]
 pub struct VirtioNetworkDeviceConfig {
@@ -194,11 +178,11 @@ impl VirtioNetInner {
         self.initialize_virtual_queue(0, &(self.virtual_queues.as_ref().unwrap().receive_queue));
 
         println!("Should call device_notify");
-        device_notify();
+        device_notify(DeviceNotificationType::DeviceConfigurationUpdated);
 
         self.initialize_virtual_queue(1, &(self.virtual_queues.as_ref().unwrap().transmit_queue));
 
-        device_notify();
+        device_notify(DeviceNotificationType::DeviceConfigurationUpdated);
 
         // Tell the Device we're all done, even though we aren't
         unsafe { self.mmio.update_device_status(VirtioDeviceStatus::DriverOk) };

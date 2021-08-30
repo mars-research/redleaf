@@ -15,7 +15,7 @@ extern crate malloc;
 
 mod defs;
 
-use crate::defs::{VirtioBackendQueue, MAX_SUPPORTED_QUEUES};
+use crate::defs::VirtioBackendQueue;
 use alloc::{boxed::Box, sync::Arc, vec, vec::Vec};
 use console::println;
 use core::{
@@ -27,56 +27,53 @@ use libsyscalls::syscalls::{sys_backtrace, sys_create_thread, sys_yield};
 use libtime::sys_ns_sleep;
 use spin::{Mutex, MutexGuard, Once};
 use syscalls::{Heap, Syscall};
+use virtio_backend_trusted::defs::{DEVICE_NOTIFY, MAX_SUPPORTED_QUEUES, MMIO_ADDRESS};
 use virtio_device::VirtioPciCommonConfig;
 use virtio_net_mmio_device::VirtioNetworkDeviceConfig;
 
-/// Increment this counter whenever you wish to notify the device
-const DEVICE_NOTIFY: *mut usize = (0x100000 - size_of::<usize>()) as *mut usize;
-
-const MMIO_ADDRESS: *mut VirtioPciCommonConfig = 0x100000 as *mut VirtioPciCommonConfig;
 struct VirtioBackendInner {
-    device_config: VirtioPciCommonConfig,
     backend_queues: Vec<Option<VirtioBackendQueue>>,
 }
 
-/// Call this function anytime the frontend modifies device config and backend needs to update
-// pub fn virtio_device_config_modified() {
-//     let mut backend = unsafe { VIRTIO_BACKEND.borrow_mut().lock() };
+impl VirtioBackendInner {
+    /// Call this function anytime the frontend modifies device config and backend needs to update
+    pub fn update_virtio_device_queue_config(&mut self) {
+        let device_config = unsafe { read_volatile(MMIO_ADDRESS) };
 
-//     unsafe {
-//         // Update the backend's info on the queues
-//         if backend.device_config.queue_enable == 1 {
-//             if backend.device_config.queue_select >= MAX_SUPPORTED_QUEUES {
-//                 panic!("Virtio Backend Supports at most {} queues but the device has a queue at index {}",
-//                 MAX_SUPPORTED_QUEUES,
-//                 backend.device_config.queue_select);
-//             } else {
-//                 // Update the queue information
-//                 let queue = VirtioBackendQueue {
-//                     queue_index: backend.device_config.queue_select,
-//                     queue_enable: true,
-//                     queue_size: backend.device_config.queue_size,
-//                     queue_descriptor: backend.device_config.queue_desc,
-//                     queue_device: backend.device_config.queue_device,
-//                     queue_driver: backend.device_config.queue_driver,
+        // Update the backend's info on the queues
+        if device_config.queue_enable == 1 {
+            if device_config.queue_select >= MAX_SUPPORTED_QUEUES {
+                panic!("Virtio Backend Supports at most {} queues but the device has a queue at index {}",
+                MAX_SUPPORTED_QUEUES,
+                device_config.queue_select);
+            }
 
-//                     device_idx: 0,
-//                     driver_idx: 0,
-//                 };
+            // Update the queue information
+            let queue = VirtioBackendQueue {
+                queue_index: device_config.queue_select,
+                queue_enable: true,
+                queue_size: device_config.queue_size,
+                queue_descriptor: device_config.queue_desc,
+                queue_device: device_config.queue_device,
+                queue_driver: device_config.queue_driver,
 
-//                 let index = queue.queue_index;
-//                 backend.backend_queues[index as usize] = Some(queue);
-//             }
-//         }
+                device_idx: 0,
+                driver_idx: 0,
+            };
 
-//         println!(
-//             "virtio_device_config_modified {:#?}",
-//             &backend.backend_queues
-//         );
-//     }
-// }
+            let index = queue.queue_index;
+            self.backend_queues[index as usize] = Some(queue);
+        }
+
+        println!("virtio_device_config_modified {:#?}", &self.backend_queues);
+    }
+}
 
 extern "C" fn virtio_backend() {
+    let mut backend = VirtioBackendInner {
+        backend_queues: vec![None, None, None],
+    };
+
     // Initialize the device config
     unsafe {
         write_volatile(DEVICE_NOTIFY, 0);
@@ -111,7 +108,7 @@ extern "C" fn virtio_backend() {
             // println!("DEVICE_NOTIFY: {:#?}", &dn);
 
             if dn != 0 {
-                println!("{:#?}", read_volatile(MMIO_ADDRESS));
+                backend.update_virtio_device_queue_config();
                 write_volatile(DEVICE_NOTIFY, 0);
             }
         }

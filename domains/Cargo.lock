@@ -1013,6 +1013,7 @@ dependencies = [
  "protocol",
  "spin 0.5.3",
  "syscalls",
+ "virtio_backend_trusted",
  "virtio_device",
  "virtio_net_mmio",
  "virtio_net_mmio_device",
@@ -1134,6 +1135,7 @@ dependencies = [
  "malloc",
  "pci_driver",
  "spin 0.5.3",
+ "virtio_backend_trusted",
  "virtio_device",
  "volatile_accessor",
 ]
