@@ -1,10 +1,6 @@
 #![no_std]
 #![no_main]
-#![feature(
-    global_asm,
-    box_syntax,
-    type_ascription,
-)]
+#![feature(global_asm, box_syntax, type_ascription)]
 
 use interface::proxy;
 
@@ -15,8 +11,8 @@ use alloc::sync::Arc;
 use console::println;
 use core::panic::PanicInfo;
 use interface::domain_create;
-use libsyscalls;
 use interface::rref;
+use libsyscalls;
 use syscalls;
 
 #[no_mangle]
@@ -26,8 +22,9 @@ pub fn trusted_entry(
     create_pci: alloc::sync::Arc<dyn interface::domain_create::CreatePCI>,
     create_membdev: alloc::sync::Arc<dyn interface::domain_create::CreateMemBDev>,
     create_bdev_shadow: alloc::sync::Arc<dyn interface::domain_create::CreateBDevShadow>,
-    create_virtio_net: alloc::sync::Arc<dyn interface::domain_create::CreateVirtioNet>,
     create_ixgbe: alloc::sync::Arc<dyn interface::domain_create::CreateIxgbe>,
+    create_virtio_net: alloc::sync::Arc<dyn interface::domain_create::CreateVirtioNet>,
+    create_virtio_block: Arc<dyn interface::domain_create::CreateVirtioBlock>,
     create_nvme: alloc::sync::Arc<dyn interface::domain_create::CreateNvme>,
     create_net_shadow: alloc::sync::Arc<dyn interface::domain_create::CreateNetShadow>,
     create_nvme_shadow: alloc::sync::Arc<dyn interface::domain_create::CreateNvmeShadow>,
@@ -51,6 +48,7 @@ pub fn trusted_entry(
         create_bdev_shadow,
         create_ixgbe,
         create_virtio_net,
+        create_virtio_block,
         create_net_shadow,
         create_nvme_shadow,
         create_nvme,

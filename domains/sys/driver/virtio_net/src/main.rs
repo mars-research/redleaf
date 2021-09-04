@@ -83,14 +83,32 @@ impl interface::net::Net for VirtioNet {
 
     fn poll_rref(
         &self,
-        collect: RRefDeque<[u8; 1514], 512>,
+        mut collect: RRefDeque<[u8; 1514], 512>,
         tx: bool,
     ) -> RpcResult<Result<(usize, RRefDeque<[u8; 1514], 512>)>> {
-        unimplemented!()
+        // let mut new_packet_count = 0;
+        // let device = self.0.lock();
+
+        // if tx {
+        //     new_packet_count = device.free_processed_tx_packets(&mut collect);
+        // } else {
+        //     new_packet_count = device.get_received_packets(&mut collect);
+        // }
+
+        // Ok(Ok((new_packet_count, collect)))
+        Ok(Ok((0, collect)))
     }
 
     fn get_stats(&self) -> RpcResult<Result<NetworkStats>> {
-        unimplemented!()
+        // unimplemented!()
+        Ok(Ok(NetworkStats {
+            tx_count: 0,
+            rx_count: 0,
+            tx_dma_ok: 0,
+            rx_dma_ok: 0,
+            rx_missed: 0,
+            rx_crc_err: 0,
+        }))
     }
 
     fn test_domain_crossing(&self) -> RpcResult<()> {
@@ -124,41 +142,42 @@ pub fn trusted_entry(
     #[cfg(not(feature = "virtio_net"))]
     let net = { nullnet::NullNet::new() };
 
-    /*
+    // libbenchnet::run_fwd_udptest_rref(&net, 1514);
+
     // VIRTIO DEMO LOOP
     // Run SmolNet
-    let mut smol = SmolPhy::new(Box::new(net));
 
-    use smoltcp::iface::{EthernetInterfaceBuilder, NeighborCache};
-    use smoltcp::socket::SocketSet;
-    use smoltcp::time::Instant;
-    use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
+    // let mut smol = SmolPhy::new(Box::new(net));
 
-    let neighbor_cache = NeighborCache::new(BTreeMap::new());
+    // use smoltcp::iface::{EthernetInterfaceBuilder, NeighborCache};
+    // use smoltcp::socket::SocketSet;
+    // use smoltcp::time::Instant;
+    // use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
 
-    let ip_addresses = [IpCidr::new(IpAddress::v4(10, 10, 10, 10), 24)];
-    let mac_address = [0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x10];
-    let mut iface = EthernetInterfaceBuilder::new(smol)
-        .ethernet_addr(EthernetAddress::from_bytes(&mac_address))
-        .neighbor_cache(neighbor_cache)
-        .ip_addrs(ip_addresses)
-        .finalize();
+    // let neighbor_cache = NeighborCache::new(BTreeMap::new());
 
-    let mut sockets = SocketSet::new(Vec::with_capacity(512));
+    // let ip_addresses = [IpCidr::new(IpAddress::v4(10, 10, 10, 10), 24)];
+    // let mac_address = [0x90, 0xe2, 0xba, 0xb3, 0xb9, 0x10];
+    // let mut iface = EthernetInterfaceBuilder::new(smol)
+    //     .ethernet_addr(EthernetAddress::from_bytes(&mac_address))
+    //     .neighbor_cache(neighbor_cache)
+    //     .ip_addrs(ip_addresses)
+    //     .finalize();
 
-    let mut httpd = redhttpd::Httpd::new();
+    // let mut sockets = SocketSet::new(Vec::with_capacity(512));
 
-    loop {
-        iface.device_mut().do_rx();
+    // let mut httpd = redhttpd::Httpd::new();
 
-        let current = libtime::get_ns_time() / 1000000;
-        let timestamp = Instant::from_millis(current as i64);
+    // loop {
+    //     iface.device_mut().do_rx();
 
-        iface.poll(&mut sockets, timestamp);
-        httpd.handle(&mut sockets);
-        iface.device_mut().do_tx();
-    }
-    */
+    //     let current = libtime::get_ns_time() / 1000000;
+    //     let timestamp = Instant::from_millis(current as i64);
+
+    //     iface.poll(&mut sockets, timestamp);
+    //     httpd.handle(&mut sockets);
+    //     iface.device_mut().do_tx();
+    // }
 
     Box::new(net)
 }

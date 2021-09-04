@@ -1,5 +1,5 @@
 [package]
-name = "virtio_net"
+name = "virtio_block"
 version = "0.1.0"
 authors = ["RedLeaf Team"]
 edition = "2018"
@@ -9,15 +9,7 @@ libsyscalls = { path = "../../../../lib/core/libsyscalls" }
 libtime = { path = "../../../../lib/core/libtime" }
 console = { path = "../../../../lib/core/console" }
 malloc = { path = "../../../../lib/core/malloc" }
-libbenchnet = { path = "../../../lib/libbenchnet" }
 spin = { path = "../../../../lib/core/spin-rs" }
-
-smolnet = { path = "../../../../domains/lib/smolnet" }
-hashbrown = "0.7.2"
-redhttpd = { path = "../../../lib/redhttpd" }
-
-virtio_device = { path = "../../../../lib/devices/virtio" }
-virtio_network_device = { path = "../../../../lib/devices/virtio_net" }
 
 # Interfaces
 syscalls = { path = "../../../../lib/core/interfaces/syscalls" }
@@ -26,14 +18,10 @@ protocol = { path = "../../../../lib/core/interfaces/protocol" }
 platform = { path = "../../../../lib/core/interfaces/platform" }
 interface = { path = "../../../../interface/generated" }
 
-
-[dependencies.smoltcp]
-path = "../../../../lib/external/smoltcp"
-default-features = false
-features = ["alloc", "proto-ipv4", "socket-tcp", "socket-icmp", "ethernet"]
+virtio_block_device = { path = "../../../../lib/devices/virtio_block" }
 
 [features]
 default = [
 ]
 
-virtio_net = []
+virtio_block = []

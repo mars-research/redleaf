@@ -33,7 +33,7 @@ default = [
     # "benchnvme",
     #"hashbench",
     "tpm",
-    "virtnet",
+    "virtio_net",
 ]
 
 test_sleep = [ ]
@@ -46,7 +46,8 @@ benchnet =[]
 membdev = []
 benchnvme = []
 tpm = []
-virtnet = []
+virtio_net = []
+virtio_block = []
 # for testing hashtable
 hashbench = []
 # Bring up shadow domains for restart.
