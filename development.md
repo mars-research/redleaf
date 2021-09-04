@@ -18,4 +18,12 @@ cpu(0):num_pages: 15
 cpu(0):domain/xv6kernel: Entry point at 103657b70
 cpu(0):domain/xv6kernel: .text starts at 103650000
 ```
-, you will need to do `add-symbol-file domains/build/xv6kernel 0x103650000`.
+you will need to do `add-symbol-file domains/build/xv6kernel 0x103650000`.
+
+## Using Vermilion, RedLeaf's GDB Helper
+Vermilion is RedLeaf's GDB Helper which automatically loads the symbols for domains into GDB once RedLeaf has loaded them into memory. 
+Vermilion will also automatically import all symbols in `domains/build` so that you can use autocomplete when setting your breakpoints. 
+(Note that this might cause issues by setting the breakpoint for an incorrect address). 
+You don't need to do anything to start Vermilion, it will automatically be loaded thanks to `.gdbinit`.
+Please note that Vermilion currently **DOES NOT** support KVM. You must use a command like `make qemu-gdb-nox`.
+Aside from that, everything should work *automagically*. Let us know if you encounter any bugs!

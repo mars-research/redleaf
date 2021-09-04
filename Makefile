@@ -4,7 +4,7 @@
 # Configurations
 ################
 
-DEBUG            ?= false
+DEBUG            ?= true
 LARGE_MEM        ?= true
 IXGBE		 	 ?= true
 VIRTIO_NET 		 ?= false
@@ -123,7 +123,8 @@ qemu_common     += -device tpm-tis,tpmdev=tpm0
 endif
 
 ifeq ($(GDB),true)
-qemu_common     += -S -s
+qemu_common     += -s -S
+KERNEL_FEATURES  += --features "gdb_domain_variables"
 endif
 
 ifeq ($(VIRTIO_BLOCK),true)

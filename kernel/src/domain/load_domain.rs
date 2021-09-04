@@ -1,9 +1,15 @@
 use super::domain::Domain;
 use super::trusted_binary;
 use super::trusted_binary::SignatureCheckResult;
+use alloc::string::String;
 use alloc::sync::Arc;
 use elfloader::ElfBinary;
 use spin::Mutex;
+
+#[cfg(feature = "gdb_domain_variables")]
+#[no_mangle]
+/// This is a dummy function. It exists only to have a breakpoint set on it which will allow the gdb helper script to handle changes
+pub(crate) fn gdb_notify_new_domain_loaded() {}
 
 pub unsafe fn load_domain(
     name: &str,
@@ -83,6 +89,20 @@ pub unsafe fn load_domain(
                 .unwrap()
                 .address()
     );
+
+    #[cfg(feature = "gdb_domain_variables")]
+    {
+        // _domain_start is used by the gdb script
+        let _domain_start: u64 = (loader.offset
+            + domain_elf
+                .file
+                .find_section_by_name(".text")
+                .unwrap()
+                .address())
+        .0;
+
+        gdb_notify_new_domain_loaded();
+    }
 
     let user_ep: *const () = {
         let mut entry: *const u8 = (*loader).offset.as_ptr();

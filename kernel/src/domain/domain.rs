@@ -88,6 +88,7 @@ pub fn init_domains() {
     let kernel = Arc::new(Mutex::new(Domain::new("kernel")));
     libsyscalls::syscalls::init(Box::new(PDomain::new(Arc::clone(&kernel))));
     KERNEL_DOMAIN.call_once(|| kernel);
+
     // init global references to syscalls (mostly for RRef deallocation)
     interface::rref::init(Box::new(PHeap::new()), 0);
 }
