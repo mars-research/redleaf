@@ -14,10 +14,11 @@ extern crate alloc;
 extern crate malloc;
 
 mod defs;
+mod virtual_queue;
 
 use crate::defs::VirtioBackendQueue;
 use alloc::{boxed::Box, sync::Arc, vec, vec::Vec};
-use console::println;
+use console::{print, println};
 use core::{
     intrinsics::size_of,
     panic::PanicInfo,
@@ -27,17 +28,21 @@ use libsyscalls::syscalls::{sys_backtrace, sys_create_thread, sys_yield};
 use libtime::sys_ns_sleep;
 use spin::{Mutex, MutexGuard, Once};
 use syscalls::{Heap, Syscall};
-use virtio_backend_trusted::defs::{DEVICE_NOTIFY, MAX_SUPPORTED_QUEUES, MMIO_ADDRESS};
+use virtio_backend_trusted::defs::{
+    DeviceNotificationType, DEVICE_NOTIFY, MAX_SUPPORTED_QUEUES, MMIO_ADDRESS,
+};
 use virtio_device::VirtioPciCommonConfig;
 use virtio_net_mmio_device::VirtioNetworkDeviceConfig;
+use virtual_queue::VirtualQueues;
 
 struct VirtioBackendInner {
     backend_queues: Vec<Option<VirtioBackendQueue>>,
+    virtual_queues: Vec<Option<VirtualQueues>>,
 }
 
 impl VirtioBackendInner {
     /// Call this function anytime the frontend modifies device config and backend needs to update
-    pub fn update_virtio_device_queue_config(&mut self) {
+    pub fn handle_device_config_update(&mut self) {
         let device_config = unsafe { read_volatile(MMIO_ADDRESS) };
 
         // Update the backend's info on the queues
@@ -61,20 +66,54 @@ impl VirtioBackendInner {
                 driver_idx: 0,
             };
 
-            let index = queue.queue_index;
-            self.backend_queues[index as usize] = Some(queue);
+            let index = queue.queue_index as usize;
+            self.backend_queues[index] = Some(queue);
+            self.virtual_queues[index] = Some(VirtualQueues::new(
+                device_config.queue_desc,
+                device_config.queue_device,
+                device_config.queue_driver,
+                device_config.queue_size,
+            ))
         }
 
         println!("virtio_device_config_modified {:#?}", &self.backend_queues);
     }
+
+    pub fn handle_queue_notify(&mut self) {
+        // Since there's currently no way of knowing which queue was updated check them all
+        for i in 0..self.virtual_queues.len() {
+            if i % 2 == 0 {
+                self.process_rx_queue(i);
+            }
+        }
+    }
+
+    pub fn process_rx_queue(&mut self, idx: usize) {
+        if self.virtual_queues[idx].is_none() {
+            return;
+        }
+
+        let queue = self.virtual_queues[idx].as_mut().unwrap();
+
+        // Check for new requests in available / driver queue
+        let current_idx = *queue.driver_queue.idx();
+        while queue.driver_queue.previous_idx != current_idx {
+            // Get the index for the descriptor head
+            let chain_header_idx = &mut queue.descriptor_queue.get_descriptors()
+                [queue.driver_queue.previous_idx as usize];
+
+            // Do actual processing here
+            println!("Chain Descriptor Head: {:#?}", chain_header_idx);
+
+            // Move to the next chain
+            queue.driver_queue.previous_idx = queue.driver_queue.previous_idx.wrapping_add(1);
+        }
+    }
+
+    pub fn process_descriptor(&mut self) {}
 }
 
-extern "C" fn virtio_backend() {
-    let mut backend = VirtioBackendInner {
-        backend_queues: vec![None, None, None],
-    };
-
-    // Initialize the device config
+fn initialize_device_config_space() {
     unsafe {
         write_volatile(DEVICE_NOTIFY, 0);
 
@@ -100,20 +139,40 @@ extern "C" fn virtio_backend() {
             },
         );
     }
+}
+
+fn process_notifications() -> ! {
+    let mut backend = VirtioBackendInner {
+        backend_queues: vec![None, None, None],
+        virtual_queues: vec![None, None, None],
+    };
 
     loop {
-        // println!("Virtio Backend!");
-        unsafe {
-            let dn = read_volatile(DEVICE_NOTIFY);
-            // println!("DEVICE_NOTIFY: {:#?}", &dn);
+        let dn = unsafe { read_volatile(DEVICE_NOTIFY) };
 
-            if dn != 0 {
-                backend.update_virtio_device_queue_config();
+        match DeviceNotificationType::from_value(dn) {
+            DeviceNotificationType::DeviceConfigurationUpdated => {
+                backend.handle_device_config_update();
+            }
+            DeviceNotificationType::QueueUpdated => {
+                backend.handle_queue_notify();
+            }
+            DeviceNotificationType::None => {}
+        }
+
+        if dn != 0 {
+            unsafe {
                 write_volatile(DEVICE_NOTIFY, 0);
             }
         }
+
         sys_yield();
     }
+}
+
+extern "C" fn virtio_backend() {
+    initialize_device_config_space();
+    process_notifications();
 }
 
 #[no_mangle]

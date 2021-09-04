@@ -55,6 +55,13 @@ pub struct VirtqUsedPacked {
     ring: [VirtqUsedElement; 0], // Will have size queue_size
 }
 
+impl VirtqUsedPacked {
+    /// The struct does not know its queue size so *YOU* must check that the index is correct!
+    pub unsafe fn ring(&mut self, idx: u16) -> &mut VirtqUsedElement {
+        self.ring.get_unchecked_mut(idx as usize)
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 #[repr(C, packed(2))]
 pub struct VirtqAvailablePacked {
@@ -65,6 +72,13 @@ pub struct VirtqAvailablePacked {
 
     /// The index of the head of the descriptor chain in the descriptor table
     ring: [u16; 0], // Will have size queue_size
+}
+
+impl VirtqAvailablePacked {
+    /// The struct does not know its queue size so *YOU* must check that the index is correct!
+    pub unsafe fn ring(&mut self, idx: u16) -> &mut u16 {
+        self.ring.get_unchecked_mut(idx as usize)
+    }
 }
 
 pub struct VirtqAvailable {

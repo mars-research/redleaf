@@ -327,9 +327,11 @@ impl VirtioNetInner {
                 .ring(rx_q.available.data.idx % self.queue_size) = header_idx as u16;
             rx_q.available.data.idx = rx_q.available.data.idx.wrapping_add(1); // We only added one "chain head"
 
-            unsafe {
-                self.mmio.queue_notify(0, 0);
-            }
+            // unsafe {
+            //     self.mmio.queue_notify(0, 0);
+            // }
+
+            device_notify(DeviceNotificationType::QueueUpdated);
 
             return Ok(());
         } else {

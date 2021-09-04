@@ -128,10 +128,15 @@ pub fn trusted_entry(
     libsyscalls::syscalls::init(s);
     interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
-    unsafe {
+    let inner = unsafe {
         let mut inner = VirtioNetInner::new(MMIO_CONFIG_ADDRESS);
         inner.init();
-    }
+        inner
+    };
+
+    let net = VirtioNet(Arc::new(Mutex::new(inner)));
+
+    libbenchnet::run_fwd_udptest_rref(&net, 1514);
 
     loop {}
 
