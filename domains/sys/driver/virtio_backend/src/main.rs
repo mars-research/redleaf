@@ -20,9 +20,14 @@ use crate::defs::VirtioBackendQueue;
 use alloc::{boxed::Box, sync::Arc, vec, vec::Vec};
 use console::{print, println};
 use core::{
+    borrow::BorrowMut,
     intrinsics::size_of,
     panic::PanicInfo,
     ptr::{read_volatile, write_volatile},
+};
+use interface::{
+    net::Net,
+    rref::{RRef, RRefDeque},
 };
 use libsyscalls::syscalls::{sys_backtrace, sys_create_thread, sys_yield};
 use libtime::sys_ns_sleep;
@@ -31,13 +36,23 @@ use syscalls::{Heap, Syscall};
 use virtio_backend_trusted::defs::{
     DeviceNotificationType, DEVICE_NOTIFY, MAX_SUPPORTED_QUEUES, MMIO_ADDRESS,
 };
-use virtio_device::VirtioPciCommonConfig;
+use virtio_device::{defs::VirtQueue, VirtioPciCommonConfig};
 use virtio_net_mmio_device::VirtioNetworkDeviceConfig;
 use virtual_queue::VirtualQueues;
+
+struct VirtioBackendThreadArguments {
+    net: Box<dyn Net>,
+}
+
+static mut THREAD_ARGUMENTS: Option<VirtioBackendThreadArguments> = None;
 
 struct VirtioBackendInner {
     backend_queues: Vec<Option<VirtioBackendQueue>>,
     virtual_queues: Vec<Option<VirtualQueues>>,
+    net: Box<dyn Net>,
+
+    receive_queue: Option<RRefDeque<[u8; 1514], 32>>,
+    collect_queue: Option<RRefDeque<[u8; 1514], 32>>,
 }
 
 impl VirtioBackendInner {
@@ -99,18 +114,85 @@ impl VirtioBackendInner {
         let current_idx = *queue.driver_queue.idx();
         while queue.driver_queue.previous_idx != current_idx {
             // Get the index for the descriptor head
-            let chain_header_idx = &mut queue.descriptor_queue.get_descriptors()
-                [queue.driver_queue.previous_idx as usize];
+            let chain_header_idx =
+                queue.driver_queue.previous_idx % queue.descriptor_queue.queue_size();
 
             // Do actual processing here
-            println!("Chain Descriptor Head: {:#?}", chain_header_idx);
+            // Self::print_descriptor_chain(queue, chain_header_idx);
+            Self::rx_process_descriptor_chain(
+                queue,
+                chain_header_idx,
+                self.receive_queue.as_mut().unwrap(),
+            );
 
             // Move to the next chain
             queue.driver_queue.previous_idx = queue.driver_queue.previous_idx.wrapping_add(1);
         }
+
+        // Give all collected buffers to the device
+        if let Ok(Ok((_, packets, collect))) = self.net.submit_and_poll_rref(
+            self.receive_queue.take().unwrap(),
+            self.collect_queue.take().unwrap(),
+            false,
+            1514,
+        ) {
+            self.receive_queue.replace(packets);
+            self.collect_queue.replace(collect);
+        } else {
+            panic!("Communication with backend device failed!");
+        }
     }
 
-    pub fn process_descriptor(&mut self) {}
+    /// Adds the Virtio RX Descriptor to the actual device's RX Queue
+    fn rx_process_descriptor_chain(
+        queue: &VirtualQueues,
+        chain_header_idx: u16,
+        device_queue: &mut RRefDeque<[u8; 1514], 32>,
+    ) {
+        // Only add the first descriptor of size 1514 in the chain
+        let mut current_idx: usize = chain_header_idx.into();
+        let descriptors = queue.descriptor_queue.get_descriptors();
+
+        loop {
+            let descriptor = descriptors[current_idx];
+
+            if descriptor.len == 1514 {
+                // Add it to the device and break
+                let buffer = unsafe { *(descriptor.addr as *mut [u8; 1514]) };
+                device_queue.push_back(RRef::new(buffer));
+                break;
+            } else {
+                // Try the next descriptor
+                if (descriptor.flags & 0b1) == 0b1 {
+                    current_idx = descriptor.next.into();
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+
+    fn print_descriptor_chain(queue: &VirtualQueues, chain_header_idx: u16) {
+        let mut current_idx: usize = chain_header_idx.into();
+        let descriptors = queue.descriptor_queue.get_descriptors();
+
+        println!("---CHAIN {} START---", chain_header_idx);
+
+        loop {
+            // Get and print the descriptor
+            let descriptor = descriptors[current_idx];
+            println!("{:#?}", &descriptor);
+
+            if (descriptor.flags & 0b1) == 0b1 {
+                // Goto Next
+                current_idx = descriptor.next.into();
+            } else {
+                break;
+            }
+        }
+
+        println!("---CHAIN {} END---", chain_header_idx);
+    }
 }
 
 fn initialize_device_config_space() {
@@ -141,10 +223,14 @@ fn initialize_device_config_space() {
     }
 }
 
-fn process_notifications() -> ! {
+fn process_notifications(net: Box<dyn Net>) -> ! {
     let mut backend = VirtioBackendInner {
         backend_queues: vec![None, None, None],
         virtual_queues: vec![None, None, None],
+        net,
+
+        receive_queue: Some(RRefDeque::new([None; 32])),
+        collect_queue: Some(RRefDeque::new([None; 32])),
     };
 
     loop {
@@ -171,14 +257,26 @@ fn process_notifications() -> ! {
 }
 
 extern "C" fn virtio_backend() {
+    // Retrieve Thread Arguments
+    let args = unsafe { THREAD_ARGUMENTS.take().unwrap() };
+
     initialize_device_config_space();
-    process_notifications();
+    process_notifications(args.net);
 }
 
 #[no_mangle]
-pub fn trusted_entry(s: Box<dyn Syscall + Send + Sync>, heap: Box<dyn Heap + Send + Sync>) {
+pub fn trusted_entry(
+    s: Box<dyn Syscall + Send + Sync>,
+    heap: Box<dyn Heap + Send + Sync>,
+    net: Box<dyn Net>,
+) {
     libsyscalls::syscalls::init(s);
     interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+
+    // Prepare thread arguments
+    unsafe {
+        THREAD_ARGUMENTS = Some(VirtioBackendThreadArguments { net });
+    }
 
     sys_create_thread("virtio_backend", virtio_backend);
 }

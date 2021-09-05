@@ -91,7 +91,7 @@ pub trait CreateVirtioBlock: Send + Sync {
 
 #[domain_create(path = "virtio_backend")]
 pub trait CreateVirtioBackend: Send + Sync {
-    fn create_domain_virtio_backend(&self) -> (Box<dyn Domain>, ());
+    fn create_domain_virtio_backend(&self, net: Box<dyn Net>) -> (Box<dyn Domain>, ());
 }
 
 #[domain_create(path = "virtio_net_mmio")]

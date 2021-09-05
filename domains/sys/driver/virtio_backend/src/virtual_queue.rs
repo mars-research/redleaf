@@ -21,6 +21,10 @@ impl DescriptorQueue {
     pub fn get_descriptors(&self) -> &mut [VirtqDescriptor] {
         unsafe { slice::from_raw_parts_mut(self.address, self.queue_size as usize) }
     }
+
+    pub fn queue_size(&self) -> u16 {
+        self.queue_size
+    }
 }
 
 pub struct DeviceQueue {

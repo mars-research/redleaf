@@ -125,6 +125,8 @@ pub fn trusted_entry(
     libsyscalls::syscalls::init(s);
     interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
+    println!("virtio_net::trusted_entry()");
+
     #[cfg(feature = "virtio_net")]
     let net = {
         let net = {

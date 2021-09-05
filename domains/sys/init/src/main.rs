@@ -251,7 +251,7 @@ pub fn trusted_entry(
 
     let (_) = proxy
         .as_domain_create_CreateVirtioBackend()
-        .create_domain_virtio_backend();
+        .create_domain_virtio_backend(net);
 
     let (_, net) = proxy
         .as_domain_create_CreateVirtioNetMMIO()
