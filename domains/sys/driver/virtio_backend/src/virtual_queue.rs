@@ -72,8 +72,8 @@ impl DriverQueue {
         }
     }
 
-    pub fn idx(&mut self) -> &u16 {
-        unsafe { &mut (*self.address).idx }
+    pub fn idx(&self) -> &u16 {
+        unsafe { &(*self.address).idx }
     }
 
     pub fn ring(&mut self, idx: u16) -> &u16 {

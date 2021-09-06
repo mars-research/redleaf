@@ -2,9 +2,13 @@ use core::mem::size_of;
 use virtio_device::VirtioPciCommonConfig;
 
 pub const MAX_SUPPORTED_QUEUES: u16 = 3;
+pub const BATCH_SIZE: usize = 32;
 
 pub const MMIO_ADDRESS: *mut VirtioPciCommonConfig = 0x100000 as *mut VirtioPciCommonConfig;
 pub const DEVICE_NOTIFY: *mut usize = (0x100000 - size_of::<usize>()) as *mut usize;
+
+pub type BUFFER = [u8; 1514];
+pub type BUFFER_PTR = *const BUFFER;
 
 pub struct VirtioMMIOConfiguration {
     pub configuration_address: usize,

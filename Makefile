@@ -103,8 +103,8 @@ qemu_common     += -cpu 'Haswell,pdpe1gb' -machine q35
 # qemu_common    	+= -device vfio-pci,romfile=,host=06:00.1
 # qemu_common    	+= -vnc 127.0.0.1:0
 # qemu_common		+= -mem-path /dev/hugepages
-# qemu_common		+= --trace virtio_*
-# qemu_common		+= --trace virtqueue_*
+qemu_common		+= --trace virtio_*
+qemu_common		+= --trace virtqueue_*
 # qemu_common		+= --trace file_*
 # qemu_common		+= --trace vhost_*
 # qemu_common		+= --trace vfio_*
@@ -206,7 +206,7 @@ idl_generation: tools/redIDL
 	then echo "redIDL not found. Maybe you want to do 'git submodule init && git submodule update' then try again?"; \
 			exit -1; \
 	fi
-	make -C interface
+	# make -C interface
 
 .PHONY: domains
 domains: idl_generation $(xv6fs_img) memops
