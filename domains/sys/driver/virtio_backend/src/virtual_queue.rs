@@ -1,10 +1,16 @@
 use core::{mem, ptr::read_volatile};
 
-use alloc::{slice, vec::Vec};
+use alloc::{
+    collections::{BTreeMap, VecDeque},
+    slice,
+    vec::Vec,
+};
+use virtio_backend_trusted::defs::{BATCH_SIZE, BUFFER_PTR};
 use virtio_device::defs::{
     VirtQueue, VirtqAvailablePacked, VirtqDescriptor, VirtqUsedElement, VirtqUsedPacked,
 };
 
+#[derive(Debug)]
 pub struct DescriptorQueue {
     address: *mut VirtqDescriptor,
     queue_size: u16,
@@ -26,12 +32,10 @@ impl DescriptorQueue {
         self.queue_size
     }
 }
-
+#[derive(Debug)]
 pub struct DeviceQueue {
     address: *mut VirtqUsedPacked,
     queue_size: u16,
-
-    pub previous_idx: u16,
 }
 
 impl DeviceQueue {
@@ -39,8 +43,6 @@ impl DeviceQueue {
         Self {
             address,
             queue_size,
-
-            previous_idx: 0,
         }
     }
 
@@ -54,7 +56,7 @@ impl DeviceQueue {
         unsafe { (*self.address).ring(idx) }
     }
 }
-
+#[derive(Debug)]
 pub struct DriverQueue {
     address: *mut VirtqAvailablePacked,
     queue_size: u16,
@@ -82,19 +84,31 @@ impl DriverQueue {
         unsafe { (*self.address).ring(idx) }
     }
 }
-
-pub struct VirtualQueues {
+#[derive(Debug)]
+pub struct VirtualQueue {
     pub descriptor_queue: DescriptorQueue,
     pub driver_queue: DriverQueue,
     pub device_queue: DeviceQueue,
+
+    queue_size: u16,
+    rx_queue: bool,
+
+    // Variables used for efficiency
+    /// Holds the pointers to buffers that either need to be given to the device (rx queue) or given to the frontend (tx queue)
+    buffer_deque: VecDeque<BUFFER_PTR>,
+
+    /// Maps the buffer's ptr to the chain_header_idx
+    buffer_map: BTreeMap<u64, u16>,
 }
 
-impl VirtualQueues {
+impl VirtualQueue {
+    /// rx_queue should be true if the queue has an even index, false otherwise
     pub fn new(
         descriptor_queue_address: u64,
         device_queue_address: u64,
         driver_queue_address: u64,
         queue_size: u16,
+        rx_queue: bool,
     ) -> Self {
         Self {
             descriptor_queue: DescriptorQueue::new(
@@ -109,6 +123,89 @@ impl VirtualQueues {
                 driver_queue_address as *mut VirtqAvailablePacked,
                 queue_size,
             ),
+
+            queue_size,
+            rx_queue,
+
+            buffer_deque: VecDeque::with_capacity(BATCH_SIZE),
+            buffer_map: BTreeMap::new(),
+        }
+    }
+
+    pub fn is_rx_queue(&self) -> bool {
+        self.rx_queue
+    }
+
+    fn assert_is_rx(&self) {
+        assert!(
+            self.rx_queue,
+            "This function should only be called if the queue is an rx_queue (even index)!"
+        );
+    }
+
+    fn assert_is_tx(&self) {
+        assert!(
+            !self.rx_queue,
+            "This function should only be called if the queue is an tx_queue (odd index)!"
+        );
+    }
+
+    pub fn fetch_new_buffers(&mut self) -> &mut VecDeque<BUFFER_PTR> {
+        while self.driver_queue.previous_idx != *self.driver_queue.idx()
+            && self.buffer_deque.len() < BATCH_SIZE
+        {
+            let idx = (self.driver_queue.previous_idx % self.queue_size);
+            let chain_header_idx = *self.driver_queue.ring(idx);
+
+            let descriptors = self.descriptor_queue.get_descriptors();
+            let mut current_idx: usize = chain_header_idx.into();
+
+            // Find the descriptor with the correct length
+            loop {
+                let descriptor = descriptors[current_idx];
+
+                if descriptor.len == 1514 {
+                    // Add it to the device and break
+                    self.buffer_deque.push_back(descriptor.addr as BUFFER_PTR);
+                    self.buffer_map.insert(descriptor.addr, chain_header_idx);
+                    break;
+                } else {
+                    // Try the next descriptor
+                    if (descriptor.flags & 0b1) == 0b1 {
+                        current_idx = descriptor.next.into();
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            // Move to the next chain
+            self.driver_queue.previous_idx = self.driver_queue.previous_idx.wrapping_add(1);
+        }
+
+        return &mut self.buffer_deque;
+    }
+
+    pub fn mark_buffers_as_complete(&mut self, buffers: &[BUFFER_PTR]) {
+        for buffer in buffers {
+            // Look up the chain header idx
+            let buffer_key = (*buffer) as u64;
+            if let Some(chain_header_idx) = self.buffer_map.remove(&buffer_key) {
+                // Mark that chain as complete
+                let idx = *self.device_queue.idx();
+                *self.device_queue.ring(idx % self.queue_size) = VirtqUsedElement {
+                    id: chain_header_idx.into(),
+                    len: 1514,
+                };
+
+                // Update the idx
+                *self.device_queue.idx() = idx.wrapping_add(1);
+            } else {
+                panic!(
+                    "Buffer Address Changed during processing! FAILED ADDR: {:#?}, MAP: {:#?}",
+                    buffer, self.buffer_map
+                );
+            }
         }
     }
 }

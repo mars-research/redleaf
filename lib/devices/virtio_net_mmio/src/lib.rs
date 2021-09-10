@@ -186,6 +186,7 @@ impl VirtioNetInner {
 
         // Tell the Device we're all done, even though we aren't
         unsafe { self.mmio.update_device_status(VirtioDeviceStatus::DriverOk) };
+        device_notify(DeviceNotificationType::DeviceConfigurationUpdated);
 
         // self.print_device_status();
 

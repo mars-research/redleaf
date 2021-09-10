@@ -1,7 +1,7 @@
 use virtio_device::defs::{VirtQueue, VirtqAvailablePacked, VirtqUsedPacked};
 
 #[derive(Debug)]
-pub struct VirtioBackendQueue {
+pub struct VirtioQueueConfig {
     pub queue_index: u16,
     pub queue_size: u16,
     pub queue_enable: bool,
@@ -16,7 +16,7 @@ pub struct VirtioBackendQueue {
     pub device_idx: u16,
 }
 
-impl VirtioBackendQueue {
+impl VirtioQueueConfig {
     pub fn get_driver_queue(&mut self) -> &mut VirtqAvailablePacked {
         unsafe {
             return &mut *(self.queue_driver as *mut VirtqAvailablePacked);

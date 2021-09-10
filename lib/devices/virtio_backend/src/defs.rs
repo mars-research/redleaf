@@ -1,7 +1,7 @@
 use core::mem::size_of;
 use virtio_device::VirtioPciCommonConfig;
 
-pub const MAX_SUPPORTED_QUEUES: u16 = 3;
+pub const MAX_SUPPORTED_QUEUES: u16 = 2;
 pub const BATCH_SIZE: usize = 32;
 
 pub const MMIO_ADDRESS: *mut VirtioPciCommonConfig = 0x100000 as *mut VirtioPciCommonConfig;

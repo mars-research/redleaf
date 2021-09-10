@@ -13,11 +13,11 @@
 extern crate alloc;
 extern crate malloc;
 
-mod backend;
 mod defs;
+mod virtio_backend;
 mod virtual_queue;
 
-use crate::{backend::VirtioBackendInner, defs::VirtioBackendQueue};
+use crate::{defs::VirtioQueueConfig, virtio_backend::VirtioBackend};
 use alloc::{boxed::Box, sync::Arc, vec, vec::Vec};
 use console::{print, println};
 use core::{
@@ -39,7 +39,7 @@ use virtio_backend_trusted::defs::{
 };
 use virtio_device::{defs::VirtQueue, VirtioPciCommonConfig};
 use virtio_net_mmio_device::VirtioNetworkDeviceConfig;
-use virtual_queue::VirtualQueues;
+use virtual_queue::VirtualQueue;
 
 struct VirtioBackendThreadArguments {
     net: Box<dyn Net>,
@@ -76,9 +76,12 @@ fn initialize_device_config_space() {
 }
 
 fn process_notifications(net: Box<dyn Net>) -> ! {
-    let mut backend = VirtioBackendInner::new(net);
+    let mut backend = VirtioBackend::new(net);
 
     loop {
+        // Check device for processed buffers and move to queues
+        backend.update_queues();
+
         let dn = unsafe { read_volatile(DEVICE_NOTIFY) };
 
         match DeviceNotificationType::from_value(dn) {
