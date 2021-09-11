@@ -1,10 +1,7 @@
 use core::{mem, ptr::read_volatile};
 
-use alloc::{
-    collections::{BTreeMap, VecDeque},
-    slice,
-    vec::Vec,
-};
+use alloc::{collections::VecDeque, slice, vec::Vec};
+use hashbrown::HashMap;
 use virtio_backend_trusted::defs::{BATCH_SIZE, BUFFER_PTR};
 use virtio_device::defs::{
     VirtQueue, VirtqAvailablePacked, VirtqDescriptor, VirtqUsedElement, VirtqUsedPacked,
@@ -98,7 +95,7 @@ pub struct VirtualQueue {
     buffer_deque: VecDeque<BUFFER_PTR>,
 
     /// Maps the buffer's ptr to the chain_header_idx
-    buffer_map: BTreeMap<u64, u16>,
+    buffer_map: HashMap<u64, u16>,
 }
 
 impl VirtualQueue {
@@ -128,7 +125,7 @@ impl VirtualQueue {
             rx_queue,
 
             buffer_deque: VecDeque::with_capacity(BATCH_SIZE),
-            buffer_map: BTreeMap::new(),
+            buffer_map: HashMap::new(),
         }
     }
 

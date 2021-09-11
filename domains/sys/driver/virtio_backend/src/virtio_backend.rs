@@ -1,9 +1,10 @@
 use core::ptr::read_volatile;
 
-use alloc::collections::{BTreeMap, VecDeque};
+use alloc::collections::VecDeque;
 use alloc::vec;
 use alloc::{boxed::Box, vec::Vec};
 use console::println;
+use hashbrown::HashMap;
 use interface::{
     net::Net,
     rref::{RRef, RRefDeque},
@@ -29,7 +30,7 @@ pub struct VirtioBackend {
     // *** The below variables are used to simplify communicating with RRef Net Interface ***
     /// We have to copy the arrays in order to satisfy the interface so this keeps track of which RRef
     /// corresponds to which buffer
-    buffer_rref_map: BTreeMap<u64, u64>,
+    buffer_rref_map: HashMap<u64, u64>,
 
     /// Used so that we don't have to create RRefDeques when calling submit_and_poll_rref()
     /// 0 is packets and 1 is collect
@@ -48,7 +49,7 @@ impl VirtioBackend {
                 Some(RRefDeque::new([None; 32])),
                 Some(RRefDeque::new([None; 32])),
             ),
-            buffer_rref_map: BTreeMap::new(),
+            buffer_rref_map: HashMap::new(),
         }
     }
 
@@ -157,6 +158,10 @@ impl VirtioBackend {
 
         let queue = self.virtual_queues[queue_idx].as_mut().unwrap();
         let collect = self.rref_queues.1.as_mut().unwrap();
+        assert!(
+            self.rref_queues.0.as_ref().unwrap().len() == 0,
+            "Packets queue should be flushed completely!"
+        );
 
         // Move buffers from collect queue
         while let Some(rref) = collect.pop_front() {
@@ -169,7 +174,11 @@ impl VirtioBackend {
 
                 queue.mark_buffers_as_complete(&[buffer as BUFFER_PTR]);
             } else {
-                panic!("RRef address must have changed!");
+                panic!(
+                    "RRef address must have changed! FAILED RREF ADDR: {:#?}, EXPECTED: {:#?}",
+                    rref.as_ptr() as u64,
+                    self.buffer_rref_map
+                );
             }
         }
     }

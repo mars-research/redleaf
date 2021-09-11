@@ -24,5 +24,7 @@ virtio_backend_trusted = { path = "../../../../lib/devices/virtio_backend" }
 
 virtio_device = { path = "../../../../lib/devices/virtio" }
 
+hashbrown = "0.7.2"
+
 [features]
 default = []
