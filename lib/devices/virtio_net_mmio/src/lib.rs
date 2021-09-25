@@ -6,7 +6,8 @@
     const_raw_ptr_to_usize_cast,
     const_in_array_repeat_expressions,
     untagged_unions,
-    maybe_uninit_extra
+    maybe_uninit_extra,
+    array_methods
 )]
 
 pub mod pci;
@@ -19,6 +20,7 @@ use alloc::vec::Vec;
 use console::println;
 use core::mem::size_of;
 use core::ptr::{read_volatile, write_volatile};
+use core::slice::{self};
 use core::usize;
 use hashbrown::HashMap;
 use interface::rref::{RRef, RRefDeque};
@@ -77,6 +79,10 @@ pub struct VirtioNetInner {
     /// The driver doesn't actually use these but they are required by the spec
     virtio_network_headers: Vec<VirtioNetworkHeader>,
 
+    /// The shared memory region for buffers
+    /// Place tx at header_idx and rx at buffer_idx
+    virtio_network_buffers: Vec<NetworkPacketBuffer>,
+
     /// Tracks which descriptors on the queue are free
     rx_free_descriptors: Vec<bool>,
     /// Tracks which descriptors on the queue are free
@@ -103,6 +109,7 @@ impl VirtioNetInner {
             virtual_queues: None,
 
             virtio_network_headers: vec![],
+            virtio_network_buffers: vec![],
 
             rx_free_descriptors: vec![],
             tx_free_descriptors: vec![],
@@ -231,6 +238,8 @@ impl VirtioNetInner {
             self.buffer_count
         ];
 
+        self.virtio_network_buffers = vec![[0; 1514]; self.queue_size.into()];
+
         self.rx_free_descriptors = vec![true; self.buffer_count];
         self.tx_free_descriptors = vec![true; self.buffer_count];
 
@@ -299,7 +308,10 @@ impl VirtioNetInner {
 
         if let Ok(header_idx) = Self::get_free_idx(&mut self.rx_free_descriptors) {
             let buffer_idx = header_idx + self.buffer_count;
-            let buffer_addr = buffer.as_ptr() as u64;
+            // let buffer_addr = buffer.as_ptr() as u64;
+
+            // Use the shared memory region
+            let buffer_addr = self.virtio_network_buffers[buffer_idx].as_ptr() as u64;
 
             // Store it so it isn't dropped
             self.rx_buffers[header_idx] = Some(buffer);
@@ -368,7 +380,12 @@ impl VirtioNetInner {
 
         if let Ok(header_idx) = Self::get_free_idx(&mut self.tx_free_descriptors) {
             let buffer_idx = header_idx + self.buffer_count;
-            let buffer_addr = buffer.as_ptr() as u64;
+
+            // Copy the packet into the shared memory region
+            let a = buffer.as_slice();
+            self.virtio_network_buffers[header_idx].copy_from_slice(a);
+
+            let buffer_addr = self.virtio_network_buffers[header_idx].as_ptr() as u64;
 
             // Store it so it isn't dropped
             self.tx_buffers[header_idx] = Some(buffer);
@@ -431,7 +448,12 @@ impl VirtioNetInner {
             let header_descriptor = &rx_q.descriptors[used_element.id as usize];
             let buffer_descriptor = &rx_q.descriptors[header_descriptor.next as usize];
 
-            if let Some(buffer) = self.rx_buffers[used_element.id as usize].take() {
+            if let Some(mut buffer) = self.rx_buffers[used_element.id as usize].take() {
+                // Copy rx packet from shared memory region to buffer
+                buffer.copy_from_slice(
+                    &self.virtio_network_buffers[header_descriptor.next as usize].as_slice(),
+                );
+
                 // Processed packets are "collected"
                 collect.push_back(buffer);
                 new_packets_count += 1;

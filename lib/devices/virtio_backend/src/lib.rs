@@ -1,5 +1,4 @@
 #![no_std]
-#![no_main]
 #![feature(
     box_syntax,
     const_fn,
@@ -23,10 +22,10 @@ pub fn device_notify(notification_type: DeviceNotificationType) {
     unsafe {
         write_volatile(DEVICE_NOTIFY, value);
 
-        const wait_value: usize = DeviceNotificationType::None.value();
+        const WAIT_VALUE: usize = DeviceNotificationType::None.value();
 
         // Wait for acknowledgement
-        while read_volatile(DEVICE_NOTIFY) != wait_value {
+        while read_volatile(DEVICE_NOTIFY) != WAIT_VALUE {
             sys_yield();
         }
     }

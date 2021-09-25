@@ -2,7 +2,7 @@ use core::{mem, ptr::read_volatile};
 
 use alloc::{collections::VecDeque, slice, vec::Vec};
 use hashbrown::HashMap;
-use virtio_backend_trusted::defs::{BATCH_SIZE, BUFFER_PTR};
+use virtio_backend_trusted::defs::{BufferPtr, BATCH_SIZE};
 use virtio_device::defs::{
     VirtQueue, VirtqAvailablePacked, VirtqDescriptor, VirtqUsedElement, VirtqUsedPacked,
 };
@@ -92,7 +92,7 @@ pub struct VirtualQueue {
 
     // Variables used for efficiency
     /// Holds the pointers to buffers that either need to be given to the device (rx queue) or given to the frontend (tx queue)
-    buffer_deque: VecDeque<BUFFER_PTR>,
+    buffer_deque: VecDeque<BufferPtr>,
 
     /// Maps the buffer's ptr to the chain_header_idx
     buffer_map: HashMap<u64, u16>,
@@ -147,7 +147,7 @@ impl VirtualQueue {
         );
     }
 
-    pub fn fetch_new_buffers(&mut self) -> &mut VecDeque<BUFFER_PTR> {
+    pub fn fetch_new_buffers(&mut self) -> &mut VecDeque<BufferPtr> {
         while self.driver_queue.previous_idx != *self.driver_queue.idx()
             && self.buffer_deque.len() < BATCH_SIZE
         {
@@ -163,7 +163,7 @@ impl VirtualQueue {
 
                 if descriptor.len == 1514 {
                     // Add it to the device and break
-                    self.buffer_deque.push_back(descriptor.addr as BUFFER_PTR);
+                    self.buffer_deque.push_back(descriptor.addr as BufferPtr);
                     self.buffer_map.insert(descriptor.addr, chain_header_idx);
                     break;
                 } else {
@@ -183,7 +183,7 @@ impl VirtualQueue {
         return &mut self.buffer_deque;
     }
 
-    pub fn mark_buffers_as_complete(&mut self, buffers: &[BUFFER_PTR]) {
+    pub fn mark_buffers_as_complete(&mut self, buffers: &[BufferPtr]) {
         for buffer in buffers {
             // Look up the chain header idx
             let buffer_key = (*buffer) as u64;

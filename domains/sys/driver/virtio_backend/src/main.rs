@@ -35,7 +35,7 @@ use libtime::sys_ns_sleep;
 use spin::{Mutex, MutexGuard, Once};
 use syscalls::{Heap, Syscall};
 use virtio_backend_trusted::defs::{
-    DeviceNotificationType, BATCH_SIZE, BUFFER, DEVICE_NOTIFY, MAX_SUPPORTED_QUEUES, MMIO_ADDRESS,
+    Buffer, DeviceNotificationType, BATCH_SIZE, DEVICE_NOTIFY, MAX_SUPPORTED_QUEUES, MMIO_ADDRESS,
 };
 use virtio_device::{defs::VirtQueue, VirtioPciCommonConfig};
 use virtio_net_mmio_device::VirtioNetworkDeviceConfig;

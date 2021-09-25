@@ -10,7 +10,7 @@ use interface::{
     rref::{RRef, RRefDeque},
 };
 use virtio_backend_trusted::defs::{
-    BATCH_SIZE, BUFFER, BUFFER_PTR, MAX_SUPPORTED_QUEUES, MMIO_ADDRESS,
+    Buffer, BufferPtr, BATCH_SIZE, MAX_SUPPORTED_QUEUES, MMIO_ADDRESS,
 };
 use virtio_device::defs::VirtqUsedElement;
 
@@ -34,7 +34,7 @@ pub struct VirtioBackend {
 
     /// Used so that we don't have to create RRefDeques when calling submit_and_poll_rref()
     /// 0 is packets and 1 is collect
-    rref_queues: (Option<RRefDeque<BUFFER, 32>>, Option<RRefDeque<BUFFER, 32>>),
+    rref_queues: (Option<RRefDeque<Buffer, 32>>, Option<RRefDeque<Buffer, 32>>),
 }
 
 impl VirtioBackend {
@@ -142,7 +142,7 @@ impl VirtioBackend {
             if !rx {
                 // If it's tx we need to copy the buffer's contents into the RRef
                 unsafe {
-                    core::ptr::copy(buffer, rref.as_ptr() as *mut BUFFER, 1);
+                    core::ptr::copy(buffer, rref.as_ptr() as *mut Buffer, 1);
                 }
             }
 
@@ -168,11 +168,11 @@ impl VirtioBackend {
             if let Some(buffer) = self.buffer_rref_map.remove(&(rref.as_ptr() as u64)) {
                 if rx {
                     unsafe {
-                        core::ptr::copy(rref.as_ptr() as *mut BUFFER, buffer as *mut BUFFER, 1);
+                        core::ptr::copy(rref.as_ptr() as *mut Buffer, buffer as *mut Buffer, 1);
                     }
                 }
 
-                queue.mark_buffers_as_complete(&[buffer as BUFFER_PTR]);
+                queue.mark_buffers_as_complete(&[buffer as BufferPtr]);
             } else {
                 panic!(
                     "RRef address must have changed! FAILED RREF ADDR: {:#?}, EXPECTED: {:#?}",
