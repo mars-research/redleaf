@@ -10,14 +10,11 @@ use interface::{
     rref::{RRef, RRefDeque},
 };
 use virtio_backend_trusted::defs::{
-    Buffer, BufferPtr, BATCH_SIZE, MAX_SUPPORTED_QUEUES, MMIO_ADDRESS,
+    Buffer, BufferPtr, BATCH_SIZE, MAX_SUPPORTED_QUEUES, MMIO_ADDRESS, SHARED_MEMORY_REGION_PTR,
 };
 use virtio_device::defs::VirtqUsedElement;
 
 use crate::{defs::VirtioQueueConfig, virtual_queue::VirtualQueue};
-
-/// fb: Indicates that this is used in the frontend to backend path
-/// bf: Indicated that this is used in the backend to frontend path
 
 pub struct VirtioBackend {
     /// A copy of the queue_config's device status

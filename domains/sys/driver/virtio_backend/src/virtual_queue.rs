@@ -2,7 +2,7 @@ use core::{mem, ptr::read_volatile};
 
 use alloc::{collections::VecDeque, slice, vec::Vec};
 use hashbrown::HashMap;
-use virtio_backend_trusted::defs::{BufferPtr, BATCH_SIZE};
+use virtio_backend_trusted::defs::{BufferPtr, BATCH_SIZE, SHARED_MEMORY_REGION_PTR};
 use virtio_device::defs::{
     VirtQueue, VirtqAvailablePacked, VirtqDescriptor, VirtqUsedElement, VirtqUsedPacked,
 };
@@ -163,8 +163,13 @@ impl VirtualQueue {
 
                 if descriptor.len == 1514 {
                     // Add it to the device and break
-                    self.buffer_deque.push_back(descriptor.addr as BufferPtr);
-                    self.buffer_map.insert(descriptor.addr, chain_header_idx);
+
+                    // descriptor.addr is an offset, convert it to an address
+                    let addr = (unsafe { *SHARED_MEMORY_REGION_PTR } as usize
+                        + descriptor.addr as usize) as u64;
+
+                    self.buffer_deque.push_back(addr as BufferPtr);
+                    self.buffer_map.insert(addr, chain_header_idx);
                     break;
                 } else {
                     // Try the next descriptor

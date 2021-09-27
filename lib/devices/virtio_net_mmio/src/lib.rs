@@ -26,7 +26,7 @@ use hashbrown::HashMap;
 use interface::rref::{RRef, RRefDeque};
 use libsyscalls::syscalls::sys_yield;
 use spin::Mutex;
-use virtio_backend_trusted::defs::DeviceNotificationType;
+use virtio_backend_trusted::defs::{DeviceNotificationType, SHARED_MEMORY_REGION_PTR};
 use virtio_backend_trusted::device_notify;
 use virtio_device::defs::{
     VirtQueue, VirtqAvailable, VirtqAvailablePacked, VirtqDescriptor, VirtqUsed, VirtqUsedElement,
@@ -239,6 +239,10 @@ impl VirtioNetInner {
         ];
 
         self.virtio_network_buffers = vec![[0; 1514]; self.queue_size.into()];
+        // Update the ptr
+        unsafe {
+            *SHARED_MEMORY_REGION_PTR = self.virtio_network_buffers.as_mut_ptr();
+        }
 
         self.rx_free_descriptors = vec![true; self.buffer_count];
         self.tx_free_descriptors = vec![true; self.buffer_count];
@@ -312,6 +316,7 @@ impl VirtioNetInner {
 
             // Use the shared memory region
             let buffer_addr = self.virtio_network_buffers[buffer_idx].as_ptr() as u64;
+            let buffer_offset = buffer_addr - self.virtio_network_buffers.as_ptr() as u64;
 
             // Store it so it isn't dropped
             self.rx_buffers[header_idx] = Some(buffer);
@@ -328,7 +333,7 @@ impl VirtioNetInner {
             };
             // Actual Buffer
             rx_q.descriptors[buffer_idx] = VirtqDescriptor {
-                addr: buffer_addr,
+                addr: buffer_offset,
                 len: 1514,
                 flags: 2,
                 next: 0,
@@ -386,6 +391,7 @@ impl VirtioNetInner {
             self.virtio_network_buffers[header_idx].copy_from_slice(a);
 
             let buffer_addr = self.virtio_network_buffers[header_idx].as_ptr() as u64;
+            let buffer_offset = buffer_addr - self.virtio_network_buffers.as_ptr() as u64;
 
             // Store it so it isn't dropped
             self.tx_buffers[header_idx] = Some(buffer);
@@ -397,7 +403,7 @@ impl VirtioNetInner {
                 next: buffer_idx as u16,
             };
             tx_q.descriptors[buffer_idx] = VirtqDescriptor {
-                addr: buffer_addr,
+                addr: buffer_offset,
                 len: 1514,
                 flags: 0,
                 next: 0,
@@ -408,9 +414,11 @@ impl VirtioNetInner {
                 .ring(tx_q.available.data.idx % self.queue_size) = header_idx as u16;
             tx_q.available.data.idx = tx_q.available.data.idx.wrapping_add(1);
 
-            unsafe {
-                self.mmio.queue_notify(1, 1);
-            }
+            // unsafe {
+            //     self.mmio.queue_notify(1, 1);
+            // }
+            device_notify(DeviceNotificationType::QueueUpdated);
+
             return Ok(());
         } else {
             return Err(buffer);
