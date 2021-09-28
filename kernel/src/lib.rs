@@ -66,6 +66,7 @@ mod syscalls;
 mod thread;
 mod tls;
 mod waitqueue;
+mod perfctr;
 
 use crate::arch::init_buddy;
 use crate::arch::memory::BASE_PAGE_SIZE;
@@ -353,6 +354,7 @@ pub extern "C" fn rust_main_ap() -> ! {
     }
 
     if cpu_id == 0 {
+        perfctr::list_perf_cnt();
         domain::domain::init_domains();
         // FIXME: kbd irqhandler is broken. disable temporarily
         /*use kbd::KBDCTRL;

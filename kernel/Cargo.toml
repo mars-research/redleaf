@@ -17,9 +17,12 @@ panic = "abort"
 debug = true
 lto = true
 
+[dependencies.x86]
+version = "0.42.0"
+features = [ "performance-counter" ]
+
 [dependencies]
 # Remote
-x86 = "0.33.0"
 volatile = "0.2.3"
 x86_64 = "0.12.2"
 pc-keyboard = "0.3.1"
