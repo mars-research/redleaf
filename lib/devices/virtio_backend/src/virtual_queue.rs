@@ -1,10 +1,8 @@
-use core::{mem, ptr::read_volatile};
-
-use alloc::{collections::VecDeque, slice, vec::Vec};
+use crate::defs::{BufferPtr, BATCH_SIZE, SHARED_MEMORY_REGION_PTR};
+use alloc::{collections::VecDeque, slice};
 use hashbrown::HashMap;
-use virtio_backend_trusted::defs::{BufferPtr, BATCH_SIZE, SHARED_MEMORY_REGION_PTR};
 use virtio_device::defs::{
-    VirtQueue, VirtqAvailablePacked, VirtqDescriptor, VirtqUsedElement, VirtqUsedPacked,
+    VirtqAvailablePacked, VirtqDescriptor, VirtqUsedElement, VirtqUsedPacked,
 };
 
 #[derive(Debug)]
@@ -151,7 +149,7 @@ impl VirtualQueue {
         while self.driver_queue.previous_idx != *self.driver_queue.idx()
             && self.buffer_deque.len() < BATCH_SIZE
         {
-            let idx = (self.driver_queue.previous_idx % self.queue_size);
+            let idx = self.driver_queue.previous_idx % self.queue_size;
             let chain_header_idx = *self.driver_queue.ring(idx);
 
             let descriptors = self.descriptor_queue.get_descriptors();

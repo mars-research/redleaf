@@ -1,20 +1,20 @@
-use core::ptr::read_volatile;
-
 use alloc::collections::VecDeque;
 use alloc::vec;
 use alloc::{boxed::Box, vec::Vec};
 use console::println;
+use core::ptr::read_volatile;
 use hashbrown::HashMap;
 use interface::{
     net::Net,
     rref::{RRef, RRefDeque},
 };
 use virtio_backend_trusted::defs::{
-    Buffer, BufferPtr, BATCH_SIZE, MAX_SUPPORTED_QUEUES, MMIO_ADDRESS, SHARED_MEMORY_REGION_PTR,
+    Buffer, BufferPtr, VirtioQueueConfig, BATCH_SIZE, MAX_SUPPORTED_QUEUES, MMIO_ADDRESS,
+    SHARED_MEMORY_REGION_PTR,
 };
+use virtio_backend_trusted::virtual_queue::VirtualQueue;
+use virtio_backend_trusted::{copy_buffer_into_rref, copy_rref_into_buffer};
 use virtio_device::defs::VirtqUsedElement;
-
-use crate::{defs::VirtioQueueConfig, virtual_queue::VirtualQueue};
 
 pub struct VirtioBackend {
     /// A copy of the queue_config's device status
@@ -138,9 +138,7 @@ impl VirtioBackend {
 
             if !rx {
                 // If it's tx we need to copy the buffer's contents into the RRef
-                unsafe {
-                    core::ptr::copy(buffer, rref.as_ptr() as *mut Buffer, 1);
-                }
+                copy_buffer_into_rref(&buffer, &rref);
             }
 
             self.buffer_rref_map
@@ -164,9 +162,7 @@ impl VirtioBackend {
         while let Some(rref) = collect.pop_front() {
             if let Some(buffer) = self.buffer_rref_map.remove(&(rref.as_ptr() as u64)) {
                 if rx {
-                    unsafe {
-                        core::ptr::copy(rref.as_ptr() as *mut Buffer, buffer as *mut Buffer, 1);
-                    }
+                    copy_rref_into_buffer(&rref, buffer as BufferPtr);
                 }
 
                 queue.mark_buffers_as_complete(&[buffer as BufferPtr]);

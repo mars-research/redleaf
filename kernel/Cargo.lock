@@ -298,7 +298,6 @@ dependencies = [
  "spin 0.5.3",
  "syscalls",
  "unwind",
- "virtio_backend_trusted",
 ]
 
 [[package]]
@@ -742,6 +741,7 @@ version = "0.1.0"
 dependencies = [
  "console",
  "hashbrown 0.7.2",
+ "interface",
  "libsyscalls",
  "libtime",
  "malloc",

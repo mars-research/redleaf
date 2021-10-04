@@ -35,12 +35,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08c48aae112d48ed9f069b33538ea9e3e90aa263cfa3d1c24309612b1f7472de"
 
 [[package]]
-name = "cfg-if"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
-
-[[package]]
 name = "console"
 version = "0.1.0"
 dependencies = [
@@ -71,14 +65,7 @@ dependencies = [
  "pci_driver",
  "spin",
  "syscalls",
- "virtio_backend_trusted",
 ]
-
-[[package]]
-name = "lazy_static"
-version = "1.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libsyscalls"
@@ -88,32 +75,6 @@ dependencies = [
  "platform",
  "spin",
  "syscalls",
-]
-
-[[package]]
-name = "libtime"
-version = "0.1.0"
-dependencies = [
- "console",
- "libsyscalls",
-]
-
-[[package]]
-name = "log"
-version = "0.4.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "51b9bbe6c47d51fc3e1a9b945965946b4c44142ab8792c50835a980d362c2710"
-dependencies = [
- "cfg-if",
-]
-
-[[package]]
-name = "malloc"
-version = "0.1.0"
-dependencies = [
- "libsyscalls",
- "slabmalloc",
- "spin",
 ]
 
 [[package]]
@@ -180,13 +141,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "slabmalloc"
-version = "0.7.0"
-dependencies = [
- "log",
-]
-
-[[package]]
 name = "spin"
 version = "0.5.3"
 
@@ -216,38 +170,3 @@ name = "unicode-xid"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7fe0bb3479651439c9112f72b6c505038574c9fbb575ed1bf3b797fa39dd564"
-
-[[package]]
-name = "virtio_backend_trusted"
-version = "0.1.0"
-dependencies = [
- "console",
- "hashbrown",
- "libsyscalls",
- "libtime",
- "malloc",
- "spin",
- "virtio_device",
- "volatile_accessor",
-]
-
-[[package]]
-name = "virtio_device"
-version = "0.1.0"
-dependencies = [
- "console",
- "libsyscalls",
- "libtime",
- "malloc",
- "volatile_accessor",
-]
-
-[[package]]
-name = "volatile_accessor"
-version = "0.1.0"
-dependencies = [
- "lazy_static",
- "proc-macro2",
- "quote",
- "syn",
-]

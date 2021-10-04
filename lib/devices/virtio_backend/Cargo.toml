@@ -13,6 +13,7 @@ console = { path = "../../../lib/core/console" }
 malloc = { path = "../../../lib/core/malloc" }
 spin = { path = "../../../lib/core/spin-rs" }
 volatile_accessor = { path = "../../../lib/external/volatile_accessor" }
+interface = { path = "../../../interface/generated" }
 
 virtio_device = { path = "../virtio" }
 
