@@ -29,8 +29,6 @@
 
         gcc10 clang_10 nasm
         qemu grub2 xorriso gdb
-
-	(dpdk.override { withExamples = [ "all" ]; })
       ]);
     };
 
