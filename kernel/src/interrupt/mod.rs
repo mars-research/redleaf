@@ -450,12 +450,12 @@ fn dump_proc(pt_regs: &PtRegs) {
 
 #[no_mangle]
 extern "C" fn do_IRQ(pt_regs: &mut PtRegs) -> u64 {
-    let vector = pt_regs.orig_ax;
+    let vector = (-(pt_regs.orig_ax as i64) - 1) as u64; //because in entry_64.S the vector number is mapped to [-255,-1], we need to change it back here.
 
     // Jump to the handler here
     if vector == (InterruptIndex::Timer as u64) {
         // Timer (IRQ 0)
-        timer_interrupt_handler(pt_regs);
+        //timer_interrupt_handler(pt_regs);
         //dump_proc(&pt_regs);
     } else if vector >= (IRQ_OFFSET as u64) && vector <= 255 {
         // IRQs

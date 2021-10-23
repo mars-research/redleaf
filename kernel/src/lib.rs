@@ -19,6 +19,7 @@
     type_ascription,
 )]
 
+extern crate rust_perfcnt_bare_metal;
 extern crate x86;
 #[macro_use]
 extern crate lazy_static;
@@ -76,7 +77,9 @@ use crate::multibootv2::BootInformation;
 use crate::panic::{init_backtrace, init_backtrace_context};
 use crate::pci::scan_pci_devs;
 use core::ptr;
+use rust_perfcnt_bare_metal::*;
 use x86::cpuid::CpuId;
+use drivers::pfc::*;
 
 pub static mut ap_entry_running: bool = true;
 pub const MAX_CPUS: u32 = 4;
@@ -354,8 +357,9 @@ pub extern "C" fn rust_main_ap() -> ! {
     }
 
     if cpu_id == 0 {
-        perfctr::list_perf_cnt();
-        domain::domain::init_domains();
+        //perfctr::list_perf_cnt();
+        domain::domain::init_domains();     
+        test_perfcount(); 
         // FIXME: kbd irqhandler is broken. disable temporarily
         /*use kbd::KBDCTRL;
         use crate::drivers::Driver;

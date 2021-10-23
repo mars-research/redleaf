@@ -371,10 +371,11 @@ impl VSpace {
             pd[pd_idx].is_present(),
             "The PD entry we're relying on is not allocated?"
         );
-        assert!(
-            !pd[pd_idx].is_page(),
-            "An existing mapping already covers the 2 MiB range we're trying to map in?"
-        );
+        //FIX ME. 
+        //assert!(
+        //    !pd[pd_idx].is_page(),
+        //    "An existing mapping already covers the 2 MiB range we're trying to map in?"
+        //);
 
         let pt = self.get_pt(pd[pd_idx]);
         let mut pt_idx = pt_index(vbase);

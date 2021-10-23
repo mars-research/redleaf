@@ -38,8 +38,8 @@
 ENTRY(irq_entries_start)
     vector=FIRST_EXTERNAL_VECTOR
     .rept (FIRST_SYSTEM_VECTOR - FIRST_EXTERNAL_VECTOR)
-	//pushq	$(~vector+0x80)			/* Note: always in signed byte range */
-	pushq $(vector)
+	pushq	$(~vector+0x80)			/* Note: always in signed byte range */
+	//pushq $(vector)
 	vector=vector+1
 	jmp	common_interrupt
 	.align	8
@@ -109,7 +109,7 @@ END(irq_entries_start)
 common_interrupt:
 	// Supervisor Mode Access Prevention (Redleaf doesn't support it for now)
 	//ASM_CLAC
-	//addq	$-0x80, (%rsp)			/* Adjust vector to [-256, -1] range */
+	addq	$-0x80, (%rsp)			/* Adjust vector to [-256, -1] range */
 	interrupt do_IRQ
 	/* 0(%rsp): old RSP */
 ret_from_intr:

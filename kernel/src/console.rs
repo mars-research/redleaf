@@ -57,13 +57,20 @@ pub fn _print(args: core::fmt::Arguments) {
 
         println!("Interrupts are enabled");
         x86_64::instructions::interrupts::int3();
-    }
 
+        //We can comment the above three lines and uncomment the
+        //the following three lines to enable println!() during a interrupt.
+        //WRITER.lock().write_fmt(args).unwrap();
+        //SERIAL1.lock().write_fmt(args).unwrap();
+        //SERIAL2.lock().write_fmt(args).unwrap();
+        //crate::interrupt::enable_irq();
+    }else{
     // We don't need interrupts off any more, inside the
     // kernel interrupts are off all the time
     WRITER.lock().write_fmt(args).unwrap();
     SERIAL1.lock().write_fmt(args).unwrap();
     SERIAL2.lock().write_fmt(args).unwrap();
+    }
 }
 
 // The debug version
