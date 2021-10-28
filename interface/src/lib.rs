@@ -1,7 +1,7 @@
 #![no_std]
 #![feature(trait_alias)]
 #![allow(incomplete_features)]
-#![feature(const_generics)]
+// #![feature(const_generics)]
 #![feature(negative_impls)]
 #![feature(auto_traits)]
 #![feature(specialization)]
@@ -10,6 +10,9 @@
 
 // Features needed for proxy
 #![feature(global_asm, type_ascription)]
+
+// Features needed for Rust 2021
+#![feature(no_coverage)]
 
 // Features that we need because of cargo expand
 #![feature(core_intrinsics, fmt_internals, derive_clone_copy, derive_eq, structural_match)]

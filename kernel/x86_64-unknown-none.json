@@ -13,5 +13,7 @@
   "disable-redzone": true,
   "eliminate-frame-pointer": false,
   "features": "-mmx,-sse,-avx,-avx2,+soft-float",
-  "stack-probes": true
+  "stack-probes": {
+      "kind": "call"
+  }
 }

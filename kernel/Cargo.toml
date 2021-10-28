@@ -19,12 +19,12 @@ lto = true
 
 [dependencies]
 # Remote
-x86 = "0.33.0"
+x86 = "0.43.0"
 volatile = "0.2.3"
-x86_64 = "0.12.2"
+x86_64 = "0.14.6"
 pc-keyboard = "0.3.1"
-backtracer = { git = "https://github.com/gz/backtracer.git" }
-addr2line = { git = "https://github.com/gz/addr2line.git", branch = "patch-1", default-features = false, features = ["alloc", "rustc-demangle"] }
+backtracer = { version = "0.0.4", package = "backtracer_core" }
+addr2line = { version = "0.17.0", default-features = false, features = ["alloc", "rustc-demangle"] }
 bit_field = "0.9.0"
 bitflags = "1.0.4"
 log = "0.4"
