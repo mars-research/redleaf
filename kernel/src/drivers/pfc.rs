@@ -112,11 +112,21 @@ pub fn test_perfcount(){
     };
     println!("before using : check_if_general_pmc_is_in_use {} ", PERFCNT_GLOBAL_CTRLER.check_if_general_pmc_is_in_use(index));
 
-    println!("after building mask is  {}",counter.get_general_pmc_mask());
+    println!("after building general mask is  {}",counter.get_general_pmc_mask());
+    println!("after building fixed mask is  {}",counter.get_fixed_pmc_mask());
 
     counter.overflow_after(300);
     println!("overflow_status before overflow:{}",PERFCNT_GLOBAL_CTRLER.read_overflow_status());
     println!("reading before start overflow:{}",counter.read().unwrap());
+
+
+    match counter_description.counter {
+        Counter::Fixed(index) => {
+            println!("counter index {}", index);
+        },
+        Counter::Programmable(_) => {},
+    }
+    println!("get_glbctlr_mask {:x}",PERFCNT_GLOBAL_CTRLER.read_globle_ctrl_bits().unwrap());
 
     counter.start();
 
@@ -124,6 +134,7 @@ pub fn test_perfcount(){
     
     while PERFCNT_GLOBAL_CTRLER.read_overflow_status() == 0{
         //should generate an overflow_interrupt here.
+        //println!("reading after start looping:{}",counter.read().unwrap());
     }
     disable_irq();
     }
