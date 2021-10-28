@@ -25,6 +25,7 @@ pub enum InterruptIndex {
     Timer = IRQ_OFFSET,
     Keyboard,
     ApicError = 19,
+    PfcOverflow = 185,
 }
 
 impl InterruptIndex {
@@ -448,6 +449,7 @@ fn dump_proc(pt_regs: &PtRegs) {
     }
 }
 
+static mut COUNT:u64 = 0;
 #[no_mangle]
 extern "C" fn do_IRQ(pt_regs: &mut PtRegs) -> u64 {
     let vector = (-(pt_regs.orig_ax as i64) - 1) as u64; //because in entry_64.S the vector number is mapped to [-255,-1], we need to change it back here.
@@ -455,8 +457,21 @@ extern "C" fn do_IRQ(pt_regs: &mut PtRegs) -> u64 {
     // Jump to the handler here
     if vector == (InterruptIndex::Timer as u64) {
         // Timer (IRQ 0)
-        //timer_interrupt_handler(pt_regs);
+        timer_interrupt_handler(pt_regs);
         //dump_proc(&pt_regs);
+    } else if vector == (InterruptIndex::PfcOverflow as u64){
+        unsafe{
+            COUNT += 1;
+            if COUNT >= 50{
+                use crate::drivers::pfc::*;
+                printPerfCountStats();
+            }
+        }
+        use super::PERFCOUNTHDLER;
+        {
+            PERFCOUNTHDLER.lock().pmc_overflow_handler_direct(pt_regs);
+        }
+        end_of_interrupt(vector as u8);
     } else if vector >= (IRQ_OFFSET as u64) && vector <= 255 {
         // IRQs
         let irq: u8 = (vector - (IRQ_OFFSET as u64)) as u8;

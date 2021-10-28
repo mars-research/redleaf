@@ -359,7 +359,7 @@ pub extern "C" fn rust_main_ap() -> ! {
     if cpu_id == 0 {
         //perfctr::list_perf_cnt();
         domain::domain::init_domains();     
-        test_perfcount(); 
+        //test_perfcount(); 
         // FIXME: kbd irqhandler is broken. disable temporarily
         /*use kbd::KBDCTRL;
         use crate::drivers::Driver;
@@ -389,6 +389,7 @@ pub extern "C" fn rust_main_ap() -> ! {
         // When we enable the interrupts below the timer interrupt will
         // kick the scheduler
         start_init_thread();
+        startPerfCount(10000000,x86::perfcnt::intel::events().unwrap().get("BR_INST_RETIRED.ALL_BRANCHES").unwrap()); 
     }
 
     unwind::unwind_test();

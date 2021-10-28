@@ -1,33 +1,45 @@
 use super::Driver;
 use crate::redsys::IRQRegistrar;
-use alloc::sync::Arc;
+use alloc::{string::String, sync::Arc,vec::Vec};
 use spin::Mutex;
-use rust_perfcnt_bare_metal::x86_intel::globle_ctrl::PerfCounterControler;
 use rust_perfcnt_bare_metal::*;
 use x86::{msr::*, perfcnt::intel::{ EventDescription,Counter,Tuple}};
 use crate::interrupt::*;
+use backtracer;
 
 use rust_perfcnt_bare_metal::x86_intel::globle_ctrl::PERFCNT_GLOBAL_CTRLER;
+
 pub struct PerfCount {
+    event_name:String,
+    rips:Vec<u64>,
+    perf:PerfCounter,
+    overflow_threshold: u64,
 }
 
 impl Driver for PerfCount {
     fn set_irq_registrar(&mut self, registrar: IRQRegistrar<PerfCount>) {
         // Request IRQ 185 (PerfCount overflow)
-        registrar.request_irq(185, PerfCount::pmc_overflow_handler).unwrap();
+        registrar.request_irq(InterruptIndex::PfcOverflow as u8, PerfCount::pmc_overflow_handler).unwrap();
     }
 }
 
 
 impl PerfCount {
     pub fn new() -> PerfCount {
+        unsafe{
         PerfCount {
+            event_name : String::from("CPU_CLK_UNHALTED.THREAD"),
+            rips : Vec::new(),
+            perf : PerfCounter::new(&PERFCNT_GLOBAL_CTRLER),
+            overflow_threshold:0,
+        }
         }
     }
 
+    ///Not used... For testing only.
     pub fn pmc_overflow_handler(&mut self) {
         disable_irq();
-        println!("overflow interrupt");
+        println!("overflow interrupt!");
         unsafe{
         match PERFCNT_GLOBAL_CTRLER.get_overflow_counter().unwrap(){
             Counter::Fixed(index)=>{
@@ -38,32 +50,48 @@ impl PerfCount {
             },
         }
         PERFCNT_GLOBAL_CTRLER.reset_overflow_interrput();
+        PERFCNT_GLOBAL_CTRLER.clear_overflow_bit(PERFCNT_GLOBAL_CTRLER.get_overflow_counter().unwrap());
         }
         enable_irq();
     }
+
+    pub fn pmc_overflow_handler_direct(&mut self,pt_regs: &mut idt::PtRegs) {
+        disable_irq();
+        self.rips.push(pt_regs.rip);
+        unsafe{
+        match PERFCNT_GLOBAL_CTRLER.get_overflow_counter().unwrap(){
+            Counter::Fixed(index)=>{
+                //println!("Fixed PMC overflow index: {}", index);
+            },
+            Counter::Programmable(index)=>{
+                //println!("Programmable PMC overflow index: {}", index);
+            },
+        }
+        PERFCNT_GLOBAL_CTRLER.reset_overflow_interrput();
+        PERFCNT_GLOBAL_CTRLER.clear_overflow_bit(PERFCNT_GLOBAL_CTRLER.get_overflow_counter().unwrap());
+        }
+        
+        self.perf.overflow_after(self.overflow_threshold);
+        enable_irq();
+    }
+    
 }
 
 
 pub fn test_perfcount(){
-    use rust_perfcnt_bare_metal::x86_intel::globle_ctrl::PERFCNT_GLOBAL_CTRLER;
-    use super::pfc::{PERFCOUNTHDLER};
-    use crate::drivers::Driver;
-
-    
     unsafe{
     PERFCNT_GLOBAL_CTRLER.init();
-    PERFCNT_GLOBAL_CTRLER.register_overflow_interrput(185+32);
+    PERFCNT_GLOBAL_CTRLER.register_overflow_interrput(InterruptIndex::PfcOverflow as u8+IRQ_OFFSET); //will go to pmc_overflow_handler() when testing
     let mut counter:PerfCounter = rust_perfcnt_bare_metal::x86_intel::PerfCounter::new(&PERFCNT_GLOBAL_CTRLER);
     
     
     println!("testing counters");
     let counter_description = x86::perfcnt::intel::events()
     .unwrap()
-    .get("BR_INST_RETIRED.ALL_BRANCHES")
+    .get("CPU_CLK_UNHALTED.THREAD")
     .unwrap();
 
     {
-        
         let registrar = unsafe { get_irq_registrar(PERFCOUNTHDLER.clone()) };
         PERFCOUNTHDLER.lock().set_irq_registrar(registrar);
     }
@@ -95,12 +123,74 @@ pub fn test_perfcount(){
     enable_irq();
     
     while PERFCNT_GLOBAL_CTRLER.read_overflow_status() == 0{
-
+        //should generate an overflow_interrupt here.
     }
     disable_irq();
     }
 
 }
+
+pub fn startPerfCount(overflow_threshold:u64,counter_description:&EventDescription){
+    println!("starting counters");    
+    unsafe{
+    PERFCNT_GLOBAL_CTRLER.init();
+    PERFCNT_GLOBAL_CTRLER.register_overflow_interrput(InterruptIndex::PfcOverflow as u8);
+
+    {
+        let registrar = unsafe { get_irq_registrar(PERFCOUNTHDLER.clone()) };
+        PERFCOUNTHDLER.lock().set_irq_registrar(registrar);
+    }
+    let index = 0;
+
+    {
+        PERFCOUNTHDLER.lock().overflow_threshold = overflow_threshold;
+    }
+    {PERFCOUNTHDLER.lock().perf.build_from_intel_hw_event(counter_description, 0);
+    }
+    
+    let overflow_threshold = PERFCOUNTHDLER.lock().overflow_threshold;
+    {
+    PERFCOUNTHDLER.lock().perf.overflow_after(overflow_threshold);
+    }
+    {
+    PERFCOUNTHDLER.lock().perf.start();
+    }
+    }
+}
+
+pub fn stopPerfCount(){
+        PERFCOUNTHDLER.lock().perf.stop();
+}
+
+pub fn printPerfCountStats(){
+    disable_irq();
+    print!("Displaying Perf stats \n\n\n\n\n\n\n\n");
+    use crate::panic;
+    let context = match panic::ELF_CONTEXT.r#try() {
+        Some(t) => t,
+        None => {
+            println!("ELF_CONTEXT was not initialized");
+            return;
+        }
+    };
+    let relocated_offset = panic::RELOCATED_OFFSET;
+
+
+    for rip in &PERFCOUNTHDLER.lock().rips{
+        backtracer::resolve(context.as_ref(), relocated_offset,*rip as *mut u8, |symbol| {
+            match symbol.name() {
+                Some(s) => {
+                    println!("rip: {} reslove {}", rip, s);
+                },
+                None => {
+                    println!("rip: {} ", rip);
+                },
+            }
+                   });
+    }
+    enable_irq();
+}
+
 
 
 lazy_static! {

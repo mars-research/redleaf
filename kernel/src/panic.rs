@@ -79,9 +79,9 @@ pub fn backtrace_no_resolve() {
 
 static ELF_DATA: Once<&'static [u8]> = Once::new();
 #[thread_local]
-static ELF_CONTEXT: Once<Option<Context>> = Once::new();
+pub static ELF_CONTEXT: Once<Option<Context>> = Once::new();
 static ELF_BIN: Once<elfloader::ElfBinary> = Once::new();
-static RELOCATED_OFFSET: u64 = 0x0;
+pub static RELOCATED_OFFSET: u64 = 0x0;
 
 pub fn init_backtrace(elf_data: &'static [u8]) {
     ELF_DATA.call_once(|| elf_data);
