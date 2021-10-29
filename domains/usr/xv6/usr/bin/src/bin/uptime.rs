@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 #![forbid(unsafe_code)]
-#![feature(const_fn, const_raw_ptr_to_usize_cast, untagged_unions)]
+#![feature(untagged_unions)]
 
 extern crate alloc;
 extern crate malloc;

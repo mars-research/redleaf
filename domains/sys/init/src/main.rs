@@ -1,11 +1,8 @@
 #![no_std]
 #![no_main]
 #![feature(
-    const_fn,
-    const_raw_ptr_to_usize_cast,
     untagged_unions,
     get_mut_unchecked,
-    const_in_array_repeat_expressions
 )]
 
 extern crate alloc;

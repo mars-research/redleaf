@@ -1,6 +1,6 @@
 #![no_std]
 #![no_main]
-#![feature(const_fn, const_raw_ptr_to_usize_cast, untagged_unions)]
+#![feature(untagged_unions)]
 #![forbid(unsafe_code)]
 
 extern crate alloc;

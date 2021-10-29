@@ -3,8 +3,6 @@
 #![forbid(unsafe_code)]
 #![feature(
     box_syntax,
-    const_fn,
-    const_raw_ptr_to_usize_cast,
     str_strip,
     untagged_unions
 )]

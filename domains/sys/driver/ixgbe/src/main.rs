@@ -2,8 +2,6 @@
 #![no_main]
 #![feature(
     box_syntax,
-    const_fn,
-    const_raw_ptr_to_usize_cast,
     untagged_unions,
     maybe_uninit_extra
 )]
