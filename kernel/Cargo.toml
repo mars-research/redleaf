@@ -24,7 +24,7 @@ volatile = "0.2.3"
 x86_64 = "0.14.6"
 pc-keyboard = "0.3.1"
 backtracer = { version = "0.0.4", package = "backtracer_core" }
-addr2line = { version = "0.17.0", default-features = false, features = ["alloc", "rustc-demangle"] }
+addr2line = { version = "0.16.0", default-features = false, features = ["rustc-demangle"] }
 bit_field = "0.9.0"
 bitflags = "1.0.4"
 log = "0.4"

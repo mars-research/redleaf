@@ -61,7 +61,8 @@ __unwind:
 
     movq 40(%rdi), %rdi
 
-    jmpq *-8(%rsp) "
+    jmpq *-8(%rsp) ",
+    options(att_syntax)
 );
 
 /*
