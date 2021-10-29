@@ -31,7 +31,7 @@ log = "0.4"
 custom_error_core = { git = "https://github.com/gz/custom_error.git", rev = "be6af8aa1ad227b2686c3fdfd94a0a249767bf6f" }
 hashbrown = "0.6"
 libsyscalls = { path = "../lib/core/libsyscalls", version = "0.1.0" }
-slabmalloc = { git = "https://github.com/gz/rust-slabmalloc.git", branch = "master" }
+slabmalloc = "0.10.0"
 
 # Local
 elfloader = { path = "./lib/rust-elfloader" }
