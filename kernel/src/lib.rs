@@ -373,7 +373,7 @@ pub extern "C" fn rust_main_ap() -> ! {
     // the scheduler will treat it specially and will never schedule
     // it unless there is really no runnable threads
     // on this CPU
-    thread::init_threads();
+    //thread::init_threads();
 
     if cpu_id == 0 {
         // We initialized kernel domain, and the idle thread on this CPU
@@ -388,10 +388,19 @@ pub extern "C" fn rust_main_ap() -> ! {
         // We add it to the scheduler queue on this CPU.
         // When we enable the interrupts below the timer interrupt will
         // kick the scheduler
-        start_init_thread();
-        startPerfCount(10000000,x86::perfcnt::intel::events().unwrap().get("BR_INST_RETIRED.ALL_BRANCHES").unwrap()); 
+        //start_init_thread();
+        startPerfCount(100000,x86::perfcnt::intel::events().unwrap().get("BR_INST_RETIRED.ALL_BRANCHES").unwrap()); 
     }
 
+    enable_irq();
+    for i in 0..100000{
+        hot_spot();
+        cold_spot();
+    }
+    printPerfCountStats();
+    
+
+    
     unwind::unwind_test();
 
     println!("cpu{}: Initialized", cpu_id);
@@ -411,4 +420,18 @@ pub fn halt() -> ! {
         //println!(".");
         x86_64::instructions::hlt();
     }
+}
+
+pub fn cold_spot()-> i32{
+    let mut c = 1;
+    c += 1;
+    c
+}
+
+pub fn hot_spot()-> i32{
+    let mut c = 1;
+    for ii in 0..1000{
+        c += 1;
+    }
+    c
 }

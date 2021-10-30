@@ -1,3 +1,5 @@
+use core::str::FromStr;
+
 use super::Driver;
 use crate::redsys::IRQRegistrar;
 use alloc::{string::String, sync::Arc,vec::Vec};
@@ -57,7 +59,25 @@ impl PerfCount {
 
     pub fn pmc_overflow_handler_direct(&mut self,pt_regs: &mut idt::PtRegs) {
         disable_irq();
-        self.rips.push(pt_regs.rip);
+        self.perf.stop();
+        //self.rips.push(pt_regs.rip);
+
+        let mut v:Vec<u64> = Vec::new();
+
+        backtracer::trace_from(backtracer::EntryPoint::new(pt_regs.rbp,pt_regs.rsp,pt_regs.rip), |frame| {
+            let ip = frame.ip();
+            v.push(ip as u64);
+            true        // xxx
+        });
+
+        loop{
+            match v.pop(){
+                Some(i) => {self.rips.push(i)},
+                None => {break;},
+            }
+        }
+        self.rips.push(0xFFFFFFFFFFFFFFFF);
+
         unsafe{
         match PERFCNT_GLOBAL_CTRLER.get_overflow_counter().unwrap(){
             Counter::Fixed(index)=>{
@@ -72,6 +92,7 @@ impl PerfCount {
         }
         
         self.perf.overflow_after(self.overflow_threshold);
+        self.perf.start();
         enable_irq();
     }
     
@@ -175,7 +196,7 @@ pub fn stopPerfCount(){
 
 pub fn printPerfCountStats(){
     disable_irq();
-    print!("Displaying Perf stats \n\n\n\n\n\n\n\n");
+    println!("Displaying Perf stats:");
     use crate::panic;
     let context = match panic::ELF_CONTEXT.r#try() {
         Some(t) => t,
@@ -186,19 +207,33 @@ pub fn printPerfCountStats(){
     };
     let relocated_offset = panic::RELOCATED_OFFSET;
 
-
+    let mut s = String::from("");
     for rip in &PERFCOUNTHDLER.lock().rips{
+        
+
+        if *rip == 0xFFFFFFFFFFFFFFFF{
+            s.push_str("\n");
+            //println!("{}",s);
+            //s = String::from("");
+        }
+        else{
         backtracer::resolve(context.as_ref(), relocated_offset,*rip as *mut u8, |symbol| {
             match symbol.name() {
-                Some(s) => {
-                    println!("rip: {} reslove {}", rip, s);
+                Some(fun_name) => {
+                    //println!("rip: {} reslove {}", rip, s);
+                    s.push_str(&fun_name);
+                    s.push_str(";");
+                    
                 },
                 None => {
-                    println!("rip: {} ", rip);
+                    //println!("rip: {} ", rip);
                 },
             }
                    });
+        }
     }
+    println!("{}",s);
+    println!("End Displaying Perf stats");
     enable_irq();
 }
 

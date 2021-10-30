@@ -457,16 +457,9 @@ extern "C" fn do_IRQ(pt_regs: &mut PtRegs) -> u64 {
     // Jump to the handler here
     if vector == (InterruptIndex::Timer as u64) {
         // Timer (IRQ 0)
-        timer_interrupt_handler(pt_regs);
+        //timer_interrupt_handler(pt_regs);
         //dump_proc(&pt_regs);
     } else if vector == (InterruptIndex::PfcOverflow as u64){
-        unsafe{
-            COUNT += 1;
-            if COUNT >= 50{
-                use crate::drivers::pfc::*;
-                printPerfCountStats();
-            }
-        }
         use super::PERFCOUNTHDLER;
         {
             PERFCOUNTHDLER.lock().pmc_overflow_handler_direct(pt_regs);
