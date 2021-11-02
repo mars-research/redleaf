@@ -21,3 +21,6 @@ sata.img
 **/*.sw*
 **/*.log
 **/_gen.rs
+
+perf.svg
+out.kern_folded
