@@ -221,6 +221,8 @@ check:
 clean:
 	-cargo clean --manifest-path=domains/Cargo.toml
 	-cargo clean --manifest-path=kernel/Cargo.toml
+	-cargo clean --manifest-path=tools/rv6-mkfs/Cargo.toml
+	-cargo clean --manifest-path=tools/redIDL/codegen/ngc/Cargo.toml
 	-rm -rf build
 	-make -C lib/external/memops clean
 	-make -C interface clean
