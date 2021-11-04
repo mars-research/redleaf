@@ -22,10 +22,12 @@
     cargoExpand = pkgs.cargo-expand.override { inherit rustPlatform; };
   in {
     devShell = pkgs.mkShell {
+      SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+
       nativeBuildInputs = [
         pinnedRust cargoExpand
       ] ++ (with pkgs; [
-        gnumake utillinux
+        gnumake utillinux which
 
         gcc10 clang_10 nasm
         qemu grub2 xorriso gdb

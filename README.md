@@ -18,7 +18,7 @@ The easiest way to set up a reproducible environment with all dependencies is wi
 With Nix installed, simply enter the provided nix-shell environment with:
 
 ```
-nix-shell --pure
+nix-shell
 ```
 
 ### Bash Script
