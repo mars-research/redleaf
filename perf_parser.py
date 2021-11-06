@@ -13,13 +13,14 @@ for l in r:
     if l.__contains__("End Displaying Perf stats"):
         break
     if in_perf_stats:
-        d[l]+=1
+        #d[l]+=1
+        w.write(l)
     if l.__contains__("Displaying Perf stats"):
         in_perf_stats = True
         continue
 
-for (k,v) in d.items():
-    w.write(k[:-1] + " " +  str(v) + "\n")
+#for (k,v) in d.items():
+#    w.write(k[:-1] + " " +  str(v) + "\n")
 
 r.close()
 w.close()

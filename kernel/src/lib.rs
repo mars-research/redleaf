@@ -389,15 +389,14 @@ pub extern "C" fn rust_main_ap() -> ! {
         // When we enable the interrupts below the timer interrupt will
         // kick the scheduler
         //start_init_thread();
-        startPerfCount(100000,x86::perfcnt::intel::events().unwrap().get("BR_INST_RETIRED.ALL_BRANCHES").unwrap()); 
+        start_perf_count(100000,x86::perfcnt::intel::events().unwrap().get("CPU_CLK_UNHALTED.THREAD_P").unwrap()); 
     }
 
     enable_irq();
-    for i in 0..100000{
-        hot_spot();
-        cold_spot();
+    for i in 0..1000{
+        perf_on_backtrace();
     }
-    printPerfCountStats();
+    print_perf_count_stats();
     
 
     
@@ -422,16 +421,23 @@ pub fn halt() -> ! {
     }
 }
 
-pub fn cold_spot()-> i32{
-    let mut c = 1;
-    c += 1;
-    c
-}
-
-pub fn hot_spot()-> i32{
-    let mut c = 1;
-    for ii in 0..1000{
-        c += 1;
-    }
-    c
+pub fn perf_on_backtrace(){
+    use crate::panic;
+    let context = match panic::ELF_CONTEXT.r#try() {
+        Some(t) => t,
+        None => {
+            println!("ELF_CONTEXT was not initialized");
+            return;
+        }
+    };
+    let relocated_offset = panic::RELOCATED_OFFSET;
+    use x86::current::registers;
+    backtracer::resolve(context.as_ref(), relocated_offset,registers::rip() as *mut u8, |symbol| {
+        match symbol.name() {
+            Some(fun_name) => {
+            },
+            None => {
+            },
+        }
+               });
 }
