@@ -47,7 +47,7 @@ impl PerfCount {
         unsafe{
         PerfCount {
             event_name : String::from(""),
-            rips : Vec::with_capacity(50000000),
+            rips : Vec::with_capacity(5000000),
             buffer : Vec::with_capacity(1000),
             perf : PerfCounter::new(&PERFCNT_GLOBAL_CTRLER),
             overflow_threshold:0,
@@ -87,6 +87,14 @@ impl PerfCount {
             self.buffer.push(ip as u64);
             true //go all the way to the bottom of the stack.        
         });
+
+        if self.rips.capacity() - self.rips.len() < self.buffer.len() {
+            println!("Perf's buffer has been filled. No more samples will be taken. Counters are stoped");
+            //self.perf.overflow_after(self.overflow_threshold);
+            //self.perf.start();
+            enable_irq();
+            return
+        }
 
         for _ in 0..self.buffer.len(){
             self.rips.push(self.buffer.pop().unwrap());

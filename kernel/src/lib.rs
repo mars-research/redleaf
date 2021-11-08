@@ -393,7 +393,7 @@ pub extern "C" fn rust_main_ap() -> ! {
     }
 
     enable_irq();
-    for i in 0..1000{
+    for i in 0..100000{
         perf_on_backtrace();
     }
     print_perf_count_stats();
