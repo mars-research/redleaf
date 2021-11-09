@@ -42,6 +42,7 @@ pub trait CreateProxy {
 
 /* AB: XXX: first thing: change all names to create_domain -- it's absurd */
 #[domain_create(path = "pci")]
+#[domain_create_components(Domain, MMap, Heap)]
 pub trait CreatePCI: Send + Sync {
     fn create_domain_pci(&self) -> (Box<dyn Domain>, Box<dyn PCI>);
 }
