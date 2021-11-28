@@ -1,0 +1,19 @@
+[package]
+name = "ixgbe_entry_point"
+version = "0.1.0"
+authors = ["Redleaf team <aburtsev@uci.edu>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "ixgbe"
+path = "src/main.rs"
+
+[dependencies]
+interface = { path = "../../../interface/generated" }
+libsyscalls = { path = "../../../lib/core/libsyscalls" }
+syscalls = { path = "../../../lib/core/interfaces/syscalls" }
+console = { path = "../../../lib/core/console" }
+
+ixgbe = { path = "../../sys/driver/ixgbe" }

@@ -1,12 +1,6 @@
 #![no_std]
 #![no_main]
-#![feature(
-    box_syntax,
-    const_fn,
-    const_raw_ptr_to_usize_cast,
-    untagged_unions,
-    maybe_uninit_extra
-)]
+#![feature(box_syntax, untagged_unions, maybe_uninit_extra)]
 //#![forbid(unsafe_code)]
 
 mod device;
@@ -32,11 +26,11 @@ use core::panic::PanicInfo;
 use syscalls::{Heap, Syscall};
 
 use console::println;
+use interface::rpc::RpcResult;
 use libsyscalls::syscalls::sys_backtrace;
 use pci_driver::DeviceBarRegions;
 pub use platform::PciBarAddr;
 use spin::Mutex;
-use interface::rpc::RpcResult;
 
 use crate::device::Intel8259x;
 use core::cell::RefCell;
@@ -356,15 +350,7 @@ fn run_sashstoretest(dev: &Ixgbe, pkt_size: u16) {
 }
 */
 
-#[no_mangle]
-pub fn trusted_entry(
-    s: Box<dyn Syscall + Send + Sync>,
-    heap: Box<dyn Heap + Send + Sync>,
-    pci: Box<dyn interface::pci::PCI>,
-) -> Box<dyn interface::net::Net> {
-    libsyscalls::syscalls::init(s);
-    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
-
+pub fn main(pci: Box<dyn interface::pci::PCI>) -> Box<dyn interface::net::Net> {
     println!("ixgbe_init: =>  starting ixgbe driver domain");
     #[cfg(not(feature = "nullnet"))]
     let ixgbe = {
