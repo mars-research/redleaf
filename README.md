@@ -1,7 +1,6 @@
 # RedLeaf
 
 ![](https://github.com/mars-research/redleaf/workflows/build/badge.svg)
-![](https://github.com/mars-research/redleaf/workflows/test/badge.svg)
 
 RedLeaf is a research operating system developed from scratch in Rust to explore the impact of language safety on operating system organization.
 
