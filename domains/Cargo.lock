@@ -552,6 +552,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "membdev_entry_point"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "interface",
+ "libsyscalls",
+ "membdev",
+ "syscalls",
+]
+
+[[package]]
 name = "net_shadow"
 version = "0.1.0"
 dependencies = [
@@ -625,6 +636,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "nvme_entry_point"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "interface",
+ "libsyscalls",
+ "nvme",
+ "syscalls",
+]
+
+[[package]]
 name = "nvme_shadow"
 version = "0.1.0"
 dependencies = [
@@ -680,6 +702,17 @@ version = "0.1.0"
 dependencies = [
  "ahci",
  "platform",
+]
+
+[[package]]
+name = "pci_entry_point"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "interface",
+ "libsyscalls",
+ "pci",
+ "syscalls",
 ]
 
 [[package]]

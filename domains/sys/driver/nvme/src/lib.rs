@@ -20,21 +20,21 @@ use alloc::collections::VecDeque;
 #[macro_use]
 use alloc::vec::Vec;
 use core::panic::PanicInfo;
-use syscalls::{Heap, Syscall};
 use interface::pci::PCI;
+use syscalls::{Heap, Syscall};
 
 use console::{print, println};
 use core::cell::RefCell;
-use pci_driver::DeviceBarRegions;
 use interface::error::{ErrorKind, Result};
 use interface::rpc::RpcResult;
+use pci_driver::DeviceBarRegions;
 
 use crate::device::NvmeDev;
+use interface::bdev::BlkReq;
+use interface::rref::RRefDeque;
 use libtime::get_rdtsc as rdtsc;
 use libtime::sys_ns_loopsleep;
 pub use nvme_device::BlockReq;
-use interface::rref::RRefDeque;
-use interface::bdev::BlkReq;
 
 #[macro_use]
 use b2histogram::Base2Histogram;
@@ -75,22 +75,19 @@ impl interface::bdev::NvmeBDev for Nvme {
 
             let device = &mut self.device.borrow_mut();
             let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
-            let (num, _, _, _, submit, collect) = device.device.submit_and_poll_rref(
-                submit,
-                collect,
-                write,
-            );
+            let (num, _, _, _, submit, collect) =
+                device.device.submit_and_poll_rref(submit, collect, write);
             ret = num;
 
             Ok((ret, submit, collect))
         })())
     }
 
-
-    fn poll_rref(&self, mut collect: RRefDeque<BlkReq, 1024>) ->
-            RpcResult<Result<(usize, RRefDeque<BlkReq, 1024>)>>
-    {
-        Ok((||{
+    fn poll_rref(
+        &self,
+        mut collect: RRefDeque<BlkReq, 1024>,
+    ) -> RpcResult<Result<(usize, RRefDeque<BlkReq, 1024>)>> {
+        Ok((|| {
             let mut collect = Some(collect);
             let mut ret = 0;
 
@@ -106,7 +103,7 @@ impl interface::bdev::NvmeBDev for Nvme {
     }
 
     fn get_stats(&self) -> RpcResult<Result<(u64, u64)>> {
-        Ok((||{
+        Ok((|| {
             let device = &mut self.device.borrow_mut();
             let device = device.as_mut().ok_or(ErrorKind::UninitializedDevice)?;
             Ok(device.get_stats())
@@ -571,15 +568,7 @@ fn run_blocktest(dev: &Nvme, runtime: u64, batch_sz: u64, is_write: bool) {
     }
 }
 
-#[no_mangle]
-pub fn trusted_entry(
-    s: Box<dyn Syscall + Send + Sync>,
-    heap: Box<dyn Heap + Send + Sync>,
-    pci: Box<dyn interface::pci::PCI>,
-) -> Box<dyn interface::bdev::NvmeBDev> {
-    libsyscalls::syscalls::init(s);
-    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
-
+pub fn main(pci: Box<dyn interface::pci::PCI>) -> Box<dyn interface::bdev::NvmeBDev> {
     println!("nvme_init: starting nvme driver domain");
     #[cfg(not(feature = "nullnvme"))]
     let nvme = {

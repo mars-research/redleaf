@@ -10,21 +10,13 @@
 use alloc::boxed::Box;
 use core::panic::PanicInfo;
 
-use syscalls::{Heap, Syscall};
 use interface::bdev::BDev;
+use syscalls::{Heap, Syscall};
 
 extern crate alloc;
 extern crate malloc;
 
-#[no_mangle]
-pub fn trusted_entry(
-    s: Box<dyn Syscall + Send + Sync>,
-    heap: Box<dyn Heap + Send + Sync>,
-    mut memdisk: &'static mut [u8],
-) -> Box<dyn BDev> {
-    libsyscalls::syscalls::init(s);
-    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
-
+pub fn main(mut memdisk: &'static mut [u8]) -> Box<dyn BDev> {
     #[cfg(feature = "default-memdisk")]
     if memdisk.is_empty() {
         console::println!(

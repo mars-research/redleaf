@@ -4,10 +4,10 @@ version = "0.1.0"
 authors = ["RedLeaf Team"]
 edition = "2018"
 
-[[bin]]
-name = "membdev"
-test = false
-bench = false
+#[[bin]]
+#name = "membdev"
+#test = false
+#bench = false
 
 [dependencies]
 libsyscalls = { path = "../../../../lib/core/libsyscalls" }

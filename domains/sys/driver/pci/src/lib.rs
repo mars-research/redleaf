@@ -13,10 +13,10 @@ use crate::parser::PCI_DEVICES;
 use alloc::boxed::Box;
 use console::println;
 use core::panic::PanicInfo;
+use interface::error::{ErrorKind, Result};
+use interface::rpc::RpcResult;
 use libsyscalls::syscalls::{sys_backtrace, sys_println};
 use syscalls::{Heap, Syscall};
-use interface::rpc::RpcResult;
-use interface::error::{Result, ErrorKind};
 
 use pci_driver::{PciClass, PciDriver};
 
@@ -53,7 +53,9 @@ impl interface::pci::PCI for PCI {
                     .ok_or(ErrorKind::InvalidPciClass),
                 None => pci_devs
                     .iter()
-                    .filter(|header| header.vendor_id() == vendor_id && header.device_id() == device_id)
+                    .filter(|header| {
+                        header.vendor_id() == vendor_id && header.device_id() == device_id
+                    })
                     .next()
                     .ok_or(ErrorKind::InvalidPciDeviceID),
             };
@@ -72,18 +74,7 @@ impl interface::pci::PCI for PCI {
     }
 }
 
-#[no_mangle]
-pub fn trusted_entry(
-    s: Box<dyn Syscall + Send + Sync>,
-    m: Box<dyn syscalls::Mmap + Send + Sync>,
-    heap: Box<dyn Heap + Send + Sync>,
-) -> Box<dyn interface::pci::PCI> {
-    libsyscalls::syscalls::init(s);
-
-    libsyscalls::syscalls::init_mmap(m);
-
-    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
-
+pub fn main() -> Box<dyn interface::pci::PCI> {
     sys_println("init: starting PCI domain");
 
     parser::scan_pci_devs();

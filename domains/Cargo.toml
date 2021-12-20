@@ -4,9 +4,9 @@ members = [
 	"lib/smolnet",
 	"lib/libbenchnet",
 	# "sys/driver/ixgbe",
-	"sys/driver/membdev",
-	"sys/driver/nvme",
-	"sys/driver/pci",
+	# "sys/driver/membdev",
+	# "sys/driver/nvme",
+	# "sys/driver/pci",
 	"sys/driver/tpm",
 	"sys/driver/virtio_net",
 	"sys/driver/virtio_block",
@@ -30,6 +30,9 @@ members = [
 	"usr/xv6/usr/lib",
 
 	"generated/ixgbe_entry_point",
+	"generated/membdev_entry_point",
+	"generated/nvme_entry_point",
+	"generated/pci_entry_point",
 ]
 
 [profile.dev]
