@@ -39,7 +39,7 @@ $(OUTPUT_DIR)/merged.rs: compiler_check
 # Inject use statements
 $(LIB_RS): $(OUTPUT_DIR)/merged.rs
 	mkdir -p $(OUTPUT_DIR)/src
-	$(NGC) $< $@ --domain_create_output=$(DOMAIN_CREATE_OUTPUT_PATH)
+	$(NGC) $< $@ --domain_create_output=$(DOMAIN_CREATE_OUTPUT_PATH) --domains=../domains/
 
 .PHONY: clean
 clean:
