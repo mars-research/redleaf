@@ -76,15 +76,7 @@ impl interface::bdev::NvmeBDev for VirtioBlock {
     }
 }
 
-#[no_mangle]
-pub fn trusted_entry(
-    s: Box<dyn Syscall + Send + Sync>,
-    heap: Box<dyn Heap + Send + Sync>,
-    pci: Box<dyn interface::pci::PCI>,
-) -> Box<dyn interface::bdev::NvmeBDev> {
-    libsyscalls::syscalls::init(s);
-    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
-
+pub fn main(pci: Box<dyn interface::pci::PCI>) -> Box<dyn interface::bdev::NvmeBDev> {
     // #[cfg(feature = "virtio_block")]
     // println!("Virtio Block starting");
 

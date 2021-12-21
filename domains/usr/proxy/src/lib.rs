@@ -15,10 +15,7 @@ use interface::rref;
 use libsyscalls;
 use syscalls;
 
-#[no_mangle]
-pub fn trusted_entry(
-    s: Box<dyn syscalls::Syscall + Send + Sync>,
-    heap: Box<dyn syscalls::Heap + Send + Sync>,
+pub fn main(
     create_pci: alloc::sync::Arc<dyn interface::domain_create::CreatePCI>,
     create_membdev: alloc::sync::Arc<dyn interface::domain_create::CreateMemBDev>,
     create_bdev_shadow: alloc::sync::Arc<dyn interface::domain_create::CreateBDevShadow>,
@@ -39,9 +36,6 @@ pub fn trusted_entry(
     create_shadow: alloc::sync::Arc<dyn interface::domain_create::CreateShadow>,
     create_tpm: alloc::sync::Arc<dyn interface::domain_create::CreateTpm>,
 ) -> Arc<dyn interface::proxy::Proxy> {
-    libsyscalls::syscalls::init(s);
-    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
-
     Arc::new(interface::proxy::ProxyObject::new(
         create_pci,
         create_membdev,

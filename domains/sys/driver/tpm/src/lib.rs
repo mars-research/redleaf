@@ -23,22 +23,14 @@ use core::panic::PanicInfo;
 use syscalls::{Heap, Syscall};
 
 use console::println;
-use libsyscalls::syscalls::sys_backtrace;
 pub use interface::error::{ErrorKind, Result};
+use libsyscalls::syscalls::sys_backtrace;
 
 use interface::tpm::TpmRegs;
 
 pub const ONE_MS_IN_NS: u64 = 1000 * 1000;
 
-#[no_mangle]
-pub fn trusted_entry(
-    s: Box<dyn Syscall + Send + Sync>,
-    heap: Box<dyn Heap + Send + Sync>,
-) -> Box<dyn interface::tpm::UsrTpm> {
-    libsyscalls::syscalls::init(s);
-
-    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
-
+pub fn main() -> Box<dyn interface::tpm::UsrTpm> {
     println!("tpm_init: =>  starting tpm driver domain");
 
     let tpm: Box<dyn interface::tpm::TpmDev> = box tpm_dev::Tpm::new();

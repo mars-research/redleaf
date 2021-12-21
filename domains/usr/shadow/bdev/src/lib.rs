@@ -14,10 +14,10 @@ use core::panic::PanicInfo;
 
 use interface::rref::RRef;
 
-use interface::domain_create::CreateMemBDev;
-use spin::Mutex;
 use interface::bdev::{BDev, BSIZE};
+use interface::domain_create::CreateMemBDev;
 use interface::rpc::RpcResult;
+use spin::Mutex;
 
 #[derive(Debug)]
 struct Stats {
@@ -130,15 +130,7 @@ impl BDev for Shadow {
     }
 }
 
-#[no_mangle]
-pub fn trusted_entry(
-    s: Box<dyn Syscall + Send + Sync>,
-    heap: Box<dyn Heap + Send + Sync>,
-    create_bdev: Arc<dyn CreateMemBDev>,
-) -> Box<dyn BDev> {
-    libsyscalls::syscalls::init(s);
-    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
-
+pub fn main(create_bdev: Arc<dyn CreateMemBDev>) -> Box<dyn BDev> {
     println!("Init bdev shadow domain");
 
     Box::new(Shadow::new(create_bdev))

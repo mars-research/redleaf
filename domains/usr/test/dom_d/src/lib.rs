@@ -13,15 +13,7 @@ use core::panic::PanicInfo;
 
 use interface::rref::RRef;
 
-#[no_mangle]
-pub fn trusted_entry(
-    s: Box<dyn Syscall + Send + Sync>,
-    heap: Box<dyn Heap + Send + Sync>,
-    dom_c: Box<dyn interface::dom_c::DomC>,
-) {
-    libsyscalls::syscalls::init(s);
-    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
-
+pub fn main(dom_c: Box<dyn interface::dom_c::DomC>) {
     println!("Init domain D");
 
     let iter = 10_000_000;

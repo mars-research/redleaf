@@ -66,35 +66,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "benchhash"
+name = "bdev_shadow_entry_point"
 version = "0.1.0"
 dependencies = [
- "console",
- "fnv",
- "hashbrown 0.7.2",
- "interface",
- "lazy_static",
- "libsyscalls",
- "libtime",
- "malloc",
- "num-traits",
- "sashstore-redleaf",
- "syscalls",
- "twox-hash",
-]
-
-[[package]]
-name = "benchnet_inside"
-version = "0.1.0"
-dependencies = [
+ "bdev_shadow",
  "console",
  "interface",
- "lazy_static",
- "libbenchnet",
  "libsyscalls",
- "libtime",
- "malloc",
- "num-traits",
  "syscalls",
 ]
 
@@ -110,6 +88,17 @@ dependencies = [
  "libtime",
  "malloc",
  "num-traits",
+ "syscalls",
+]
+
+[[package]]
+name = "benchnvme_entry_point"
+version = "0.1.0"
+dependencies = [
+ "benchnvme",
+ "console",
+ "interface",
+ "libsyscalls",
  "syscalls",
 ]
 
@@ -242,6 +231,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "dom_c_entry_point"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "dom_c",
+ "interface",
+ "libsyscalls",
+ "syscalls",
+]
+
+[[package]]
 name = "dom_d"
 version = "0.1.0"
 dependencies = [
@@ -257,20 +257,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "dom_proxy"
+name = "dom_d_entry_point"
 version = "0.1.0"
 dependencies = [
- "codegen-lib",
  "console",
+ "dom_d",
  "interface",
- "lazy_static",
  "libsyscalls",
- "libtime",
- "malloc",
- "num-traits",
- "spin 0.5.3",
  "syscalls",
- "unwind",
 ]
 
 [[package]]
@@ -578,6 +572,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "net_shadow_entry_point"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "interface",
+ "libsyscalls",
+ "net_shadow",
+ "syscalls",
+]
+
+[[package]]
 name = "num-derive"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -658,6 +663,17 @@ dependencies = [
  "malloc",
  "num-traits",
  "spin 0.5.3",
+ "syscalls",
+]
+
+[[package]]
+name = "nvme_shadow_entry_point"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "interface",
+ "libsyscalls",
+ "nvme_shadow",
  "syscalls",
 ]
 
@@ -751,6 +767,34 @@ name = "protocol"
 version = "0.1.0"
 dependencies = [
  "bitfield",
+]
+
+[[package]]
+name = "proxy"
+version = "0.1.0"
+dependencies = [
+ "codegen-lib",
+ "console",
+ "interface",
+ "lazy_static",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "num-traits",
+ "spin 0.5.3",
+ "syscalls",
+ "unwind",
+]
+
+[[package]]
+name = "proxy_entry_point"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "interface",
+ "libsyscalls",
+ "proxy",
+ "syscalls",
 ]
 
 [[package]]
@@ -877,6 +921,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "shadow_entry_point"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "interface",
+ "libsyscalls",
+ "shadow",
+ "syscalls",
+]
+
+[[package]]
 name = "slabmalloc"
 version = "0.7.0"
 dependencies = [
@@ -945,19 +1000,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "testtpm"
-version = "0.1.0"
-dependencies = [
- "console",
- "interface",
- "libsyscalls",
- "libtime",
- "libtpm",
- "malloc",
- "syscalls",
-]
-
-[[package]]
 name = "tls"
 version = "0.1.0"
 dependencies = [
@@ -1000,6 +1042,17 @@ dependencies = [
  "libtime",
  "malloc",
  "platform",
+]
+
+[[package]]
+name = "tpm_entry_point"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "interface",
+ "libsyscalls",
+ "syscalls",
+ "tpm",
 ]
 
 [[package]]
@@ -1075,6 +1128,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "virtio_block_entry_point"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "interface",
+ "libsyscalls",
+ "syscalls",
+ "virtio_block",
+]
+
+[[package]]
 name = "virtio_device"
 version = "0.1.0"
 dependencies = [
@@ -1106,6 +1170,17 @@ dependencies = [
  "syscalls",
  "virtio_device",
  "virtio_network_device",
+]
+
+[[package]]
+name = "virtio_net_entry_point"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "interface",
+ "libsyscalls",
+ "syscalls",
+ "virtio_net",
 ]
 
 [[package]]
@@ -1229,4 +1304,15 @@ dependencies = [
  "num-traits",
  "spin 0.5.3",
  "syscalls",
+]
+
+[[package]]
+name = "xv6net_shadow_entry_point"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "interface",
+ "libsyscalls",
+ "syscalls",
+ "xv6net_shadow",
 ]

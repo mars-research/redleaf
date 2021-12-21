@@ -9,15 +9,7 @@ use core::panic::PanicInfo;
 use interface::bdev::NvmeBDev;
 use syscalls::{Heap, Syscall};
 
-#[no_mangle]
-pub fn trusted_entry(
-    s: Box<dyn Syscall + Send + Sync>,
-    heap: Box<dyn Heap + Send + Sync>,
-    mut nvme: Box<dyn NvmeBDev>,
-) {
-    libsyscalls::syscalls::init(s);
-    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
-
+pub fn main(mut nvme: Box<dyn NvmeBDev>) {
     println!("Init domain benchnvme_inside (╯°□°）╯︵ ┻━┻ ^_^ ʕ·͡ᴥ·ʔ (҂◡_◡) ᕤ (┬┬﹏┬┬) ノ┬─┬ノ ︵ ( \\o°o)\\");
 
     for _ in 0..=6 {

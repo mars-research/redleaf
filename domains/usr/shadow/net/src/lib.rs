@@ -16,12 +16,12 @@ use core::panic::PanicInfo;
 
 use alloc::vec::Vec;
 use interface::domain_create::CreateIxgbe;
-use interface::rref::RRefDeque;
-use spin::Mutex;
 use interface::error::Result;
 use interface::net::{Net, NetworkStats};
 use interface::pci::PCI;
 use interface::rpc::RpcResult;
+use interface::rref::RRefDeque;
+use spin::Mutex;
 
 struct ShadowInternal {
     create: Arc<dyn CreateIxgbe>,
@@ -104,16 +104,7 @@ impl Net for Shadow {
     }
 }
 
-#[no_mangle]
-pub fn trusted_entry(
-    s: Box<dyn Syscall + Send + Sync>,
-    heap: Box<dyn Heap + Send + Sync>,
-    create: Arc<dyn CreateIxgbe>,
-    pci: Box<dyn PCI>,
-) -> Box<dyn Net> {
-    libsyscalls::syscalls::init(s);
-    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
-
+pub fn main(create: Arc<dyn CreateIxgbe>, pci: Box<dyn PCI>) -> Box<dyn Net> {
     println!("Init net shadow domain");
 
     box Shadow::new(create, pci)

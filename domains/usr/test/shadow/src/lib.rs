@@ -13,8 +13,8 @@ use core::panic::PanicInfo;
 
 use interface::rref::RRef;
 
-use spin::Mutex;
 use interface::rpc::RpcResult;
+use spin::Mutex;
 
 struct ShadowDomain {
     dom: Option<Box<dyn syscalls::Domain>>,
@@ -85,15 +85,9 @@ impl interface::dom_c::DomC for Shadow {
     }
 }
 
-#[no_mangle]
-pub fn trusted_entry(
-    s: Box<dyn Syscall + Send + Sync>,
-    heap: Box<dyn Heap + Send + Sync>,
+pub fn main(
     create_dom_c: Arc<dyn interface::domain_create::CreateDomC>,
 ) -> Box<dyn interface::dom_c::DomC> {
-    libsyscalls::syscalls::init(s);
-    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
-
     println!("Init shadow domain");
 
     /* Create domain we're shadowing */

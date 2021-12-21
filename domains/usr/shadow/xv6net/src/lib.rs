@@ -16,11 +16,11 @@ use core::panic::PanicInfo;
 use interface::rref::RRefVec;
 
 use interface::domain_create::CreateRv6Net;
-use spin::Mutex;
 use interface::error::Result;
 use interface::net::Net;
 use interface::rpc::RpcResult;
 use interface::usrnet::UsrNet;
+use spin::Mutex;
 
 struct ShadowInternal {
     create: Arc<dyn CreateRv6Net>,
@@ -93,16 +93,7 @@ impl UsrNet for Shadow {
     }
 }
 
-#[no_mangle]
-pub fn trusted_entry(
-    s: Box<dyn Syscall + Send + Sync>,
-    heap: Box<dyn Heap + Send + Sync>,
-    create: Arc<dyn CreateRv6Net>,
-    net: Box<dyn Net>,
-) -> Box<dyn UsrNet> {
-    libsyscalls::syscalls::init(s);
-    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
-
+pub fn main(create: Arc<dyn CreateRv6Net>, net: Box<dyn Net>) -> Box<dyn UsrNet> {
     println!("Init usrnet shadow domain");
 
     box Shadow::new(create, net)

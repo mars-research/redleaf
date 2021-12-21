@@ -11,16 +11,7 @@ use libtpm::*;
 
 use syscalls::{Heap, Syscall};
 
-#[no_mangle]
-pub fn trusted_entry(
-    s: Box<dyn Syscall + Send + Sync>,
-    heap: Box<dyn Heap + Send + Sync>,
-    tpm: Box<dyn TpmDev + Send + Sync>,
-) {
-    libsyscalls::syscalls::init(s);
-
-    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
-
+pub fn main(tpm: Box<dyn TpmDev + Send + Sync>) {
     println!("Initalizing domain: testtpm");
 
     // Add TPM2 functions here!

@@ -116,15 +116,7 @@ impl interface::net::Net for VirtioNet {
     }
 }
 
-#[no_mangle]
-pub fn trusted_entry(
-    s: Box<dyn Syscall + Send + Sync>,
-    heap: Box<dyn Heap + Send + Sync>,
-    pci: Box<dyn interface::pci::PCI>,
-) -> Box<dyn interface::net::Net> {
-    libsyscalls::syscalls::init(s);
-    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
-
+pub fn main(pci: Box<dyn interface::pci::PCI>) -> Box<dyn interface::net::Net> {
     #[cfg(feature = "virtio_net")]
     let net = {
         let net = {

@@ -16,12 +16,12 @@ use core::panic::PanicInfo;
 
 use interface::rref::RRefDeque;
 
-use interface::domain_create::CreateNvme;
-use spin::Mutex;
 use interface::bdev::{BlkReq, NvmeBDev};
+use interface::domain_create::CreateNvme;
 use interface::error::Result;
 use interface::pci::PCI;
 use interface::rpc::RpcResult;
+use spin::Mutex;
 
 struct ShadowInternal {
     create: Arc<dyn CreateNvme>,
@@ -65,8 +65,10 @@ impl NvmeBDev for Shadow {
             .submit_and_poll_rref(submit, collect, write)
     }
 
-    fn poll_rref(&self, collect: RRefDeque<BlkReq, 1024>) ->
-            RpcResult<Result<(usize, RRefDeque<BlkReq, 1024>)>> {
+    fn poll_rref(
+        &self,
+        collect: RRefDeque<BlkReq, 1024>,
+    ) -> RpcResult<Result<(usize, RRefDeque<BlkReq, 1024>)>> {
         self.shadow.lock().nvme.poll_rref(collect)
     }
 
@@ -75,16 +77,7 @@ impl NvmeBDev for Shadow {
     }
 }
 
-#[no_mangle]
-pub fn trusted_entry(
-    s: Box<dyn Syscall + Send + Sync>,
-    heap: Box<dyn Heap + Send + Sync>,
-    create: Arc<dyn CreateNvme>,
-    pci: Box<dyn PCI>,
-) -> Box<dyn NvmeBDev> {
-    libsyscalls::syscalls::init(s);
-    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
-
+pub fn main(create: Arc<dyn CreateNvme>, pci: Box<dyn PCI>) -> Box<dyn NvmeBDev> {
     println!("Init nvme shadow domain");
 
     box Shadow::new(create, pci)
