@@ -14,7 +14,7 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use syscalls::{Domain, Heap, Interrupt};
 
-#[domain_create(path = "dom_proxy", relative_path = "usr/proxy")]
+#[domain_create(path = "proxy", relative_path = "usr/proxy")]
 pub trait CreateProxy {
     fn create_domain_proxy(
         &self,
