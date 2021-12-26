@@ -755,6 +755,7 @@ dependencies = [
  "pc-keyboard",
  "spin 0.5.3",
  "syscalls",
+ "virtio_backend_trusted",
 ]
 
 [[package]]
@@ -998,6 +999,42 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5a972e5669d67ba988ce3dc826706fb0a8b01471c088cb0b6110b805cc36aed"
 
 [[package]]
+name = "virtio_backend"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "hashbrown 0.7.2",
+ "interface",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "pci_driver",
+ "platform",
+ "protocol",
+ "spin 0.5.3",
+ "syscalls",
+ "virtio_backend_trusted",
+ "virtio_device",
+ "virtio_net_mmio",
+ "virtio_net_mmio_device",
+]
+
+[[package]]
+name = "virtio_backend_trusted"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "hashbrown 0.7.2",
+ "interface",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "spin 0.5.3",
+ "virtio_device",
+ "volatile_accessor",
+]
+
+[[package]]
 name = "virtio_block"
 version = "0.1.0"
 dependencies = [
@@ -1062,6 +1099,46 @@ dependencies = [
  "syscalls",
  "virtio_device",
  "virtio_network_device",
+]
+
+[[package]]
+name = "virtio_net_mmio"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "hashbrown 0.7.2",
+ "interface",
+ "libbenchnet",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "pci_driver",
+ "platform",
+ "protocol",
+ "redhttpd",
+ "smolnet",
+ "smoltcp",
+ "spin 0.5.3",
+ "syscalls",
+ "virtio_device",
+ "virtio_net_mmio_device",
+]
+
+[[package]]
+name = "virtio_net_mmio_device"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "hashbrown 0.7.2",
+ "interface",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "pci_driver",
+ "spin 0.5.3",
+ "virtio_backend_trusted",
+ "virtio_device",
+ "volatile_accessor",
 ]
 
 [[package]]

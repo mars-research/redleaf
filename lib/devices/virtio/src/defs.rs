@@ -4,7 +4,7 @@ use alloc::{
     vec::Vec,
 };
 use console::println;
-use core::{alloc::Layout, mem::size_of, usize};
+use core::{alloc::Layout, fmt::Debug, mem::size_of, usize};
 
 // 2.6.12 Virtqueue Operation
 // There are two parts to virtqueue operation: supplying new available buffers to the device, and processing used buffers from the device.
@@ -12,6 +12,7 @@ use core::{alloc::Layout, mem::size_of, usize};
 // The driver adds outgoing (device-readable) packets to the transmit virtqueue, and then frees them after they are used.
 // Similarly, incoming (device-writable) buffers are added to the receive virtqueue, and processed after they are used.
 
+#[derive(Debug)]
 #[repr(C, align(16))]
 pub struct VirtQueue {
     pub descriptors: Vec<VirtqDescriptor>,
@@ -54,6 +55,13 @@ pub struct VirtqUsedPacked {
     ring: [VirtqUsedElement; 0], // Will have size queue_size
 }
 
+impl VirtqUsedPacked {
+    /// The struct does not know its queue size so *YOU* must check that the index is correct!
+    pub unsafe fn ring(&mut self, idx: u16) -> &mut VirtqUsedElement {
+        self.ring.get_unchecked_mut(idx as usize)
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 #[repr(C, packed(2))]
 pub struct VirtqAvailablePacked {
@@ -64,6 +72,13 @@ pub struct VirtqAvailablePacked {
 
     /// The index of the head of the descriptor chain in the descriptor table
     ring: [u16; 0], // Will have size queue_size
+}
+
+impl VirtqAvailablePacked {
+    /// The struct does not know its queue size so *YOU* must check that the index is correct!
+    pub unsafe fn ring(&mut self, idx: u16) -> &mut u16 {
+        self.ring.get_unchecked_mut(idx as usize)
+    }
 }
 
 pub struct VirtqAvailable {
@@ -114,6 +129,12 @@ impl Drop for VirtqAvailable {
     }
 }
 
+impl Debug for VirtqAvailable {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        return self.data.fmt(f);
+    }
+}
+
 pub struct VirtqUsed {
     pub data: Box<VirtqUsedPacked>,
     queue_size: u16,
@@ -157,5 +178,11 @@ impl Drop for VirtqUsed {
                 layout,
             );
         }
+    }
+}
+
+impl Debug for VirtqUsed {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        return self.data.fmt(f);
     }
 }

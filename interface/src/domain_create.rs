@@ -24,6 +24,8 @@ pub trait CreateProxy {
         create_ixgbe: Arc<dyn CreateIxgbe>,
         create_virtio_net: Arc<dyn crate::domain_create::CreateVirtioNet>,
         create_virtio_block: Arc<dyn crate::domain_create::CreateVirtioBlock>,
+        create_virtio_backend: Arc<dyn crate::domain_create::CreateVirtioBackend>,
+        create_virtio_net_mmio: Arc<dyn crate::domain_create::CreateVirtioNetMMIO>,
         create_nvme: Arc<dyn CreateNvme>,
         create_net_shadow: Arc<dyn crate::domain_create::CreateNetShadow>,
         create_nvme_shadow: Arc<dyn crate::domain_create::CreateNvmeShadow>,
@@ -84,6 +86,16 @@ pub trait CreateVirtioNet: Send + Sync {
 pub trait CreateVirtioBlock: Send + Sync {
     fn create_domain_virtio_block(&self, pci: Box<dyn PCI>)
         -> (Box<dyn Domain>, Box<dyn NvmeBDev>);
+}
+
+#[domain_create(path = "virtio_backend")]
+pub trait CreateVirtioBackend: Send + Sync {
+    fn create_domain_virtio_backend(&self, net: Box<dyn Net>) -> (Box<dyn Domain>, ());
+}
+
+#[domain_create(path = "virtio_net_mmio")]
+pub trait CreateVirtioNetMMIO: Send + Sync {
+    fn create_domain_virtio_net_mmio(&self) -> (Box<dyn Domain>, Box<dyn Net>);
 }
 
 #[domain_create(path = "net_shadow")]

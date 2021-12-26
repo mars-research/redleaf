@@ -7,7 +7,7 @@
 DEBUG            ?= true
 LARGE_MEM        ?= true
 IXGBE		 	 ?= true
-VIRTIO_NET 		 ?= false
+VIRTIO_NET 		 ?= true
 VIRTIO_BLOCK 	 ?= false
 
 ifndef NO_DEFAULT_FLAGS
@@ -72,6 +72,8 @@ domain_list := $(addprefix domains/build/, \
 	ixgbe \
 	virtio_net \
 	virtio_block \
+	virtio_backend \
+	virtio_net_mmio \
 	nvme \
 	tpm \
 	bdev_shadow \
@@ -205,7 +207,7 @@ idl_generation: tools/redIDL
 	then echo "redIDL not found. Maybe you want to do 'git submodule init && git submodule update' then try again?"; \
 			exit -1; \
 	fi
-	make -C interface
+	# make -C interface
 
 .PHONY: domains
 domains: idl_generation $(xv6fs_img) memops

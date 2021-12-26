@@ -6,22 +6,28 @@
     const_raw_ptr_to_usize_cast,
     const_in_array_repeat_expressions,
     untagged_unions,
-    maybe_uninit_extra
+    maybe_uninit_extra,
+    array_methods
 )]
 
 pub mod pci;
 extern crate alloc;
-
-use core::usize;
 
 use alloc::alloc::{alloc, Layout};
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
 use console::println;
+use core::mem::size_of;
+use core::ptr::{read_volatile, write_volatile};
+use core::slice::{self};
+use core::usize;
 use hashbrown::HashMap;
 use interface::rref::{RRef, RRefDeque};
+use libsyscalls::syscalls::sys_yield;
 use spin::Mutex;
+use virtio_backend_trusted::defs::{DeviceNotificationType, SHARED_MEMORY_REGION_PTR};
+use virtio_backend_trusted::device_notify;
 use virtio_device::defs::{
     VirtQueue, VirtqAvailable, VirtqAvailablePacked, VirtqDescriptor, VirtqUsed, VirtqUsedElement,
     VirtqUsedPacked,
@@ -73,6 +79,10 @@ pub struct VirtioNetInner {
     /// The driver doesn't actually use these but they are required by the spec
     virtio_network_headers: Vec<VirtioNetworkHeader>,
 
+    /// The shared memory region for buffers
+    /// Place tx at header_idx and rx at buffer_idx
+    virtio_network_buffers: Vec<NetworkPacketBuffer>,
+
     /// Tracks which descriptors on the queue are free
     rx_free_descriptors: Vec<bool>,
     /// Tracks which descriptors on the queue are free
@@ -99,6 +109,7 @@ impl VirtioNetInner {
             virtual_queues: None,
 
             virtio_network_headers: vec![],
+            virtio_network_buffers: vec![],
 
             rx_free_descriptors: vec![],
             tx_free_descriptors: vec![],
@@ -173,14 +184,16 @@ impl VirtioNetInner {
         // Setup Virtual Queues
         self.initialize_virtual_queue(0, &(self.virtual_queues.as_ref().unwrap().receive_queue));
 
-        // println!("Virtio Net Should Yield here!");
-        // self.print_device_config();
-        // libsyscalls::syscalls::sys_yield();
+        println!("Should call device_notify");
+        device_notify(DeviceNotificationType::DeviceConfigurationUpdated);
 
         self.initialize_virtual_queue(1, &(self.virtual_queues.as_ref().unwrap().transmit_queue));
 
+        device_notify(DeviceNotificationType::DeviceConfigurationUpdated);
+
         // Tell the Device we're all done, even though we aren't
         unsafe { self.mmio.update_device_status(VirtioDeviceStatus::DriverOk) };
+        device_notify(DeviceNotificationType::DeviceConfigurationUpdated);
 
         // self.print_device_status();
 
@@ -224,6 +237,12 @@ impl VirtioNetInner {
             };
             self.buffer_count
         ];
+
+        self.virtio_network_buffers = vec![[0; 1514]; self.queue_size.into()];
+        // Update the ptr
+        unsafe {
+            *SHARED_MEMORY_REGION_PTR = self.virtio_network_buffers.as_mut_ptr();
+        }
 
         self.rx_free_descriptors = vec![true; self.buffer_count];
         self.tx_free_descriptors = vec![true; self.buffer_count];
@@ -293,7 +312,11 @@ impl VirtioNetInner {
 
         if let Ok(header_idx) = Self::get_free_idx(&mut self.rx_free_descriptors) {
             let buffer_idx = header_idx + self.buffer_count;
-            let buffer_addr = buffer.as_ptr() as u64;
+            // let buffer_addr = buffer.as_ptr() as u64;
+
+            // Use the shared memory region
+            let buffer_addr = self.virtio_network_buffers[buffer_idx].as_ptr() as u64;
+            let buffer_offset = buffer_addr - self.virtio_network_buffers.as_ptr() as u64;
 
             // Store it so it isn't dropped
             self.rx_buffers[header_idx] = Some(buffer);
@@ -310,7 +333,7 @@ impl VirtioNetInner {
             };
             // Actual Buffer
             rx_q.descriptors[buffer_idx] = VirtqDescriptor {
-                addr: buffer_addr,
+                addr: buffer_offset,
                 len: 1514,
                 flags: 2,
                 next: 0,
@@ -322,9 +345,11 @@ impl VirtioNetInner {
                 .ring(rx_q.available.data.idx % self.queue_size) = header_idx as u16;
             rx_q.available.data.idx = rx_q.available.data.idx.wrapping_add(1); // We only added one "chain head"
 
-            unsafe {
-                self.mmio.queue_notify(0, 0);
-            }
+            // unsafe {
+            //     self.mmio.queue_notify(0, 0);
+            // }
+
+            device_notify(DeviceNotificationType::QueueUpdated);
 
             return Ok(());
         } else {
@@ -360,7 +385,13 @@ impl VirtioNetInner {
 
         if let Ok(header_idx) = Self::get_free_idx(&mut self.tx_free_descriptors) {
             let buffer_idx = header_idx + self.buffer_count;
-            let buffer_addr = buffer.as_ptr() as u64;
+
+            // Copy the packet into the shared memory region
+            let a = buffer.as_slice();
+            self.virtio_network_buffers[header_idx].copy_from_slice(a);
+
+            let buffer_addr = self.virtio_network_buffers[header_idx].as_ptr() as u64;
+            let buffer_offset = buffer_addr - self.virtio_network_buffers.as_ptr() as u64;
 
             // Store it so it isn't dropped
             self.tx_buffers[header_idx] = Some(buffer);
@@ -372,7 +403,7 @@ impl VirtioNetInner {
                 next: buffer_idx as u16,
             };
             tx_q.descriptors[buffer_idx] = VirtqDescriptor {
-                addr: buffer_addr,
+                addr: buffer_offset,
                 len: 1514,
                 flags: 0,
                 next: 0,
@@ -383,9 +414,11 @@ impl VirtioNetInner {
                 .ring(tx_q.available.data.idx % self.queue_size) = header_idx as u16;
             tx_q.available.data.idx = tx_q.available.data.idx.wrapping_add(1);
 
-            unsafe {
-                self.mmio.queue_notify(1, 1);
-            }
+            // unsafe {
+            //     self.mmio.queue_notify(1, 1);
+            // }
+            device_notify(DeviceNotificationType::QueueUpdated);
+
             return Ok(());
         } else {
             return Err(buffer);
@@ -423,7 +456,12 @@ impl VirtioNetInner {
             let header_descriptor = &rx_q.descriptors[used_element.id as usize];
             let buffer_descriptor = &rx_q.descriptors[header_descriptor.next as usize];
 
-            if let Some(buffer) = self.rx_buffers[used_element.id as usize].take() {
+            if let Some(mut buffer) = self.rx_buffers[used_element.id as usize].take() {
+                // Copy rx packet from shared memory region to buffer
+                buffer.copy_from_slice(
+                    &self.virtio_network_buffers[header_descriptor.next as usize].as_slice(),
+                );
+
                 // Processed packets are "collected"
                 collect.push_back(buffer);
                 new_packets_count += 1;
