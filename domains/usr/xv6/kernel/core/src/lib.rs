@@ -17,15 +17,12 @@ use console::println;
 
 use interface::domain_create;
 
-use syscalls::{Heap, Syscall};
 use interface::bdev::BDev;
 use interface::rv6::Rv6;
 use interface::vfs::VFS;
+use syscalls::{Heap, Syscall};
 
-#[no_mangle]
-pub fn trusted_entry(
-    s: Box<dyn Syscall + Send + Sync>,
-    heap: Box<dyn Heap + Send + Sync>,
+pub fn main(
     ints: Box<dyn syscalls::Interrupt + Send + Sync>,
     create_xv6fs: Arc<dyn interface::domain_create::CreateRv6FS>,
     create_xv6net: Arc<dyn interface::domain_create::CreateRv6Net>,
@@ -36,9 +33,7 @@ pub fn trusted_entry(
     nvme: Box<dyn interface::bdev::NvmeBDev>,
     usr_tpm: Box<dyn interface::tpm::UsrTpm>,
 ) -> Box<dyn Rv6> {
-    libsyscalls::syscalls::init(s);
     libsyscalls::syscalls::init_interrupts(ints);
-    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
 
     println!("init xv6/core");
 

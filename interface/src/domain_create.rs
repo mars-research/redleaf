@@ -31,7 +31,7 @@ pub trait CreateProxy {
         create_xv6fs: Arc<dyn CreateRv6FS>,
         create_xv6net: Arc<dyn crate::domain_create::CreateRv6Net>,
         create_xv6net_shadow: Arc<dyn crate::domain_create::CreateRv6NetShadow>,
-        create_xv6usr: Arc<dyn CreateRv6Usr>,
+        create_xv6usr: Arc<dyn CreateRv6Usr + Send + Sync>,
         create_xv6: Arc<dyn CreateRv6>,
         create_dom_c: Arc<dyn CreateDomC>,
         create_dom_d: Arc<dyn CreateDomD>,
@@ -145,11 +145,11 @@ pub type CreateRv6UsrPtr = Box<dyn CreateRv6Usr + Send + Sync>;
 pub trait CreateRv6: Send + Sync {
     fn create_domain_xv6kernel(
         &self,
-        ints: Box<dyn Interrupt>,
+        ints: Box<dyn Interrupt + Send + Sync>,
         create_xv6fs: Arc<dyn CreateRv6FS>,
         create_xv6net: Arc<dyn CreateRv6Net>,
         create_xv6net_shadow: Arc<dyn CreateRv6NetShadow>,
-        create_xv6usr: Arc<dyn CreateRv6Usr>,
+        create_xv6usr: Arc<dyn CreateRv6Usr + Send + Sync>,
         bdev: Box<dyn BDev>,
         net: Box<dyn Net>,
         nvme: Box<dyn NvmeBDev>,

@@ -22,12 +22,12 @@ use alloc::boxed::Box;
 use console::println;
 use core::panic::PanicInfo;
 
-use interface::rref::RRefVec;
-use syscalls::{Heap, Syscall};
-use sysfile::{FileMode, FileStat};
 use interface::bdev::BDev;
 use interface::rpc::RpcResult;
+use interface::rref::RRefVec;
 use interface::vfs::{KernelVFS, Result, UsrVFS, NFILE, VFS};
+use syscalls::{Heap, Syscall};
+use sysfile::{FileMode, FileStat};
 
 mod bcache;
 mod block;
@@ -139,14 +139,7 @@ impl VFS for Rv6FS {
     }
 }
 
-#[no_mangle]
-pub fn trusted_entry(
-    s: Box<dyn Syscall + Send + Sync>,
-    heap: Box<dyn Heap + Send + Sync>,
-    bdev: Box<dyn BDev>,
-) -> Box<dyn VFS> {
-    libsyscalls::syscalls::init(s);
-    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
+pub fn main(bdev: Box<dyn BDev>) -> Box<dyn VFS> {
     // libinterface::sysbdev::init(bdev);
 
     println!("init xv6 filesystem");

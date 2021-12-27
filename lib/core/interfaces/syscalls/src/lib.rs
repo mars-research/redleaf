@@ -3,52 +3,52 @@
 
 extern crate alloc;
 use alloc::boxed::Box;
-use core::any::TypeId;
-use spin::{MutexGuard};
 use core::alloc::Layout;
+use core::any::TypeId;
+use spin::MutexGuard;
 extern crate platform;
+use pc_keyboard::DecodedKey;
 use platform::PciBarAddr;
-use pc_keyboard::{DecodedKey};
 
-/* AB: XXX: We should move this definition into a separate 
- * crate that deals with proxy syscalls (it's here to avoid the 
- * cyclic dependency unwind -> syscall (to call sys_register_cont), and 
- * syscall -> unwind (to get Continuation type definition 
+/* AB: XXX: We should move this definition into a separate
+ * crate that deals with proxy syscalls (it's here to avoid the
+ * cyclic dependency unwind -> syscall (to call sys_register_cont), and
+ * syscall -> unwind (to get Continuation type definition
  */
 #[repr(C)]
-#[derive(Copy,Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Continuation {
-  pub func: u64,
-  /* Caller saved registers (we need them since 
-   * function arguments are passed in registers and 
-   * we loose them for the restart */
-  pub rax: u64,
-  pub rcx: u64, 
-  pub rdx: u64,
-  pub rsi: u64,
-  pub rdi: u64, 
-  pub r8: u64, 
-  pub r9: u64, 
-  pub r10: u64,
+    pub func: u64,
+    /* Caller saved registers (we need them since
+     * function arguments are passed in registers and
+     * we loose them for the restart */
+    pub rax: u64,
+    pub rcx: u64,
+    pub rdx: u64,
+    pub rsi: u64,
+    pub rdi: u64,
+    pub r8: u64,
+    pub r9: u64,
+    pub r10: u64,
 
-  /* Callee saved registers */
-  pub rflags: u64,
-  pub r15: u64,
-  pub r14: u64,
-  pub r13: u64, 
-  pub r12: u64,
-  pub r11: u64, 
-  pub rbx: u64, 
-  pub rbp: u64,  
-  pub rsp: u64,
+    /* Callee saved registers */
+    pub rflags: u64,
+    pub r15: u64,
+    pub r14: u64,
+    pub r13: u64,
+    pub r12: u64,
+    pub r11: u64,
+    pub rbx: u64,
+    pub rbp: u64,
+    pub rsp: u64,
 }
 
 impl Continuation {
     pub fn zeroed() -> Self {
         Self {
             func: 0,
-            /* Caller saved registers (we need them since 
-             * function arguments are passed in registers and 
+            /* Caller saved registers (we need them since
+             * function arguments are passed in registers and
              * we loose them for the restart */
             rax: 0,
             rcx: 0,
@@ -80,7 +80,7 @@ pub trait Syscall {
     fn sys_println(&self, s: &str);
     fn sys_cpuid(&self) -> u32;
     fn sys_yield(&self);
-    fn sys_create_thread(&self, name: &str, func: extern fn()) -> Box<dyn Thread>;
+    fn sys_create_thread(&self, name: &str, func: extern "C" fn()) -> Box<dyn Thread>;
     fn sys_current_thread(&self) -> Box<dyn Thread>;
     fn sys_current_thread_id(&self) -> u64;
     fn sys_get_current_domain_id(&self) -> u64;
@@ -94,23 +94,22 @@ pub trait Syscall {
     fn sys_backtrace(&self);
     fn sys_dummy(&self);
     // call this one to read a character from keyboard
-    fn sys_readch_kbd(&self) -> Result<Option<DecodedKey>, &'static str>; 
+    fn sys_readch_kbd(&self) -> Result<Option<DecodedKey>, &'static str>;
     fn sys_make_condvar(&self) -> CondVarPtr;
 
     /* AB: XXX: Remove this system it's for testing only */
     fn sys_test_unwind(&self);
-
 }
 
-#[derive(Clone,Copy,Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum ThreadState {
     Runnable = 1,
     Paused = 2,
-    Waiting = 3, 
+    Waiting = 3,
 }
 
 /// RedLeaf thread interface
-pub trait Thread : Send {
+pub trait Thread: Send {
     fn get_id(&self) -> u64;
     fn set_affinity(&self, affinity: u64);
     fn set_priority(&self, prio: u64);
@@ -145,7 +144,7 @@ pub static IRQ_TIMER: u8 = 32;
 pub trait Interrupt {
     // Recieve an interrupt
     fn sys_recv_int(&self, int: u8);
-    fn int_clone(&self) -> Box<dyn Interrupt>;
+    fn int_clone(&self) -> Box<dyn Interrupt + Send + Sync>;
 }
 
 pub trait Mmap {

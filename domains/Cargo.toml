@@ -25,9 +25,9 @@ members = [
 	# "usr/test/shadow",
 	# "usr/test/testtpm",
 
-	"usr/xv6/kernel/core",
-	"usr/xv6/kernel/fs",
-	"usr/xv6/kernel/net",
+	# "usr/xv6/kernel/core",
+	# "usr/xv6/kernel/fs",
+	# "usr/xv6/kernel/net",
 	"usr/xv6/usr/bin",
 	"usr/xv6/usr/lib",
 
@@ -48,6 +48,11 @@ members = [
 	"generated/dom_c_entry_point",
 	"generated/dom_d_entry_point",
 	"generated/shadow_entry_point",
+
+	"generated/xv6kernel_entry_point",
+	"generated/xv6fs_entry_point",
+	"generated/xv6net_entry_point",
+	"generated/xv6net_shadow_entry_point",
 ]
 
 [profile.dev]

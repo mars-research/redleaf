@@ -19,13 +19,13 @@ use alloc::vec::Vec;
 use console::println;
 use core::panic::PanicInfo;
 
-use interface::rref::RRefVec;
-use spin::Mutex;
-use syscalls::{Heap, Syscall};
 use interface::error::{ErrorKind, Result};
 use interface::net::Net;
 use interface::rpc::RpcResult;
+use interface::rref::RRefVec;
 use interface::usrnet::UsrNet;
+use spin::Mutex;
+use syscalls::{Heap, Syscall};
 
 use smolnet::SmolPhy;
 use smoltcp::iface::{EthernetInterface, EthernetInterfaceBuilder, NeighborCache};
@@ -267,15 +267,7 @@ impl UsrNet for Rv6Net {
     }
 }
 
-#[no_mangle]
-pub fn trusted_entry(
-    s: Box<dyn Syscall + Send + Sync>,
-    heap: Box<dyn Heap + Send + Sync>,
-    net: Box<dyn Net>,
-) -> Box<dyn UsrNet> {
-    libsyscalls::syscalls::init(s);
-    interface::rref::init(heap, libsyscalls::syscalls::sys_get_current_domain_id());
-
+pub fn main(net: Box<dyn Net>) -> Box<dyn UsrNet> {
     println!("init xv6 network driver");
     Box::new(Rv6Net::new(net))
 }

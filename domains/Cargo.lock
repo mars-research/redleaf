@@ -1250,6 +1250,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "xv6fs_entry_point"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "interface",
+ "libsyscalls",
+ "syscalls",
+ "xv6fs",
+]
+
+[[package]]
 name = "xv6kernel"
 version = "0.1.0"
 dependencies = [
@@ -1264,6 +1275,17 @@ dependencies = [
  "spin 0.5.3",
  "sync",
  "syscalls",
+]
+
+[[package]]
+name = "xv6kernel_entry_point"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "interface",
+ "libsyscalls",
+ "syscalls",
+ "xv6kernel",
 ]
 
 [[package]]
@@ -1289,6 +1311,17 @@ dependencies = [
  "syscalls",
  "tls",
  "utils",
+]
+
+[[package]]
+name = "xv6net_entry_point"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "interface",
+ "libsyscalls",
+ "syscalls",
+ "xv6net",
 ]
 
 [[package]]

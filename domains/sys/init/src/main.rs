@@ -115,7 +115,7 @@ pub fn trusted_entry(
     create_xv6fs: Arc<dyn interface::domain_create::CreateRv6FS>,
     create_xv6net: Arc<dyn interface::domain_create::CreateRv6Net>,
     create_xv6net_shadow: Arc<dyn interface::domain_create::CreateRv6NetShadow>,
-    create_xv6usr: Arc<dyn interface::domain_create::CreateRv6Usr>,
+    create_xv6usr: Arc<dyn interface::domain_create::CreateRv6Usr + Send + Sync>,
     create_xv6: Arc<dyn interface::domain_create::CreateRv6>,
     create_dom_c: Arc<dyn interface::domain_create::CreateDomC>,
     create_dom_d: Arc<dyn interface::domain_create::CreateDomD>,
