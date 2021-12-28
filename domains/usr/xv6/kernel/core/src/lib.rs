@@ -27,7 +27,7 @@ pub fn main(
     create_xv6fs: Arc<dyn interface::domain_create::CreateRv6FS>,
     create_xv6net: Arc<dyn interface::domain_create::CreateRv6Net>,
     _create_xv6net_shadow: Arc<dyn interface::domain_create::CreateRv6NetShadow>,
-    create_xv6usr: Arc<dyn interface::domain_create::CreateRv6Usr + Send + Sync>,
+    create_xv6usr: Arc<dyn interface::domain_create::CreateRv6Usr>,
     bdev: Box<dyn BDev>,
     net: Box<dyn interface::net::Net>,
     nvme: Box<dyn interface::bdev::NvmeBDev>,

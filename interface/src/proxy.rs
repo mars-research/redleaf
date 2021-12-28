@@ -44,9 +44,7 @@ pub trait Proxy:
     fn as_domain_create_CreateNvmeShadow(&self) -> Arc<dyn crate::domain_create::CreateNvmeShadow>;
     fn as_domain_create_CreateShadow(&self) -> Arc<dyn crate::domain_create::CreateShadow>;
     fn as_domain_create_CreateNetShadow(&self) -> Arc<dyn crate::domain_create::CreateNetShadow>;
-    fn as_domain_create_CreateRv6Usr(
-        &self,
-    ) -> Arc<dyn crate::domain_create::CreateRv6Usr + Send + Sync>;
+    fn as_domain_create_CreateRv6Usr(&self) -> Arc<dyn crate::domain_create::CreateRv6Usr>;
     fn as_domain_create_CreateNvme(&self) -> Arc<dyn crate::domain_create::CreateNvme>;
     fn as_domain_create_CreateRv6FS(&self) -> Arc<dyn crate::domain_create::CreateRv6FS>;
 }
