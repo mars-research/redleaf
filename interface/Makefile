@@ -46,6 +46,8 @@ clean:
 	cargo clean
 	-rm -rf $(OUTPUT_DIR)
 	-rm -f $(DOMAIN_CREATE_OUTPUT_PATH)
+	-rm -r ../domains/build/
+	-rm -r ../domains/generated/
 	
 
 

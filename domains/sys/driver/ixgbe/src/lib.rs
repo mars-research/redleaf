@@ -32,8 +32,8 @@ use pci_driver::DeviceBarRegions;
 pub use platform::PciBarAddr;
 use spin::Mutex;
 
-use crate::device::Intel8259x;
 use core::cell::RefCell;
+use device::Intel8259x;
 pub use interface::error::{ErrorKind, Result};
 
 use interface::rref::RRefDeque;

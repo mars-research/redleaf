@@ -77,6 +77,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "benchhash"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "fnv",
+ "hashbrown 0.7.2",
+ "interface",
+ "lazy_static",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "num-traits",
+ "sashstore-redleaf",
+ "syscalls",
+ "twox-hash",
+]
+
+[[package]]
+name = "benchnet_inside"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "interface",
+ "lazy_static",
+ "libbenchnet",
+ "libsyscalls",
+ "libtime",
+ "malloc",
+ "num-traits",
+ "syscalls",
+]
+
+[[package]]
 name = "benchnvme"
 version = "0.1.0"
 dependencies = [

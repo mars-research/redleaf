@@ -4,11 +4,7 @@ version = "0.1.0"
 authors = ["RedLeaf Team"]
 edition = "2018"
 
-[lib]
-path = "src/main.rs"
-#crate-type = ["staticlib"]
-#test = false
-#bench = false
+
 
 [dependencies]
 bitflags = "1.0.4"
