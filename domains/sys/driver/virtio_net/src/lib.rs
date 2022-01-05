@@ -2,9 +2,6 @@
 #![no_main]
 #![feature(
     box_syntax,
-    const_fn,
-    const_raw_ptr_to_usize_cast,
-    const_in_array_repeat_expressions,
     untagged_unions,
     maybe_uninit_extra
 )]
@@ -180,4 +177,9 @@ fn panic(info: &PanicInfo) -> ! {
     println!("{:?}", info);
     sys_backtrace();
     loop {}
+}
+
+#[link_name = "xyz"]
+pub fn foo() {
+    println!("foo");
 }

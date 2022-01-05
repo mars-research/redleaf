@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 // #![forbid(unsafe_code)]
-#![feature(box_syntax, const_fn, const_raw_ptr_to_usize_cast, untagged_unions)]
+#![feature(box_syntax, untagged_unions)]
 
 #[macro_use]
 extern crate alloc;

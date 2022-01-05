@@ -23,5 +23,7 @@
 	  "../lib/external/memops/libmemops.a"
     ]
   },
-  "stack-probes": true
+  "stack-probes": {
+      "kind": "call"
+  }
 }

@@ -1,6 +1,6 @@
 #![no_std]
 #![no_main]
-#![feature(asm, box_syntax, const_fn, const_raw_ptr_to_usize_cast)]
+#![feature(asm, box_syntax)]
 #![forbid(unsafe_code)]
 
 mod tpm_dev;
