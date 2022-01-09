@@ -1,10 +1,10 @@
-///! Include multiple attributes that 
+///! Include multiple attributes that
 use proc_macro::TokenStream;
 
 macro_rules! generate_placeholder_attributes {
     () => {};
     ($attr:ident) => {
-        #[doc = "Placeholder attribute; noop besides removing the attribute itself."] 
+        #[doc = "Placeholder attribute; noop besides removing the attribute itself."]
         #[proc_macro_attribute]
         pub fn $attr(_attr: TokenStream, item: TokenStream) -> TokenStream {
             item
@@ -21,6 +21,7 @@ generate_placeholder_attributes! {
     interface,
     domain_create,
     domain_create_blob,
+    domain_create_components,
 }
 // #[proc_macro_attribute]
 // pub fn a(mut attr: TokenStream, item: TokenStream) -> TokenStream {

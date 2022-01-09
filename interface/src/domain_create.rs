@@ -14,7 +14,7 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use syscalls::{Domain, Heap, Interrupt};
 
-#[domain_create(path = "dom_proxy")]
+#[domain_create(path = "proxy", relative_path = "usr/proxy")]
 pub trait CreateProxy {
     fn create_domain_proxy(
         &self,
@@ -41,7 +41,8 @@ pub trait CreateProxy {
 }
 
 /* AB: XXX: first thing: change all names to create_domain -- it's absurd */
-#[domain_create(path = "pci")]
+#[domain_create(path = "pci", relative_path = "sys/driver/pci")]
+#[domain_create_components(Domain, MMap, Heap)]
 pub trait CreatePCI: Send + Sync {
     fn create_domain_pci(&self) -> (Box<dyn Domain>, Box<dyn PCI>);
 }
@@ -51,7 +52,7 @@ pub trait CreateAHCI: Send + Sync {
     fn create_domain_ahci(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn BDev>);
 }
 
-#[domain_create(path = "membdev")]
+#[domain_create(path = "membdev", relative_path = "sys/driver/membdev")]
 pub trait CreateMemBDev: Send + Sync {
     fn create_domain_membdev(&self, memdisk: &'static mut [u8])
         -> (Box<dyn Domain>, Box<dyn BDev>);
@@ -62,7 +63,7 @@ pub trait CreateMemBDev: Send + Sync {
     ) -> (Box<dyn Domain>, Box<dyn BDev>);
 }
 
-#[domain_create(path = "bdev_shadow")]
+#[domain_create(path = "bdev_shadow", relative_path = "usr/shadow/bdev")]
 pub trait CreateBDevShadow: Send + Sync {
     fn create_domain_bdev_shadow(
         &self,
@@ -70,23 +71,23 @@ pub trait CreateBDevShadow: Send + Sync {
     ) -> (Box<dyn Domain>, Box<dyn BDev>);
 }
 
-#[domain_create(path = "ixgbe")]
+#[domain_create(path = "ixgbe", relative_path = "sys/driver/ixgbe")]
 pub trait CreateIxgbe: Send + Sync {
     fn create_domain_ixgbe(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net>);
 }
 
-#[domain_create(path = "virtio_net")]
+#[domain_create(path = "virtio_net", relative_path = "sys/driver/virtio_net")]
 pub trait CreateVirtioNet: Send + Sync {
     fn create_domain_virtio_net(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn Net>);
 }
 
-#[domain_create(path = "virtio_block")]
+#[domain_create(path = "virtio_block", relative_path = "sys/driver/virtio_block")]
 pub trait CreateVirtioBlock: Send + Sync {
     fn create_domain_virtio_block(&self, pci: Box<dyn PCI>)
         -> (Box<dyn Domain>, Box<dyn NvmeBDev>);
 }
 
-#[domain_create(path = "net_shadow")]
+#[domain_create(path = "net_shadow", relative_path = "usr/shadow/net")]
 pub trait CreateNetShadow: Send + Sync {
     fn create_domain_net_shadow(
         &self,
@@ -95,7 +96,7 @@ pub trait CreateNetShadow: Send + Sync {
     ) -> (Box<dyn Domain>, Box<dyn Net>);
 }
 
-#[domain_create(path = "nvme_shadow")]
+#[domain_create(path = "nvme_shadow", relative_path = "usr/shadow/nvme")]
 pub trait CreateNvmeShadow: Send + Sync {
     fn create_domain_nvme_shadow(
         &self,
@@ -104,22 +105,22 @@ pub trait CreateNvmeShadow: Send + Sync {
     ) -> (Box<dyn Domain>, Box<dyn NvmeBDev>);
 }
 
-#[domain_create(path = "nvme")]
+#[domain_create(path = "nvme", relative_path = "sys/driver/nvme")]
 pub trait CreateNvme: Send + Sync {
     fn create_domain_nvme(&self, pci: Box<dyn PCI>) -> (Box<dyn Domain>, Box<dyn NvmeBDev>);
 }
 
-#[domain_create(path = "xv6fs")]
+#[domain_create(path = "xv6fs", relative_path = "usr/xv6/kernel/fs")]
 pub trait CreateRv6FS: Send + Sync {
     fn create_domain_xv6fs(&self, bdev: Box<dyn BDev>) -> (Box<dyn Domain>, Box<dyn VFS>);
 }
 
-#[domain_create(path = "xv6net")]
+#[domain_create(path = "xv6net", relative_path = "usr/xv6/kernel/net")]
 pub trait CreateRv6Net: Send + Sync {
     fn create_domain_xv6net(&self, net: Box<dyn Net>) -> (Box<dyn Domain>, Box<dyn UsrNet>);
 }
 
-#[domain_create(path = "xv6net_shadow")]
+#[domain_create(path = "xv6net_shadow", relative_path = "usr/shadow/xv6net")]
 pub trait CreateRv6NetShadow: Send + Sync {
     fn create_domain_xv6net_shadow(
         &self,
@@ -140,11 +141,11 @@ pub trait CreateRv6Usr: Send + Sync {
 }
 pub type CreateRv6UsrPtr = Box<dyn CreateRv6Usr + Send + Sync>;
 
-#[domain_create(path = "xv6kernel")]
+#[domain_create(path = "xv6kernel", relative_path = "usr/xv6/kernel/core")]
 pub trait CreateRv6: Send + Sync {
     fn create_domain_xv6kernel(
         &self,
-        ints: Box<dyn Interrupt>,
+        ints: Box<dyn Interrupt + Send + Sync>,
         create_xv6fs: Arc<dyn CreateRv6FS>,
         create_xv6net: Arc<dyn CreateRv6Net>,
         create_xv6net_shadow: Arc<dyn CreateRv6NetShadow>,
@@ -156,18 +157,18 @@ pub trait CreateRv6: Send + Sync {
     ) -> (Box<dyn Domain>, Box<dyn Rv6>);
 }
 
-#[domain_create(path = "dom_c")]
+#[domain_create(path = "dom_c", relative_path = "usr/test/dom_c")]
 pub trait CreateDomC: Send + Sync {
     fn create_domain_dom_c(&self) -> (Box<dyn Domain>, Box<dyn DomC>);
     fn recreate_domain_dom_c(&self, dom: Box<dyn Domain>) -> (Box<dyn Domain>, Box<dyn DomC>);
 }
 
-#[domain_create(path = "dom_d")]
+#[domain_create(path = "dom_d", relative_path = "usr/test/dom_d")]
 pub trait CreateDomD: Send + Sync {
     fn create_domain_dom_d(&self, dom_c: Box<dyn DomC>) -> (Box<dyn Domain>, ());
 }
 
-#[domain_create(path = "shadow")]
+#[domain_create(path = "shadow", relative_path = "usr/test/shadow")]
 pub trait CreateShadow: Send + Sync {
     fn create_domain_shadow(
         &self,
@@ -180,7 +181,7 @@ pub trait CreateBenchnet: Send + Sync {
     fn create_domain_benchnet(&self, net: Box<dyn Net>) -> (Box<dyn Domain>, ());
 }
 
-#[domain_create(path = "benchnvme")]
+#[domain_create(path = "benchnvme", relative_path = "usr/test/benchnvme")]
 pub trait CreateBenchnvme: Send + Sync {
     fn create_domain_benchnvme(&self, nvme: Box<dyn NvmeBDev>) -> (Box<dyn Domain>, ());
 }
@@ -190,7 +191,7 @@ pub trait CreateHashStore: Send + Sync {
     fn create_domain_hashstore(&self) -> (Box<dyn Domain>, ());
 }
 
-#[domain_create(path = "tpm")]
+#[domain_create(path = "tpm", relative_path = "sys/driver/tpm")]
 pub trait CreateTpm: Send + Sync {
     fn create_domain_tpm(&self) -> (Box<dyn Domain>, Box<dyn UsrTpm>);
 }

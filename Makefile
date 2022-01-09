@@ -60,7 +60,7 @@ xv6fs_img = tools/rv6-mkfs/build/fs.img
 root := ./
 domain_list := $(addprefix domains/build/, \
 	redleaf_init \
-	dom_proxy \
+	proxy \
 	dom_c \
 	dom_d \
 	shadow \

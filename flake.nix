@@ -8,7 +8,7 @@
   outputs = { self, mars-std, ... }: let
     supportedSystems = [ "x86_64-linux" ];
   in mars-std.lib.eachSystem supportedSystems (system: let
-    nightlyVersion = "2021-01-10";
+    nightlyVersion = "2021-12-15";
 
     pkgs = mars-std.legacyPackages.${system};
     pinnedRust = pkgs.rust-bin.nightly.${nightlyVersion}.default.override {
@@ -31,6 +31,7 @@
 
         gcc10 clang_10 nasm
         qemu grub2 xorriso gdb
+        zlib
       ]);
     };
 

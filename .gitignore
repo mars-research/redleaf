@@ -21,3 +21,5 @@ sata.img
 **/*.sw*
 **/*.log
 **/_gen.rs
+
+domains/generated/

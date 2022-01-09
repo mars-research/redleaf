@@ -7,18 +7,18 @@ use alloc::vec::Vec;
 use spin::Mutex;
 
 use console::println;
-use interface::domain_create::CreateRv6Usr;
-use interface::rref::{RRefDeque, RRefVec};
 use interface::bdev::{BlkReq, NvmeBDev};
+use interface::domain_create::CreateRv6Usr;
 use interface::net::{Net, NetworkStats};
 use interface::rpc::RpcResult;
+use interface::rref::{RRefDeque, RRefVec};
 use interface::rv6::{Rv6, Thread};
 use interface::tpm::UsrTpm;
 use interface::usrnet::UsrNet;
 use interface::vfs::{FileMode, FileStat, Result, UsrVFS, NFILE, VFS};
 
 pub struct Rv6Syscalls {
-    create_xv6usr: Arc<dyn CreateRv6Usr + Send + Sync>,
+    create_xv6usr: Arc<dyn CreateRv6Usr>,
     fs: Box<dyn VFS>,
     usrnet: Box<dyn UsrNet>,
     net: Box<dyn Net>,
@@ -29,7 +29,7 @@ pub struct Rv6Syscalls {
 
 impl Rv6Syscalls {
     pub fn new(
-        create_xv6usr: Arc<dyn CreateRv6Usr + Send + Sync>,
+        create_xv6usr: Arc<dyn CreateRv6Usr>,
         fs: Box<dyn VFS>,
         usrnet: Box<dyn UsrNet>,
         net: Box<dyn Net>,
@@ -96,7 +96,11 @@ impl Rv6 for Rv6Syscalls {
     ) -> RpcResult<Result<Box<dyn Thread>>> {
         Ok((|| {
             let name = core::str::from_utf8(name.as_slice())?;
-            Ok(crate::thread::spawn_thread(self.fs.clone().unwrap(), &name, func))
+            Ok(crate::thread::spawn_thread(
+                self.fs.clone().unwrap(),
+                &name,
+                func,
+            ))
         })())
     }
 

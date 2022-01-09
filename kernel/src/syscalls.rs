@@ -279,7 +279,7 @@ impl syscalls::Interrupt for Interrupt {
         enable_irq();
     }
 
-    fn int_clone(&self) -> Box<dyn syscalls::Interrupt> {
+    fn int_clone(&self) -> Box<dyn syscalls::Interrupt + Send + Sync> {
         Box::new((*self).clone())
     }
 }

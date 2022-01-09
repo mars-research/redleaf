@@ -4,10 +4,10 @@ version = "0.1.0"
 authors = ["RedLeaf Team"]
 edition = "2018"
 
-[[bin]]
-name = "bdev_shadow"
-test = false
-bench = false
+#[[bin]]
+#name = "bdev_shadow"
+#test = false
+#bench = false
 
 [dependencies]
 syscalls = { path = "../../../../lib/core/interfaces/syscalls" }

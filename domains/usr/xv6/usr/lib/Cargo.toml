@@ -9,3 +9,16 @@ edition = "2018"
 array-init = "0.1.1"
 spin = "0.5.2"
 interface = { path = "../../../../../interface/generated" }
+malloc = { path = "../../../../../lib/core/malloc" }
+libsyscalls = { path = "../../../../../lib/core/libsyscalls" }
+libbenchnvme = { path = "../../../../lib/libbenchnvme" }
+libbenchnet = { path = "../../../../lib/libbenchnet" }
+libbenchtpm = { path = "../../../../lib/libbenchtpm" }
+libtime = { path = "../../../../../lib/core/libtime" }
+utils = { path = "../../lib/utils" }
+syscalls = { path = "../../../../../lib/core/interfaces/syscalls" }
+redhttpd = { path = "../../../../lib/redhttpd" }
+
+[dependencies.arrayvec]
+version = "0.5.1"
+default-features = false

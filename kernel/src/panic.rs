@@ -79,7 +79,7 @@ pub fn backtrace_no_resolve() {
 
 static ELF_DATA: Once<&'static [u8]> = Once::new();
 #[thread_local]
-static ELF_CONTEXT: Once<Option<Context>> = Once::new();
+static ELF_CONTEXT: Once<Option<Context<gimli::EndianRcSlice<gimli::RunTimeEndian>>>> = Once::new();
 static ELF_BIN: Once<elfloader::ElfBinary> = Once::new();
 static RELOCATED_OFFSET: u64 = 0x0;
 
@@ -101,7 +101,7 @@ pub fn init_backtrace_context() {
     }
 }
 
-fn new_ctxt(file: &elfloader::ElfBinary) -> Option<Context> {
+fn new_ctxt(file: &elfloader::ElfBinary) -> Option<Context<gimli::EndianRcSlice<gimli::RunTimeEndian>>> {
     let endian = gimli::RunTimeEndian::Little;
 
     fn load_section<S, Endian>(elf: &elfloader::ElfBinary, endian: Endian) -> S
@@ -119,6 +119,7 @@ fn new_ctxt(file: &elfloader::ElfBinary) -> Option<Context> {
 
     let debug_abbrev: gimli::DebugAbbrev<_> = load_section(file, endian);
     let debug_addr: gimli::DebugAddr<_> = load_section(file, endian);
+    let debug_aranges: gimli::DebugAranges<_> = load_section(file, endian);
     let debug_info: gimli::DebugInfo<_> = load_section(file, endian);
     let debug_line: gimli::DebugLine<_> = load_section(file, endian);
     let debug_line_str: gimli::DebugLineStr<_> = load_section(file, endian);
@@ -131,6 +132,7 @@ fn new_ctxt(file: &elfloader::ElfBinary) -> Option<Context> {
     Context::from_sections(
         debug_abbrev,
         debug_addr,
+        debug_aranges,
         debug_info,
         debug_line,
         debug_line_str,
@@ -144,7 +146,7 @@ fn new_ctxt(file: &elfloader::ElfBinary) -> Option<Context> {
 }
 
 fn backtrace_format(
-    context: Option<&Context>,
+    context: Option<&Context<gimli::EndianRcSlice<gimli::RunTimeEndian>>>,
     relocated_offset: u64,
     count: usize,
     frame: &backtracer::Frame,

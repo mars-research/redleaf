@@ -1,13 +1,7 @@
 #![no_std]
 #![no_main]
-#![forbid(unsafe_code)]
-#![feature(
-    box_syntax,
-    const_fn,
-    const_raw_ptr_to_usize_cast,
-    str_strip,
-    untagged_unions
-)]
+// #![forbid(unsafe_code)]
+#![feature(box_syntax, str_strip, untagged_unions)]
 
 extern crate alloc;
 extern crate core;
@@ -17,8 +11,8 @@ use alloc::boxed::Box;
 use alloc::string::String;
 use core::panic::PanicInfo;
 
-use syscalls::{Heap, Syscall};
 use interface::rv6::Rv6;
+use syscalls::{Heap, Syscall};
 use usrlib::syscalls::sys_read_slice_slow;
 use usrlib::{print, println};
 
