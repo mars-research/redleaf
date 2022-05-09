@@ -56,3 +56,6 @@ For example, to view information about the `ixgbe` domain, run:
 ```
 ./fo crate ixgbe
 ```
+
+## Publication
+[RedLeaf: Isolation and Communication in a Safe Operating System(OSDI 20)](https://www.usenix.org/conference/osdi20/presentation/narayanan-vikram)
