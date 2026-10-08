@@ -291,7 +291,7 @@ impl Intel8259x {
         self.device.init_tx();
 
         // final step: enable DMA
-        self.write_reg(IxgbeRegs::DMATXCTL, IXGBE_DMATXCTL_TE);
+        self.write_reg(IxgbeRegs::DMATXCTL, IXGBE_DMATXCTL_TE | IXGBE_DMATXCTL_VT_DEFAULT);
     }
 
     /// Returns the link speed of this device.

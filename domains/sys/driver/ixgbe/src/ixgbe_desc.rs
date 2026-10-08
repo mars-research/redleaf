@@ -41,6 +41,7 @@ pub const IXGBE_TXPBSIZE_40KB: u64 = 0x0000A000; /* 40KB Packet Buffer */
 pub const IXGBE_RTTDCS_ARBDIS: u64 = 0x00000040; /* DCB arbiter disable */
 
 pub const IXGBE_DMATXCTL_TE: u64 = 0x1; /* Transmit Enable */
+pub const IXGBE_DMATXCTL_VT_DEFAULT: u64 = 0x8100 << 16; /* Datasheet states: "For proper operation, software must not change the default setting of this field" */
 
 pub const IXGBE_RXDCTL_ENABLE: u64 = 0x02000000; /* Ena specific Rx Queue */
 pub const IXGBE_TXDCTL_ENABLE: u64 = 0x02000000; /* Ena specific Tx Queue */
