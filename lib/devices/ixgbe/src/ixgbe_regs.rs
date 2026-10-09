@@ -35,7 +35,7 @@ struct ArrayRegister {
 #[derive(Copy, Clone, Debug)]
 pub enum IxgbeRegs {
     CTRL = 0x00000,
-    STATUS = 0x00004,
+    STATUS = 0x00008,
     CTRL_EXT = 0x00018,
     EEC = 0x10010,
     AUTOC = 0x042A0,
